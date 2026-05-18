@@ -1,4 +1,5 @@
 import type { AppSettings } from '@shared/types'
+import { MORPHING_PRESETS } from '@shared/morphingPresets'
 
 interface Props {
   settings: AppSettings
@@ -8,6 +9,43 @@ interface Props {
 export function VisualControls({ settings, onChange }: Props) {
   return (
     <fieldset className="panel">
+      <legend>Morphing & Visuals</legend>
+      <div className="grid2" style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={settings.useMorphing}
+            onChange={(e) => onChange({ useMorphing: e.target.checked })}
+          />
+          <strong>Use morphing</strong>
+        </label>
+        <label>
+          Morphing Algorithm
+          <select
+            value={settings.morphingAlgorithm || 'liquid'}
+            onChange={(e) => onChange({ morphingAlgorithm: e.target.value as 'liquid' | 'oniric' })}
+            disabled={!settings.useMorphing}
+          >
+            <option value="liquid">Liquid Morphing</option>
+            <option value="oniric">Oniric Morphing</option>
+          </select>
+        </label>
+        <label>
+          Morphing Preset
+          <select
+            value={settings.morphingPresetId}
+            onChange={(e) => onChange({ morphingPresetId: e.target.value })}
+            disabled={!settings.useMorphing}
+          >
+            {MORPHING_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <legend>Flash, decay e colori</legend>
       <div className="grid2">
         <label>

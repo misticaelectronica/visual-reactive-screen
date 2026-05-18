@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VisualStatePayload } from '@shared/types'
 import { createVisualSurface } from './visualSurface'
+import { createMorphingCanvas } from './morphingCanvas'
+import { createOniricMorphingCanvas } from './oniricMorphingCanvas'
 
 export function OutputApp() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<ReturnType<typeof createVisualSurface> | null>(null)
+  const morphingRef = useRef<ReturnType<typeof createMorphingCanvas> | null>(null)
   const [msgCount, setMsgCount] = useState(0)
   const [lastColor, setLastColor] = useState<string>('—')
 
@@ -15,7 +18,36 @@ export function OutputApp() {
     surfaceRef.current = createVisualSurface(rootRef.current)
 
     const off = api.onVisualState((state: VisualStatePayload) => {
+      // Base flat color
       surfaceRef.current?.setColor(state.backgroundColor)
+      
+      // Manage morphing layer lifecycle
+      if (state.useMorphing && state.settings) {
+        const algo = state.settings.morphingAlgorithm || 'liquid'
+        
+        // If we have an instance but the algorithm changed, destroy it
+        if (morphingRef.current && (morphingRef.current as any).__algo !== algo) {
+          morphingRef.current.destroy()
+          morphingRef.current = null
+        }
+
+        if (!morphingRef.current) {
+          if (algo === 'oniric') {
+            morphingRef.current = createOniricMorphingCanvas(rootRef.current!);
+            (morphingRef.current as any).__algo = 'oniric'
+          } else {
+            morphingRef.current = createMorphingCanvas(rootRef.current!);
+            (morphingRef.current as any).__algo = 'liquid'
+          }
+        }
+        morphingRef.current.updateState(state)
+      } else {
+        if (morphingRef.current) {
+          morphingRef.current.destroy()
+          morphingRef.current = null
+        }
+      }
+
       setMsgCount((n) => n + 1)
       setLastColor(state.backgroundColor)
     })
@@ -24,6 +56,8 @@ export function OutputApp() {
       off()
       surfaceRef.current?.destroy()
       surfaceRef.current = null
+      morphingRef.current?.destroy()
+      morphingRef.current = null
     }
   }, [])
 

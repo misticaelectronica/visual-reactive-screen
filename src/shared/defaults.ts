@@ -19,4 +19,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   softMode: false,
   selectedDisplayId: null,
   selectedAudioInputId: null,
+  useMorphing: false,
+  morphingAlgorithm: 'liquid',
+  morphingPresetId: 'ritual-drift',
 }

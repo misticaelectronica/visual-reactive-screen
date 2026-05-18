@@ -26,6 +26,9 @@ export interface AppSettings {
   softMode: boolean
   selectedDisplayId: number | null
   selectedAudioInputId: string | null
+  useMorphing: boolean
+  morphingAlgorithm: 'liquid' | 'oniric'
+  morphingPresetId: string
 }
 
 export interface DisplayInfo {
@@ -93,6 +96,26 @@ export interface VisualStatePayload {
   backgroundColor: string
   brightness: number
   flashActive: boolean
+  useMorphing?: boolean
+  bandEnergies?: BandEnergies
+  settings?: AppSettings
+}
+
+export interface MorphingPreset {
+  id: string
+  name: string
+  shapeCount: number
+  blur: number
+  opacity: number
+  speed: number
+  deformation: number
+  scale: number
+  blendMode: GlobalCompositeOperation
+  lowScaleAmount: number
+  lowMidDeformationAmount: number
+  midOpacityAmount: number
+  highNoiseAmount: number
+  flashEdgeAmount: number
 }
 
 export interface ControlApi {

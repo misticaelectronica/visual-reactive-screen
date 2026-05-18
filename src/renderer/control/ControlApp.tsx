@@ -10,6 +10,7 @@ import { BandMeters } from './components/BandMeters'
 import { ThresholdControls } from './components/ThresholdControls'
 import { VisualControls } from './components/VisualControls'
 import { SafetyControls } from './components/SafetyControls'
+import { PresetsSelector } from './components/PresetsSelector'
 import { useAudioAnalyzer } from './hooks/useAudioAnalyzer'
 import { useDisplays } from './hooks/useDisplays'
 import { useSettingsPersistence } from './hooks/useSettings'
@@ -102,6 +103,9 @@ export function ControlApp() {
         backgroundColor: output.backgroundColor,
         brightness: output.brightness,
         flashActive: output.flashActive,
+        useMorphing: settings.useMorphing,
+        bandEnergies,
+        settings,
       })
 
       raf = requestAnimationFrame(loop)
@@ -237,6 +241,8 @@ export function ControlApp() {
         <h2>Metriche banda</h2>
         <BandMeters meters={audio.meters} thresholds={thresholdPreview} />
       </section>
+
+      <PresetsSelector onApplyPreset={patchSettings} />
 
       <ThresholdControls settings={settings} onChange={patchSettings} />
       <VisualControls settings={settings} onChange={patchSettings} />
