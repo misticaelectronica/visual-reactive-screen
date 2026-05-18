@@ -96,6 +96,8 @@ export function ControlApp() {
         panic,
         testFlashUntilMs: testFlashUntilRef.current,
         audioPrimed,
+        rawFrequencyData: snap?.rawFrequencyData,
+        sampleRate: audioRef.current.sampleRate,
       })
       visStateRef.current = next
 
@@ -106,6 +108,7 @@ export function ControlApp() {
         useMorphing: settings.useMorphing,
         bandEnergies,
         settings,
+        whiteMix: output.debug.whiteMix,
       })
 
       raf = requestAnimationFrame(loop)

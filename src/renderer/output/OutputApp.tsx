@@ -72,7 +72,7 @@ export function OutputApp() {
   }
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+    <div className="output-root" style={{ position: 'fixed', inset: 0, overflow: 'hidden', backgroundColor: 'black' }}>
       <div ref={rootRef} style={{ position: 'absolute', inset: 0 }} />
       {/* Debug overlay — rimuovere dopo verifica */}
       <div

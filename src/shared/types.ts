@@ -29,6 +29,16 @@ export interface AppSettings {
   useMorphing: boolean
   morphingAlgorithm: 'liquid' | 'oniric'
   morphingPresetId: string
+  flashTriggerBandMin: number
+  flashTriggerBandMax: number
+  secondaryFlashBandMin: number
+  secondaryFlashBandMax: number
+  flashThreshold: number
+  transientDelta: number
+  lowDominanceBlockRatio: number
+  subMovement: number
+  kickMovement: number
+  flashOnKick: boolean
 }
 
 export interface DisplayInfo {
@@ -63,6 +73,8 @@ export interface VisualEngineState {
   flashHistoryMs: number[]
   pinkHotBlend: number
   overallDrive: number
+  customFlashBandAverage?: number
+  prevCustomFlashBandEnergy?: number
 }
 
 export interface VisualEngineInput {
@@ -78,6 +90,8 @@ export interface VisualEngineInput {
   testFlashUntilMs: number
   /** Evita falsi trigger all'avvio mentre le medie non sono stabilizzate */
   audioPrimed: boolean
+  rawFrequencyData?: Uint8Array
+  sampleRate?: number
 }
 
 export const IPC_CHANNELS = {
@@ -99,6 +113,7 @@ export interface VisualStatePayload {
   useMorphing?: boolean
   bandEnergies?: BandEnergies
   settings?: AppSettings
+  whiteMix?: number
 }
 
 export interface MorphingPreset {

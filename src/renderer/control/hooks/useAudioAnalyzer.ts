@@ -12,6 +12,7 @@ export interface AudioFrameSnapshot {
   movingAverages: BandEnergies
   meters: BandEnergies
   audioPrimed: boolean
+  rawFrequencyData?: Uint8Array
 }
 
 const emptyBands = (): BandEnergies => ({
@@ -186,6 +187,7 @@ export function useAudioAnalyzer(
         movingAverages: movingRef.current,
         meters: metersRef.current,
         audioPrimed,
+        rawFrequencyData: freqBuf,
       }
     },
     [],
@@ -207,5 +209,6 @@ export function useAudioAnalyzer(
     pullFrame,
     meters,
     averages,
+    sampleRate: ctxRef.current?.sampleRate || 44100,
   }
 }
