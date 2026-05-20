@@ -157,11 +157,11 @@ export function createMorphingCanvas(container: HTMLElement) {
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
     let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 2.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     let effectiveBlur = clamp(preset.blur * 0.72, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    let effectiveOpacity = clamp(preset.opacity * 1.15 + subPressure * 0.12 + kickPulse * 0.08, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    let effectiveScale = clamp(preset.scale * 1.05 + subPressure * 0.20 + kickPulse * 0.10, 0.85, 1.85)
+    let effectiveOpacity = clamp(preset.opacity * 1.15 + subPressure * 0.18 + kickPulse * 0.16, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
+    let effectiveScale = clamp(preset.scale * 1.05 + subPressure * 0.35 + kickPulse * 0.22, 0.85, 1.95)
 
     let midGlowBoost = smoothedBands.mid * preset.midOpacityAmount * 0.58
-    let integratedFlashGlowBoost = smoothedMorphingFlash * preset.flashEdgeAmount
+    let integratedFlashGlowBoost = smoothedMorphingFlash
 
     // Correzione 6: Boost di presenza per i preset organici
     if (isOrganicPreset(presetId)) {
@@ -205,7 +205,7 @@ export function createMorphingCanvas(container: HTMLElement) {
     let baseRadius = Math.min(w, h) * 0.3 * scaleFactor * (1 + subPressure * 1.5 + kickPulse * 0.8)
     
     // Correzione 3: Flash integrated multiplier sul raggio
-    baseRadius *= 1 + integratedFlashGlowBoost * 0.18
+    baseRadius *= 1 + integratedFlashGlowBoost * 0.08
 
     let baseOp = effectiveOpacity + midGlowBoost
     if (profile.spatialBias === 'fieldWide') {
@@ -281,7 +281,7 @@ export function createMorphingCanvas(container: HTMLElement) {
       }
 
       // Correzione 3: mix intensityColor + flashColor
-      const stopColor = mixColor(baseShapeColor, flashColor, integratedFlashGlowBoost)
+      const stopColor = mixColor(baseShapeColor, flashColor, integratedFlashGlowBoost * 0.28)
 
       let alphaVal = op
       if (i === 1) alphaVal *= 0.8
@@ -290,7 +290,7 @@ export function createMorphingCanvas(container: HTMLElement) {
       const fillColor = rgbStr(stopColor, alphaVal)
 
       ctx.fillStyle = fillColor
-      ctx.shadowBlur = clamp(effectiveBlur * contrastBlurMult, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
+      ctx.shadowBlur = clamp(effectiveBlur * contrastBlurMult + integratedFlashGlowBoost * 26, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR + 28)
       ctx.shadowColor = fillColor
       ctx.fill()
       
@@ -303,12 +303,17 @@ export function createMorphingCanvas(container: HTMLElement) {
   rafId = requestAnimationFrame(render)
 
   return {
+    setOpacity(opacity: number) {
+      canvas.style.opacity = String(clamp(opacity, 0, 1))
+    },
     updateState(payload: VisualStatePayload) {
       if (payload.settings) currentSettings = payload.settings
       if (payload.bandEnergies) currentBands = payload.bandEnergies
       isFlashing = !!payload.flashActive
       if (payload.backgroundColor) currentBgColor = payload.backgroundColor
-      if (payload.whiteMix !== undefined) {
+      if (payload.flashIntensity !== undefined) {
+        currentWhiteMix = payload.flashIntensity
+      } else if (payload.whiteMix !== undefined) {
         currentWhiteMix = payload.whiteMix
       } else {
         currentWhiteMix = payload.flashActive ? 1 : 0

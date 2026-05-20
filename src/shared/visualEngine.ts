@@ -1,10 +1,14 @@
 import type {
   BandEnergies,
+  FlashMode,
   VisualEngineDebug,
   VisualEngineInput,
   VisualEngineOutput,
   VisualEngineState,
 } from './types'
+
+const DEBUG_FLASH = false
+let lastFlashDebugLogMs = -1e12
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n))
@@ -38,6 +42,41 @@ function expSmooth(prev: number, target: number, deltaMs: number, tauMs: number)
   return prev + (target - prev) * k
 }
 
+type FlashBandConfig = {
+  main: { minHz: number; maxHz: number }
+  secondary?: { minHz: number; maxHz: number }
+}
+
+function getFlashBandsForMode(flashMode: FlashMode): FlashBandConfig | null {
+  if (flashMode === 'off') return null
+  if (flashMode === 'low') {
+    return {
+      main: { minHz: 120, maxHz: 420 },
+      secondary: { minHz: 600, maxHz: 1400 },
+    }
+  }
+  if (flashMode === 'mid') {
+    return {
+      main: { minHz: 420, maxHz: 1800 },
+      secondary: { minHz: 1800, maxHz: 3600 },
+    }
+  }
+  if (flashMode === 'high') {
+    return {
+      main: { minHz: 1800, maxHz: 5200 },
+      secondary: { minHz: 5200, maxHz: 8000 },
+    }
+  }
+  return null
+}
+
+function fallbackFlashEnergyForMode(flashMode: FlashMode, bandEnergies: BandEnergies): number {
+  if (flashMode === 'low') return Math.max(bandEnergies.low, bandEnergies.lowMid * 0.85)
+  if (flashMode === 'mid') return Math.max(bandEnergies.lowMid, bandEnergies.mid)
+  if (flashMode === 'high') return Math.max(bandEnergies.mid * 0.8, bandEnergies.high)
+  return 0
+}
+
 export function createInitialVisualEngineState(): VisualEngineState {
   return {
     lastTriggerMs: -1e12,
@@ -46,10 +85,16 @@ export function createInitialVisualEngineState(): VisualEngineState {
     flashHistoryMs: [],
     pinkHotBlend: 0,
     overallDrive: 0,
+    flashStartedAtMs: undefined,
+    manualFlashStartedAtMs: undefined,
+    flashPeakIntensity: 0,
+    lastFlashCandidateMs: undefined,
+    lastFlashCandidateIntervalMs: undefined,
+    regularFlashCandidateCount: 0,
   }
 }
 
-function getCustomBandEnergy(
+function getBandEnergy(
   frequencyData: Uint8Array | undefined,
   sampleRate: number | undefined,
   minHz: number,
@@ -62,19 +107,24 @@ function getCustomBandEnergy(
   const maxHzClamped = Math.min(maxHz, nyquist - 1e-6)
   const minHzClamped = Math.max(minHz, 0)
 
-  let start = Math.floor((minHzClamped * fftSize) / sampleRate)
-  let end = Math.ceil((maxHzClamped * fftSize) / sampleRate) - 1
+  let start = Math.floor(minHzClamped / (sampleRate / fftSize))
+  let end = Math.ceil(maxHzClamped / (sampleRate / fftSize)) - 1
 
   start = Math.max(0, Math.min(binCount - 1, start))
   end = Math.max(start, Math.min(binCount - 1, end))
 
   if (end < start) return 0
   let sum = 0
+  let sumSquares = 0
   const count = end - start + 1
   for (let i = start; i <= end; i++) {
-    sum += frequencyData[i] ?? 0
+    const value = frequencyData[i] ?? 0
+    sum += value
+    sumSquares += value * value
   }
-  return sum / count / 255
+  const mean = sum / count / 255
+  const rms = Math.sqrt(sumSquares / count) / 255
+  return clamp01(rms * 0.82 + mean * 0.18)
 }
 
 export function stepVisualEngine(input: VisualEngineInput): {
@@ -92,12 +142,10 @@ export function stepVisualEngine(input: VisualEngineInput): {
     testFlashUntilMs,
   } = input
 
-  const soft = settings.softMode
+  const soft = settings.softMode === true
+  const flashMode: FlashMode = settings.flashMode ?? 'mid'
   const sens = settings.sensitivity * (soft ? 0.65 : 1)
-  const decayMsEffective = settings.decayMs * (soft ? 1.45 : 1)
-  const maxFlash = soft
-    ? Math.max(2, Math.floor(settings.maxFlashesPerSecond * 0.6))
-    : settings.maxFlashesPerSecond
+  const maxFlashRate = Number(settings.maxFlashesPerSecond)
 
   const thresholds: BandEnergies = {
     low: movingAverages.low * settings.lowThresholdMultiplier * sens,
@@ -116,11 +164,20 @@ export function stepVisualEngine(input: VisualEngineInput): {
       overallDrive: 0,
       customFlashBandAverage: prev.customFlashBandAverage,
       prevCustomFlashBandEnergy: prev.prevCustomFlashBandEnergy,
+      secondaryFlashBandAverage: prev.secondaryFlashBandAverage,
+      flashStartedAtMs: undefined,
+      manualFlashStartedAtMs: undefined,
+      flashPeakIntensity: 0,
+      lastFlashCandidateMs: prev.lastFlashCandidateMs,
+      lastFlashCandidateIntervalMs: prev.lastFlashCandidateIntervalMs,
+      regularFlashCandidateCount: prev.regularFlashCandidateCount ?? 0,
     }
     const output: VisualEngineOutput = {
       backgroundColor: settings.idleColor,
       brightness: 0,
       flashActive: false,
+      flashIntensity: 0,
+      flashMode,
       debug: {
         lowTrigger: false,
         thresholds,
@@ -136,89 +193,150 @@ export function stepVisualEngine(input: VisualEngineInput): {
   let flashHistoryMs = prev.flashHistoryMs.filter((t) => nowMs - t < 1000)
   
   // Rate limit reale basato sia su cooldownMs che su frequenza decimale
-  const minIntervalMs = 1000 / settings.maxFlashesPerSecond
-  const requiredIntervalMs = Math.max(settings.cooldownMs, minIntervalMs)
+  const rateLimitMs =
+    flashMode === 'off'
+      ? Number.POSITIVE_INFINITY
+      : !Number.isFinite(maxFlashRate) || maxFlashRate <= 0
+        ? 2500
+        : 1000 / maxFlashRate
+  let requiredIntervalMs = Math.max(settings.cooldownMs, rateLimitMs)
+  if (!Number.isFinite(requiredIntervalMs) || Number.isNaN(requiredIntervalMs)) {
+    requiredIntervalMs = 2500
+  }
   const cooldownOk = nowMs - prev.lastTriggerMs >= requiredIntervalMs
-  const underRateLimit = flashHistoryMs.length < maxFlash
+  const timeSinceLastFlash = nowMs - prev.lastTriggerMs
 
   let flashBlockedReason: VisualEngineDebug['flashBlockedReason'] = 'none'
 
-  // Calcolo dell'energia dinamica della trigger band e dell'eventuale secondary trigger band
-  let currentFlashBandEnergy = 0
-  if (settings.flashTriggerBandMin > 0 && settings.flashTriggerBandMax > 0) {
-    currentFlashBandEnergy = getCustomBandEnergy(
+  // Calcolo dell'energia dinamica della trigger band selezionata dal flashMode
+  let mainFlashBandEnergy = 0
+  let secondaryFlashBandEnergy = 0
+  const flashBand = getFlashBandsForMode(flashMode)
+  if (flashBand && input.rawFrequencyData && input.sampleRate) {
+    mainFlashBandEnergy = getBandEnergy(
       input.rawFrequencyData,
       input.sampleRate,
-      settings.flashTriggerBandMin,
-      settings.flashTriggerBandMax,
+      flashBand.main.minHz,
+      flashBand.main.maxHz,
       settings.fftSize
     )
-    if (settings.secondaryFlashBandMin > 0 && settings.secondaryFlashBandMax > 0) {
-      const secondaryEnergy = getCustomBandEnergy(
+    if (flashBand.secondary) {
+      secondaryFlashBandEnergy = getBandEnergy(
         input.rawFrequencyData,
         input.sampleRate,
-        settings.secondaryFlashBandMin,
-        settings.secondaryFlashBandMax,
+        flashBand.secondary.minHz,
+        flashBand.secondary.maxHz,
         settings.fftSize
       )
-      currentFlashBandEnergy = Math.max(currentFlashBandEnergy, secondaryEnergy)
     }
   } else {
-    currentFlashBandEnergy = bandEnergies.high
+    mainFlashBandEnergy = fallbackFlashEnergyForMode(flashMode, bandEnergies)
+    secondaryFlashBandEnergy =
+      flashMode === 'low'
+        ? bandEnergies.mid * 0.75
+        : flashMode === 'mid'
+          ? bandEnergies.high * 0.85
+          : bandEnergies.high * 0.55
   }
+  const currentFlashBandEnergy = flashBand?.secondary
+    ? mainFlashBandEnergy * 0.75 + secondaryFlashBandEnergy * 0.25
+    : mainFlashBandEnergy
 
   // Media dinamica lenta e transitorio per la trigger band
-  let customFlashBandAverage = prev.customFlashBandAverage ?? 0.05
-  const prevCustomFlashBandEnergy = prev.prevCustomFlashBandEnergy ?? 0.05
+  let customFlashBandAverage = prev.customFlashBandAverage ?? 0.025
+  let secondaryFlashBandAverage = prev.secondaryFlashBandAverage ?? 0.025
+  const prevCustomFlashBandEnergy = prev.prevCustomFlashBandEnergy ?? currentFlashBandEnergy
+  const averageFloor = 0.025
+  const flashBandAverageForDecision = Math.max(customFlashBandAverage, averageFloor)
 
-  const avgAlpha = 1 - Math.exp(-deltaMs / 280)
-  customFlashBandAverage = customFlashBandAverage * avgAlpha + currentFlashBandEnergy * (1 - avgAlpha)
-
-  const transient = currentFlashBandEnergy - prevCustomFlashBandEnergy
-  const energyThresholdMet = currentFlashBandEnergy > customFlashBandAverage * settings.flashThreshold * (soft ? 0.85 : 1)
-  const transientThresholdMet = transient > settings.transientDelta
+  const transient = Math.max(0, currentFlashBandEnergy - prevCustomFlashBandEnergy)
+  const deltaRelative = transient / flashBandAverageForDecision
+  const relativeEnergy = currentFlashBandEnergy / flashBandAverageForDecision
+  const secondaryBoost =
+    flashBand?.secondary && secondaryFlashBandEnergy > Math.max(secondaryFlashBandAverage, averageFloor) * 1.35 ? 0.10 : 0
+  const boostedRelativeEnergy = relativeEnergy + secondaryBoost
 
   // Blocco dominanza del basso ed inibizione sul kick regular
-  const isLowDominant = bandEnergies.low > currentFlashBandEnergy * settings.lowDominanceBlockRatio
-  const isRegularKick = bandEnergies.low > thresholds.low
-  const blockFlash = isLowDominant || (!settings.flashOnKick && isRegularKick)
+  const lowEnergy = input.rawFrequencyData && input.sampleRate
+    ? getBandEnergy(input.rawFrequencyData, input.sampleRate, 40, 160, settings.fftSize)
+    : bandEnergies.low
+  const isLowDominant = lowEnergy > currentFlashBandEnergy * settings.lowDominanceBlockRatio
+  const lowDominanceBlockEnabled = flashMode !== 'low' && settings.flashOnKick === false
+  const effectiveFlashThreshold =
+    lowDominanceBlockEnabled && isLowDominant ? settings.flashThreshold * 1.15 : settings.flashThreshold
+  const energyThresholdMet = boostedRelativeEnergy >= effectiveFlashThreshold
+  const transientThresholdMet = deltaRelative >= settings.transientDelta
+  if (lowDominanceBlockEnabled && isLowDominant) {
+    flashBlockedReason = 'none'
+  }
 
   let flashTriggered = false
   const testActive = nowMs < testFlashUntilMs
+  const flashCandidate = flashMode !== 'off' && energyThresholdMet && transientThresholdMet
+  const lastFlashCandidateMs = prev.lastFlashCandidateMs
+  const lastFlashCandidateIntervalMs = prev.lastFlashCandidateIntervalMs
+  const regularFlashCandidateCount = prev.regularFlashCandidateCount ?? 0
 
   if (!testActive && input.audioPrimed) {
-    if (energyThresholdMet && transientThresholdMet && !blockFlash) {
+    if (flashCandidate) {
       if (!cooldownOk) flashBlockedReason = 'cooldown'
-      else if (!underRateLimit) flashBlockedReason = 'rate-limit'
       else {
         flashTriggered = true
         flashBlockedReason = 'none'
       }
-    } else {
-      if (blockFlash) flashBlockedReason = 'cooldown'
     }
   }
 
+  const avgAlpha = 0.035
+  customFlashBandAverage += (currentFlashBandEnergy - customFlashBandAverage) * avgAlpha
+  secondaryFlashBandAverage += (secondaryFlashBandEnergy - secondaryFlashBandAverage) * avgAlpha
+
   let lastTriggerMs = prev.lastTriggerMs
   let flashHoldUntilMs = prev.flashHoldUntilMs
-  let whiteMix = prev.whiteMix
+  let flashStartedAtMs = prev.flashStartedAtMs
+  let manualFlashStartedAtMs = prev.manualFlashStartedAtMs
+  let flashPeakIntensity = prev.flashPeakIntensity ?? 0
 
-  if (testActive) {
-    flashHoldUntilMs = Math.max(flashHoldUntilMs, nowMs + settings.flashDurationMs * 0.35)
-    whiteMix = 1
-  } else if (flashTriggered && cooldownOk && underRateLimit) {
+  if (testActive && flashStartedAtMs === undefined) {
+    flashStartedAtMs = nowMs
+    manualFlashStartedAtMs = nowMs
+    flashPeakIntensity = 1
+  }
+
+  const manualFlashInProgress = manualFlashStartedAtMs !== undefined
+
+  if (flashMode === 'off' && !testActive && !manualFlashInProgress) {
+    flashHoldUntilMs = -1e12
+    flashStartedAtMs = undefined
+    flashPeakIntensity = 0
+  } else if (testActive) {
+    flashHoldUntilMs = Math.max(flashHoldUntilMs, nowMs + settings.flashDurationMs)
+    flashPeakIntensity = 1
+  } else if (flashTriggered && cooldownOk) {
     lastTriggerMs = nowMs
     flashHistoryMs = [...flashHistoryMs, nowMs]
     flashHoldUntilMs = nowMs + settings.flashDurationMs
-    whiteMix = 1
+    flashStartedAtMs = nowMs
+    manualFlashStartedAtMs = undefined
+    flashPeakIntensity = flashMode === 'high' ? 1 : flashMode === 'mid' ? 0.85 : 0.80
   }
 
-  const inHold = nowMs < flashHoldUntilMs || testActive
-  if (inHold) {
-    whiteMix = Math.max(whiteMix, 1)
-  } else {
-    const tau = Math.max(1, decayMsEffective)
-    whiteMix *= Math.exp(-deltaMs / tau)
+  let whiteMix = 0
+  if (flashStartedAtMs !== undefined) {
+    const elapsed = nowMs - flashStartedAtMs
+    if (elapsed <= settings.flashDurationMs || testActive) {
+      whiteMix = flashPeakIntensity || 1
+    } else {
+      const decayProgress = (elapsed - settings.flashDurationMs) / Math.max(1, settings.decayMs)
+      whiteMix = Math.max(0, (flashPeakIntensity || 1) * (1 - decayProgress))
+    }
+    if (whiteMix <= 0) {
+      whiteMix = 0
+      flashStartedAtMs = undefined
+      manualFlashStartedAtMs = undefined
+      flashPeakIntensity = 0
+      flashHoldUntilMs = -1e12
+    }
   }
 
   if (whiteMix < 0.002) whiteMix = 0
@@ -227,7 +345,9 @@ export function stepVisualEngine(input: VisualEngineInput): {
     (bandEnergies.low * 0.35 +
       bandEnergies.lowMid * 0.22 +
       bandEnergies.mid * 0.23 +
-      bandEnergies.high * 0.2) *
+      bandEnergies.high * 0.2 +
+      bandEnergies.low * settings.subMovement * 0.12 +
+      Math.max(0, bandEnergies.low - movingAverages.low) * settings.kickMovement * 0.20) *
       (soft ? 0.85 : 1) *
       sens,
   )
@@ -244,7 +364,8 @@ export function stepVisualEngine(input: VisualEngineInput): {
   const idleToPink = clamp01(overallDrive * 1.15)
   const baseLayer = lerpColor(settings.idleColor, settings.basePinkColor, idleToPink)
   const pinkLayer = lerpColor(baseLayer, settings.hotPinkColor, clamp01(pinkHotBlend * 0.95))
-  const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.12 : whiteMix
+  const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.65 : whiteMix
+  const morphingFlashIntensity = settings.useMorphing ? whiteMix * 0.85 : whiteMix
   const flashedColor = lerpColor(pinkLayer, settings.whiteFlashColor, clamp01(baseFlashIntensity))
   const finalColor =
     settings.useMorphing && settings.morphingAlgorithm === 'oniric'
@@ -253,17 +374,50 @@ export function stepVisualEngine(input: VisualEngineInput): {
 
   const flashActive = whiteMix > 0.35
 
+  if (DEBUG_FLASH && nowMs - lastFlashDebugLogMs >= 500) {
+    lastFlashDebugLogMs = nowMs
+    console.info('[flash-debug]', {
+      flashMode,
+      softMode: soft,
+      mainFlashBandMin: flashBand?.main.minHz ?? null,
+      mainFlashBandMax: flashBand?.main.maxHz ?? null,
+      flashBandEnergy: currentFlashBandEnergy,
+      flashBandAverage: flashBandAverageForDecision,
+      relativeEnergy: boostedRelativeEnergy,
+      flashThreshold: effectiveFlashThreshold,
+      flashBandDelta: transient,
+      deltaRelative,
+      transientDelta: settings.transientDelta,
+      lowEnergy,
+      lowDominanceBlockRatio: settings.lowDominanceBlockRatio,
+      lowDominates: isLowDominant,
+      cooldownMs: settings.cooldownMs,
+      maxFlashesPerSecond: settings.maxFlashesPerSecond,
+      requiredIntervalMs,
+      timeSinceLastFlash,
+      timeOk: cooldownOk,
+      blockReason: flashBlockedReason,
+      flashCandidate,
+      flashTriggered,
+      flashIntensity: whiteMix,
+      lastFlashAt: lastTriggerMs,
+      now: nowMs,
+    })
+  }
+
   const output: VisualEngineOutput = {
     backgroundColor: finalColor,
     brightness: clamp01(overallDrive * 0.85 + pinkHotBlend * 0.35 + whiteMix * 0.2),
     flashActive,
+    flashIntensity: morphingFlashIntensity,
+    flashMode,
     debug: {
-      lowTrigger: flashTriggered && cooldownOk && underRateLimit,
+      lowTrigger: flashTriggered && cooldownOk,
       thresholds,
       whiteMix,
       pinkHotBlend,
       overallDrive,
-      flashBlockedReason: (energyThresholdMet && transientThresholdMet && !blockFlash) && !(cooldownOk && underRateLimit) ? flashBlockedReason : 'none',
+      flashBlockedReason: flashCandidate && !cooldownOk ? flashBlockedReason : 'none',
     },
   }
 
@@ -276,6 +430,13 @@ export function stepVisualEngine(input: VisualEngineInput): {
     overallDrive,
     customFlashBandAverage,
     prevCustomFlashBandEnergy: currentFlashBandEnergy,
+    secondaryFlashBandAverage,
+    flashStartedAtMs,
+    manualFlashStartedAtMs,
+    flashPeakIntensity,
+    lastFlashCandidateMs,
+    lastFlashCandidateIntervalMs,
+    regularFlashCandidateCount,
   }
 
   return { output, next }

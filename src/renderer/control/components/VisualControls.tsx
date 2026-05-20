@@ -1,12 +1,24 @@
-import type { AppSettings } from '@shared/types'
+import type { AppSettings, MorphingAlgorithm } from '@shared/types'
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
+import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
 
 interface Props {
   settings: AppSettings
   onChange: (patch: Partial<AppSettings>) => void
 }
 
+const ONIRIC_PRESET_OPTIONS = [{ id: 'default', name: 'default' }, ...MORPHING_PRESETS]
+
 export function VisualControls({ settings, onChange }: Props) {
+  const morphingAlgorithm = settings.morphingAlgorithm || 'liquid'
+  const presetOptions =
+    morphingAlgorithm === 'psy-hyp'
+      ? PSY_HYP_MORPHING_PRESETS
+      : morphingAlgorithm === 'oniric'
+        ? ONIRIC_PRESET_OPTIONS
+      : MORPHING_PRESETS
+  const presetValue = morphingAlgorithm === 'psy-hyp' ? 'default' : settings.morphingPresetId
+
   return (
     <fieldset className="panel">
       <legend>Morphing & Visuals</legend>
@@ -22,22 +34,35 @@ export function VisualControls({ settings, onChange }: Props) {
         <label>
           Morphing Algorithm
           <select
-            value={settings.morphingAlgorithm || 'liquid'}
-            onChange={(e) => onChange({ morphingAlgorithm: e.target.value as 'liquid' | 'oniric' })}
+            value={morphingAlgorithm}
+            onChange={(e) => {
+              const nextAlgorithm = e.target.value as MorphingAlgorithm
+              onChange({
+                morphingAlgorithm: nextAlgorithm,
+                softMode: false,
+                morphingPresetId:
+                  nextAlgorithm === 'psy-hyp' || nextAlgorithm === 'oniric'
+                    ? 'default'
+                    : settings.morphingPresetId === 'default'
+                      ? MORPHING_PRESETS[0].id
+                      : settings.morphingPresetId,
+              })
+            }}
             disabled={!settings.useMorphing}
           >
             <option value="liquid">Liquid Morphing</option>
             <option value="oniric">Oniric Morphing</option>
+            <option value="psy-hyp">PsyHypMorphing</option>
           </select>
         </label>
         <label>
           Morphing Preset
           <select
-            value={settings.morphingPresetId}
-            onChange={(e) => onChange({ morphingPresetId: e.target.value })}
+            value={presetValue}
+            onChange={(e) => onChange({ morphingPresetId: e.target.value, softMode: false })}
             disabled={!settings.useMorphing}
           >
-            {MORPHING_PRESETS.map((p) => (
+            {presetOptions.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
@@ -166,6 +191,18 @@ export function VisualControls({ settings, onChange }: Props) {
       <legend>Flash, decay e colori</legend>
       <div className="grid2">
         <label>
+          Flash mode
+          <select
+            value={settings.flashMode}
+            onChange={(e) => onChange({ flashMode: e.target.value as AppSettings['flashMode'] })}
+          >
+            <option value="high">High</option>
+            <option value="mid">Mid</option>
+            <option value="low">Low</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+        <label>
           Durata flash (ms)
           <input
             type="range"
@@ -181,7 +218,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <input
             type="range"
             min={80}
-            max={800}
+            max={3200}
             value={settings.decayMs}
             onChange={(e) => onChange({ decayMs: Number(e.target.value) })}
           />
@@ -192,7 +229,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <input
             type="range"
             min={40}
-            max={400}
+            max={6000}
             value={settings.cooldownMs}
             onChange={(e) => onChange({ cooldownMs: Number(e.target.value) })}
           />
@@ -214,13 +251,13 @@ export function VisualControls({ settings, onChange }: Props) {
           Max flash / sec
           <input
             type="range"
-            min={1}
-            max={12}
-            step={1}
+            min={0.05}
+            max={1.5}
+            step={0.01}
             value={settings.maxFlashesPerSecond}
             onChange={(e) => onChange({ maxFlashesPerSecond: Number(e.target.value) })}
           />
-          <span className="mono">{settings.maxFlashesPerSecond}</span>
+          <span className="mono">{settings.maxFlashesPerSecond.toFixed(2)}</span>
         </label>
         <label>
           FFT size

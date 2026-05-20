@@ -1,5 +1,19 @@
 export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 
+export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp'
+export type FlashMode = 'high' | 'mid' | 'low' | 'off'
+
+export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp']
+export const FLASH_MODES: FlashMode[] = ['high', 'mid', 'low', 'off']
+
+export function isMorphingAlgorithm(value: unknown): value is MorphingAlgorithm {
+  return typeof value === 'string' && MORPHING_ALGORITHMS.includes(value as MorphingAlgorithm)
+}
+
+export function isFlashMode(value: unknown): value is FlashMode {
+  return typeof value === 'string' && FLASH_MODES.includes(value as FlashMode)
+}
+
 export interface BandEnergies {
   low: number
   lowMid: number
@@ -19,6 +33,7 @@ export interface AppSettings {
   cooldownMs: number
   sensitivity: number
   maxFlashesPerSecond: number
+  flashMode: FlashMode
   idleColor: string
   basePinkColor: string
   hotPinkColor: string
@@ -27,7 +42,7 @@ export interface AppSettings {
   selectedDisplayId: number | null
   selectedAudioInputId: string | null
   useMorphing: boolean
-  morphingAlgorithm: 'liquid' | 'oniric'
+  morphingAlgorithm: MorphingAlgorithm
   morphingPresetId: string
   debugMorphingVisibility: boolean
   morphingOpacity: number
@@ -48,6 +63,10 @@ export interface AppSettings {
   subMovement: number
   kickMovement: number
   flashOnKick: boolean
+  selectedColorPresetId: string | null
+  dynamicPresetEnabled: boolean
+  dynamicColorRotationEnabled: boolean
+  dynamicMorphingRotationEnabled: boolean
 }
 
 export interface DisplayInfo {
@@ -72,6 +91,8 @@ export interface VisualEngineOutput {
   backgroundColor: string
   brightness: number
   flashActive: boolean
+  flashIntensity: number
+  flashMode: FlashMode
   debug: VisualEngineDebug
 }
 
@@ -84,6 +105,13 @@ export interface VisualEngineState {
   overallDrive: number
   customFlashBandAverage?: number
   prevCustomFlashBandEnergy?: number
+  secondaryFlashBandAverage?: number
+  flashStartedAtMs?: number
+  manualFlashStartedAtMs?: number
+  flashPeakIntensity?: number
+  lastFlashCandidateMs?: number
+  lastFlashCandidateIntervalMs?: number
+  regularFlashCandidateCount?: number
 }
 
 export interface VisualEngineInput {
@@ -119,6 +147,8 @@ export interface VisualStatePayload {
   backgroundColor: string
   brightness: number
   flashActive: boolean
+  flashIntensity?: number
+  flashMode?: FlashMode
   useMorphing?: boolean
   bandEnergies?: BandEnergies
   settings?: AppSettings

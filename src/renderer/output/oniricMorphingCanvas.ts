@@ -1,6 +1,6 @@
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { getThemeProfileForPreset, MorphingThemeProfile } from '@shared/morphingThemeProfiles'
-import type { BandEnergies, AppSettings, VisualStatePayload } from '@shared/types'
+import type { BandEnergies, AppSettings, MorphingPreset, VisualStatePayload } from '@shared/types'
 
 // High-aesthetic Canvas 2D organic visibility boundaries
 const ORGANIC_MIN_ALPHA = 0.22
@@ -12,6 +12,9 @@ const ORGANIC_MAX_BLUR = 95
 
 const ONIRIC_MIN_SPEED = 0.08
 const ONIRIC_MAX_SPEED = 0.22
+export const ONIRIC_DEFAULT_PRESET = { id: 'default', name: 'default' } as const
+const ONIRIC_DEFAULT_MIN_TRANSITION_MS = 8000
+const ONIRIC_DEFAULT_MAX_TRANSITION_MS = 16000
 
 const DEFAULT_ONIRIC_DEBUG = {
   debugMorphingVisibility: false,
@@ -48,6 +51,15 @@ interface VeilGeometry {
   alphaPulse: number
 }
 
+type OniricTransitionState = {
+  currentThemeId: string
+  nextThemeId: string
+  previousThemeId?: string
+  transitionStartTime: number
+  transitionDurationMs: number
+  cycleSeed: number
+}
+
 function hexToRgb(hex: string): RGBColor {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   if (!result) return { r: 255, g: 255, b: 255 }
@@ -61,6 +73,17 @@ function hexToRgb(hex: string): RGBColor {
 function pseudoRandom(seed: number): number {
   const x = Math.sin(seed) * 10000
   return x - Math.floor(x)
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a += 0x6d2b79f5
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 function clamp(val: number, min: number, max: number): number {
@@ -105,6 +128,65 @@ function mixColor(c1: RGBColor, c2: RGBColor, ratio: number): RGBColor {
     r: Math.round(c1.r + (c2.r - c1.r) * k),
     g: Math.round(c1.g + (c2.g - c1.g) * k),
     b: Math.round(c1.b + (c2.b - c1.b) * k)
+  }
+}
+
+function mixValue(a: number, b: number, progress: number): number {
+  return a + (b - a) * progress
+}
+
+function randomOniricDuration(rng: () => number): number {
+  return ONIRIC_DEFAULT_MIN_TRANSITION_MS + rng() * (ONIRIC_DEFAULT_MAX_TRANSITION_MS - ONIRIC_DEFAULT_MIN_TRANSITION_MS)
+}
+
+function pickNextTheme(current: string, previous: string | undefined, rng: () => number): string {
+  const preferred = MORPHING_PRESETS.filter((preset) => preset.id !== current && preset.id !== previous)
+  const candidates = preferred.length > 0 ? preferred : MORPHING_PRESETS.filter((preset) => preset.id !== current)
+  return candidates[Math.floor(rng() * candidates.length) % candidates.length].id
+}
+
+function createOniricTransitionState(now: number, rng: () => number): OniricTransitionState {
+  const current = MORPHING_PRESETS[Math.floor(rng() * MORPHING_PRESETS.length) % MORPHING_PRESETS.length].id
+  return {
+    currentThemeId: current,
+    nextThemeId: pickNextTheme(current, undefined, rng),
+    transitionStartTime: now,
+    transitionDurationMs: randomOniricDuration(rng),
+    cycleSeed: Math.floor(rng() * 1_000_000) + 1,
+  }
+}
+
+function updateOniricTransitionState(state: OniricTransitionState, now: number, rng: () => number): OniricTransitionState {
+  if (now - state.transitionStartTime < state.transitionDurationMs) return state
+  const previous = state.currentThemeId
+  const current = state.nextThemeId
+  return {
+    previousThemeId: previous,
+    currentThemeId: current,
+    nextThemeId: pickNextTheme(current, previous, rng),
+    transitionStartTime: now,
+    transitionDurationMs: randomOniricDuration(rng),
+    cycleSeed: Math.floor(rng() * 1_000_000) + 1,
+  }
+}
+
+function mixMorphingPreset(a: MorphingPreset, b: MorphingPreset, progress: number): MorphingPreset {
+  const p = clamp(progress, 0, 1)
+  return {
+    ...a,
+    id: a.id,
+    name: a.name,
+    shapeCount: Math.round(mixValue(a.shapeCount, b.shapeCount, p)),
+    blur: mixValue(a.blur, b.blur, p),
+    opacity: mixValue(a.opacity, b.opacity, p),
+    speed: mixValue(a.speed, b.speed, p),
+    deformation: mixValue(a.deformation, b.deformation, p),
+    scale: mixValue(a.scale, b.scale, p),
+    lowScaleAmount: mixValue(a.lowScaleAmount, b.lowScaleAmount, p),
+    lowMidDeformationAmount: mixValue(a.lowMidDeformationAmount, b.lowMidDeformationAmount, p),
+    midOpacityAmount: mixValue(a.midOpacityAmount, b.midOpacityAmount, p),
+    highNoiseAmount: mixValue(a.highNoiseAmount, b.highNoiseAmount, p),
+    flashEdgeAmount: mixValue(a.flashEdgeAmount, b.flashEdgeAmount, p),
   }
 }
 
@@ -486,6 +568,8 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
   let currentBgColor = '#000000'
   let time = 0
   let lastTime = performance.now()
+  const transitionRng = mulberry32((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0)
+  let oniricTransitionState = createOniricTransitionState(performance.now(), transitionRng)
 
   let smoothedLow = 0
   let smoothedLowMid = 0
@@ -518,9 +602,23 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     lastTime = now
 
     const presetId = currentSettings.morphingPresetId
-    const preset = MORPHING_PRESETS.find((p) => p.id === presetId) || MORPHING_PRESETS[0]
-    
-    const profile = getThemeProfileForPreset(presetId)
+    let preset = MORPHING_PRESETS.find((p) => p.id === presetId) || MORPHING_PRESETS[0]
+    let profile = getThemeProfileForPreset(preset.id)
+    let defaultTransitionProgress = 0
+
+    if (presetId === ONIRIC_DEFAULT_PRESET.id) {
+      oniricTransitionState = updateOniricTransitionState(oniricTransitionState, now, transitionRng)
+      defaultTransitionProgress = clamp(
+        (now - oniricTransitionState.transitionStartTime) / oniricTransitionState.transitionDurationMs,
+        0,
+        1
+      )
+      const transitionEase = defaultTransitionProgress * defaultTransitionProgress * (3 - 2 * defaultTransitionProgress)
+      const currentPreset = MORPHING_PRESETS.find((p) => p.id === oniricTransitionState.currentThemeId) || MORPHING_PRESETS[0]
+      const nextPreset = MORPHING_PRESETS.find((p) => p.id === oniricTransitionState.nextThemeId) || MORPHING_PRESETS[0]
+      preset = mixMorphingPreset(currentPreset, nextPreset, transitionEase)
+      profile = getThemeProfileForPreset(defaultTransitionProgress < 0.5 ? currentPreset.id : nextPreset.id)
+    }
 
     const debugSettings = getOniricDebugSettings(currentSettings)
     const blendMode = validBlendModeOrScreen(preset.blendMode)
@@ -533,7 +631,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     smoothedHigh += (currentBands.high - smoothedHigh) * 0.045
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
-    const softenedFlashTarget = flashTarget * 0.48
+    const softenedFlashTarget = flashTarget * 0.65
     if (softenedFlashTarget > smoothedFlash) {
       smoothedFlash += (softenedFlashTarget - smoothedFlash) * 0.09
     } else {
@@ -541,10 +639,10 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
 
     // Correzione 5: Smoothing del flash nel morphing
-    if (softenedFlashTarget > smoothedMorphingFlash) {
-      smoothedMorphingFlash += (softenedFlashTarget - smoothedMorphingFlash) * 0.12
+    if (flashTarget > smoothedMorphingFlash) {
+      smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.22
     } else {
-      smoothedMorphingFlash += (softenedFlashTarget - smoothedMorphingFlash) * 0.026
+      smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.045
     }
 
     const rawKickPulse = Math.max(0, currentBands.low - smoothedLow)
@@ -552,14 +650,14 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     const kickPulse = smoothedKickPulse * (currentSettings.kickMovement ?? 0.08)
     const subPressure = smoothedLow * (currentSettings.subMovement ?? 0.26)
 
-    const bodyDensity = smoothedLowMid * preset.lowMidDeformationAmount * 0.50 * (1 + subPressure * 0.65)
+    const bodyDensity = smoothedLowMid * preset.lowMidDeformationAmount * 0.50 * (1 + subPressure * 0.82 + kickPulse * 0.55)
     const midGlow = smoothedMid * preset.midOpacityAmount * (0.58 + debugSettings.glowIntensity * 0.34)
-    const flashGlow = smoothedFlash * preset.flashEdgeAmount * 0.08
+    const flashGlow = smoothedFlash * 0.10
     const highTension = smoothedHigh * preset.highNoiseAmount * 0.30
 
     // Correzione 3: Assorbimento del flash come energia interna
-    let integratedFlashGlow = smoothedMorphingFlash * preset.flashEdgeAmount
-    integratedFlashGlow = clamp(integratedFlashGlow * (0.55 + debugSettings.glowIntensity * 0.55), 0, 0.18)
+    let integratedFlashGlow = smoothedMorphingFlash
+    integratedFlashGlow = clamp(integratedFlashGlow * (0.62 + debugSettings.glowIntensity * 0.50), 0, 0.62)
 
     time += dt
     const t = time * 0.001
@@ -579,14 +677,14 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
     const effectiveSpeed = clamp(preset.speed * 2.05, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
-    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.4), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.4 + Math.sin(defaultTransitionProgress * Math.PI) * 2), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     let effectiveBlur = clamp(preset.blur * (0.48 + debugSettings.edgeSoftness * 0.35), ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
     let effectiveOpacity = clamp(
-      Math.max(preset.opacity * 1.12, debugSettings.opacity) + subPressure * 0.12 + kickPulse * 0.08,
+      Math.max(preset.opacity * 1.12, debugSettings.opacity) + subPressure * 0.18 + kickPulse * 0.16,
       ORGANIC_MIN_ALPHA,
       ORGANIC_MAX_ALPHA
     )
-    let effectiveScale = clamp(preset.scale * debugSettings.scale + subPressure * 0.24 + kickPulse * 0.12, 0.85, 1.90)
+    let effectiveScale = clamp(preset.scale * debugSettings.scale + subPressure * 0.36 + kickPulse * 0.24, 0.85, 2.02)
 
     let midGlowBoost = midGlow
     let integratedFlashGlowBoost = integratedFlashGlow
@@ -707,9 +805,9 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       const outerAlpha = clamp(alpha * (0.10 + debugSettings.glowIntensity * 0.04), 0.035, 0.14)
 
       // Correzione 3: Flash integrated multipliers
-      radius *= 1 + integratedFlashGlowBoost * 0.26
+      radius *= 1 + integratedFlashGlowBoost * 0.08
       alpha += integratedFlashGlowBoost * 0.08
-      innerAlpha += integratedFlashGlowBoost * 0.12
+      innerAlpha += integratedFlashGlowBoost * 0.22
       midAlpha += integratedFlashGlowBoost * 0.09
 
       alpha = clamp(alpha, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
@@ -783,12 +881,17 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
   rafId = requestAnimationFrame(render)
 
   return {
+    setOpacity(opacity: number) {
+      canvas.style.opacity = String(clamp(opacity, 0, 1))
+    },
     updateState(payload: VisualStatePayload) {
       if (payload.settings) currentSettings = payload.settings
       if (payload.bandEnergies) currentBands = payload.bandEnergies
       isFlashing = !!payload.flashActive
       if (payload.backgroundColor) currentBgColor = payload.backgroundColor
-      if (payload.whiteMix !== undefined) {
+      if (payload.flashIntensity !== undefined) {
+        currentWhiteMix = payload.flashIntensity
+      } else if (payload.whiteMix !== undefined) {
         currentWhiteMix = payload.whiteMix
       } else {
         currentWhiteMix = payload.flashActive ? 1 : 0

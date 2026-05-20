@@ -1,8 +1,10 @@
 import './control.css'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AppSettings, BandEnergies } from '@shared/types'
+import type { AppSettings, BandEnergies, MorphingAlgorithm } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
+import { MORPHING_PRESETS } from '@shared/morphingPresets'
+import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
 import { AudioInputSelector } from './components/AudioInputSelector'
@@ -10,7 +12,7 @@ import { BandMeters } from './components/BandMeters'
 import { ThresholdControls } from './components/ThresholdControls'
 import { VisualControls } from './components/VisualControls'
 import { SafetyControls } from './components/SafetyControls'
-import { PresetsSelector } from './components/PresetsSelector'
+import { COLOR_PRESETS, PresetsSelector } from './components/PresetsSelector'
 import { useAudioAnalyzer } from './hooks/useAudioAnalyzer'
 import { useDisplays } from './hooks/useDisplays'
 import { useSettingsPersistence } from './hooks/useSettings'
@@ -22,6 +24,86 @@ const silentBands = (): BandEnergies => ({
   high: 0,
 })
 
+const COLOR_ROTATION_MIN_MS = 45_000
+const COLOR_ROTATION_MAX_MS = 150_000
+const MORPHING_PRESET_MIN_MS = 30_000
+const MORPHING_PRESET_MAX_MS = 60_000
+const NO_MORPHING_MIN_INTERVAL_MS = 180_000
+const NO_MORPHING_MAX_INTERVAL_MS = 420_000
+
+type DynamicMorphingCandidate = {
+  id: string
+  label: string
+  algorithm: 'none' | MorphingAlgorithm
+  presetId?: string
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min)
+}
+
+function pickWeightedColorPreset(currentId: string | null | undefined) {
+  const candidates = COLOR_PRESETS.filter((preset) => preset.id && preset.id !== currentId)
+  const pool = candidates.length > 0 ? candidates : COLOR_PRESETS.filter((preset) => preset.id)
+  const weighted = pool.map((preset) => ({
+    preset,
+    weight:
+      preset.id === 'mistica-electronica-default' || preset.id === 'mistica-electronica-festival'
+        ? 4
+        : 1,
+  }))
+  const total = weighted.reduce((sum, item) => sum + item.weight, 0)
+  let roll = Math.random() * total
+  for (const item of weighted) {
+    roll -= item.weight
+    if (roll <= 0) return item.preset
+  }
+  return weighted[weighted.length - 1]?.preset ?? COLOR_PRESETS[0]
+}
+
+function buildDynamicMorphingCandidates(): DynamicMorphingCandidate[] {
+  return [
+    { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' },
+    ...MORPHING_PRESETS.map((preset) => ({
+      id: `liquid:${preset.id}`,
+      label: `Liquid Morphing - ${preset.name}`,
+      algorithm: 'liquid' as const,
+      presetId: preset.id,
+    })),
+    { id: 'oniric:default', label: 'Oniric Morphing - default', algorithm: 'oniric', presetId: 'default' },
+    ...MORPHING_PRESETS.map((preset) => ({
+      id: `oniric:${preset.id}`,
+      label: `Oniric Morphing - ${preset.name}`,
+      algorithm: 'oniric' as const,
+      presetId: preset.id,
+    })),
+    ...PSY_HYP_MORPHING_PRESETS.map((preset) => ({
+      id: `psy-hyp:${preset.id}`,
+      label: `PsyHypMorphing - ${preset.name}`,
+      algorithm: 'psy-hyp' as const,
+      presetId: preset.id,
+    })),
+  ]
+}
+
+function candidateFromSettings(settings: AppSettings): DynamicMorphingCandidate {
+  if (!settings.useMorphing) return { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' }
+  return {
+    id: `${settings.morphingAlgorithm}:${settings.morphingPresetId}`,
+    label: `${settings.morphingAlgorithm} - ${settings.morphingPresetId}`,
+    algorithm: settings.morphingAlgorithm,
+    presetId: settings.morphingPresetId,
+  }
+}
+
+function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNoMorphing: boolean): DynamicMorphingCandidate {
+  const candidates = buildDynamicMorphingCandidates()
+  if (forceNoMorphing) return candidates[0]
+  const pool = candidates.filter((candidate) => candidate.id !== current.id)
+  const list = pool.length > 0 ? pool : candidates
+  return list[Math.floor(Math.random() * list.length) % list.length]
+}
+
 export function ControlApp() {
   const api = window.fxControl
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
@@ -30,6 +112,9 @@ export function ControlApp() {
   const [status, setStatus] = useState<string | null>(null)
 
   const testFlashUntilRef = useRef(0)
+  const colorRotationTimerRef = useRef<number | null>(null)
+  const morphingRotationTimerRef = useRef<number | null>(null)
+  const nextNoMorphingDueAtRef = useRef(0)
   const visStateRef = useRef(createInitialVisualEngineState())
   const lastMovingRef = useRef<BandEnergies>({
     low: 0.05,
@@ -54,14 +139,20 @@ export function ControlApp() {
     setSettings((s) => ({ ...s, ...patch }))
   }, [])
 
+  const applyPresetSettings = useCallback((patch: Partial<AppSettings>) => {
+    setSettings((s) => ({ ...s, ...patch, softMode: false }))
+  }, [])
+
   const sendSafeIdle = useCallback(() => {
     if (!api) return
     api.sendVisualState({
       backgroundColor: settings.idleColor,
       brightness: 0,
       flashActive: false,
+      flashIntensity: 0,
+      flashMode: settings.flashMode,
     })
-  }, [api, settings.idleColor])
+  }, [api, settings.flashMode, settings.idleColor])
 
   useEffect(() => {
     if (!api) return
@@ -105,6 +196,8 @@ export function ControlApp() {
         backgroundColor: output.backgroundColor,
         brightness: output.brightness,
         flashActive: output.flashActive,
+        flashIntensity: output.flashIntensity,
+        flashMode: output.flashMode,
         useMorphing: settings.useMorphing,
         bandEnergies,
         settings,
@@ -149,8 +242,102 @@ export function ControlApp() {
   }
 
   const onTestFlash = () => {
-    testFlashUntilRef.current = performance.now() + settings.flashDurationMs
+    const now = performance.now()
+    testFlashUntilRef.current = now + settings.flashDurationMs
+    visStateRef.current = {
+      ...visStateRef.current,
+      flashStartedAtMs: now,
+      manualFlashStartedAtMs: now,
+      flashPeakIntensity: 1,
+      whiteMix: 1,
+    }
   }
+
+  useEffect(() => {
+    if (colorRotationTimerRef.current) {
+      window.clearTimeout(colorRotationTimerRef.current)
+      colorRotationTimerRef.current = null
+    }
+
+    if (!settings.dynamicPresetEnabled || !settings.dynamicColorRotationEnabled) return
+
+    const scheduleColorRotation = () => {
+      const delay = randomBetween(COLOR_ROTATION_MIN_MS, COLOR_ROTATION_MAX_MS)
+      colorRotationTimerRef.current = window.setTimeout(() => {
+        setSettings((current) => {
+          if (!current.dynamicPresetEnabled || !current.dynamicColorRotationEnabled) return current
+          const preset = pickWeightedColorPreset(current.selectedColorPresetId)
+          return {
+            ...current,
+            ...preset.settings,
+            selectedColorPresetId: preset.id ?? current.selectedColorPresetId,
+          }
+        })
+        scheduleColorRotation()
+      }, delay)
+    }
+
+    scheduleColorRotation()
+    return () => {
+      if (colorRotationTimerRef.current) {
+        window.clearTimeout(colorRotationTimerRef.current)
+        colorRotationTimerRef.current = null
+      }
+    }
+  }, [settings.dynamicPresetEnabled, settings.dynamicColorRotationEnabled])
+
+  useEffect(() => {
+    if (morphingRotationTimerRef.current) {
+      window.clearTimeout(morphingRotationTimerRef.current)
+      morphingRotationTimerRef.current = null
+    }
+
+    if (!settings.dynamicPresetEnabled || !settings.dynamicMorphingRotationEnabled) {
+      nextNoMorphingDueAtRef.current = 0
+      return
+    }
+
+    const now = Date.now()
+    if (nextNoMorphingDueAtRef.current <= now) {
+      nextNoMorphingDueAtRef.current = now + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
+    }
+
+    const scheduleMorphingRotation = () => {
+      const delay = randomBetween(MORPHING_PRESET_MIN_MS, MORPHING_PRESET_MAX_MS)
+      morphingRotationTimerRef.current = window.setTimeout(() => {
+        setSettings((current) => {
+          if (!current.dynamicPresetEnabled || !current.dynamicMorphingRotationEnabled) return current
+          const nowInner = Date.now()
+          const forceNoMorphing = nowInner >= nextNoMorphingDueAtRef.current
+          const candidate = pickDynamicMorphingCandidate(candidateFromSettings(current), forceNoMorphing)
+          if (candidate.algorithm === 'none') {
+            nextNoMorphingDueAtRef.current =
+              nowInner + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
+            return {
+              ...current,
+              useMorphing: false,
+            }
+          }
+
+          return {
+            ...current,
+            useMorphing: true,
+            morphingAlgorithm: candidate.algorithm,
+            morphingPresetId: candidate.presetId ?? 'default',
+          }
+        })
+        scheduleMorphingRotation()
+      }, delay)
+    }
+
+    scheduleMorphingRotation()
+    return () => {
+      if (morphingRotationTimerRef.current) {
+        window.clearTimeout(morphingRotationTimerRef.current)
+        morphingRotationTimerRef.current = null
+      }
+    }
+  }, [settings.dynamicPresetEnabled, settings.dynamicMorphingRotationEnabled])
 
   if (!api) {
     const inBrowser =
@@ -245,7 +432,7 @@ export function ControlApp() {
         <BandMeters meters={audio.meters} thresholds={thresholdPreview} />
       </section>
 
-      <PresetsSelector onApplyPreset={patchSettings} />
+      <PresetsSelector settings={settings} onApplyPreset={applyPresetSettings} onChangeSettings={patchSettings} />
 
       <ThresholdControls settings={settings} onChange={patchSettings} />
       <VisualControls settings={settings} onChange={patchSettings} />
