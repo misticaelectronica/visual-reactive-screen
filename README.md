@@ -1,4 +1,6 @@
-# Origine FX (MVP)
+# Mistica Electronica Visual Reactive Screen
+
+## Origine FX (MVP)
 
 Applicazione desktop **Electron + TypeScript + Vite + React** che analizza l’audio in ingresso (Web Audio API) e comanda una **seconda finestra fullscreen** (tipicamente monitor HDMI o proiettore) mostrando solo un **colore a schermo intero** (rosa / bianco) in sincrono con ritmo ed energia per banda di frequenza.
 
@@ -88,4 +90,6 @@ Non sostituiscono il giudizio umano né consulenze mediche: chi è fotosensibile
 
 ## Licenza
 
-MIT (o come preferisci definirla nel tuo repository).
+Questo progetto è distribuito con licenza **Apache License 2.0**.
+
+Vedi il file [LICENSE](./LICENSE).
