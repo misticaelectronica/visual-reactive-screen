@@ -80,7 +80,7 @@ export function createMorphingCanvas(container: HTMLElement) {
   let rafId = 0
   let currentSettings: AppSettings | null = null
   let currentBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
-  let smoothedBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
+  const smoothedBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
   let isFlashing = false
   let currentWhiteMix = 0
   let currentBgColor = '#000000'
@@ -131,7 +131,7 @@ export function createMorphingCanvas(container: HTMLElement) {
       smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.045
     }
 
-    let effectiveSpeed = clamp(preset.speed * 1.8, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
+    const effectiveSpeed = clamp(preset.speed * 1.8, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
 
     // Advance time
     time += effectiveSpeed * 0.05 * (1 + smoothedBands.high * preset.highNoiseAmount) * (1 + subPressure * 0.5)

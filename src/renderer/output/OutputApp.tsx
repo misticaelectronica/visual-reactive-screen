@@ -4,10 +4,16 @@ import { createVisualSurface } from './visualSurface'
 import { createMorphingCanvas } from './morphingCanvas'
 import { createOniricMorphingCanvas } from './oniricMorphingCanvas'
 
+type MorphingController = {
+  updateState: (state: VisualStatePayload) => void
+  destroy: () => void
+  __algo?: 'liquid' | 'oniric'
+}
+
 export function OutputApp() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<ReturnType<typeof createVisualSurface> | null>(null)
-  const morphingRef = useRef<ReturnType<typeof createMorphingCanvas> | null>(null)
+  const morphingRef = useRef<MorphingController | null>(null)
   const [msgCount, setMsgCount] = useState(0)
   const [lastColor, setLastColor] = useState<string>('—')
 
@@ -26,7 +32,7 @@ export function OutputApp() {
         const algo = state.settings.morphingAlgorithm || 'liquid'
         
         // If we have an instance but the algorithm changed, destroy it
-        if (morphingRef.current && (morphingRef.current as any).__algo !== algo) {
+        if (morphingRef.current && morphingRef.current.__algo !== algo) {
           morphingRef.current.destroy()
           morphingRef.current = null
         }
@@ -34,10 +40,10 @@ export function OutputApp() {
         if (!morphingRef.current) {
           if (algo === 'oniric') {
             morphingRef.current = createOniricMorphingCanvas(rootRef.current!);
-            (morphingRef.current as any).__algo = 'oniric'
+            morphingRef.current.__algo = 'oniric'
           } else {
             morphingRef.current = createMorphingCanvas(rootRef.current!);
-            (morphingRef.current as any).__algo = 'liquid'
+            morphingRef.current.__algo = 'liquid'
           }
         }
         morphingRef.current.updateState(state)

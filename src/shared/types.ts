@@ -29,6 +29,15 @@ export interface AppSettings {
   useMorphing: boolean
   morphingAlgorithm: 'liquid' | 'oniric'
   morphingPresetId: string
+  debugMorphingVisibility: boolean
+  morphingOpacity: number
+  morphingMinOpacity: number
+  morphingLuminanceBoost: number
+  morphingGlowIntensity: number
+  morphingContrast: number
+  morphingScale: number
+  morphingEdgeSoftness: number
+  backgroundDarkness: number
   flashTriggerBandMin: number
   flashTriggerBandMax: number
   secondaryFlashBandMin: number

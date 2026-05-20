@@ -3,8 +3,8 @@ import { getThemeProfileForPreset, MorphingThemeProfile } from '@shared/morphing
 import type { BandEnergies, AppSettings, VisualStatePayload } from '@shared/types'
 
 // High-aesthetic Canvas 2D organic visibility boundaries
-const ORGANIC_MIN_ALPHA = 0.16
-const ORGANIC_MAX_ALPHA = 0.58
+const ORGANIC_MIN_ALPHA = 0.22
+const ORGANIC_MAX_ALPHA = 0.68
 const ORGANIC_MIN_LAYER_COUNT = 5
 const ORGANIC_MAX_LAYER_COUNT = 12
 const ORGANIC_MIN_BLUR = 24
@@ -12,6 +12,17 @@ const ORGANIC_MAX_BLUR = 95
 
 const ONIRIC_MIN_SPEED = 0.08
 const ONIRIC_MAX_SPEED = 0.22
+
+const DEFAULT_ONIRIC_DEBUG = {
+  debugMorphingVisibility: false,
+  morphingOpacity: 0.45,
+  morphingMinOpacity: 0.30,
+  morphingLuminanceBoost: 0.35,
+  morphingGlowIntensity: 0.55,
+  morphingContrast: 1.25,
+  morphingScale: 1.15,
+  morphingEdgeSoftness: 0.65,
+}
 
 interface RGBColor {
   r: number
@@ -56,11 +67,13 @@ function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val))
 }
 
-function validBlendModeOrScreen(mode: any): GlobalCompositeOperation {
+function validBlendModeOrScreen(mode: unknown): GlobalCompositeOperation {
   const validModes: GlobalCompositeOperation[] = [
     'screen', 'lighten', 'source-over', 'multiply', 'color-dodge', 'overlay', 'color-burn', 'hard-light', 'difference', 'exclusion'
   ]
-  if (validModes.includes(mode)) return mode
+  if (typeof mode === 'string' && validModes.includes(mode as GlobalCompositeOperation)) {
+    return mode as GlobalCompositeOperation
+  }
   return 'screen'
 }
 
@@ -92,6 +105,107 @@ function mixColor(c1: RGBColor, c2: RGBColor, ratio: number): RGBColor {
     r: Math.round(c1.r + (c2.r - c1.r) * k),
     g: Math.round(c1.g + (c2.g - c1.g) * k),
     b: Math.round(c1.b + (c2.b - c1.b) * k)
+  }
+}
+
+function rgbToHsl(c: RGBColor): { h: number; s: number; l: number } {
+  const r = c.r / 255
+  const g = c.g / 255
+  const b = c.b / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h = 0
+  let s = 0
+  const l = (max + min) / 2
+
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0)
+        break
+      case g:
+        h = (b - r) / d + 2
+        break
+      default:
+        h = (r - g) / d + 4
+        break
+    }
+    h /= 6
+  }
+
+  return { h, s, l }
+}
+
+function hslToRgb(h: number, s: number, l: number): RGBColor {
+  if (s === 0) {
+    const v = Math.round(l * 255)
+    return { r: v, g: v, b: v }
+  }
+
+  const hueToRgb = (p: number, q: number, tIn: number) => {
+    let t = tIn
+    if (t < 0) t += 1
+    if (t > 1) t -= 1
+    if (t < 1 / 6) return p + (q - p) * 6 * t
+    if (t < 1 / 2) return q
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+    return p
+  }
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+  const p = 2 * l - q
+
+  return {
+    r: Math.round(hueToRgb(p, q, h + 1 / 3) * 255),
+    g: Math.round(hueToRgb(p, q, h) * 255),
+    b: Math.round(hueToRgb(p, q, h - 1 / 3) * 255),
+  }
+}
+
+function liftMorphingColor(color: RGBColor, background: RGBColor, luminanceBoost: number, contrast: number, debug: boolean): RGBColor {
+  const hsl = rgbToHsl(color)
+  const bgLum = getLuminance(background)
+  const minLightness = debug ? 0.58 : bgLum < 0.12 ? 0.42 : 0.34
+  const boostedLightness = hsl.l + luminanceBoost * (1 - hsl.l)
+  const contrastedLightness = 0.5 + (boostedLightness - 0.5) * contrast
+  const l = clamp(Math.max(contrastedLightness, minLightness), 0, debug ? 0.86 : 0.78)
+  const s = clamp(hsl.s * (1.18 + luminanceBoost * 0.55), debug ? 0.66 : 0.48, 1)
+  const lifted = hslToRgb(hsl.h, s, l)
+
+  return {
+    r: Math.max(lifted.r, debug ? 96 : 42),
+    g: Math.max(lifted.g, debug ? 96 : 42),
+    b: Math.max(lifted.b, debug ? 96 : 42),
+  }
+}
+
+function getOniricDebugSettings(settings: AppSettings) {
+  const debug = settings.debugMorphingVisibility ?? DEFAULT_ONIRIC_DEBUG.debugMorphingVisibility
+  return {
+    debug,
+    opacity: debug
+      ? Math.max(settings.morphingOpacity ?? DEFAULT_ONIRIC_DEBUG.morphingOpacity, 0.62)
+      : settings.morphingOpacity ?? DEFAULT_ONIRIC_DEBUG.morphingOpacity,
+    minOpacity: debug
+      ? Math.max(settings.morphingMinOpacity ?? DEFAULT_ONIRIC_DEBUG.morphingMinOpacity, 0.42)
+      : settings.morphingMinOpacity ?? DEFAULT_ONIRIC_DEBUG.morphingMinOpacity,
+    luminanceBoost: debug
+      ? Math.max(settings.morphingLuminanceBoost ?? DEFAULT_ONIRIC_DEBUG.morphingLuminanceBoost, 0.52)
+      : settings.morphingLuminanceBoost ?? DEFAULT_ONIRIC_DEBUG.morphingLuminanceBoost,
+    glowIntensity: debug
+      ? Math.max(settings.morphingGlowIntensity ?? DEFAULT_ONIRIC_DEBUG.morphingGlowIntensity, 0.78)
+      : settings.morphingGlowIntensity ?? DEFAULT_ONIRIC_DEBUG.morphingGlowIntensity,
+    contrast: debug
+      ? Math.max(settings.morphingContrast ?? DEFAULT_ONIRIC_DEBUG.morphingContrast, 1.45)
+      : settings.morphingContrast ?? DEFAULT_ONIRIC_DEBUG.morphingContrast,
+    scale: debug
+      ? Math.max(settings.morphingScale ?? DEFAULT_ONIRIC_DEBUG.morphingScale, 1.24)
+      : settings.morphingScale ?? DEFAULT_ONIRIC_DEBUG.morphingScale,
+    edgeSoftness: debug
+      ? Math.min(settings.morphingEdgeSoftness ?? DEFAULT_ONIRIC_DEBUG.morphingEdgeSoftness, 0.58)
+      : settings.morphingEdgeSoftness ?? DEFAULT_ONIRIC_DEBUG.morphingEdgeSoftness,
   }
 }
 
@@ -358,6 +472,8 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
   canvas.style.height = '100%'
   canvas.style.pointerEvents = 'none'
   canvas.style.background = 'transparent'
+  canvas.style.zIndex = '2'
+  canvas.style.mixBlendMode = 'screen'
   container.appendChild(canvas)
 
   const ctx = canvas.getContext('2d')
@@ -406,7 +522,10 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     
     const profile = getThemeProfileForPreset(presetId)
 
-    canvas.style.mixBlendMode = preset.blendMode || 'screen'
+    const debugSettings = getOniricDebugSettings(currentSettings)
+    const blendMode = validBlendModeOrScreen(preset.blendMode)
+    const visualBlendMode = blendMode === 'source-over' ? 'screen' : blendMode
+    canvas.style.mixBlendMode = visualBlendMode
 
     smoothedLow += (currentBands.low - smoothedLow) * 0.055
     smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * 0.060
@@ -414,17 +533,18 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     smoothedHigh += (currentBands.high - smoothedHigh) * 0.045
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
-    if (flashTarget > smoothedFlash) {
-      smoothedFlash += (flashTarget - smoothedFlash) * 0.16
+    const softenedFlashTarget = flashTarget * 0.48
+    if (softenedFlashTarget > smoothedFlash) {
+      smoothedFlash += (softenedFlashTarget - smoothedFlash) * 0.09
     } else {
-      smoothedFlash += (flashTarget - smoothedFlash) * 0.035
+      smoothedFlash += (softenedFlashTarget - smoothedFlash) * 0.022
     }
 
     // Correzione 5: Smoothing del flash nel morphing
-    if (flashTarget > smoothedMorphingFlash) {
-      smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.22
+    if (softenedFlashTarget > smoothedMorphingFlash) {
+      smoothedMorphingFlash += (softenedFlashTarget - smoothedMorphingFlash) * 0.12
     } else {
-      smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.045
+      smoothedMorphingFlash += (softenedFlashTarget - smoothedMorphingFlash) * 0.026
     }
 
     const rawKickPulse = Math.max(0, currentBands.low - smoothedLow)
@@ -432,14 +552,14 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     const kickPulse = smoothedKickPulse * (currentSettings.kickMovement ?? 0.08)
     const subPressure = smoothedLow * (currentSettings.subMovement ?? 0.26)
 
-    const bodyDensity = smoothedLowMid * preset.lowMidDeformationAmount * 0.36 * (1 + subPressure * 0.5)
-    const midGlow = smoothedMid * preset.midOpacityAmount * 0.58
-    const flashGlow = smoothedFlash * preset.flashEdgeAmount * 0.16
-    const highTension = smoothedHigh * preset.highNoiseAmount * 0.22
+    const bodyDensity = smoothedLowMid * preset.lowMidDeformationAmount * 0.50 * (1 + subPressure * 0.65)
+    const midGlow = smoothedMid * preset.midOpacityAmount * (0.58 + debugSettings.glowIntensity * 0.34)
+    const flashGlow = smoothedFlash * preset.flashEdgeAmount * 0.08
+    const highTension = smoothedHigh * preset.highNoiseAmount * 0.30
 
     // Correzione 3: Assorbimento del flash come energia interna
     let integratedFlashGlow = smoothedMorphingFlash * preset.flashEdgeAmount
-    integratedFlashGlow = clamp(integratedFlashGlow, 0, 0.22)
+    integratedFlashGlow = clamp(integratedFlashGlow * (0.55 + debugSettings.glowIntensity * 0.55), 0, 0.18)
 
     time += dt
     const t = time * 0.001
@@ -450,7 +570,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     if (profile.density === 'residual' || profile.motion === 'afterimage') {
       ctx.save()
       ctx.globalCompositeOperation = 'destination-out'
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.09)'
+      ctx.fillStyle = `rgba(0, 0, 0, ${debugSettings.debug ? 0.025 : 0.045})`
       ctx.fillRect(0, 0, width, height)
       ctx.restore()
     } else {
@@ -458,11 +578,15 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
-    let effectiveSpeed = clamp(preset.speed * 1.8, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
-    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 2.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
-    let effectiveBlur = clamp(preset.blur * 0.72, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    let effectiveOpacity = clamp(preset.opacity * 1.15 + subPressure * 0.12 + kickPulse * 0.08, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    let effectiveScale = clamp(preset.scale * 1.05 + subPressure * 0.20 + kickPulse * 0.10, 0.85, 1.85)
+    const effectiveSpeed = clamp(preset.speed * 2.05, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
+    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.4), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    let effectiveBlur = clamp(preset.blur * (0.48 + debugSettings.edgeSoftness * 0.35), ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
+    let effectiveOpacity = clamp(
+      Math.max(preset.opacity * 1.12, debugSettings.opacity) + subPressure * 0.12 + kickPulse * 0.08,
+      ORGANIC_MIN_ALPHA,
+      ORGANIC_MAX_ALPHA
+    )
+    let effectiveScale = clamp(preset.scale * debugSettings.scale + subPressure * 0.24 + kickPulse * 0.12, 0.85, 1.90)
 
     let midGlowBoost = midGlow
     let integratedFlashGlowBoost = integratedFlashGlow
@@ -491,10 +615,12 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       warnedOpacity = true
     }
 
-    const baseColor = hexToRgb(currentSettings.basePinkColor)
-    const hotColor = hexToRgb(currentSettings.hotPinkColor)
     const flashColor = hexToRgb(currentSettings.whiteFlashColor)
     const bgColor = hexToRgb(currentBgColor)
+    const baseColorRaw = hexToRgb(currentSettings.basePinkColor)
+    const hotColorRaw = hexToRgb(currentSettings.hotPinkColor)
+    const baseColor = liftMorphingColor(baseColorRaw, bgColor, debugSettings.luminanceBoost * 0.72, debugSettings.contrast, debugSettings.debug)
+    const hotColor = liftMorphingColor(hotColorRaw, bgColor, debugSettings.luminanceBoost, debugSettings.contrast, debugSettings.debug)
 
     // Correzione 7: Evitare che lo sfondo scuro o simile mangi il morphing
     const luminanceDifference = computeContrastBoost(bgColor, hotColor)
@@ -502,10 +628,10 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     let contrastInnerAlphaMult = 1.0
     let contrastBlurMult = 1.0
 
-    if (luminanceDifference < 0.18) {
-      contrastOpacityMult = 1.16
-      contrastInnerAlphaMult = 1.18
-      contrastBlurMult = 0.90
+    if (luminanceDifference < 0.24) {
+      contrastOpacityMult = 1.18 + debugSettings.contrast * 0.08
+      contrastInnerAlphaMult = 1.22 + debugSettings.glowIntensity * 0.12
+      contrastBlurMult = 0.82
     }
 
     const basePositions = computeBasePositions(profile, effectiveVeilCount, width, height)
@@ -554,11 +680,13 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       let alpha =
         effectiveOpacity *
         geom.alphaPulse *
-        (0.55 + midGlowBoost + flashGlow) *
+        (0.70 + midGlowBoost + flashGlow + debugSettings.glowIntensity * 0.10) *
         contrastOpacityMult
 
       // Correzione 8: presenza minima del morphing
-      const minPresence = isOrganicPreset(presetId) ? 0.12 : 0.08
+      const minPresence = isOrganicPreset(presetId)
+        ? Math.max(debugSettings.minOpacity, 0.32)
+        : Math.max(debugSettings.minOpacity, 0.28)
       alpha = Math.max(alpha, minPresence)
 
       if (profile.density === 'field') {
@@ -573,16 +701,16 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       }
 
       // Correzione 2: stop gradienti ed alpha proceduriali
-      let innerAlpha = clamp(alpha * 0.42 + integratedFlashGlowBoost * 0.18, 0.06, 0.32) * contrastInnerAlphaMult
-      let bodyAlpha = clamp(alpha * 0.30, 0.05, 0.24)
-      let midAlpha = clamp(alpha * 0.18 + midGlowBoost * 0.10, 0.04, 0.18)
-      let outerAlpha = clamp(alpha * 0.08, 0.02, 0.10)
+      let innerAlpha = clamp(alpha * (0.48 + debugSettings.glowIntensity * 0.12) + integratedFlashGlowBoost * 0.12, 0.10, 0.46) * contrastInnerAlphaMult
+      const bodyAlpha = clamp(alpha * 0.38, 0.08, 0.34)
+      let midAlpha = clamp(alpha * 0.24 + midGlowBoost * 0.12, 0.06, 0.26)
+      const outerAlpha = clamp(alpha * (0.10 + debugSettings.glowIntensity * 0.04), 0.035, 0.14)
 
       // Correzione 3: Flash integrated multipliers
-      radius *= 1 + integratedFlashGlowBoost * 0.18
-      alpha += integratedFlashGlowBoost * 0.16
-      innerAlpha += integratedFlashGlowBoost * 0.20
-      midAlpha += integratedFlashGlowBoost * 0.10
+      radius *= 1 + integratedFlashGlowBoost * 0.26
+      alpha += integratedFlashGlowBoost * 0.08
+      innerAlpha += integratedFlashGlowBoost * 0.12
+      midAlpha += integratedFlashGlowBoost * 0.09
 
       alpha = clamp(alpha, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
 
@@ -592,9 +720,9 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         contrastBlurMult
 
       if (profile.edgeBehavior === 'noEdges') {
-        blur *= 1.3
+        blur *= 1.05 + debugSettings.edgeSoftness * 0.35
       } else if (profile.edgeBehavior === 'impliedEdges') {
-        blur *= 0.65
+        blur *= 0.52 + debugSettings.edgeSoftness * 0.24
       }
 
       blur = clamp(blur, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
@@ -611,7 +739,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         baseColor,
         intensityColor: hotColor,
         flashColor,
-        blendMode: validBlendModeOrScreen(preset.blendMode),
+        blendMode: visualBlendMode,
         innerAlpha,
         bodyAlpha,
         midAlpha,
@@ -633,7 +761,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
 
         const rotation = t * speed * 0.25 + phase
 
-        const alpha = clamp(0.05 + midGlow * 0.08 + flashGlow * 0.06, 0.03, 0.16)
+        const alpha = clamp(0.08 + midGlow * 0.12 + debugSettings.glowIntensity * 0.05 + flashGlow * 0.03, 0.05, 0.22)
 
         drawSoftStreak(ctx, {
           x,
@@ -641,10 +769,10 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
           length: width * 0.9,
           thickness: height * 0.08,
           rotation,
-          blur: 60,
+          blur: 34 + debugSettings.edgeSoftness * 28,
           alpha,
           color: hotColor,
-          blendMode: validBlendModeOrScreen(preset.blendMode)
+          blendMode: visualBlendMode
         })
       }
     }

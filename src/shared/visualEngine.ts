@@ -28,6 +28,10 @@ function lerpColor(a: string, colorB: string, t: number): string {
   return `#${[r, g, blue].map((x) => x.toString(16).padStart(2, '0')).join('')}`
 }
 
+function darkenColor(hex: string, amount: number): string {
+  return lerpColor(hex, '#000000', clamp01(amount))
+}
+
 function expSmooth(prev: number, target: number, deltaMs: number, tauMs: number): number {
   if (tauMs <= 0) return target
   const k = 1 - Math.exp(-deltaMs / tauMs)
@@ -165,7 +169,7 @@ export function stepVisualEngine(input: VisualEngineInput): {
 
   // Media dinamica lenta e transitorio per la trigger band
   let customFlashBandAverage = prev.customFlashBandAverage ?? 0.05
-  let prevCustomFlashBandEnergy = prev.prevCustomFlashBandEnergy ?? 0.05
+  const prevCustomFlashBandEnergy = prev.prevCustomFlashBandEnergy ?? 0.05
 
   const avgAlpha = 1 - Math.exp(-deltaMs / 280)
   customFlashBandAverage = customFlashBandAverage * avgAlpha + currentFlashBandEnergy * (1 - avgAlpha)
@@ -240,8 +244,12 @@ export function stepVisualEngine(input: VisualEngineInput): {
   const idleToPink = clamp01(overallDrive * 1.15)
   const baseLayer = lerpColor(settings.idleColor, settings.basePinkColor, idleToPink)
   const pinkLayer = lerpColor(baseLayer, settings.hotPinkColor, clamp01(pinkHotBlend * 0.95))
-  const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.25 : whiteMix
-  const finalColor = lerpColor(pinkLayer, settings.whiteFlashColor, clamp01(baseFlashIntensity))
+  const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.12 : whiteMix
+  const flashedColor = lerpColor(pinkLayer, settings.whiteFlashColor, clamp01(baseFlashIntensity))
+  const finalColor =
+    settings.useMorphing && settings.morphingAlgorithm === 'oniric'
+      ? darkenColor(flashedColor, settings.backgroundDarkness ?? 0.92)
+      : flashedColor
 
   const flashActive = whiteMix > 0.35
 
