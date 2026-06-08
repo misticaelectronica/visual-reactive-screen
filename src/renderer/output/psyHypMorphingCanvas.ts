@@ -21,18 +21,18 @@ const PSY_AURA_BLUR = 24
 const PSY_SILHOUETTE_BLUR = 8
 const PSY_STRUCTURE_BLUR = 2
 const PSY_FLASH_GLOW_BLUR = 16
-const MIN_TRANSITION_MS = 9000
-const MAX_TRANSITION_MS = 15000
+const MIN_TRANSITION_MS = 7000
+const MAX_TRANSITION_MS = 11000
 const PSY_MAIN_ALPHA_MIN = 0.32
 const PSY_MAIN_ALPHA_MAX = 0.78
 const PSY_DEFAULT_SCALE = 1.42
 const PSY_SCREEN_COVERAGE = 1.35
-const PSY_AUDIO_GAIN = 1.25
-const PSY_SUB_BOUNCE_GAIN = 1.18
-const PSY_KICK_BOUNCE_GAIN = 0.92
-const PSY_TWIST_GAIN = 0.82
-const PSY_MID_GLOW_GAIN = 1.45
-const PSY_HIGH_DETAIL_GAIN = 1.25
+const PSY_AUDIO_GAIN = 1.42
+const PSY_SUB_BOUNCE_GAIN = 1.42
+const PSY_KICK_BOUNCE_GAIN = 1.30
+const PSY_TWIST_GAIN = 1.05
+const PSY_MID_GLOW_GAIN = 1.72
+const PSY_HIGH_DETAIL_GAIN = 1.55
 const PSY_TRAIL_AUDIO_GAIN = 1.30
 const PSY_SUB_MOVEMENT_FALLBACK = 0.42
 const PSY_KICK_MOVEMENT_FALLBACK = 0.22
@@ -1121,8 +1121,8 @@ function drawPsyShapeLayer(
   const presence = audio.midGlow * 0.35
   const microDetail = audio.highDetail * 0.14
   const eventGlow = audio.flash * 0.20
-  const globalScale = 1 + audio.subBounce * 0.18 + audio.kickBounce * 0.10
-  const zoom = globalScale * (1 + breath + Math.sin(t * 0.07 + seed) * 0.035)
+  const globalScale = 1 + audio.subBounce * 0.24 + audio.kickBounce * 0.22
+  const zoom = globalScale * (1 + breath + audio.energy * 0.045 + Math.sin(t * 0.07 + seed) * 0.030)
   const rotation =
     Math.sin(t * 0.05 * layer.speed * (1 + audio.reactiveLowMid * 0.18) + seed) * 0.25 +
     Math.sin(t * 0.13 * layer.speed * (1 + audio.reactiveLowMid * 0.18) + seed * 2.0) * 0.08
@@ -1140,10 +1140,10 @@ function drawPsyShapeLayer(
   const edgeGlow = clamp(0.18 + recognitionBias * 0.12 + eventGlow * 0.18, 0.10, 0.34)
   const layerAlpha =
     layer.name === 'aura'
-      ? clamp((0.12 + audio.energy * 0.10 + eventGlow * 0.10) * phaseConfig.auraMultiplier, 0.08, 0.26)
+      ? clamp((0.13 + audio.energy * 0.16 + audio.kickBounce * 0.10 + eventGlow * 0.10) * phaseConfig.auraMultiplier, 0.08, 0.34)
       : layer.name === 'structure'
-        ? structureAlpha
-        : clamp(0.34 + audio.midGlow * 0.18 + audio.kickBounce * 0.08 + eventGlow * 0.16, 0.28, 0.64)
+        ? clamp(structureAlpha + audio.highDetail * 0.20 + audio.kickBounce * 0.06, 0.12, 0.52)
+        : clamp(0.34 + audio.midGlow * 0.26 + audio.kickBounce * 0.18 + eventGlow * 0.16, 0.28, 0.72)
   const alpha = clamp(
     layerAlpha +
       presence * 0.25 +
@@ -1190,6 +1190,57 @@ function drawPsyShapeLayer(
     ctx.filter = `blur(${Math.min(PSY_STRUCTURE_BLUR, layer.blur)}px)`
     drawCoreDetails(ctx, kind, layerScale, colors, alpha, structureAlpha, t, seed, eventGlow + microDetail * 0.15)
   }
+  ctx.restore()
+}
+
+function drawAlienContactBridge(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  t: number,
+  seed: number,
+  audio: PsyHypAudioEnvelope,
+  colors: { base: RGBColor; intensity: RGBColor; flash: RGBColor; complementary: RGBColor },
+) {
+  const pulse = 0.5 + Math.sin(t * (2.4 + audio.kickBounce * 3.2) + seed * 0.001 + audio.highDetail * 10) * 0.5
+  const alpha = clamp(0.18 + audio.midGlow * 0.15 + audio.kickBounce * 0.18 + pulse * 0.15 + audio.flash * 0.10, 0.16, 0.58)
+  const bridgeColor = mixColors(colors.intensity, colors.flash, clamp(0.18 + audio.flash * 0.35, 0, 0.55))
+  const leftX = width * 0.24
+  const rightX = width * 0.76
+
+  ctx.save()
+  ctx.globalCompositeOperation = 'screen'
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.shadowBlur = 18 + pulse * 18
+  ctx.shadowColor = rgba(bridgeColor, alpha)
+
+  for (let lane = 0; lane < 6; lane++) {
+    const u = lane / 5
+    const y = height * (0.25 + u * 0.50) + Math.sin(t * 0.74 + lane + seed) * height * 0.018
+    const bend = Math.sin(t * 1.15 + lane * 1.7 + seed) * height * 0.075
+    ctx.beginPath()
+    ctx.strokeStyle = rgba(bridgeColor, alpha * (0.52 + u * 0.28))
+    ctx.lineWidth = clamp(width * (0.0032 + pulse * 0.0018 + audio.kickBounce * 0.0022), 2, 10)
+    ctx.moveTo(leftX, y + Math.cos(t + lane) * height * 0.012)
+    ctx.bezierCurveTo(width * 0.38, y - bend, width * 0.58, y + bend, rightX, y)
+    ctx.stroke()
+  }
+
+  for (const side of [-1, 1]) {
+    const cx = side < 0 ? leftX : rightX
+    const cy = height * (side < 0 ? 0.53 : 0.43)
+    const radius = Math.min(width, height) * (0.13 + pulse * 0.018 + audio.subBounce * 0.035)
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius)
+    grad.addColorStop(0, rgba(side < 0 ? colors.base : colors.complementary, alpha * 0.48))
+    grad.addColorStop(0.55, rgba(bridgeColor, alpha * 0.14))
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.ellipse(cx, cy, radius * (side < 0 ? 0.82 : 1.05), radius * (side < 0 ? 1.30 : 0.92), side * 0.22, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
   ctx.restore()
 }
 
@@ -1247,7 +1298,7 @@ function renderPsyHypMorphing(args: {
   const intensity = hexToRgb(colors.intensityColor)
   const flash = hexToRgb(colors.flashColor)
   const complementary = rotateHue(mixColors(base, intensity, 0.45), Math.sin(t * 0.07 + state.lfoPhaseC) * 18)
-  const audioTrailBoost = audio.energy * 0.05 * PSY_TRAIL_AUDIO_GAIN
+  const audioTrailBoost = audio.energy * 0.07 * PSY_TRAIL_AUDIO_GAIN
   const phaseTrailOffset = phase === 'fusion' ? 0.004 : -0.035 * (1 + recognition * 0.5)
   const trailRetention = clamp(0.84 + audioTrailBoost + phaseTrailOffset, 0.82, PSY_MAX_TRAIL_RETENTION)
   const trailAlpha = Math.pow(trailRetention, Math.max(1, deltaMs) / 16.67)
@@ -1261,9 +1312,9 @@ function renderPsyHypMorphing(args: {
   trailCtx.restore()
 
   const baseLayers: LayerSpec[] = [
-    { name: 'aura', scale: 1.24, blur: PSY_AURA_BLUR, alpha: 0.13 + eventGlow * 0.08, lineWidth: 8, speed: 0.48 },
-    { name: 'silhouette', scale: 1.10, blur: PSY_SILHOUETTE_BLUR, alpha: 0.56 + eventGlow * 0.16, lineWidth: 6.4, speed: 0.68 },
-    { name: 'structure', scale: 1.0, blur: PSY_STRUCTURE_BLUR, alpha: 0.42 + eventGlow * 0.10, lineWidth: 3.4, speed: 0.82 },
+    { name: 'aura', scale: 1.24, blur: PSY_AURA_BLUR, alpha: 0.14 + eventGlow * 0.08, lineWidth: 8, speed: 0.58 },
+    { name: 'silhouette', scale: 1.10, blur: PSY_SILHOUETTE_BLUR, alpha: 0.58 + eventGlow * 0.16, lineWidth: 6.7, speed: 0.82 },
+    { name: 'structure', scale: 1.0, blur: PSY_STRUCTURE_BLUR, alpha: 0.46 + eventGlow * 0.10, lineWidth: 3.7, speed: 1.0 },
   ]
   const layers = baseLayers.slice(0, PSY_MAX_LAYERS)
 
@@ -1337,6 +1388,10 @@ function renderPsyHypMorphing(args: {
       phase,
     )
   }
+
+  if (preset.id === 'alien-contact') {
+    drawAlienContactBridge(ctx, width, height, t, state.cycleSeed, audio, { base, intensity, flash, complementary })
+  }
 }
 
 function createInitialPsyHypAudioEnvelope(): PsyHypAudioEnvelope {
@@ -1378,10 +1433,10 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
   audio.previousMid = previousMid
   audio.previousHigh = previousHigh
 
-  audio.low = updateEnvelope(audio.low, bands.low, 0.12, 0.040)
-  audio.lowMid = updateEnvelope(audio.lowMid, bands.lowMid, 0.11, 0.044)
-  audio.mid = updateEnvelope(audio.mid, bands.mid, 0.10, 0.050)
-  audio.high = updateEnvelope(audio.high, bands.high, 0.08, 0.038)
+  audio.low = updateEnvelope(audio.low, bands.low, 0.20, 0.055)
+  audio.lowMid = updateEnvelope(audio.lowMid, bands.lowMid, 0.19, 0.060)
+  audio.mid = updateEnvelope(audio.mid, bands.mid, 0.18, 0.068)
+  audio.high = updateEnvelope(audio.high, bands.high, 0.15, 0.052)
 
   audio.lowTransient = Math.max(0, audio.low - previousLow)
   audio.lowMidTransient = Math.max(0, audio.lowMid - previousLowMid)
@@ -1403,11 +1458,11 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
 
   const subMovement = settings.subMovement ?? PSY_SUB_MOVEMENT_FALLBACK
   const kickMovement = settings.kickMovement ?? PSY_KICK_MOVEMENT_FALLBACK
-  audio.subBounce = clamp(audio.reactiveLow * subMovement * PSY_SUB_BOUNCE_GAIN, 0, 0.82)
-  audio.kickBounce = clamp(audio.lowTransient * kickMovement * PSY_KICK_BOUNCE_GAIN, 0, 0.34)
-  audio.bodyTwist = clamp(audio.reactiveLowMid * PSY_TWIST_GAIN + audio.lowMidTransient * 0.18, 0, 0.72)
-  audio.midGlow = clamp(audio.reactiveMid * PSY_MID_GLOW_GAIN + audio.midTransient * 0.22, 0, 1.25)
-  audio.highDetail = clamp(audio.reactiveHigh * PSY_HIGH_DETAIL_GAIN + audio.highTransient * 0.12, 0, 0.10)
+  audio.subBounce = clamp(audio.reactiveLow * subMovement * PSY_SUB_BOUNCE_GAIN, 0, 1.05)
+  audio.kickBounce = clamp(audio.lowTransient * kickMovement * PSY_KICK_BOUNCE_GAIN + Math.max(0, bands.low - audio.low) * 0.26, 0, 0.55)
+  audio.bodyTwist = clamp(audio.reactiveLowMid * PSY_TWIST_GAIN + audio.lowMidTransient * 0.28, 0, 1.02)
+  audio.midGlow = clamp(audio.reactiveMid * PSY_MID_GLOW_GAIN + audio.midTransient * 0.32, 0, 1.50)
+  audio.highDetail = clamp(audio.reactiveHigh * PSY_HIGH_DETAIL_GAIN + audio.highTransient * 0.18, 0, 0.18)
 
   audio.flash = updateEnvelope(audio.flash, flashTarget, 0.16, 0.040)
 }
@@ -1451,7 +1506,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
 
   const resize = () => {
     const dpr = Math.max(1, window.devicePixelRatio || 1)
-    currentDpr = Math.min(dpr, quality === 'low' ? 1 : PSY_MAX_DPR)
+    currentDpr = currentSettings?.lowPowerMode === true ? 1 : Math.min(dpr, quality === 'low' ? 1 : PSY_MAX_DPR)
     const rect = canvas.getBoundingClientRect()
     cssWidth = rect.width || container.clientWidth
     cssHeight = rect.height || container.clientHeight
@@ -1476,7 +1531,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
       return
     }
 
-    const targetInterval = quality === 'low' ? 1000 / 24 : PSY_MIN_FRAME_INTERVAL_MS
+    const targetInterval = currentSettings.lowPowerMode === true ? 1000 / 30 : quality === 'low' ? 1000 / 24 : PSY_MIN_FRAME_INTERVAL_MS
     const elapsedSinceRender = now - lastRenderAt
     if (elapsedSinceRender < targetInterval) {
       rafId = requestAnimationFrame(render)
@@ -1562,7 +1617,12 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
     },
     updateState(payload: VisualStatePayload) {
       if (payload.settings) {
+        const previousLowPowerMode = currentSettings?.lowPowerMode === true
         currentSettings = payload.settings
+        if (previousLowPowerMode !== (currentSettings.lowPowerMode === true)) {
+          quality = currentSettings.lowPowerMode === true ? 'low' : 'balanced'
+          resize()
+        }
         const nextPreset = findPsyHypPreset(payload.settings.morphingPresetId)
         if (nextPreset.id !== currentPresetId) {
           currentPreset = nextPreset

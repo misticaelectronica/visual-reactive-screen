@@ -589,8 +589,15 @@ export const PSY_HYP_WASHED_IMPRINTS_PRESET: PsyHypPreset = {
   shapes: pickPsyShapes(['nebbia', 'sentiero', 'frattura', 'blocco', 'onda', 'griglia']),
 }
 
+export const PSY_HYP_ALIEN_CONTACT_PRESET: PsyHypPreset = {
+  id: 'alien-contact',
+  name: 'Contatto Alieno',
+  shapes: pickPsyShapes(['portale', 'condotto', 'griglia', 'globo', 'frattura', 'onda', 'blocco', 'luna']),
+}
+
 export const PSY_HYP_MORPHING_PRESETS: PsyHypPreset[] = [
   PSY_HYP_DEFAULT_PRESET,
+  PSY_HYP_ALIEN_CONTACT_PRESET,
   PSY_HYP_HABIT_GROOVES_PRESET,
   PSY_HYP_MALLEABLE_MATTER_PRESET,
   PSY_HYP_LATERAL_PATHS_PRESET,

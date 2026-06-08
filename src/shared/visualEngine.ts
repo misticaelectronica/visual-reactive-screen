@@ -143,6 +143,7 @@ export function stepVisualEngine(input: VisualEngineInput): {
   } = input
 
   const soft = settings.softMode === true
+  const lowPower = settings.lowPowerMode === true
   const flashMode: FlashMode = settings.flashMode ?? 'mid'
   const sens = settings.sensitivity * (soft ? 0.65 : 1)
   const maxFlashRate = Number(settings.maxFlashesPerSecond)
@@ -199,7 +200,7 @@ export function stepVisualEngine(input: VisualEngineInput): {
       : !Number.isFinite(maxFlashRate) || maxFlashRate <= 0
         ? 2500
         : 1000 / maxFlashRate
-  let requiredIntervalMs = Math.max(settings.cooldownMs, rateLimitMs)
+  let requiredIntervalMs = Math.max(settings.cooldownMs * (lowPower ? 1.08 : 1), rateLimitMs * 1.18)
   if (!Number.isFinite(requiredIntervalMs) || Number.isNaN(requiredIntervalMs)) {
     requiredIntervalMs = 2500
   }
@@ -263,9 +264,10 @@ export function stepVisualEngine(input: VisualEngineInput): {
   const isLowDominant = lowEnergy > currentFlashBandEnergy * settings.lowDominanceBlockRatio
   const lowDominanceBlockEnabled = flashMode !== 'low' && settings.flashOnKick === false
   const effectiveFlashThreshold =
-    lowDominanceBlockEnabled && isLowDominant ? settings.flashThreshold * 1.15 : settings.flashThreshold
+    (lowDominanceBlockEnabled && isLowDominant ? settings.flashThreshold * 1.15 : settings.flashThreshold) *
+    (soft ? 1.08 : 1.12)
   const energyThresholdMet = boostedRelativeEnergy >= effectiveFlashThreshold
-  const transientThresholdMet = deltaRelative >= settings.transientDelta
+  const transientThresholdMet = deltaRelative >= settings.transientDelta * (soft ? 1.05 : 1.12)
   if (lowDominanceBlockEnabled && isLowDominant) {
     flashBlockedReason = 'none'
   }
@@ -300,7 +302,7 @@ export function stepVisualEngine(input: VisualEngineInput): {
   if (testActive && flashStartedAtMs === undefined) {
     flashStartedAtMs = nowMs
     manualFlashStartedAtMs = nowMs
-    flashPeakIntensity = 1
+    flashPeakIntensity = 0.86
   }
 
   const manualFlashInProgress = manualFlashStartedAtMs !== undefined
@@ -311,14 +313,14 @@ export function stepVisualEngine(input: VisualEngineInput): {
     flashPeakIntensity = 0
   } else if (testActive) {
     flashHoldUntilMs = Math.max(flashHoldUntilMs, nowMs + settings.flashDurationMs)
-    flashPeakIntensity = 1
+    flashPeakIntensity = 0.86
   } else if (flashTriggered && cooldownOk) {
     lastTriggerMs = nowMs
     flashHistoryMs = [...flashHistoryMs, nowMs]
     flashHoldUntilMs = nowMs + settings.flashDurationMs
     flashStartedAtMs = nowMs
     manualFlashStartedAtMs = undefined
-    flashPeakIntensity = flashMode === 'high' ? 1 : flashMode === 'mid' ? 0.85 : 0.80
+    flashPeakIntensity = flashMode === 'high' ? 0.82 : flashMode === 'mid' ? 0.68 : 0.58
   }
 
   let whiteMix = 0
@@ -327,8 +329,8 @@ export function stepVisualEngine(input: VisualEngineInput): {
     if (elapsed <= settings.flashDurationMs || testActive) {
       whiteMix = flashPeakIntensity || 1
     } else {
-      const decayProgress = (elapsed - settings.flashDurationMs) / Math.max(1, settings.decayMs)
-      whiteMix = Math.max(0, (flashPeakIntensity || 1) * (1 - decayProgress))
+      const decayProgress = clamp01((elapsed - settings.flashDurationMs) / Math.max(1, settings.decayMs))
+      whiteMix = Math.max(0, (flashPeakIntensity || 1) * Math.pow(1 - decayProgress, 1.65))
     }
     if (whiteMix <= 0) {
       whiteMix = 0
@@ -365,8 +367,8 @@ export function stepVisualEngine(input: VisualEngineInput): {
   const idleToPink = clamp01(overallDrive * (settings.useMorphing ? 1.15 : 1.55) + noMorphPresence)
   const baseLayer = lerpColor(settings.idleColor, settings.basePinkColor, idleToPink)
   const pinkLayer = lerpColor(baseLayer, settings.hotPinkColor, clamp01(pinkHotBlend * (settings.useMorphing ? 0.95 : 1.25)))
-  const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.65 : whiteMix
-  const morphingFlashIntensity = settings.useMorphing ? whiteMix * 0.85 : whiteMix
+  const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.46 : whiteMix * 0.72
+  const morphingFlashIntensity = settings.useMorphing ? whiteMix * 0.62 : whiteMix * 0.78
   const flashedColor = lerpColor(pinkLayer, settings.whiteFlashColor, clamp01(baseFlashIntensity))
   const oniricBackgroundDarkness = Math.min(settings.backgroundDarkness ?? 0.78, 0.84)
   const finalColor =
@@ -374,7 +376,7 @@ export function stepVisualEngine(input: VisualEngineInput): {
       ? darkenColor(flashedColor, oniricBackgroundDarkness)
       : flashedColor
 
-  const flashActive = whiteMix > 0.35
+  const flashActive = whiteMix > 0.28
 
   if (DEBUG_FLASH && nowMs - lastFlashDebugLogMs >= 500) {
     lastFlashDebugLogMs = nowMs

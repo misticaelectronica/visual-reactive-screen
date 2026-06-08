@@ -33,6 +33,11 @@ function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val))
 }
 
+function seededUnit(seed: number, index: number): number {
+  const x = Math.sin(seed * 12.9898 + index * 78.233) * 43758.5453
+  return x - Math.floor(x)
+}
+
 function isOrganicPreset(presetId: string): boolean {
   const organicIds = [
     'submerged-organism',
@@ -40,7 +45,8 @@ function isOrganicPreset(presetId: string): boolean {
     'molten-memory',
     'nocturnal-bloom',
     'dream-plasma',
-    'imaginary-friend'
+    'imaginary-friend',
+    'alien-contact'
   ]
   return organicIds.includes(presetId)
 }
@@ -93,6 +99,7 @@ export function createMorphingCanvas(container: HTMLElement) {
   let smoothedScale = 1
   let smoothedCx = 0
   let smoothedCy = 0
+  let lastRenderAt = 0
 
   const resize = () => {
     canvas.width = container.clientWidth
@@ -108,6 +115,14 @@ export function createMorphingCanvas(container: HTMLElement) {
       return
     }
 
+    const targetFrameMs = currentSettings.lowPowerMode === true ? 1000 / 30 : 1000 / 60
+    const now = performance.now()
+    if (now - lastRenderAt < targetFrameMs) {
+      rafId = requestAnimationFrame(render)
+      return
+    }
+    lastRenderAt = now
+
     const presetId = currentSettings.morphingPresetId
     const preset = MORPHING_PRESETS.find((p) => p.id === presetId) || MORPHING_PRESETS[0]
     
@@ -117,16 +132,18 @@ export function createMorphingCanvas(container: HTMLElement) {
     canvas.style.mixBlendMode = preset.blendMode || 'screen'
 
     // Smoothing band energies for fluid motion
-    smoothedBands.low += (currentBands.low - smoothedBands.low) * 0.05
-    smoothedBands.lowMid += (currentBands.lowMid - smoothedBands.lowMid) * 0.05
-    smoothedBands.mid += (currentBands.mid - smoothedBands.mid) * 0.05
-    smoothedBands.high += (currentBands.high - smoothedBands.high) * 0.05
+    smoothedBands.low += (currentBands.low - smoothedBands.low) * 0.12
+    smoothedBands.lowMid += (currentBands.lowMid - smoothedBands.lowMid) * 0.13
+    smoothedBands.mid += (currentBands.mid - smoothedBands.mid) * 0.14
+    smoothedBands.high += (currentBands.high - smoothedBands.high) * 0.10
 
     // Modulazione tramite subMovement e kickMovement del preset audio attivo
     const rawKickPulse = Math.max(0, currentBands.low - smoothedBands.low)
-    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * 0.12
-    const kickPulse = smoothedKickPulse * (currentSettings.kickMovement ?? 0.08)
-    const subPressure = smoothedBands.low * (currentSettings.subMovement ?? 0.26)
+    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * 0.24
+    const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * 2.8, 0, 0.55)
+    const subPressure = clamp(smoothedBands.low * (currentSettings.subMovement ?? 0.26) * 1.55, 0, 0.85)
+    const beatDrive = clamp(kickPulse * 1.45 + Math.max(0, currentBands.lowMid - smoothedBands.lowMid) * 0.85, 0, 0.95)
+    const rhythmicDetail = clamp(currentBands.high * preset.highNoiseAmount * 1.8, 0, 0.55)
 
     // Correzione 5: Smoothing del flash nel morphing
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
@@ -136,10 +153,10 @@ export function createMorphingCanvas(container: HTMLElement) {
       smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.045
     }
 
-    const effectiveSpeed = clamp(preset.speed * 1.8, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
+    const effectiveSpeed = clamp(preset.speed * (2.15 + beatDrive * 1.20 + rhythmicDetail * 0.55), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED * 1.22)
 
     // Advance time
-    time += effectiveSpeed * 0.05 * (1 + smoothedBands.high * preset.highNoiseAmount) * (1 + subPressure * 0.5)
+    time += effectiveSpeed * 0.05 * (1 + rhythmicDetail * 1.45) * (1 + subPressure * 0.65 + beatDrive * 0.95)
 
     const w = canvas.width
     const h = canvas.height
@@ -153,6 +170,9 @@ export function createMorphingCanvas(container: HTMLElement) {
       cy = h * 0.38
     } else if (profile.spatialBias === 'lateral') {
       cx = w * 0.30
+    } else if (profile.spatialBias === 'contactBridge') {
+      cx = w * 0.50
+      cy = h * 0.48
     }
 
     ctx.clearRect(0, 0, w, h)
@@ -160,12 +180,12 @@ export function createMorphingCanvas(container: HTMLElement) {
     ctx.globalCompositeOperation = preset.blendMode || 'screen'
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
-    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 2.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 2.6 + beatDrive * 2.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     let effectiveBlur = clamp(preset.blur * 0.58, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    let effectiveOpacity = clamp(preset.opacity * 1.42 + subPressure * 0.22 + kickPulse * 0.20, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    let effectiveScale = clamp(preset.scale * 1.10 + subPressure * 0.38 + kickPulse * 0.24, 0.85, 2.02)
+    let effectiveOpacity = clamp(preset.opacity * 1.42 + subPressure * 0.26 + beatDrive * 0.32, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
+    let effectiveScale = clamp(preset.scale * 1.10 + subPressure * 0.44 + beatDrive * 0.38, 0.85, 2.08)
 
-    let midGlowBoost = smoothedBands.mid * preset.midOpacityAmount * 0.58
+    let midGlowBoost = (smoothedBands.mid * 0.55 + currentBands.mid * 0.45) * preset.midOpacityAmount * 0.78
     let integratedFlashGlowBoost = smoothedMorphingFlash
 
     // Correzione 6: Boost di presenza per i preset organici
@@ -179,6 +199,9 @@ export function createMorphingCanvas(container: HTMLElement) {
 
     // Clamps finali
     effectiveVeilCount = clamp(effectiveVeilCount, ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    if (currentSettings.lowPowerMode === true) {
+      effectiveVeilCount = Math.min(effectiveVeilCount, 7)
+    }
     effectiveOpacity = clamp(effectiveOpacity, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
     effectiveBlur = clamp(effectiveBlur, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
     effectiveScale = clamp(effectiveScale, 0.85, 1.95)
@@ -205,13 +228,15 @@ export function createMorphingCanvas(container: HTMLElement) {
       scaleFactor *= 1.35
     } else if (profile.spatialBias === 'peripheral') {
       scaleFactor *= 1.15
+    } else if (profile.spatialBias === 'contactBridge') {
+      scaleFactor *= 0.92
     }
 
-    let baseRadius = Math.min(w, h) * 0.3 * scaleFactor * (1 + subPressure * 1.5 + kickPulse * 0.8)
+    let baseRadius = Math.min(w, h) * 0.3 * scaleFactor * (1 + subPressure * 1.5 + beatDrive * 1.15)
     
     // Correzione 3: Flash integrated multiplier sul raggio
     baseRadius *= 1 + integratedFlashGlowBoost * 0.08
-    smoothedRadius += (baseRadius - smoothedRadius) * (smoothedRadius === 0 ? 1 : 0.10)
+    smoothedRadius += (baseRadius - smoothedRadius) * (smoothedRadius === 0 ? 1 : 0.18)
 
     let baseOp = effectiveOpacity + midGlowBoost
     if (profile.spatialBias === 'fieldWide') {
@@ -221,15 +246,15 @@ export function createMorphingCanvas(container: HTMLElement) {
     // Correzione 3: Flash integrated alpha addition
     let op = baseOp + integratedFlashGlowBoost * 0.16
     op = clamp(op * contrastOpacityMult * contrastInnerAlphaMult, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    smoothedOpacity += (op - smoothedOpacity) * (smoothedOpacity === 0 ? 1 : 0.12)
-    smoothedScale += (effectiveScale - smoothedScale) * 0.08
+    smoothedOpacity += (op - smoothedOpacity) * (smoothedOpacity === 0 ? 1 : 0.20)
+    smoothedScale += (effectiveScale - smoothedScale) * 0.15
 
     // Correzione 8: Presenza minima del morphing
     const minPresence = isOrganicPreset(presetId) ? 0.12 : 0.08
     op = Math.max(smoothedOpacity, minPresence)
-    baseRadius = smoothedRadius * (1 + (smoothedScale - effectiveScale) * 0.08)
-    smoothedCx += (cx - smoothedCx) * (smoothedCx === 0 ? 1 : 0.08)
-    smoothedCy += (cy - smoothedCy) * (smoothedCy === 0 ? 1 : 0.08)
+    baseRadius = smoothedRadius * (1 + (smoothedScale - effectiveScale) * 0.08 + beatDrive * 0.10)
+    smoothedCx += (cx - smoothedCx) * (smoothedCx === 0 ? 1 : 0.12)
+    smoothedCy += (cy - smoothedCy) * (smoothedCy === 0 ? 1 : 0.12)
 
     const shapesToDraw = effectiveVeilCount
 
@@ -242,7 +267,7 @@ export function createMorphingCanvas(container: HTMLElement) {
       for (let j = 0; j <= points; j++) {
         const angle = (j / points) * Math.PI * 2
         
-        let def = preset.deformation + (smoothedBands.lowMid * preset.lowMidDeformationAmount * 0.72)
+        let def = preset.deformation + (smoothedBands.lowMid * preset.lowMidDeformationAmount * 0.72) + beatDrive * 0.18
         if (profile.density === 'membrane') {
           def *= 1.25
         }
@@ -267,6 +292,19 @@ export function createMorphingCanvas(container: HTMLElement) {
           const spec = i % 2 === 0 ? -1 : 1
           localCx = smoothedCx + spec * (w * 0.15) + Math.cos(time * 0.36 + i) * (w * 0.035)
           localCy = smoothedCy + Math.sin(time * 0.30 - i) * (h * 0.035)
+        } else if (profile.spatialBias === 'contactBridge') {
+          const lane = i % 3
+          const pulse = Math.sin(time * 1.6 + i * 0.8)
+          if (lane === 0) {
+            localCx = w * 0.24 + Math.cos(time * 0.22 + i) * w * 0.035
+            localCy = h * 0.50 + Math.sin(time * 0.28 + i) * h * 0.16
+          } else if (lane === 1) {
+            localCx = w * 0.76 + Math.cos(time * 0.18 + i) * w * 0.045
+            localCy = h * 0.44 + Math.sin(time * 0.24 + i) * h * 0.20
+          } else {
+            localCx = w * (0.40 + seededUnit(i + 17, 2) * 0.20) + pulse * w * 0.055
+            localCy = h * (0.40 + seededUnit(i + 23, 3) * 0.20) + Math.cos(time * 1.2 + i) * h * 0.045
+          }
         } else {
           localCx = smoothedCx + Math.cos(time * 0.34 + i) * (w * 0.085)
           localCy = smoothedCy + Math.sin(time * 0.28 - i) * (h * 0.085)
@@ -306,6 +344,30 @@ export function createMorphingCanvas(container: HTMLElement) {
       ctx.fill()
       
       ctx.shadowBlur = 0
+    }
+
+    if (profile.spatialBias === 'contactBridge') {
+      const signalPulse = 0.5 + Math.sin(time * (2.8 + beatDrive * 2.4) + currentBands.high * 10) * 0.5
+      const bridgeAlpha = clamp(op * (0.38 + signalPulse * 0.30) + currentBands.mid * 0.14 + beatDrive * 0.18, 0.12, 0.58)
+      const bridgeColor = mixColor(hotColor, flashColor, clamp(0.14 + smoothedMorphingFlash * 0.35, 0, 0.55))
+      ctx.save()
+      ctx.globalCompositeOperation = 'screen'
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.shadowBlur = clamp(effectiveBlur * 0.42 + signalPulse * 18, 12, 42)
+      ctx.shadowColor = `rgba(${bridgeColor.r}, ${bridgeColor.g}, ${bridgeColor.b}, ${bridgeAlpha})`
+      for (let lane = 0; lane < 5; lane++) {
+        const u = lane / 4
+        const y = h * (0.28 + u * 0.42) + Math.sin(time * 1.1 + lane) * h * 0.025
+        const kink = Math.sin(time * 1.7 + lane * 1.9) * h * 0.055
+        ctx.beginPath()
+        ctx.strokeStyle = `rgba(${bridgeColor.r}, ${bridgeColor.g}, ${bridgeColor.b}, ${bridgeAlpha * (0.58 + u * 0.24)})`
+        ctx.lineWidth = clamp(w * (0.0045 + signalPulse * 0.002 + beatDrive * 0.0025), 2, 10)
+        ctx.moveTo(w * 0.29, y)
+        ctx.bezierCurveTo(w * 0.40, y - kink, w * 0.58, y + kink, w * 0.71, y + Math.sin(time + lane) * h * 0.018)
+        ctx.stroke()
+      }
+      ctx.restore()
     }
 
     rafId = requestAnimationFrame(render)

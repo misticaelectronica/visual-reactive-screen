@@ -107,7 +107,8 @@ function isOrganicPreset(presetId: string): boolean {
     'molten-memory',
     'nocturnal-bloom',
     'dream-plasma',
-    'imaginary-friend'
+    'imaginary-friend',
+    'alien-contact'
   ]
   return organicIds.includes(presetId)
 }
@@ -339,6 +340,18 @@ function computeBasePositions(
     } else if (profile.spatialBias === 'fieldWide') {
       px = 0.10 + (i % 3) * 0.40
       py = 0.10 + Math.floor(i / 3) * 0.35
+    } else if (profile.spatialBias === 'contactBridge') {
+      const lane = i % 4
+      if (lane === 0) {
+        px = 0.22
+        py = 0.34 + (i % 3) * 0.14
+      } else if (lane === 1) {
+        px = 0.78
+        py = 0.28 + (i % 4) * 0.15
+      } else {
+        px = 0.38 + ((i % 5) / 4) * 0.24
+        py = 0.36 + ((i * 2) % 5) * 0.055
+      }
     }
 
     points.push({ x: px * width, y: py * height })
@@ -395,8 +408,8 @@ function computeMotionVector(
     driftY += pulse * height * 0.04
   } else if (profile.motion === 'signalPulse') {
     const pulse = Math.sin(t * s * 2.0 + phase)
-    driftX += pulse * width * 0.02
-    driftY += pulse * height * 0.02
+    driftX += pulse * width * 0.035
+    driftY += pulse * height * 0.018
     rotation *= 0.15
   }
 
@@ -426,6 +439,9 @@ function computeVeilGeometry(
   } else if (profile.density === 'particulate') {
     ellipseX = 0.95 + Math.sin(t * speed * 0.2 + phase) * 0.1
     ellipseY = 0.95 + Math.cos(t * speed * 0.2 + phase) * 0.1
+  } else if (profile.spatialBias === 'contactBridge') {
+    ellipseX = 1.25 + Math.sin(t * speed * 0.45 + phase) * 0.18
+    ellipseY = 0.24 + Math.cos(t * speed * 0.38 + phase) * 0.08
   }
 
   ellipseX = clamp(ellipseX, 0.35, 1.85)
@@ -578,6 +594,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
   let smoothedFlash = 0
   let smoothedMorphingFlash = 0
   let smoothedKickPulse = 0
+  let lastRenderAt = 0
 
   let warnedCount = false
   let warnedOpacity = false
@@ -597,6 +614,13 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       rafId = requestAnimationFrame(render)
       return
     }
+
+    const targetFrameMs = currentSettings.lowPowerMode === true ? 1000 / 30 : 1000 / 60
+    if (now - lastRenderAt < targetFrameMs) {
+      rafId = requestAnimationFrame(render)
+      return
+    }
+    lastRenderAt = now
 
     const dt = now - lastTime
     lastTime = now
@@ -625,10 +649,10 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     const visualBlendMode = blendMode === 'source-over' ? 'screen' : blendMode
     canvas.style.mixBlendMode = visualBlendMode
 
-    smoothedLow += (currentBands.low - smoothedLow) * 0.055
-    smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * 0.060
-    smoothedMid += (currentBands.mid - smoothedMid) * 0.070
-    smoothedHigh += (currentBands.high - smoothedHigh) * 0.045
+    smoothedLow += (currentBands.low - smoothedLow) * 0.12
+    smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * 0.13
+    smoothedMid += (currentBands.mid - smoothedMid) * 0.14
+    smoothedHigh += (currentBands.high - smoothedHigh) * 0.10
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
     const softenedFlashTarget = flashTarget * 0.65
@@ -646,14 +670,15 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
 
     const rawKickPulse = Math.max(0, currentBands.low - smoothedLow)
-    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * 0.12
-    const kickPulse = smoothedKickPulse * (currentSettings.kickMovement ?? 0.08)
-    const subPressure = smoothedLow * (currentSettings.subMovement ?? 0.26)
+    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * 0.24
+    const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * 2.8, 0, 0.55)
+    const subPressure = clamp(smoothedLow * (currentSettings.subMovement ?? 0.26) * 1.55, 0, 0.85)
+    const beatDrive = clamp(kickPulse * 1.45 + Math.max(0, currentBands.lowMid - smoothedLowMid) * 0.85, 0, 0.95)
 
-    const bodyDensity = smoothedLowMid * preset.lowMidDeformationAmount * 0.50 * (1 + subPressure * 0.82 + kickPulse * 0.55)
-    const midGlow = smoothedMid * preset.midOpacityAmount * (0.58 + debugSettings.glowIntensity * 0.34)
+    const bodyDensity = (smoothedLowMid * 0.65 + currentBands.lowMid * 0.35) * preset.lowMidDeformationAmount * 0.68 * (1 + subPressure * 0.82 + beatDrive * 0.75)
+    const midGlow = (smoothedMid * 0.55 + currentBands.mid * 0.45) * preset.midOpacityAmount * (0.76 + debugSettings.glowIntensity * 0.34)
     const flashGlow = smoothedFlash * 0.10
-    const highTension = smoothedHigh * preset.highNoiseAmount * 0.30
+    const highTension = (smoothedHigh * 0.55 + currentBands.high * 0.45) * preset.highNoiseAmount * 0.58
 
     // Correzione 3: Assorbimento del flash come energia interna
     let integratedFlashGlow = smoothedMorphingFlash
@@ -676,15 +701,15 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
-    const effectiveSpeed = clamp(preset.speed * 2.05, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
-    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.4 + Math.sin(defaultTransitionProgress * Math.PI) * 2), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    const effectiveSpeed = clamp(preset.speed * (2.35 + beatDrive * 1.30 + highTension * 1.20), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED * 1.22)
+    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.8 + beatDrive * 2.2 + Math.sin(defaultTransitionProgress * Math.PI) * 2), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     let effectiveBlur = clamp(preset.blur * (0.38 + debugSettings.edgeSoftness * 0.30), ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
     let effectiveOpacity = clamp(
-      Math.max(preset.opacity * 1.34, debugSettings.opacity) + subPressure * 0.22 + kickPulse * 0.20,
+      Math.max(preset.opacity * 1.34, debugSettings.opacity) + subPressure * 0.27 + beatDrive * 0.34,
       ORGANIC_MIN_ALPHA,
       ORGANIC_MAX_ALPHA
     )
-    let effectiveScale = clamp(preset.scale * debugSettings.scale * 1.05 + subPressure * 0.40 + kickPulse * 0.26, 0.85, 2.12)
+    let effectiveScale = clamp(preset.scale * debugSettings.scale * 1.05 + subPressure * 0.45 + beatDrive * 0.40, 0.85, 2.16)
 
     let midGlowBoost = midGlow
     let integratedFlashGlowBoost = integratedFlashGlow
@@ -700,6 +725,9 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
 
     // Clamps finali
     effectiveVeilCount = clamp(effectiveVeilCount, ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    if (currentSettings.lowPowerMode === true) {
+      effectiveVeilCount = Math.min(effectiveVeilCount, 7)
+    }
     effectiveOpacity = clamp(effectiveOpacity, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
     effectiveBlur = clamp(effectiveBlur, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
     effectiveScale = clamp(effectiveScale, 0.85, 2.0)
@@ -758,8 +786,8 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         x = width / 2 + Math.cos(angle) * centerDist + motion.driftX * 0.5
         y = height / 2 + Math.sin(angle) * centerDist + motion.driftY * 0.5
       } else {
-        x += motion.driftX + bodyDensity * width * 0.10 * Math.sin(t * speed * 0.53 + phase) + Math.sin(t * speed * 0.15 + phase) * width * 0.04 * highTension
-        y += motion.driftY + bodyDensity * height * 0.10 * Math.cos(t * speed * 0.49 + phase) + Math.cos(t * speed * 0.11 + phase) * height * 0.04 * highTension
+        x += motion.driftX + bodyDensity * width * 0.12 * Math.sin(t * speed * 0.53 + phase) + Math.sin(t * speed * 0.15 + phase) * width * 0.055 * highTension
+        y += motion.driftY + bodyDensity * height * 0.12 * Math.cos(t * speed * 0.49 + phase) + Math.cos(t * speed * 0.11 + phase) * height * 0.055 * highTension
       }
 
       let radius =
@@ -767,7 +795,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         effectiveScale *
         (0.28 + pseudoRandom(seed + 1) * 0.28) *
         geom.radiusPulse *
-        (1 + subPressure * 1.5 + kickPulse * 0.8)
+        (1 + subPressure * 1.5 + beatDrive * 1.18)
 
       if (profile.density === 'particulate') {
         radius *= 0.22
@@ -805,8 +833,8 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       const outerAlpha = clamp(alpha * (0.10 + debugSettings.glowIntensity * 0.04), 0.035, 0.14)
 
       // Correzione 3: Flash integrated multipliers
-      radius *= 1 + integratedFlashGlowBoost * 0.08
-      alpha += integratedFlashGlowBoost * 0.08
+      radius *= 1 + integratedFlashGlowBoost * 0.08 + beatDrive * 0.12
+      alpha += integratedFlashGlowBoost * 0.08 + beatDrive * 0.10
       innerAlpha += integratedFlashGlowBoost * 0.22
       midAlpha += integratedFlashGlowBoost * 0.09
 
@@ -844,6 +872,26 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         outerAlpha,
         integratedFlashGlow: integratedFlashGlowBoost
       })
+    }
+
+    if (profile.spatialBias === 'contactBridge') {
+      const pulse = 0.5 + Math.sin(t * effectiveSpeed * (5.8 + beatDrive * 2.8) + currentBands.high * 8) * 0.5
+      const signalAlpha = clamp(0.16 + midGlow * 0.22 + pulse * 0.20 + flashGlow * 0.08 + beatDrive * 0.18, 0.14, 0.54)
+      for (let index = 0; index < 6; index++) {
+        const seed = stableSeed(index + 44)
+        const lane = index / 5
+        drawSoftStreak(ctx, {
+          x: width * 0.50 + Math.sin(t * effectiveSpeed * 1.6 + seed) * width * 0.035,
+          y: height * (0.26 + lane * 0.48) + Math.cos(t * effectiveSpeed * 1.2 + seed) * height * 0.018,
+          length: width * (0.50 + pulse * 0.18 + beatDrive * 0.12),
+          thickness: height * (0.018 + lane * 0.008 + beatDrive * 0.006),
+          rotation: Math.sin(t * effectiveSpeed * 0.9 + seed) * 0.20,
+          blur: 18 + debugSettings.edgeSoftness * 22,
+          alpha: signalAlpha * (0.62 + lane * 0.18),
+          color: mixColor(hotColor, flashColor, 0.22 + integratedFlashGlowBoost * 0.25),
+          blendMode: visualBlendMode
+        })
+      }
     }
 
     if (profile.density === 'streaked' || profile.density === 'membrane' || profile.density === 'diffuse') {

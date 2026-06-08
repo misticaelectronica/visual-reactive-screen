@@ -8,6 +8,7 @@ export type MorphingSpatialBias =
   | 'fieldWide'
   | 'diagonal'
   | 'fragmented'
+  | 'contactBridge'
 
 export type MorphingSymmetry =
   | 'none'
@@ -251,17 +252,17 @@ export const MORPHING_THEME_PROFILES: Record<string, MorphingThemeProfile> = {
   },
   'alien-contact': {
     presetId: 'alien-contact',
-    guideFigure: 'segnale simmetrico non decifrabile / geometria molle non umana',
+    guideFigure: 'due campi di civiltà separati collegati da un ponte di segnali non umani',
     perceptualReference: 'symmetry detection / apophenia',
     perceptualPrinciple: 'rilevamento di ordine, simmetria o significato in pattern ambigui',
-    renderingIntent: 'creare simmetrie incomplete, ripetizioni deboli e campi luminosi che sembrano comunicare senza diventare simboli leggibili',
+    renderingIntent: 'rendere leggibile un contatto tra una massa terrestre densa e una presenza aliena ordinata tramite fasci, impulsi e frammenti di codice materico, evitando icone sci-fi letterali',
     literatureReference: 'symmetry perception; apophenia; pattern detection',
-    spatialBias: 'distributed',
+    spatialBias: 'contactBridge',
     symmetry: 'brokenSymmetry',
-    density: 'clustered',
+    density: 'fragmented',
     motion: 'signalPulse',
     closure: 'suggested',
-    edgeBehavior: 'dissolvedContours',
+    edgeBehavior: 'impliedEdges',
   },
   'solchi-abitudine': {
     presetId: 'solchi-abitudine',

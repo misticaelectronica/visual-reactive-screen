@@ -22,8 +22,8 @@ type MorphingTransition = {
   active: boolean
 }
 
-const MORPHING_TRANSITION_MIN_MS = 7_000
-const MORPHING_TRANSITION_MAX_MS = 12_000
+const MORPHING_TRANSITION_MIN_MS = 4_500
+const MORPHING_TRANSITION_MAX_MS = 7_500
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))

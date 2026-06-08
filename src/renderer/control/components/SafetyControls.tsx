@@ -17,6 +17,14 @@ export function SafetyControls({ settings, onChange }: Props) {
         />
         Modalità soft (intensità ridotta, decay più lento, meno flash)
       </label>
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={settings.lowPowerMode === true}
+          onChange={(e) => onChange({ lowPowerMode: e.target.checked })}
+        />
+        Modalità basso consumo (meno FPS e meno layer visuali)
+      </label>
     </fieldset>
   )
 }

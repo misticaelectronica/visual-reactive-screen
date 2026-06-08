@@ -63,6 +63,7 @@ export interface AppSettings {
   subMovement: number
   kickMovement: number
   flashOnKick: boolean
+  lowPowerMode: boolean
   selectedColorPresetId: string | null
   dynamicPresetEnabled: boolean
   dynamicColorRotationEnabled: boolean
