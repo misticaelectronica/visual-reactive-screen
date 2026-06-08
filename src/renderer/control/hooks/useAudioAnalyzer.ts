@@ -27,6 +27,41 @@ function alphaFromTau(deltaMs: number, tauMs: number): number {
   return Math.exp(-deltaMs / tauMs)
 }
 
+function buildAudioConstraints(deviceId: string | null): MediaStreamConstraints {
+  return {
+    audio: {
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+    },
+  }
+}
+
+function shouldRetryWithDefaultDevice(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'OverconstrainedError' ||
+      error.name === 'NotFoundError' ||
+      error.name === 'DevicesNotFoundError')
+  )
+}
+
+function audioErrorMessage(error: unknown): string {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      return 'Permesso microfono negato. Abilita il microfono per questa app nelle impostazioni macOS.'
+    }
+    if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+      return 'Nessun ingresso audio disponibile'
+    }
+    if (error.name === 'OverconstrainedError') {
+      return 'Ingresso audio non piu disponibile. Seleziona di nuovo il dispositivo.'
+    }
+  }
+  return error instanceof Error ? error.message : 'Impossibile avviare audio'
+}
+
 export function useAudioAnalyzer(
   deviceId: string | null,
   fftSize: AppSettings['fftSize'],
@@ -100,15 +135,13 @@ export function useAudioAnalyzer(
       return
     }
     try {
-      const constraints: MediaStreamConstraints = {
-        audio: {
-          deviceId: { exact: deviceId },
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(buildAudioConstraints(deviceId))
+      } catch (e) {
+        if (!shouldRetryWithDefaultDevice(e)) throw e
+        stream = await navigator.mediaDevices.getUserMedia(buildAudioConstraints(null))
       }
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
       streamRef.current = stream
 
       const ctx = new AudioContext()
@@ -138,8 +171,7 @@ export function useAudioAnalyzer(
 
       setRunning(true)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Impossibile avviare audio'
-      setError(msg)
+      setError(audioErrorMessage(e))
       stop()
     }
   }, [deviceId, fftSize, smoothingTimeConstant, stop])

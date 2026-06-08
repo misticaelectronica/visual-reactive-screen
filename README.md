@@ -10,19 +10,24 @@ L'app ha due finestre:
 ## Funzionalita principali
 
 - Analisi audio via **Web Audio API** con bande `low`, `lowMid`, `mid`, `high`.
-- Output fullscreen su display selezionabile.
-- Base color layer reattivo a energia audio e flash.
+- Selezione ingresso audio da dispositivi `audioinput`, inclusi microfoni, schede audio e loopback.
+- Gestione permessi media/microfono in Electron, con `NSMicrophoneUsageDescription` per build macOS.
+- Fallback automatico all'ingresso audio predefinito se il device ID salvato non e' piu' valido.
+- Output fullscreen su display selezionabile, pensato per HDMI, secondo monitor o proiettore.
+- Base color layer reattivo a energia audio, brightness e flash.
 - Flash controllato con modalita `High`, `Mid`, `Low`, `Off`.
-- Preset genere e preset colore.
+- Controlli live per durata flash, decay, cooldown, sensibilita, rate limit, FFT size e smoothing analyser.
+- Preset genere e preset colore, con opzione **Match Genere/Colore**.
 - Rotazione dinamica opzionale di colori e morphing.
 - Tre algoritmi morphing Canvas 2D:
   - **Liquid Morphing**
   - **Oniric Morphing**
   - **PsyHypMorphing**
+- Controlli dedicati al morphing onirico: opacita, luminanza, glow, contrasto, scala, morbidezza bordo e oscuramento sfondo.
 - Test Flash manuale indipendente da audio/soglie/cooldown.
 - Panic / Off per mandare subito l'output in stato sicuro.
 - Persistenza impostazioni su disco.
-- Build desktop con `electron-builder`.
+- Build desktop con `electron-builder`, incluse build macOS arm64 e x64.
 
 ## Requisiti
 
@@ -75,7 +80,23 @@ Per provare l'app dopo una build:
 pnpm start
 ```
 
-Su macOS il pacchetto non e' firmato di default. Gatekeeper puo' richiedere conferme manuali.
+Su macOS il pacchetto non e' firmato di default (`identity: null`). Gatekeeper puo' richiedere conferme manuali.
+
+### Build macOS Intel
+
+Per generare esplicitamente la build Mac Intel/x64:
+
+```bash
+pnpm exec electron-builder --mac --x64
+```
+
+Output tipici:
+
+- `release/mac/`: app x64 non compressa
+- `release/Mistica Electronica Visual Reactive Screen-0.1.0.dmg`: DMG x64
+- `release/Mistica Electronica Visual Reactive Screen-0.1.0-mac.zip`: ZIP x64
+
+La build macOS include `NSMicrophoneUsageDescription` nel plist, necessario per far comparire correttamente la richiesta di permesso microfono.
 
 ## Uso rapido live
 
@@ -96,8 +117,10 @@ Su macOS il pacchetto non e' firmato di default. Gatekeeper puo' richiedere conf
 
 - **Display di uscita**: usa `screen.getAllDisplays()` dal processo main.
 - **Aggiorna display**: rilegge la lista monitor.
-- **Ingresso audio**: elenco dispositivi `getUserMedia`.
-- **Avvia/Ferma analisi audio**: abilita o ferma il polling audio.
+- **Ingresso audio**: elenco dispositivi `audioinput` via `enumerateDevices()`.
+- **Avvia/Ferma analisi audio**: apre/chiude `getUserMedia`, `AudioContext`, `AnalyserNode` e stream.
+- Se il dispositivo selezionato non e' piu' disponibile, l'app prova l'ingresso predefinito invece di fermarsi subito.
+- Su macOS il main process configura i permessi `media` e, se necessario, chiede accesso al microfono tramite Electron.
 
 ### Meter e soglie
 
@@ -111,6 +134,14 @@ Le bande principali sono:
 | `high` | 2000-8000 Hz |
 
 Le soglie dinamiche sono basate su moving average, moltiplicatori per banda e sensibilita globale.
+
+Controlli audio disponibili:
+
+- moltiplicatori soglia `low`, `lowMid`, `mid`, `high`
+- `fftSize`: 256, 512, 1024, 2048, 4096, 8192
+- `smoothingTimeConstant`
+- `sensitivity`
+- anteprima soglie sui meter
 
 ### Flash
 
@@ -144,6 +175,15 @@ La pipeline flash usa:
 - penalita morbida `lowDominanceBlockRatio`
 
 Il flash audio non viene generato direttamente dal kick regolare se la modalita e' `mid` o `high`; il low dominante aumenta solo temporaneamente la soglia, non blocca in modo assoluto.
+
+Controlli flash/colori disponibili:
+
+- `Flash mode`: `High`, `Mid`, `Low`, `Off`
+- durata flash
+- decay
+- cooldown
+- max flash/sec
+- colori `idle`, `basePinkColor`, `hotPinkColor`, `whiteFlashColor`
 
 Quando `Use morphing` e' attivo:
 
@@ -340,6 +380,9 @@ La normalizzazione delle impostazioni avviene nel main process:
 - `morphingAlgorithm` invalido -> `liquid`
 - `flashMode` invalido/mancante -> `mid`
 - `softMode` mancante/invalido -> `false`, salvo stato globale salvato esplicitamente come `true`
+- alias vecchi dei preset colore -> nuovi id Mistica Electronica
+- `dynamicPresetEnabled` valido solo se esplicitamente `true`
+- `dynamicColorRotationEnabled` e `dynamicMorphingRotationEnabled` attivi di default salvo `false` esplicito
 
 ## Architettura
 
@@ -366,6 +409,13 @@ src/
     morphingThemeProfiles.ts
     psyHypMorphingShapes.ts
 ```
+
+Nel main process vengono anche configurati:
+
+- permessi Electron per `media`
+- richiesta permesso microfono macOS quando lo stato e' `not-determined`
+- lifecycle Control/Output window
+- chiusura pulita della finestra output prima dell'uscita
 
 ## Flusso dati
 
@@ -419,6 +469,19 @@ Non vanno lasciati attivi in produzione live.
 ### Non vedo dispositivi audio leggibili
 
 Alcuni sistemi non espongono etichette dispositivi fino al primo permesso `getUserMedia`. Avvia analisi audio e concedi il permesso.
+
+Su macOS, in particolare su build Intel/x64:
+
+1. Apri **Impostazioni di Sistema > Privacy e Sicurezza > Microfono**.
+2. Verifica che l'app sia abilitata.
+3. Se l'app era gia' stata aperta prima della correzione dei permessi, rimuovi/riabilita il consenso o riapri la nuova build.
+4. Se l'ingresso salvato non esiste piu', seleziona di nuovo il device o lascia che l'app provi il default.
+
+Errori possibili mostrati dalla UI:
+
+- `Permesso microfono negato`: consenso macOS/Electron mancante.
+- `Nessun ingresso audio disponibile`: nessun device esposto dal sistema.
+- `Ingresso audio non piu disponibile`: device ID salvato non valido.
 
 ### Il flash non parte
 

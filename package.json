@@ -45,7 +45,11 @@
     },
     "files": ["dist/**/*", "dist-electron/**/*"],
     "mac": {
-      "category": "public.app-category.music"
+      "category": "public.app-category.music",
+      "identity": null,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Mistica Electronica Visual Reactive Screen usa l'ingresso audio selezionato per generare visual reattivi."
+      }
     }
   }
 }
