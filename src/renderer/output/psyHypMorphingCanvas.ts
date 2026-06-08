@@ -1,5 +1,6 @@
 import {
   PSY_HYP_DEFAULT_PRESET,
+  PSY_HYP_MORPHING_PRESETS,
   type PsyHypDrawProfile,
   type PsyHypPreset,
   type PsyHypShapeId,
@@ -8,7 +9,7 @@ import type { AppSettings, BandEnergies, VisualStatePayload } from '@shared/type
 
 const DEBUG_PSY_HYP = false
 const DEBUG_PSY_PERF = false
-const PSY_TARGET_FPS = 30
+const PSY_TARGET_FPS = 60
 const PSY_MAX_DPR = 1.5
 const PSY_POINT_COUNT = 96
 const PSY_STRUCTURE_POINT_COUNT = 48
@@ -20,16 +21,16 @@ const PSY_AURA_BLUR = 24
 const PSY_SILHOUETTE_BLUR = 8
 const PSY_STRUCTURE_BLUR = 2
 const PSY_FLASH_GLOW_BLUR = 16
-const MIN_TRANSITION_MS = 6000
-const MAX_TRANSITION_MS = 12000
-const PSY_MAIN_ALPHA_MIN = 0.26
-const PSY_MAIN_ALPHA_MAX = 0.68
+const MIN_TRANSITION_MS = 9000
+const MAX_TRANSITION_MS = 15000
+const PSY_MAIN_ALPHA_MIN = 0.32
+const PSY_MAIN_ALPHA_MAX = 0.78
 const PSY_DEFAULT_SCALE = 1.42
 const PSY_SCREEN_COVERAGE = 1.35
-const PSY_AUDIO_GAIN = 1.45
-const PSY_SUB_BOUNCE_GAIN = 1.65
-const PSY_KICK_BOUNCE_GAIN = 1.55
-const PSY_TWIST_GAIN = 1.35
+const PSY_AUDIO_GAIN = 1.25
+const PSY_SUB_BOUNCE_GAIN = 1.18
+const PSY_KICK_BOUNCE_GAIN = 0.92
+const PSY_TWIST_GAIN = 0.82
 const PSY_MID_GLOW_GAIN = 1.45
 const PSY_HIGH_DETAIL_GAIN = 1.25
 const PSY_TRAIL_AUDIO_GAIN = 1.30
@@ -142,8 +143,8 @@ function psyEase(x: number, _t: number, seed: number): number {
   const k = clamp(x, 0, 1)
   const s = smootherstep(k)
   const wobble =
-    Math.sin(k * Math.PI * 2 + seed) * 0.025 +
-    Math.sin(k * Math.PI * 6 + seed * 1.7) * 0.012
+    Math.sin(k * Math.PI * 2 + seed) * 0.003 +
+    Math.sin(k * Math.PI * 6 + seed * 1.7) * 0.0015
   return clamp(s + wobble, 0, 1)
 }
 
@@ -165,26 +166,26 @@ function phaseSettings(phase: PsyTransitionPhase): {
 } {
   if (phase === 'fusion') {
     return {
-      recognitionBoost: 0.85,
-      deformationMultiplier: 1.05,
-      structureAlphaMultiplier: 0.85,
-      trailMultiplier: 1.05,
-      twistMultiplier: 1.10,
-      noiseMultiplier: 1.0,
-      blurMultiplier: 1.0,
-      auraMultiplier: 1.05,
+      recognitionBoost: 1.05,
+      deformationMultiplier: 0.92,
+      structureAlphaMultiplier: 1.08,
+      trailMultiplier: 0.95,
+      twistMultiplier: 0.92,
+      noiseMultiplier: 0.82,
+      blurMultiplier: 0.78,
+      auraMultiplier: 0.96,
     }
   }
 
   return {
-    recognitionBoost: 1.35,
-    deformationMultiplier: 0.45,
-    structureAlphaMultiplier: 1.50,
+    recognitionBoost: 1.55,
+    deformationMultiplier: 0.38,
+    structureAlphaMultiplier: 1.72,
     trailMultiplier: 0.70,
     twistMultiplier: 0.50,
     noiseMultiplier: 0.45,
-    blurMultiplier: 0.65,
-    auraMultiplier: 0.65,
+    blurMultiplier: 0.56,
+    auraMultiplier: 0.58,
   }
 }
 
@@ -312,6 +313,10 @@ function randomTransitionDuration(rng: () => number): number {
 
 function randomSeed(rng: () => number): number {
   return Math.floor(rng() * 1_000_000) + 1
+}
+
+function findPsyHypPreset(presetId: string | undefined): PsyHypPreset {
+  return PSY_HYP_MORPHING_PRESETS.find((preset) => preset.id === presetId) ?? PSY_HYP_DEFAULT_PRESET
 }
 
 export function pickNextRandomShape(
@@ -824,7 +829,7 @@ function morphPoints(pointsA: Point[], pointsB: Point[], progress: number, bodyT
     const dy = b.y - a.y
     const length = Math.hypot(dx, dy) || 1
     const localWeight = lerp(a.weight ?? 1, b.weight ?? 1, progress)
-    const curveAmount = Math.sin(progress * Math.PI) * clamp((0.035 + bodyTwist * 0.035) * localWeight, 0, 0.075)
+    const curveAmount = Math.sin(progress * Math.PI) * clamp((0.024 + bodyTwist * 0.020) * localWeight, 0, 0.044)
     points.push({
       x: lerp(a.x, b.x, progress) + (-dy / length) * curveAmount,
       y: lerp(a.y, b.y, progress) + (dx / length) * curveAmount,
@@ -844,15 +849,15 @@ function applyPsyDeformation(
   phase: PsyTransitionPhase,
 ): Point[] {
   const phaseConfig = phaseSettings(phase)
-  const highDetail = clamp(audio.highDetail, 0, 0.18)
+  const highDetail = clamp(audio.highDetail, 0, 0.10)
   const twistAmount =
-    (0.18 + audio.bodyTwist * 0.20 + Math.sin(t * 0.09 + seed) * 0.08) *
-    (1 + audio.bodyTwist * 0.35) *
+    (0.10 + audio.bodyTwist * 0.08 + Math.sin(t * 0.09 + seed) * 0.035) *
+    (1 + audio.bodyTwist * 0.18) *
     phaseConfig.twistMultiplier *
     phaseConfig.deformationMultiplier
   const deformation =
-    (0.10 + audio.bodyTwist * 0.18 + highDetail * 0.07) *
-    (1 + audio.bodyTwist * 0.30 + highDetail * 0.18) *
+    (0.065 + audio.bodyTwist * 0.09 + highDetail * 0.04) *
+    (1 + audio.bodyTwist * 0.14 + highDetail * 0.10) *
     phaseConfig.noiseMultiplier *
     phaseConfig.deformationMultiplier
   const asymmetry = Math.sin(seed * 0.0009) * 0.035
@@ -1217,8 +1222,7 @@ function renderPsyHypMorphing(args: {
   const progress = clamp(rawProgress, 0, 1)
   const phase = transitionPhase(progress)
   const phaseConfig = phaseSettings(phase)
-  const localReverse = Math.sin(t * 0.17 + state.cycleSeed) * 0.012
-  const finalMorphProgress = clamp(psyEase(progress, t, state.cycleSeed) + localReverse, 0, 1)
+  const finalMorphProgress = psyEase(progress, t, state.cycleSeed)
   const currentRecognition = progress < 0.35 ? 1 - progress / 0.35 : 0
   const nextRecognition = progress > 0.65 ? (progress - 0.65) / 0.35 : 0
   const recognition = Math.max(currentRecognition, nextRecognition)
@@ -1244,8 +1248,8 @@ function renderPsyHypMorphing(args: {
   const flash = hexToRgb(colors.flashColor)
   const complementary = rotateHue(mixColors(base, intensity, 0.45), Math.sin(t * 0.07 + state.lfoPhaseC) * 18)
   const audioTrailBoost = audio.energy * 0.05 * PSY_TRAIL_AUDIO_GAIN
-  const phaseTrailOffset = phase === 'fusion' ? 0.015 : -0.025 * (1 + recognition * 0.5)
-  const trailRetention = clamp(0.80 + audioTrailBoost + phaseTrailOffset, 0.80, PSY_MAX_TRAIL_RETENTION)
+  const phaseTrailOffset = phase === 'fusion' ? 0.004 : -0.035 * (1 + recognition * 0.5)
+  const trailRetention = clamp(0.84 + audioTrailBoost + phaseTrailOffset, 0.82, PSY_MAX_TRAIL_RETENTION)
   const trailAlpha = Math.pow(trailRetention, Math.max(1, deltaMs) / 16.67)
   const flashTarget = visualState.flashIntensity ?? (visualState.flashActive ? 1 : 0)
   const eventGlow = clamp(Math.max(flashTarget, audio.flash), 0, 1) * 0.16
@@ -1257,9 +1261,9 @@ function renderPsyHypMorphing(args: {
   trailCtx.restore()
 
   const baseLayers: LayerSpec[] = [
-    { name: 'aura', scale: 1.30, blur: PSY_AURA_BLUR, alpha: 0.14 + eventGlow * 0.10, lineWidth: 8, speed: 0.54 },
-    { name: 'silhouette', scale: 1.08, blur: PSY_SILHOUETTE_BLUR, alpha: 0.44 + eventGlow * 0.16, lineWidth: 5.8, speed: 0.82 },
-    { name: 'structure', scale: 0.98, blur: PSY_STRUCTURE_BLUR, alpha: 0.26 + eventGlow * 0.10, lineWidth: 2.5, speed: 1.0 },
+    { name: 'aura', scale: 1.24, blur: PSY_AURA_BLUR, alpha: 0.13 + eventGlow * 0.08, lineWidth: 8, speed: 0.48 },
+    { name: 'silhouette', scale: 1.10, blur: PSY_SILHOUETTE_BLUR, alpha: 0.56 + eventGlow * 0.16, lineWidth: 6.4, speed: 0.68 },
+    { name: 'structure', scale: 1.0, blur: PSY_STRUCTURE_BLUR, alpha: 0.42 + eventGlow * 0.10, lineWidth: 3.4, speed: 0.82 },
   ]
   const layers = baseLayers.slice(0, PSY_MAX_LAYERS)
 
@@ -1374,10 +1378,10 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
   audio.previousMid = previousMid
   audio.previousHigh = previousHigh
 
-  audio.low = updateEnvelope(audio.low, bands.low, 0.22, 0.055)
-  audio.lowMid = updateEnvelope(audio.lowMid, bands.lowMid, 0.20, 0.060)
-  audio.mid = updateEnvelope(audio.mid, bands.mid, 0.18, 0.070)
-  audio.high = updateEnvelope(audio.high, bands.high, 0.14, 0.050)
+  audio.low = updateEnvelope(audio.low, bands.low, 0.12, 0.040)
+  audio.lowMid = updateEnvelope(audio.lowMid, bands.lowMid, 0.11, 0.044)
+  audio.mid = updateEnvelope(audio.mid, bands.mid, 0.10, 0.050)
+  audio.high = updateEnvelope(audio.high, bands.high, 0.08, 0.038)
 
   audio.lowTransient = Math.max(0, audio.low - previousLow)
   audio.lowMidTransient = Math.max(0, audio.lowMid - previousLowMid)
@@ -1399,13 +1403,13 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
 
   const subMovement = settings.subMovement ?? PSY_SUB_MOVEMENT_FALLBACK
   const kickMovement = settings.kickMovement ?? PSY_KICK_MOVEMENT_FALLBACK
-  audio.subBounce = clamp(audio.reactiveLow * subMovement * PSY_SUB_BOUNCE_GAIN, 0, 1.35)
-  audio.kickBounce = clamp(audio.lowTransient * kickMovement * PSY_KICK_BOUNCE_GAIN, 0, 0.75)
-  audio.bodyTwist = clamp(audio.reactiveLowMid * PSY_TWIST_GAIN + audio.lowMidTransient * 0.45, 0, 1.5)
-  audio.midGlow = clamp(audio.reactiveMid * PSY_MID_GLOW_GAIN + audio.midTransient * 0.35, 0, 1.45)
-  audio.highDetail = clamp(audio.reactiveHigh * PSY_HIGH_DETAIL_GAIN + audio.highTransient * 0.24, 0, 0.18)
+  audio.subBounce = clamp(audio.reactiveLow * subMovement * PSY_SUB_BOUNCE_GAIN, 0, 0.82)
+  audio.kickBounce = clamp(audio.lowTransient * kickMovement * PSY_KICK_BOUNCE_GAIN, 0, 0.34)
+  audio.bodyTwist = clamp(audio.reactiveLowMid * PSY_TWIST_GAIN + audio.lowMidTransient * 0.18, 0, 0.72)
+  audio.midGlow = clamp(audio.reactiveMid * PSY_MID_GLOW_GAIN + audio.midTransient * 0.22, 0, 1.25)
+  audio.highDetail = clamp(audio.reactiveHigh * PSY_HIGH_DETAIL_GAIN + audio.highTransient * 0.12, 0, 0.10)
 
-  audio.flash = updateEnvelope(audio.flash, flashTarget, 0.22, 0.045)
+  audio.flash = updateEnvelope(audio.flash, flashTarget, 0.16, 0.040)
 }
 
 export function createPsyHypMorphingCanvas(container: HTMLElement) {
@@ -1431,7 +1435,9 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
   let currentBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
   let currentWhiteMix = 0
   let isFlashing = false
-  let state = initPsyHypMorphingState(performance.now(), PSY_HYP_DEFAULT_PRESET, rng)
+  let currentPreset = PSY_HYP_DEFAULT_PRESET
+  let currentPresetId = currentPreset.id
+  let state = initPsyHypMorphingState(performance.now(), currentPreset, rng)
   let lastTime = performance.now()
   let lastRenderAt = 0
   let quality: PsyHypQuality = 'balanced'
@@ -1480,7 +1486,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
 
     const deltaMs = Math.min(80, Math.max(1, now - lastTime))
     lastTime = now
-    state = updatePsyHypMorphingState(state, now, PSY_HYP_DEFAULT_PRESET, rng, quality)
+    state = updatePsyHypMorphingState(state, now, currentPreset, rng, quality)
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : isFlashing ? 1 : 0
     updatePsyHypAudioEnvelope(audio, currentBands, currentSettings, flashTarget)
@@ -1495,7 +1501,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
       height: cssHeight,
       timestamp: now,
       deltaMs,
-      preset: PSY_HYP_DEFAULT_PRESET,
+      preset: currentPreset,
       colors: {
         baseColor: currentSettings.basePinkColor,
         intensityColor: currentSettings.hotPinkColor,
@@ -1522,7 +1528,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
           state.nextShapeId,
           now,
           state.cycleSeed,
-          PSY_HYP_DEFAULT_PRESET,
+          currentPreset,
           quality,
         ),
       }
@@ -1555,7 +1561,15 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
       canvas.style.opacity = String(clamp(opacity, 0, 1))
     },
     updateState(payload: VisualStatePayload) {
-      if (payload.settings) currentSettings = payload.settings
+      if (payload.settings) {
+        currentSettings = payload.settings
+        const nextPreset = findPsyHypPreset(payload.settings.morphingPresetId)
+        if (nextPreset.id !== currentPresetId) {
+          currentPreset = nextPreset
+          currentPresetId = nextPreset.id
+          state = initPsyHypMorphingState(performance.now(), currentPreset, rng)
+        }
+      }
       if (payload.bandEnergies) currentBands = payload.bandEnergies
       isFlashing = !!payload.flashActive
       if (payload.flashIntensity !== undefined) {

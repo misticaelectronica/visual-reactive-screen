@@ -26,8 +26,10 @@ const silentBands = (): BandEnergies => ({
 
 const COLOR_ROTATION_MIN_MS = 45_000
 const COLOR_ROTATION_MAX_MS = 150_000
-const MORPHING_PRESET_MIN_MS = 30_000
-const MORPHING_PRESET_MAX_MS = 60_000
+const MORPHING_PRESET_MIN_MS = 24_000
+const MORPHING_PRESET_MAX_MS = 48_000
+const PSY_HYP_MORPHING_MIN_MS = 70_000
+const PSY_HYP_MORPHING_MAX_MS = 120_000
 const NO_MORPHING_MIN_INTERVAL_MS = 180_000
 const NO_MORPHING_MAX_INTERVAL_MS = 420_000
 
@@ -99,9 +101,54 @@ function candidateFromSettings(settings: AppSettings): DynamicMorphingCandidate 
 function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNoMorphing: boolean): DynamicMorphingCandidate {
   const candidates = buildDynamicMorphingCandidates()
   if (forceNoMorphing) return candidates[0]
-  const pool = candidates.filter((candidate) => candidate.id !== current.id)
-  const list = pool.length > 0 ? pool : candidates
-  return list[Math.floor(Math.random() * list.length) % list.length]
+
+  const pools = {
+    liquid: candidates.filter((candidate) => candidate.algorithm === 'liquid' && candidate.id !== current.id),
+    oniric: candidates.filter((candidate) => candidate.algorithm === 'oniric' && candidate.id !== current.id),
+    psyHyp: candidates.filter((candidate) => candidate.algorithm === 'psy-hyp' && candidate.id !== current.id),
+  }
+  const weightedFamilies = [
+    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.30 : 0 },
+    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.30 : 0 },
+    // PsyHyp has fewer preset families than Liquid/Oniric, so it keeps family-level compensation.
+    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.40 : 0 },
+  ]
+  const total = weightedFamilies.reduce((sum, item) => sum + item.weight, 0)
+  if (total <= 0) {
+    const fallback = candidates.filter((candidate) => candidate.id !== current.id && candidate.algorithm !== 'none')
+    return fallback[Math.floor(Math.random() * fallback.length) % fallback.length] ?? candidates[0]
+  }
+
+  let roll = Math.random() * total
+  for (const item of weightedFamilies) {
+    roll -= item.weight
+    if (roll <= 0) {
+      const pool = pools[item.family]
+      return pool[Math.floor(Math.random() * pool.length) % pool.length]
+    }
+  }
+  const pool = pools.psyHyp.length > 0 ? pools.psyHyp : pools.liquid.length > 0 ? pools.liquid : pools.oniric
+  return pool[Math.floor(Math.random() * pool.length) % pool.length]
+}
+
+function morphingRotationDelay(settings: AppSettings): number {
+  if (settings.useMorphing && settings.morphingAlgorithm === 'psy-hyp') {
+    return randomBetween(PSY_HYP_MORPHING_MIN_MS, PSY_HYP_MORPHING_MAX_MS)
+  }
+  return randomBetween(MORPHING_PRESET_MIN_MS, MORPHING_PRESET_MAX_MS)
+}
+
+function visibilityPatchForMorphing(candidate: DynamicMorphingCandidate): Partial<AppSettings> {
+  if (candidate.algorithm !== 'oniric') return {}
+  return {
+    morphingOpacity: 0.62,
+    morphingMinOpacity: 0.42,
+    morphingLuminanceBoost: 0.54,
+    morphingGlowIntensity: 0.76,
+    morphingContrast: 1.45,
+    morphingEdgeSoftness: 0.54,
+    backgroundDarkness: 0.78,
+  }
 }
 
 export function ControlApp() {
@@ -303,7 +350,7 @@ export function ControlApp() {
     }
 
     const scheduleMorphingRotation = () => {
-      const delay = randomBetween(MORPHING_PRESET_MIN_MS, MORPHING_PRESET_MAX_MS)
+      const delay = morphingRotationDelay(settings)
       morphingRotationTimerRef.current = window.setTimeout(() => {
         setSettings((current) => {
           if (!current.dynamicPresetEnabled || !current.dynamicMorphingRotationEnabled) return current
@@ -321,6 +368,7 @@ export function ControlApp() {
 
           return {
             ...current,
+            ...visibilityPatchForMorphing(candidate),
             useMorphing: true,
             morphingAlgorithm: candidate.algorithm,
             morphingPresetId: candidate.presetId ?? 'default',
@@ -337,7 +385,13 @@ export function ControlApp() {
         morphingRotationTimerRef.current = null
       }
     }
-  }, [settings.dynamicPresetEnabled, settings.dynamicMorphingRotationEnabled])
+  }, [
+    settings.dynamicPresetEnabled,
+    settings.dynamicMorphingRotationEnabled,
+    settings.morphingAlgorithm,
+    settings.morphingPresetId,
+    settings.useMorphing,
+  ])
 
   if (!api) {
     const inBrowser =

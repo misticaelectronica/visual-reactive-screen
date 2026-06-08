@@ -3,8 +3,8 @@ import { getThemeProfileForPreset } from '@shared/morphingThemeProfiles'
 import type { BandEnergies, AppSettings, VisualStatePayload } from '@shared/types'
 
 // High-aesthetic Canvas 2D organic visibility boundaries
-const ORGANIC_MIN_ALPHA = 0.16
-const ORGANIC_MAX_ALPHA = 0.58
+const ORGANIC_MIN_ALPHA = 0.22
+const ORGANIC_MAX_ALPHA = 0.72
 const ORGANIC_MIN_LAYER_COUNT = 5
 const ORGANIC_MAX_LAYER_COUNT = 12
 const ORGANIC_MIN_BLUR = 24
@@ -88,6 +88,11 @@ export function createMorphingCanvas(container: HTMLElement) {
   
   let smoothedMorphingFlash = 0
   let smoothedKickPulse = 0
+  let smoothedRadius = 0
+  let smoothedOpacity = 0
+  let smoothedScale = 1
+  let smoothedCx = 0
+  let smoothedCy = 0
 
   const resize = () => {
     canvas.width = container.clientWidth
@@ -156,17 +161,17 @@ export function createMorphingCanvas(container: HTMLElement) {
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
     let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 2.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
-    let effectiveBlur = clamp(preset.blur * 0.72, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    let effectiveOpacity = clamp(preset.opacity * 1.15 + subPressure * 0.18 + kickPulse * 0.16, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    let effectiveScale = clamp(preset.scale * 1.05 + subPressure * 0.35 + kickPulse * 0.22, 0.85, 1.95)
+    let effectiveBlur = clamp(preset.blur * 0.58, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
+    let effectiveOpacity = clamp(preset.opacity * 1.42 + subPressure * 0.22 + kickPulse * 0.20, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
+    let effectiveScale = clamp(preset.scale * 1.10 + subPressure * 0.38 + kickPulse * 0.24, 0.85, 2.02)
 
     let midGlowBoost = smoothedBands.mid * preset.midOpacityAmount * 0.58
     let integratedFlashGlowBoost = smoothedMorphingFlash
 
     // Correzione 6: Boost di presenza per i preset organici
     if (isOrganicPreset(presetId)) {
-      effectiveOpacity *= 1.20
-      effectiveBlur *= 0.85
+      effectiveOpacity *= 1.28
+      effectiveBlur *= 0.80
       effectiveVeilCount += 2
       midGlowBoost *= 1.15
       integratedFlashGlowBoost *= 1.20
@@ -176,7 +181,7 @@ export function createMorphingCanvas(container: HTMLElement) {
     effectiveVeilCount = clamp(effectiveVeilCount, ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     effectiveOpacity = clamp(effectiveOpacity, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
     effectiveBlur = clamp(effectiveBlur, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    effectiveScale = clamp(effectiveScale, 0.85, 1.85)
+    effectiveScale = clamp(effectiveScale, 0.85, 1.95)
 
     const baseColor = hexToRgb(currentSettings.basePinkColor)
     const hotColor = hexToRgb(currentSettings.hotPinkColor)
@@ -206,6 +211,7 @@ export function createMorphingCanvas(container: HTMLElement) {
     
     // Correzione 3: Flash integrated multiplier sul raggio
     baseRadius *= 1 + integratedFlashGlowBoost * 0.08
+    smoothedRadius += (baseRadius - smoothedRadius) * (smoothedRadius === 0 ? 1 : 0.10)
 
     let baseOp = effectiveOpacity + midGlowBoost
     if (profile.spatialBias === 'fieldWide') {
@@ -215,10 +221,15 @@ export function createMorphingCanvas(container: HTMLElement) {
     // Correzione 3: Flash integrated alpha addition
     let op = baseOp + integratedFlashGlowBoost * 0.16
     op = clamp(op * contrastOpacityMult * contrastInnerAlphaMult, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
+    smoothedOpacity += (op - smoothedOpacity) * (smoothedOpacity === 0 ? 1 : 0.12)
+    smoothedScale += (effectiveScale - smoothedScale) * 0.08
 
     // Correzione 8: Presenza minima del morphing
     const minPresence = isOrganicPreset(presetId) ? 0.12 : 0.08
-    op = Math.max(op, minPresence)
+    op = Math.max(smoothedOpacity, minPresence)
+    baseRadius = smoothedRadius * (1 + (smoothedScale - effectiveScale) * 0.08)
+    smoothedCx += (cx - smoothedCx) * (smoothedCx === 0 ? 1 : 0.08)
+    smoothedCy += (cy - smoothedCy) * (smoothedCy === 0 ? 1 : 0.08)
 
     const shapesToDraw = effectiveVeilCount
 
@@ -231,7 +242,7 @@ export function createMorphingCanvas(container: HTMLElement) {
       for (let j = 0; j <= points; j++) {
         const angle = (j / points) * Math.PI * 2
         
-        let def = preset.deformation + (smoothedBands.lowMid * preset.lowMidDeformationAmount)
+        let def = preset.deformation + (smoothedBands.lowMid * preset.lowMidDeformationAmount * 0.72)
         if (profile.density === 'membrane') {
           def *= 1.25
         }
@@ -246,19 +257,19 @@ export function createMorphingCanvas(container: HTMLElement) {
         const r = baseRadius + radiusOffset
         
         // Symmetrical center displacement formulas
-        let localCx = cx
-        let localCy = cy
+        let localCx = smoothedCx
+        let localCy = smoothedCy
 
         if (profile.spatialBias === 'fragmented') {
-          localCx = cx + Math.cos(time * 0.4 + i * 2.5) * (w * 0.16)
-          localCy = cy + Math.sin(time * 0.3 - i * 2.5) * (h * 0.16)
+          localCx = smoothedCx + Math.cos(time * 0.32 + i * 2.5) * (w * 0.14)
+          localCy = smoothedCy + Math.sin(time * 0.25 - i * 2.5) * (h * 0.14)
         } else if (profile.spatialBias === 'upperSymmetric' && profile.symmetry === 'bilateralWeak') {
           const spec = i % 2 === 0 ? -1 : 1
-          localCx = cx + spec * (w * 0.15) + Math.cos(time * 0.5 + i) * (w * 0.04)
-          localCy = cy + Math.sin(time * 0.4 - i) * (h * 0.04)
+          localCx = smoothedCx + spec * (w * 0.15) + Math.cos(time * 0.36 + i) * (w * 0.035)
+          localCy = smoothedCy + Math.sin(time * 0.30 - i) * (h * 0.035)
         } else {
-          localCx = cx + Math.cos(time * 0.5 + i) * (w * 0.1)
-          localCy = cy + Math.sin(time * 0.4 - i) * (h * 0.1)
+          localCx = smoothedCx + Math.cos(time * 0.34 + i) * (w * 0.085)
+          localCy = smoothedCy + Math.sin(time * 0.28 - i) * (h * 0.085)
         }
 
         const x = localCx + Math.cos(angle) * r

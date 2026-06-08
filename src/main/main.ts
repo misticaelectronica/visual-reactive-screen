@@ -2,6 +2,10 @@ import { app, BrowserWindow, session, systemPreferences } from 'electron'
 import { registerIpcHandlers } from './ipc'
 import { createControlWindow, closeOutputWindow } from './windows'
 
+app.commandLine.appendSwitch('disable-background-timer-throttling')
+app.commandLine.appendSwitch('disable-renderer-backgrounding')
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+
 function configureMediaPermissions(): void {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media')

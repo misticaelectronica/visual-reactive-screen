@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from '@shared/types'
 
 let controlWindow: BrowserWindow | null = null
 let outputWindow: BrowserWindow | null = null
+let latestVisualState: unknown = null
 
 /** Radice dell'app (cartella del `package.json` in dev; contenuto asar/app in release). */
 function appResourceRoot(): string {
@@ -41,6 +42,7 @@ export function createControlWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   })
 
@@ -49,9 +51,6 @@ export function createControlWindow(): BrowserWindow {
   } else {
     void controlWindow.loadFile(path.join(appResourceRoot(), 'dist', 'control.html'))
   }
-  // DEBUG: always open devtools
-  controlWindow.webContents.openDevTools({ mode: 'detach' })
-
   controlWindow.on('closed', () => {
     controlWindow = null
   })
@@ -74,7 +73,32 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     return { ok: false, error: 'Display non trovato' }
   }
 
+  console.log(`[main] target display: id=${target.id} bounds=${JSON.stringify(target.bounds)} scaleFactor=${target.scaleFactor}`)
+
   closeOutputWindow()
+
+  const ensureOutputVisible = () => {
+    const win = outputWindow
+    if (!win || win.isDestroyed()) return
+
+    console.log('[main] ensuring output window is visible')
+    win.setBounds(target.bounds)
+    if (process.platform === 'darwin') {
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    }
+    win.setAlwaysOnTop(true, 'screen-saver')
+    win.show()
+    if (process.platform === 'darwin') {
+      win.setKiosk(true)
+    } else {
+      win.setFullScreen(true)
+    }
+    win.focus()
+
+    if (latestVisualState) {
+      win.webContents.send(IPC_CHANNELS.visualStatePush, latestVisualState)
+    }
+  }
 
   outputWindow = new BrowserWindow({
     x: target.bounds.x,
@@ -82,11 +106,8 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     width: target.bounds.width,
     height: target.bounds.height,
     frame: false,
-    // On macOS, simpleFullscreen avoids the Space animation that can crash frameless windows
-    simpleFullscreen: process.platform === 'darwin',
-    fullscreen: process.platform !== 'darwin',
-    backgroundColor: '#050005',
-    show: false,   // wait for ready-to-show before displaying
+    backgroundColor: '#170204',
+    show: true,
     skipTaskbar: true,
     autoHideMenuBar: true,
     webPreferences: {
@@ -94,26 +115,24 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   })
 
-  // Show only when ready to avoid flash
-  outputWindow.once('ready-to-show', () => {
-    console.log('[main] output window ready-to-show')
-    outputWindow?.show()
-    if (process.platform === 'darwin') {
-      outputWindow?.setSimpleFullScreen(true)
-    } else {
-      outputWindow?.setFullScreen(true)
-    }
-  })
+  outputWindow.once('ready-to-show', ensureOutputVisible)
+  outputWindow.webContents.once('did-finish-load', ensureOutputVisible)
+  const showFallback = setTimeout(ensureOutputVisible, 500)
 
   // Diagnostic logging
   outputWindow.webContents.on('did-fail-load', (_e, errCode, errDesc) => {
+    clearTimeout(showFallback)
     console.error(`[main] output did-fail-load: ${errCode} ${errDesc}`)
   })
   outputWindow.webContents.on('render-process-gone', (_e, details) => {
     console.error(`[main] output render-process-gone:`, details)
+  })
+  outputWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    console.log(`[output renderer:${level}] ${message} (${sourceId}:${line})`)
   })
 
   if (import.meta.env.DEV && process.env.VITE_DEV_SERVER_URL) {
@@ -127,6 +146,7 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
   outputWindow.setMenuBarVisibility(false)
 
   outputWindow.on('closed', () => {
+    clearTimeout(showFallback)
     console.log('[main] output window CLOSED')
     outputWindow = null
     const cw = controlWindow
@@ -140,6 +160,7 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
 
 let _broadcastCount = 0
 export function broadcastVisualState(payload: unknown): void {
+  latestVisualState = payload
   _broadcastCount++
   if (_broadcastCount <= 5 || _broadcastCount % 120 === 0) {
     const hasWin = outputWindow !== null && !outputWindow.isDestroyed()

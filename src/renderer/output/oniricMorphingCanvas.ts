@@ -3,8 +3,8 @@ import { getThemeProfileForPreset, MorphingThemeProfile } from '@shared/morphing
 import type { BandEnergies, AppSettings, MorphingPreset, VisualStatePayload } from '@shared/types'
 
 // High-aesthetic Canvas 2D organic visibility boundaries
-const ORGANIC_MIN_ALPHA = 0.22
-const ORGANIC_MAX_ALPHA = 0.68
+const ORGANIC_MIN_ALPHA = 0.28
+const ORGANIC_MAX_ALPHA = 0.78
 const ORGANIC_MIN_LAYER_COUNT = 5
 const ORGANIC_MAX_LAYER_COUNT = 12
 const ORGANIC_MIN_BLUR = 24
@@ -18,13 +18,13 @@ const ONIRIC_DEFAULT_MAX_TRANSITION_MS = 16000
 
 const DEFAULT_ONIRIC_DEBUG = {
   debugMorphingVisibility: false,
-  morphingOpacity: 0.45,
-  morphingMinOpacity: 0.30,
-  morphingLuminanceBoost: 0.35,
-  morphingGlowIntensity: 0.55,
-  morphingContrast: 1.25,
+  morphingOpacity: 0.62,
+  morphingMinOpacity: 0.42,
+  morphingLuminanceBoost: 0.54,
+  morphingGlowIntensity: 0.76,
+  morphingContrast: 1.45,
   morphingScale: 1.15,
-  morphingEdgeSoftness: 0.65,
+  morphingEdgeSoftness: 0.54,
 }
 
 interface RGBColor {
@@ -678,21 +678,21 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
     const effectiveSpeed = clamp(preset.speed * 2.05, ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
     let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.4 + Math.sin(defaultTransitionProgress * Math.PI) * 2), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
-    let effectiveBlur = clamp(preset.blur * (0.48 + debugSettings.edgeSoftness * 0.35), ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
+    let effectiveBlur = clamp(preset.blur * (0.38 + debugSettings.edgeSoftness * 0.30), ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
     let effectiveOpacity = clamp(
-      Math.max(preset.opacity * 1.12, debugSettings.opacity) + subPressure * 0.18 + kickPulse * 0.16,
+      Math.max(preset.opacity * 1.34, debugSettings.opacity) + subPressure * 0.22 + kickPulse * 0.20,
       ORGANIC_MIN_ALPHA,
       ORGANIC_MAX_ALPHA
     )
-    let effectiveScale = clamp(preset.scale * debugSettings.scale + subPressure * 0.36 + kickPulse * 0.24, 0.85, 2.02)
+    let effectiveScale = clamp(preset.scale * debugSettings.scale * 1.05 + subPressure * 0.40 + kickPulse * 0.26, 0.85, 2.12)
 
     let midGlowBoost = midGlow
     let integratedFlashGlowBoost = integratedFlashGlow
 
     // Correzione 6: Boost di presenza per i preset organici
     if (isOrganicPreset(presetId)) {
-      effectiveOpacity *= 1.20
-      effectiveBlur *= 0.85
+      effectiveOpacity *= 1.28
+      effectiveBlur *= 0.80
       effectiveVeilCount += 2
       midGlowBoost *= 1.15
       integratedFlashGlowBoost *= 1.20
@@ -702,7 +702,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     effectiveVeilCount = clamp(effectiveVeilCount, ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     effectiveOpacity = clamp(effectiveOpacity, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
     effectiveBlur = clamp(effectiveBlur, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    effectiveScale = clamp(effectiveScale, 0.85, 1.85)
+    effectiveScale = clamp(effectiveScale, 0.85, 2.0)
 
     if (!warnedCount && effectiveVeilCount < 5) {
       console.warn(`[Oniric Morphing] Warning: effectiveVeilCount is low (${effectiveVeilCount})`)

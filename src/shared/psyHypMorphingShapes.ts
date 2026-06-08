@@ -139,8 +139,8 @@ export type PsyHypShapeDefinition = {
 }
 
 export type PsyHypPreset = {
-  id: 'default'
-  name: 'default'
+  id: string
+  name: string
   shapes: PsyHypShapeDefinition[]
 }
 
@@ -559,4 +559,40 @@ export const PSY_HYP_DEFAULT_PRESET: PsyHypPreset = {
   ],
 }
 
-export const PSY_HYP_MORPHING_PRESETS: PsyHypPreset[] = [PSY_HYP_DEFAULT_PRESET]
+function pickPsyShapes(ids: PsyHypShapeId[]): PsyHypShapeDefinition[] {
+  return ids
+    .map((id) => PSY_HYP_DEFAULT_PRESET.shapes.find((shape) => shape.id === id))
+    .filter((shape): shape is PsyHypShapeDefinition => Boolean(shape))
+}
+
+export const PSY_HYP_HABIT_GROOVES_PRESET: PsyHypPreset = {
+  id: 'solchi-abitudine',
+  name: 'Solchi dell’Abitudine',
+  shapes: pickPsyShapes(['onda', 'griglia', 'condotto', 'frattura', 'sentiero', 'blocco']),
+}
+
+export const PSY_HYP_MALLEABLE_MATTER_PRESET: PsyHypPreset = {
+  id: 'materia-malleabile',
+  name: 'Materia Malleabile',
+  shapes: pickPsyShapes(['nebbia', 'capsula', 'condotto', 'onda', 'blocco', 'frattura']),
+}
+
+export const PSY_HYP_LATERAL_PATHS_PRESET: PsyHypPreset = {
+  id: 'percorsi-laterali',
+  name: 'Percorsi Laterali',
+  shapes: pickPsyShapes(['radice', 'sentiero', 'frattura', 'condotto', 'griglia', 'onda']),
+}
+
+export const PSY_HYP_WASHED_IMPRINTS_PRESET: PsyHypPreset = {
+  id: 'impronte-lavate',
+  name: 'Impronte Lavate',
+  shapes: pickPsyShapes(['nebbia', 'sentiero', 'frattura', 'blocco', 'onda', 'griglia']),
+}
+
+export const PSY_HYP_MORPHING_PRESETS: PsyHypPreset[] = [
+  PSY_HYP_DEFAULT_PRESET,
+  PSY_HYP_HABIT_GROOVES_PRESET,
+  PSY_HYP_MALLEABLE_MATTER_PRESET,
+  PSY_HYP_LATERAL_PATHS_PRESET,
+  PSY_HYP_WASHED_IMPRINTS_PRESET,
+]

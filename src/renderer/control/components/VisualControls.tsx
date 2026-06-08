@@ -9,6 +9,18 @@ interface Props {
 
 const ONIRIC_PRESET_OPTIONS = [{ id: 'default', name: 'default' }, ...MORPHING_PRESETS]
 
+function firstPresetIdForAlgorithm(algorithm: MorphingAlgorithm): string {
+  if (algorithm === 'psy-hyp') return PSY_HYP_MORPHING_PRESETS[0]?.id ?? 'default'
+  if (algorithm === 'oniric') return ONIRIC_PRESET_OPTIONS[0]?.id ?? 'default'
+  return MORPHING_PRESETS[0]?.id ?? 'ritual-drift'
+}
+
+function presetExistsForAlgorithm(algorithm: MorphingAlgorithm, presetId: string): boolean {
+  if (algorithm === 'psy-hyp') return PSY_HYP_MORPHING_PRESETS.some((preset) => preset.id === presetId)
+  if (algorithm === 'oniric') return ONIRIC_PRESET_OPTIONS.some((preset) => preset.id === presetId)
+  return MORPHING_PRESETS.some((preset) => preset.id === presetId)
+}
+
 export function VisualControls({ settings, onChange }: Props) {
   const morphingAlgorithm = settings.morphingAlgorithm || 'liquid'
   const presetOptions =
@@ -17,7 +29,9 @@ export function VisualControls({ settings, onChange }: Props) {
       : morphingAlgorithm === 'oniric'
         ? ONIRIC_PRESET_OPTIONS
       : MORPHING_PRESETS
-  const presetValue = morphingAlgorithm === 'psy-hyp' ? 'default' : settings.morphingPresetId
+  const presetValue = presetOptions.some((preset) => preset.id === settings.morphingPresetId)
+    ? settings.morphingPresetId
+    : firstPresetIdForAlgorithm(morphingAlgorithm)
 
   return (
     <fieldset className="panel">
@@ -37,15 +51,13 @@ export function VisualControls({ settings, onChange }: Props) {
             value={morphingAlgorithm}
             onChange={(e) => {
               const nextAlgorithm = e.target.value as MorphingAlgorithm
+              const nextPresetId = presetExistsForAlgorithm(nextAlgorithm, settings.morphingPresetId)
+                ? settings.morphingPresetId
+                : firstPresetIdForAlgorithm(nextAlgorithm)
               onChange({
                 morphingAlgorithm: nextAlgorithm,
                 softMode: false,
-                morphingPresetId:
-                  nextAlgorithm === 'psy-hyp' || nextAlgorithm === 'oniric'
-                    ? 'default'
-                    : settings.morphingPresetId === 'default'
-                      ? MORPHING_PRESETS[0].id
-                      : settings.morphingPresetId,
+                morphingPresetId: nextPresetId,
               })
             }}
             disabled={!settings.useMorphing}

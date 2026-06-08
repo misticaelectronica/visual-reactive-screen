@@ -22,8 +22,8 @@ type MorphingTransition = {
   active: boolean
 }
 
-const MORPHING_TRANSITION_MIN_MS = 4_000
-const MORPHING_TRANSITION_MAX_MS = 8_000
+const MORPHING_TRANSITION_MIN_MS = 7_000
+const MORPHING_TRANSITION_MAX_MS = 12_000
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
@@ -59,6 +59,38 @@ function createMorphingController(container: HTMLElement, state: VisualStatePayl
   return controller
 }
 
+function beginMorphingTransition(
+  container: HTMLElement,
+  state: VisualStatePayload,
+  from: MorphingController | null,
+): MorphingTransition {
+  return {
+    from,
+    to: createMorphingController(container, state),
+    startedAt: performance.now(),
+    durationMs: randomTransitionDuration(),
+    active: true,
+  }
+}
+
+function updateMorphingTransition(transition: MorphingTransition, state: VisualStatePayload): MorphingController | null {
+  const progress = smootherstep((performance.now() - transition.startedAt) / transition.durationMs)
+  transition.from?.setOpacity?.(1 - progress)
+  transition.to?.setOpacity?.(progress)
+  if (transition.from?.__settings) {
+    transition.from.updateState({ ...state, useMorphing: true, settings: transition.from.__settings })
+  }
+  transition.to?.updateState(state)
+
+  if (progress >= 1) {
+    transition.from?.destroy()
+    transition.to?.setOpacity?.(1)
+    return transition.to
+  }
+
+  return null
+}
+
 export function OutputApp() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<ReturnType<typeof createVisualSurface> | null>(null)
@@ -81,18 +113,46 @@ export function OutputApp() {
       const dynamicCrossfade = state.settings?.dynamicPresetEnabled === true
 
       if (!dynamicCrossfade) {
-        morphingTransitionRef.current?.from?.destroy()
-        morphingTransitionRef.current?.to?.destroy()
-        morphingTransitionRef.current = null
-
         if (state.useMorphing && state.settings) {
           const algo = isMorphingAlgorithm(state.settings.morphingAlgorithm)
             ? state.settings.morphingAlgorithm
             : 'liquid'
 
+          if (algo !== 'psy-hyp' && morphingTransitionRef.current) {
+            morphingTransitionRef.current.from?.destroy()
+            morphingTransitionRef.current.to?.destroy()
+            morphingTransitionRef.current = null
+          }
+
           if (morphingRef.current && morphingRef.current.__algo !== algo) {
+            morphingTransitionRef.current?.from?.destroy()
+            morphingTransitionRef.current?.to?.destroy()
+            morphingTransitionRef.current = null
             morphingRef.current.destroy()
             morphingRef.current = null
+          }
+
+          const shouldSoftSwitchPsyHyp =
+            algo === 'psy-hyp' &&
+            morphingRef.current &&
+            (morphingRef.current.__key ?? 'none') !== targetKey
+
+          if (shouldSoftSwitchPsyHyp) {
+            morphingTransitionRef.current?.from?.destroy()
+            morphingTransitionRef.current = beginMorphingTransition(rootRef.current!, state, morphingRef.current)
+            morphingRef.current = morphingTransitionRef.current.to
+            morphingRef.current?.setOpacity?.(0)
+          }
+
+          const transition = morphingTransitionRef.current
+          if (transition?.active) {
+            const completed = updateMorphingTransition(transition, state)
+            if (completed) {
+              morphingTransitionRef.current = null
+              morphingRef.current = completed
+              morphingRef.current.__settings = state.settings
+              morphingRef.current.__key = targetKey
+            }
           }
 
           if (!morphingRef.current) {
@@ -111,31 +171,17 @@ export function OutputApp() {
       } else {
         if ((morphingRef.current?.__key ?? 'none') !== targetKey) {
           morphingTransitionRef.current?.from?.destroy()
-          morphingTransitionRef.current = {
-            from: morphingRef.current,
-            to: createMorphingController(rootRef.current!, state),
-            startedAt: performance.now(),
-            durationMs: randomTransitionDuration(),
-            active: true,
-          }
+          morphingTransitionRef.current = beginMorphingTransition(rootRef.current!, state, morphingRef.current)
           morphingRef.current = morphingTransitionRef.current.to
           morphingRef.current?.setOpacity?.(0)
         }
 
         const transition = morphingTransitionRef.current
         if (transition?.active) {
-          const progress = smootherstep((performance.now() - transition.startedAt) / transition.durationMs)
-          transition.from?.setOpacity?.(1 - progress)
-          transition.to?.setOpacity?.(progress)
-          if (transition.from?.__settings) {
-            transition.from.updateState({ ...state, useMorphing: true, settings: transition.from.__settings })
-          }
-          transition.to?.updateState(state)
-
-          if (progress >= 1) {
-            transition.from?.destroy()
+          const completed = updateMorphingTransition(transition, state)
+          if (completed) {
             morphingTransitionRef.current = null
-            morphingRef.current = transition.to
+            morphingRef.current = completed
             morphingRef.current?.setOpacity?.(1)
           }
         } else if (morphingRef.current) {
@@ -175,6 +221,25 @@ export function OutputApp() {
   return (
     <div className="output-root" style={{ position: 'fixed', inset: 0, overflow: 'hidden', backgroundColor: 'black' }}>
       <div ref={rootRef} style={{ position: 'absolute', inset: 0 }} />
+      {msgCount === 0 ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9998,
+            display: 'grid',
+            placeItems: 'center',
+            background: '#170204',
+            color: '#ffb3a6',
+            fontFamily: 'monospace',
+            fontSize: 18,
+            letterSpacing: 0,
+            pointerEvents: 'none',
+          }}
+        >
+          OUTPUT READY - waiting for visual state
+        </div>
+      ) : null}
       {/* Debug overlay — rimuovere dopo verifica */}
       <div
         style={{

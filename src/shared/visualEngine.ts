@@ -361,15 +361,17 @@ export function stepVisualEngine(input: VisualEngineInput): {
   const overallDrive = expSmooth(prev.overallDrive, rawDrive, deltaMs, driveTau)
   const pinkHotBlend = expSmooth(prev.pinkHotBlend, rawHot, deltaMs, hotTau)
 
-  const idleToPink = clamp01(overallDrive * 1.15)
+  const noMorphPresence = settings.useMorphing ? 0 : 0.08
+  const idleToPink = clamp01(overallDrive * (settings.useMorphing ? 1.15 : 1.55) + noMorphPresence)
   const baseLayer = lerpColor(settings.idleColor, settings.basePinkColor, idleToPink)
-  const pinkLayer = lerpColor(baseLayer, settings.hotPinkColor, clamp01(pinkHotBlend * 0.95))
+  const pinkLayer = lerpColor(baseLayer, settings.hotPinkColor, clamp01(pinkHotBlend * (settings.useMorphing ? 0.95 : 1.25)))
   const baseFlashIntensity = settings.useMorphing ? whiteMix * 0.65 : whiteMix
   const morphingFlashIntensity = settings.useMorphing ? whiteMix * 0.85 : whiteMix
   const flashedColor = lerpColor(pinkLayer, settings.whiteFlashColor, clamp01(baseFlashIntensity))
+  const oniricBackgroundDarkness = Math.min(settings.backgroundDarkness ?? 0.78, 0.84)
   const finalColor =
     settings.useMorphing && settings.morphingAlgorithm === 'oniric'
-      ? darkenColor(flashedColor, settings.backgroundDarkness ?? 0.92)
+      ? darkenColor(flashedColor, oniricBackgroundDarkness)
       : flashedColor
 
   const flashActive = whiteMix > 0.35
