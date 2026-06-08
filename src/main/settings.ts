@@ -4,7 +4,7 @@ import path from 'node:path'
 import { isFlashMode, isMorphingAlgorithm, type AppSettings } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 
-const fileName = 'origine-fx-settings.json'
+const fileName = 'MEvrs-Origine-FX-settings.json'
 
 function settingsPath(): string {
   return path.join(app.getPath('userData'), fileName)

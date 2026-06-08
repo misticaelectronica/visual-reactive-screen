@@ -1,4 +1,4 @@
-# Origine FX
+# Mistica Electronica Visual Reactive Screen
 
 Desktop app **Electron + TypeScript + React + Canvas 2D** per generare una uscita visiva fullscreen reattiva all'audio, pensata per performance live, proiezioni, schermi HDMI e contesti techno/ambient/rituali.
 
@@ -332,7 +332,7 @@ La structure non viene accumulata nel trail, per evitare scie costose e confusio
 Le impostazioni vengono salvate automaticamente nel percorso `userData` di Electron, file:
 
 ```text
-origine-fx-settings.json
+MEvrs-Origine-FX-settings.json
 ```
 
 La normalizzazione delle impostazioni avviene nel main process:

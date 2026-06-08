@@ -1,5 +1,5 @@
 {
-  "name": "origine-fx",
+  "name": "mevrs-origine-fx",
   "version": "0.1.0",
   "description": "App desktop Electron: uscita HDMI a colori reattiva all'audio (MVP).",
   "author": "",
@@ -38,8 +38,8 @@
     "onlyBuiltDependencies": ["electron"]
   },
   "build": {
-    "appId": "com.origine.fx",
-    "productName": "Origine FX",
+    "appId": "com.mevrs-origine-fx",
+    "productName": "Mistica Electronica Visual Reactive Screen",
     "directories": {
       "output": "release"
     },

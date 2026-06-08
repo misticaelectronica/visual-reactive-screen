@@ -35,7 +35,7 @@ export function createControlWindow(): BrowserWindow {
     y: primary.workArea.y + margin,
     width: 980,
     height: 900,
-    title: 'Origine FX',
+    title: 'Mistica Electronica Visual Reactive Screen',
     webPreferences: {
       preload: preloadPath(),
       contextIsolation: true,

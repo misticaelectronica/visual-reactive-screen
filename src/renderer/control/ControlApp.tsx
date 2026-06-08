@@ -371,7 +371,7 @@ export function ControlApp() {
   return (
     <div className="page">
       <header className="header">
-        <h1>Origine FX</h1>
+        <h1>Mistica Electronica Visual Reactive Screen</h1>
         <p className="subtitle">Uscita HDMI reattiva all&apos;audio (MVP)</p>
       </header>
 
