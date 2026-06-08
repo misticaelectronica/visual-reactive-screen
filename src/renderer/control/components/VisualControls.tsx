@@ -92,6 +92,26 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="ambient">Ambient - fluido</option>
           </select>
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={settings.spatialNaifEnabled === true}
+            onChange={(e) => onChange({ spatialNaifEnabled: e.target.checked, softMode: false })}
+          />
+          <strong>Cattura Spaziale Naïf</strong>
+        </label>
+        <label>
+          Intervallo cattura
+          <select
+            value={settings.spatialNaifIntervalMs ?? 10_000}
+            onChange={(e) => onChange({ spatialNaifIntervalMs: Number(e.target.value) as AppSettings['spatialNaifIntervalMs'] })}
+            disabled={!settings.spatialNaifEnabled}
+          >
+            <option value={10_000}>10 secondi</option>
+            <option value={30_000}>30 secondi</option>
+            <option value={90_000}>90 secondi</option>
+          </select>
+        </label>
       </div>
 
       <legend>Debug morphing onirico</legend>

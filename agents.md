@@ -56,6 +56,7 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non rimuovere gli switch Chromium in `src/main/main.ts` che disabilitano timer/background throttling e renderer backgrounding.
 - Non cancellare la gestione permessi media/microfono macOS.
 - Non rimuovere `NSMicrophoneUsageDescription` dalla configurazione macOS.
+- Non rimuovere `NSCameraUsageDescription` dalla configurazione macOS se `Cattura Spaziale Naïf` resta disponibile.
 - Non spostare l'analisi audio fuori dalla finestra Electron senza riprogettare preload/permessi.
 - Non cambiare globalmente il motore audio per correggere un singolo renderer morphing.
 - Non lasciare debug overlay o flag debug attivi in produzione live, salvo richiesta esplicita.
@@ -181,6 +182,29 @@ Preset recenti:
 
 - `alien-contact` / Contatto Alieno: disponibile in Liquid, Oniric e PsyHyp; usa due poli/civilta' e un ponte di segnali, evitando icone sci-fi letterali.
 - `solchi-abitudine`, `materia-malleabile`, `percorsi-laterali`, `impronte-lavate`: famiglie materiche astratte condivise da Liquid/Oniric e disponibili anche in PsyHyp.
+
+### Cattura Spaziale Naïf
+
+File chiave:
+
+- `src/renderer/control/hooks/useSpatialNaifCapture.ts`
+- `src/renderer/output/spatialNaifCanvas.ts`
+- `src/renderer/control/ControlApp.tsx`
+- `src/renderer/control/components/VisualControls.tsx`
+
+Regole:
+
+- La camera non e' un layer webcam visibile: resta solo sorgente di campionamento.
+- Il nome `Cattura Spaziale Naïf` resta invariato, ma "naïf" significa ricalco algoritmico essenziale di forme reali, non estetica naïf artistica.
+- Catturare un singolo frame ogni 10, 30 o 90 secondi; default 10 secondi.
+- `Forza cattura spaziale` deve chiamare la stessa pipeline del timer, anticipando solo il campionamento.
+- Pipeline attesa: frame webcam -> modello leggero del fondo -> maschera piena valida -> componenti reali -> contorni ordinati -> pulizia -> semplificazione -> scoring -> path chiusi morphabili.
+- Scelta architetturale: seguire `docs/spatial-naif-algorithm-selection.md`; MediaPipe segmentation produce maschere, Object Detector e' solo opzionale per ROI, OpenCV/contours o equivalente genera path.
+- MediaPipe/DeepLabV3 usa asset locali in `public/mediapipe`; non tornare a CDN runtime per il live.
+- Non sostituire gli oggetti con simboli, box, stickman, template, icone o sagome generiche.
+- Estrarre solo componenti/contorni forti; non inventare dettagli da rumore.
+- Se non ci sono elementi chiari, inviare `spatialNaifFrame: null` e lasciare fallback PsyHyp.
+- L'ingresso di nuove linee deve essere graduale, non uno stacco secco.
 
 ## Persistenza
 

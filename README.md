@@ -11,7 +11,7 @@ L'app ha due finestre:
 
 - Analisi audio via **Web Audio API** con bande `low`, `lowMid`, `mid`, `high`.
 - Selezione ingresso audio da dispositivi `audioinput`, inclusi microfoni, schede audio e loopback.
-- Gestione permessi media/microfono in Electron, con `NSMicrophoneUsageDescription` per build macOS.
+- Gestione permessi media/microfono/fotocamera in Electron, con descrizioni privacy per build macOS.
 - Fallback automatico all'ingresso audio predefinito se il device ID salvato non e' piu' valido.
 - Output fullscreen su display selezionabile, pensato per HDMI, secondo monitor o proiettore.
 - Base color layer reattivo a energia audio, brightness e flash.
@@ -23,6 +23,7 @@ L'app ha due finestre:
   - **Liquid Morphing**
   - **Oniric Morphing**
   - **PsyHypMorphing**
+- **Cattura Spaziale Naïf**: campionamento periodico della fotocamera come memoria lineare astratta dello spazio reale, senza layer webcam visibile.
 - Controlli dedicati al morphing onirico: opacita, luminanza, glow, contrasto, scala, morbidezza bordo e oscuramento sfondo.
 - Test Flash manuale indipendente da audio/soglie/cooldown.
 - Panic / Off per mandare subito l'output in stato sicuro.
@@ -96,7 +97,7 @@ Output tipici:
 - `release/Mistica Electronica Visual Reactive Screen-0.1.0.dmg`: DMG x64
 - `release/Mistica Electronica Visual Reactive Screen-0.1.0-mac.zip`: ZIP x64
 
-La build macOS include `NSMicrophoneUsageDescription` nel plist, necessario per far comparire correttamente la richiesta di permesso microfono.
+La build macOS include `NSMicrophoneUsageDescription` e `NSCameraUsageDescription` nel plist, necessari per far comparire correttamente le richieste di permesso microfono e fotocamera.
 
 ### Build extra Windows
 
@@ -131,8 +132,9 @@ Nota: il build Windows e' separato dal build macOS standard. Se lo esegui da mac
 6. Controlla i meter `Low`, `Low-mid`, `Mid`, `High`.
 7. Scegli un preset genere o colore.
 8. Se vuoi morphing, abilita **Use morphing** e scegli algoritmo/preset.
-9. Usa **Test flash** per verificare subito layering e visibilita.
-10. Usa **Panic / Off** per spegnere immediatamente il movimento/flash.
+9. Se vuoi usare la scena reale come materiale astratto, abilita **Cattura Spaziale Naïf**.
+10. Usa **Test flash** per verificare subito layering e visibilita.
+11. Usa **Panic / Off** per spegnere immediatamente il movimento/flash.
 
 ## Controlli principali
 
@@ -268,12 +270,13 @@ La sezione **Dynamic Preset** puo' ruotare automaticamente:
 - preset colore
 - algoritmo/preset morphing
 
-La rotazione colori sceglie un preset diverso dal corrente, con peso maggiore per i preset Mistica Electronica. La rotazione morphing alterna Liquid, Oniric, PsyHypMorphing e intervalli senza morphing.
+La rotazione colori sceglie un preset diverso dal corrente, con peso maggiore per i preset Mistica Electronica. La rotazione morphing alterna Liquid, Oniric, PsyHypMorphing, Cattura Spaziale Naïf se abilitata, e intervalli senza morphing.
 
 Intervalli attuali:
 
 - colore: 45-150 secondi
-- morphing: 30-60 secondi
+- morphing Liquid/Oniric: 18-36 secondi
+- morphing PsyHyp: 45-85 secondi
 - pausa no-morphing: 180-420 secondi
 
 ## Morphing
@@ -286,6 +289,30 @@ Il layer morphing e' un canvas trasparente sopra il base color layer. Riceve:
 - `flashIntensity`
 
 Quando `Use morphing` e' OFF, il renderer morphing viene distrutto e resta solo il base color layer.
+
+### Cattura Spaziale Naïf
+
+La funzione usa la fotocamera come campionatore periodico dello spazio reale. Non mostra mai un layer webcam e non trasforma la foto in un filtro grafico.
+
+Nel nome della funzione, "Naïf" indica una riduzione essenziale della scena, non uno stile artistico naïf. Il risultato deve essere un ricalco algoritmico controllato di forme reali viste dalla webcam: frame reale, modello leggero del fondo, maschera piena delle aree valide, componenti reali, contorni ordinati, semplificazione e morphing. Evitare effetto cartoon, icone, stickman, disegno infantile, tratto manuale forzato o illustrazione decorativa.
+
+Comportamento:
+
+- si abilita con la spunta **Cattura Spaziale Naïf**
+- intervallo configurabile: 10, 30 o 90 secondi; default 10 secondi
+- a ogni intervallo cattura un singolo frame
+- il pulsante **Forza cattura spaziale** anticipa una cattura senza aspettare il timer
+- estrae solo aree reali abbastanza chiare e stabili
+- prova prima la segmentazione MediaPipe/DeepLab locale per riconoscere pattern e produrre maschere reali
+- usa la pipeline interna leggera solo come fallback se MediaPipe non produce una maschera valida
+- vettorializza i contorni reali puliti in path chiusi morphabili
+- valuta la qualita' dei tracciati e scarta risultati rumorosi
+- inserisce gradualmente le linee sopra il morphing
+- se non trova elementi chiari, non forza il risultato e resta su PsyHypMorphing
+
+La cattura puo' entrare nella rotazione morphing solo se la spunta dedicata e' attiva. Se la rotazione non e' attiva, la funzione puo' lavorare come modalita' autonoma con fallback PsyHyp.
+
+La scelta algoritmica aggiornata e' documentata in `docs/spatial-naif-algorithm-selection.md`: la direzione corretta e' MediaPipe segmentation per maschere reali, object detection solo come ROI opzionale, e contour extraction/vettorializzazione per generare path morphabili. Il modello DeepLabV3 e i WASM MediaPipe sono asset locali in `public/mediapipe`.
 
 ### Liquid Morphing
 

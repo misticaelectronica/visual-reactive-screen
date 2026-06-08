@@ -45,6 +45,14 @@ function normalizeSettings(settings: AppSettings): AppSettings {
       : 'liquid',
     flashMode: isFlashMode(settings.flashMode) ? settings.flashMode : 'mid',
     softMode: settings.softMode === true,
+    lowPowerMode: settings.lowPowerMode === true,
+    spatialNaifEnabled: settings.spatialNaifEnabled === true,
+    spatialNaifIntervalMs:
+      settings.spatialNaifIntervalMs === 90_000
+        ? 90_000
+        : settings.spatialNaifIntervalMs === 30_000
+          ? 30_000
+          : 10_000,
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,

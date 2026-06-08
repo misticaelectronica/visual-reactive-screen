@@ -16,6 +16,7 @@ import { COLOR_PRESETS, PresetsSelector } from './components/PresetsSelector'
 import { useAudioAnalyzer } from './hooks/useAudioAnalyzer'
 import { useDisplays } from './hooks/useDisplays'
 import { useSettingsPersistence } from './hooks/useSettings'
+import { useSpatialNaifCapture } from './hooks/useSpatialNaifCapture'
 
 const silentBands = (): BandEnergies => ({
   low: 0,
@@ -36,7 +37,7 @@ const NO_MORPHING_MAX_INTERVAL_MS = 420_000
 type DynamicMorphingCandidate = {
   id: string
   label: string
-  algorithm: 'none' | MorphingAlgorithm
+  algorithm: 'none' | 'spatial-naif' | MorphingAlgorithm
   presetId?: string
 }
 
@@ -63,9 +64,12 @@ function pickWeightedColorPreset(currentId: string | null | undefined) {
   return weighted[weighted.length - 1]?.preset ?? COLOR_PRESETS[0]
 }
 
-function buildDynamicMorphingCandidates(): DynamicMorphingCandidate[] {
+function buildDynamicMorphingCandidates(includeSpatialNaif: boolean): DynamicMorphingCandidate[] {
   return [
     { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' },
+    ...(includeSpatialNaif
+      ? [{ id: 'spatial-naif', label: 'Cattura Spaziale Naïf', algorithm: 'spatial-naif' as const }]
+      : []),
     ...MORPHING_PRESETS.map((preset) => ({
       id: `liquid:${preset.id}`,
       label: `Liquid Morphing - ${preset.name}`,
@@ -98,20 +102,22 @@ function candidateFromSettings(settings: AppSettings): DynamicMorphingCandidate 
   }
 }
 
-function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNoMorphing: boolean): DynamicMorphingCandidate {
-  const candidates = buildDynamicMorphingCandidates()
+function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNoMorphing: boolean, includeSpatialNaif: boolean): DynamicMorphingCandidate {
+  const candidates = buildDynamicMorphingCandidates(includeSpatialNaif)
   if (forceNoMorphing) return candidates[0]
 
   const pools = {
     liquid: candidates.filter((candidate) => candidate.algorithm === 'liquid' && candidate.id !== current.id),
     oniric: candidates.filter((candidate) => candidate.algorithm === 'oniric' && candidate.id !== current.id),
     psyHyp: candidates.filter((candidate) => candidate.algorithm === 'psy-hyp' && candidate.id !== current.id),
+    spatialNaif: candidates.filter((candidate) => candidate.algorithm === 'spatial-naif' && candidate.id !== current.id),
   }
   const weightedFamilies = [
-    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.30 : 0 },
-    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.30 : 0 },
+    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.27 : 0 },
+    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.27 : 0 },
     // PsyHyp has fewer preset families than Liquid/Oniric, so it keeps family-level compensation.
-    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.40 : 0 },
+    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.34 : 0 },
+    { family: 'spatialNaif' as const, weight: pools.spatialNaif.length > 0 ? 0.12 : 0 },
   ]
   const total = weightedFamilies.reduce((sum, item) => sum + item.weight, 0)
   if (total <= 0) {
@@ -157,6 +163,7 @@ export function ControlApp() {
   const [panic, setPanic] = useState(false)
   const [outputOpen, setOutputOpen] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const [spatialNaifRotationActive, setSpatialNaifRotationActive] = useState(false)
 
   const testFlashUntilRef = useRef(0)
   const colorRotationTimerRef = useRef<number | null>(null)
@@ -181,6 +188,12 @@ export function ControlApp() {
 
   const audioRef = useRef(audio)
   audioRef.current = audio
+  const spatialNaifCapture = useSpatialNaifCapture(
+    settings.spatialNaifEnabled === true,
+    settings.spatialNaifIntervalMs ?? 10_000,
+  )
+  const spatialNaifFrameRef = useRef(spatialNaifCapture.frame)
+  spatialNaifFrameRef.current = spatialNaifCapture.frame
 
   const patchSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings((s) => ({ ...s, ...patch }))
@@ -238,6 +251,19 @@ export function ControlApp() {
         sampleRate: audioRef.current.sampleRate,
       })
       visStateRef.current = next
+      const spatialNaifActive =
+        settings.spatialNaifEnabled === true &&
+        (!settings.dynamicPresetEnabled || !settings.dynamicMorphingRotationEnabled || spatialNaifRotationActive)
+      const effectiveSettings: AppSettings = spatialNaifActive
+        ? {
+            ...settings,
+            useMorphing: true,
+            morphingAlgorithm: 'psy-hyp',
+            morphingPresetId: settings.morphingPresetId && settings.morphingAlgorithm === 'psy-hyp'
+              ? settings.morphingPresetId
+              : 'default',
+          }
+        : settings
 
       api?.sendVisualState({
         backgroundColor: output.backgroundColor,
@@ -245,17 +271,19 @@ export function ControlApp() {
         flashActive: output.flashActive,
         flashIntensity: output.flashIntensity,
         flashMode: output.flashMode,
-        useMorphing: settings.useMorphing,
+        useMorphing: effectiveSettings.useMorphing,
         bandEnergies,
-        settings,
+        settings: effectiveSettings,
         whiteMix: output.debug.whiteMix,
+        spatialNaifActive,
+        spatialNaifFrame: spatialNaifActive ? spatialNaifFrameRef.current : null,
       })
 
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [api, panic, settings, audio.running, audio.pullFrame])
+  }, [api, panic, settings, audio.running, audio.pullFrame, spatialNaifRotationActive])
 
   const openOutput = async () => {
     if (!api) return
@@ -300,6 +328,22 @@ export function ControlApp() {
     }
   }
 
+  const onForceSpatialNaifCapture = async () => {
+    if (!settings.spatialNaifEnabled) {
+      patchSettings({ spatialNaifEnabled: true, softMode: false })
+      setStatus('Cattura Spaziale Naïf attivata: autorizza la fotocamera e ripremi per catturare subito')
+      return
+    }
+
+    const captured = await spatialNaifCapture.captureNow()
+    if (captured) {
+      setSpatialNaifRotationActive(true)
+      setStatus('Cattura spaziale forzata')
+    } else {
+      setStatus('Fotocamera non ancora pronta per la cattura spaziale')
+    }
+  }
+
   useEffect(() => {
     if (colorRotationTimerRef.current) {
       window.clearTimeout(colorRotationTimerRef.current)
@@ -341,6 +385,7 @@ export function ControlApp() {
 
     if (!settings.dynamicPresetEnabled || !settings.dynamicMorphingRotationEnabled) {
       nextNoMorphingDueAtRef.current = 0
+      setSpatialNaifRotationActive(false)
       return
     }
 
@@ -356,8 +401,13 @@ export function ControlApp() {
           if (!current.dynamicPresetEnabled || !current.dynamicMorphingRotationEnabled) return current
           const nowInner = Date.now()
           const forceNoMorphing = nowInner >= nextNoMorphingDueAtRef.current
-          const candidate = pickDynamicMorphingCandidate(candidateFromSettings(current), forceNoMorphing)
+          const candidate = pickDynamicMorphingCandidate(
+            candidateFromSettings(current),
+            forceNoMorphing,
+            current.spatialNaifEnabled === true,
+          )
           if (candidate.algorithm === 'none') {
+            setSpatialNaifRotationActive(false)
             nextNoMorphingDueAtRef.current =
               nowInner + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
             return {
@@ -365,6 +415,17 @@ export function ControlApp() {
               useMorphing: false,
             }
           }
+          if (candidate.algorithm === 'spatial-naif') {
+            setSpatialNaifRotationActive(true)
+            return {
+              ...current,
+              useMorphing: true,
+              morphingAlgorithm: 'psy-hyp',
+              morphingPresetId: 'default',
+            }
+          }
+
+          setSpatialNaifRotationActive(false)
 
           return {
             ...current,
@@ -390,6 +451,7 @@ export function ControlApp() {
     settings.dynamicMorphingRotationEnabled,
     settings.morphingAlgorithm,
     settings.morphingPresetId,
+    settings.spatialNaifEnabled,
     settings.useMorphing,
   ])
 
@@ -445,6 +507,9 @@ export function ControlApp() {
         <button type="button" onClick={onTestFlash}>
           Test flash
         </button>
+        <button type="button" onClick={() => void onForceSpatialNaifCapture()}>
+          Forza cattura spaziale
+        </button>
         <button type="button" className="danger" onClick={onPanic}>
           Panic / Off
         </button>
@@ -458,6 +523,9 @@ export function ControlApp() {
 
       {status ? <p className="status">{status}</p> : null}
       {displayError ? <p className="error">{displayError}</p> : null}
+      {spatialNaifCapture.error && settings.spatialNaifEnabled ? (
+        <p className="error">{spatialNaifCapture.error}</p>
+      ) : null}
 
       <section className="grid">
         <DisplaySelector

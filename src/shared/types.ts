@@ -23,6 +23,34 @@ export interface BandEnergies {
   high: number
 }
 
+export interface SpatialNaifLine {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  weight: number
+}
+
+export interface SpatialNaifPoint {
+  x: number
+  y: number
+}
+
+export interface SpatialNaifPath {
+  points: SpatialNaifPoint[]
+  weight: number
+  closed: boolean
+}
+
+export interface SpatialNaifFrame {
+  capturedAt: number
+  width: number
+  height: number
+  confidence: number
+  lines: SpatialNaifLine[]
+  paths?: SpatialNaifPath[]
+}
+
 export interface AppSettings {
   fftSize: 256 | 512 | 1024 | 2048 | 4096 | 8192
   smoothingTimeConstant: number
@@ -67,6 +95,8 @@ export interface AppSettings {
   kickMovement: number
   flashOnKick: boolean
   lowPowerMode: boolean
+  spatialNaifEnabled: boolean
+  spatialNaifIntervalMs: 10_000 | 30_000 | 90_000
   selectedColorPresetId: string | null
   dynamicPresetEnabled: boolean
   dynamicColorRotationEnabled: boolean
@@ -157,6 +187,8 @@ export interface VisualStatePayload {
   bandEnergies?: BandEnergies
   settings?: AppSettings
   whiteMix?: number
+  spatialNaifActive?: boolean
+  spatialNaifFrame?: SpatialNaifFrame | null
 }
 
 export interface MorphingPreset {

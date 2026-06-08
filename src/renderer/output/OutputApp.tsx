@@ -4,6 +4,7 @@ import { createVisualSurface } from './visualSurface'
 import { createMorphingCanvas } from './morphingCanvas'
 import { createOniricMorphingCanvas } from './oniricMorphingCanvas'
 import { createPsyHypMorphingCanvas } from './psyHypMorphingCanvas'
+import { createSpatialNaifCanvas } from './spatialNaifCanvas'
 
 type MorphingController = {
   updateState: (state: VisualStatePayload) => void
@@ -94,6 +95,7 @@ function updateMorphingTransition(transition: MorphingTransition, state: VisualS
 export function OutputApp() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<ReturnType<typeof createVisualSurface> | null>(null)
+  const spatialNaifRef = useRef<ReturnType<typeof createSpatialNaifCanvas> | null>(null)
   const morphingRef = useRef<MorphingController | null>(null)
   const morphingTransitionRef = useRef<MorphingTransition | null>(null)
   const [msgCount, setMsgCount] = useState(0)
@@ -104,10 +106,12 @@ export function OutputApp() {
     if (!api || !rootRef.current) return
 
     surfaceRef.current = createVisualSurface(rootRef.current)
+    spatialNaifRef.current = createSpatialNaifCanvas(rootRef.current)
 
     const off = api.onVisualState((state: VisualStatePayload) => {
       // Base flat color
       surfaceRef.current?.setColor(state.backgroundColor)
+      spatialNaifRef.current?.updateState(state)
       
       const targetKey = morphingKey(state)
       const dynamicCrossfade = state.settings?.dynamicPresetEnabled === true
@@ -200,6 +204,8 @@ export function OutputApp() {
       off()
       surfaceRef.current?.destroy()
       surfaceRef.current = null
+      spatialNaifRef.current?.destroy()
+      spatialNaifRef.current = null
       morphingRef.current?.destroy()
       morphingRef.current = null
       morphingTransitionRef.current?.from?.destroy()

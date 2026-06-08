@@ -44,6 +44,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   kickMovement: 0.26,
   flashOnKick: false,
   lowPowerMode: false,
+  spatialNaifEnabled: false,
+  spatialNaifIntervalMs: 10_000,
   selectedColorPresetId: null,
   dynamicPresetEnabled: false,
   dynamicColorRotationEnabled: true,

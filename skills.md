@@ -255,6 +255,38 @@ Regole:
 - PsyHyp in basso consumo usa qualita' leggera, DPR 1 e frame pacing piu' economico.
 - Non usare `lowPowerMode` per cambiare il look artistico: deve ridurre costo, non ridefinire i preset.
 
+## Skill: Cattura Spaziale Naïf
+
+Quando usare:
+
+- camera non chiede permesso
+- la cattura non produce linee
+- il layer sembra webcam/filtro invece di memoria naïf
+- la rotazione non include la cattura spaziale
+
+File chiave:
+
+- `src/renderer/control/hooks/useSpatialNaifCapture.ts`
+- `src/renderer/output/spatialNaifCanvas.ts`
+- `src/renderer/control/ControlApp.tsx`
+- `src/renderer/control/components/VisualControls.tsx`
+- `package.json`
+
+Regole:
+
+- la camera cattura periodicamente un singolo frame, non viene renderizzata come video
+- il nome `Cattura Spaziale Naïf` resta invariato, ma "naïf" significa ricalco algoritmico essenziale del frame reale, non stile naïf artistico
+- intervalli validi: 10 secondi, 30 secondi e 90 secondi; default 10 secondi
+- `Forza cattura spaziale` usa la stessa analisi del timer e non deve creare un secondo renderer camera
+- pipeline: pre-processing leggero, modello fondo dai bordi, maschera piena valida, componenti reali, contorni ordinati, semplificazione, scoring, path chiusi morphabili
+- scelta consigliata in `docs/spatial-naif-algorithm-selection.md`: MediaPipe Image/Body Segmentation per maschere, Object Detector solo per ROI, OpenCV/contours o equivalente per path
+- modello DeepLabV3 e WASM MediaPipe devono restare locali in `public/mediapipe`
+- il renderer deve preferire `SpatialNaifFrame.paths` rispetto alle singole linee, per mantenere leggibile il profilo reale
+- niente bounding box visibili, label, overlay tecnici, realismo fotografico, stickman, cartoon, icone, template o tratto manuale forzato
+- meglio scartare la cattura che produrre linee confuse da edge detection globale
+- se non ci sono linee valide, fallback PsyHyp e nessun blocco del flusso
+- macOS richiede `NSCameraUsageDescription`
+
 ## Skill: Settings E Preset
 
 Quando usare:
