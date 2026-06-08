@@ -27,7 +27,7 @@ L'app ha due finestre:
 - Test Flash manuale indipendente da audio/soglie/cooldown.
 - Panic / Off per mandare subito l'output in stato sicuro.
 - Persistenza impostazioni su disco.
-- Build desktop con `electron-builder`, incluse build macOS arm64 e x64.
+- Build desktop standard con `electron-builder`, piu' build opzionali per macOS Intel/x64 e Windows.
 
 ## Requisiti
 
@@ -82,9 +82,9 @@ pnpm start
 
 Su macOS il pacchetto non e' firmato di default (`identity: null`). Gatekeeper puo' richiedere conferme manuali.
 
-### Build macOS Intel
+### Build extra macOS Intel
 
-Per generare esplicitamente la build Mac Intel/x64:
+Il build normale resta `pnpm build`. La build Mac Intel/x64 e' un passaggio extra da lanciare solo quando serve distribuire su Mac Intel:
 
 ```bash
 pnpm exec electron-builder --mac --x64
@@ -97,6 +97,29 @@ Output tipici:
 - `release/Mistica Electronica Visual Reactive Screen-0.1.0-mac.zip`: ZIP x64
 
 La build macOS include `NSMicrophoneUsageDescription` nel plist, necessario per far comparire correttamente la richiesta di permesso microfono.
+
+### Build extra Windows
+
+Per generare un pacchetto Windows:
+
+```bash
+pnpm exec electron-builder --win
+```
+
+Per forzare una architettura specifica:
+
+```bash
+pnpm exec electron-builder --win --x64
+pnpm exec electron-builder --win --ia32
+pnpm exec electron-builder --win --arm64
+```
+
+Output tipici in `release/`:
+
+- installer Windows, se il target di default lo prevede
+- pacchetti compressi o directory unpacked, in base ai target scelti da `electron-builder`
+
+Nota: il build Windows e' separato dal build macOS standard. Se lo esegui da macOS, `electron-builder` puo' richiedere dipendenze/target aggiuntivi in base al formato finale.
 
 ## Uso rapido live
 
