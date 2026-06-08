@@ -383,7 +383,7 @@ export function ControlApp() {
       morphingRotationTimerRef.current = null
     }
 
-    if (!settings.dynamicPresetEnabled || !settings.dynamicMorphingRotationEnabled) {
+    if (!settings.dynamicMorphingRotationEnabled) {
       nextNoMorphingDueAtRef.current = 0
       setSpatialNaifRotationActive(false)
       return
@@ -394,11 +394,11 @@ export function ControlApp() {
       nextNoMorphingDueAtRef.current = now + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
     }
 
-    const scheduleMorphingRotation = () => {
-      const delay = morphingRotationDelay(settings)
+    const scheduleMorphingRotation = (isFirstRun: boolean = false) => {
+      const delay = isFirstRun ? 0 : morphingRotationDelay(settings)
       morphingRotationTimerRef.current = window.setTimeout(() => {
         setSettings((current) => {
-          if (!current.dynamicPresetEnabled || !current.dynamicMorphingRotationEnabled) return current
+          if (!current.dynamicMorphingRotationEnabled) return current
           const nowInner = Date.now()
           const forceNoMorphing = nowInner >= nextNoMorphingDueAtRef.current
           const candidate = pickDynamicMorphingCandidate(
@@ -439,7 +439,7 @@ export function ControlApp() {
       }, delay)
     }
 
-    scheduleMorphingRotation()
+    scheduleMorphingRotation(true)
     return () => {
       if (morphingRotationTimerRef.current) {
         window.clearTimeout(morphingRotationTimerRef.current)
@@ -447,12 +447,8 @@ export function ControlApp() {
       }
     }
   }, [
-    settings.dynamicPresetEnabled,
     settings.dynamicMorphingRotationEnabled,
-    settings.morphingAlgorithm,
-    settings.morphingPresetId,
     settings.spatialNaifEnabled,
-    settings.useMorphing,
   ])
 
   if (!api) {
