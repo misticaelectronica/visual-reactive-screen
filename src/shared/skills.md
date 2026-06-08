@@ -13,6 +13,7 @@ Checklist:
 - test flash bypassa audio/soglie/cooldown
 - cooldown e rate limit restano attivi per flash audio
 - low dominance non blocca in modo assoluto `mid/high`
+- blink/flash audio restano morbidi: picco limitato, decay curvo, rate conservativo
 
 ## Skill: Modificare Bande Audio
 
@@ -36,6 +37,11 @@ Passi:
 5. Aggiornare payload se serve all'output.
 6. Aggiornare docs locali/root.
 
+Note:
+
+- `motionProfile` richiede aggiornamenti anche ai tre renderer morphing.
+- `lowPowerMode` richiede aggiornamenti a UI Safety e renderer output.
+
 ## Skill: Aggiungere Preset Morphing
 
 Checklist:
@@ -45,3 +51,25 @@ Checklist:
 - parametri entro budget
 - profilo percettivo se usato da Oniric/Liquid
 - evitare duplicati o preset indistinguibili
+- se il preset deve esistere in PsyHyp, aggiungerlo a `PSY_HYP_MORPHING_PRESETS`
+- verificare che UI e rotazione dinamica lo includano
+
+Preset da preservare:
+
+- `alien-contact`
+- `solchi-abitudine`
+- `materia-malleabile`
+- `percorsi-laterali`
+- `impronte-lavate`
+
+## Skill: Accordare Motion Profile
+
+Usare quando si calibra la risposta musicale dei renderer.
+
+Checklist:
+
+- `dub`: sub elastico, attacco non nervoso, release flessibile.
+- `techno`: pulse forte ma clampato.
+- `ambient`: smoothing alto, transienti attenuati.
+- aggiornare Liquid, Oniric e PsyHyp insieme.
+- non usare `motionProfile` per cambiare i colori o il concept del preset.

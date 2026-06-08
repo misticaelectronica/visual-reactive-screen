@@ -148,6 +148,7 @@ Quando usare:
 - flash non parte
 - output resta idle/scuro
 - preset audio troppo sensibile o troppo lento
+- blink troppo frequenti o troppo scattosi
 
 File chiave:
 
@@ -168,6 +169,32 @@ Verifica minima:
 - senza audio, `Test flash` deve diventare visibile
 - con audio, meter devono muoversi
 - con `flashMode: off`, flash audio disabilitato ma `Test flash` ancora valido
+- i blink devono restare presenti ma morbidi: evitare picchi pieni frequenti, preferire decay curvo e cooldown/rate limit conservativi
+
+## Skill: Profili Movimento Musicale
+
+Quando usare:
+
+- visual scollegato dal ritmo
+- visual troppo nervoso
+- adattamento a dub, techno o ambient
+
+File chiave:
+
+- `src/shared/types.ts`
+- `src/shared/defaults.ts`
+- `src/renderer/control/components/VisualControls.tsx`
+- `src/renderer/output/morphingCanvas.ts`
+- `src/renderer/output/oniricMorphingCanvas.ts`
+- `src/renderer/output/psyHypMorphingCanvas.ts`
+
+Regole:
+
+- `motionProfile: 'dub'` e' il default: elastico, flessibile, con sub morbido.
+- `motionProfile: 'techno'` deve pulsare in modo rotondo, non tremolare su ogni transiente.
+- `motionProfile: 'ambient'` deve essere molto fluido, con smoothing alto e transienti attenuati.
+- Cambi ai gain audio-reactive vanno applicati nei tre renderer, non solo in uno.
+- Se si aumenta reattivita', verificare subito che non tornino scatti o blink eccessivi.
 
 ## Skill: Morphing
 
@@ -176,6 +203,7 @@ Quando usare:
 - renderer morphing pesante
 - cambio algoritmo/preset rompe output
 - memory leak o canvas duplicati
+- preset non compare nel box di selezione o nella rotazione
 
 File chiave:
 
@@ -193,13 +221,39 @@ Regole:
 - `Use morphing OFF` distrugge il controller
 - cambio algoritmo distrugge il controller vecchio
 - dynamic preset puo' fare crossfade tra controller
+- cambio preset PsyHyp deve aggiornare il renderer e non restare bloccato su `default`
+- i preset PsyHyp devono essere inclusi in `PSY_HYP_MORPHING_PRESETS` per comparire in UI e rotazione
 
 Budget PsyHypMorphing da rispettare:
 
-- target circa 30 FPS
+- target 60 FPS in modalita' normale, con downgrade automatico/low power quando serve
 - DPR massimo 1.5
 - point count contenuto
 - trail e blur limitati
+
+## Skill: Basso Consumo
+
+Quando usare:
+
+- CPU alta
+- macchina calda durante performance lunghe
+- output non richiede massima fluidita'
+
+File chiave:
+
+- `src/shared/types.ts`
+- `src/shared/defaults.ts`
+- `src/renderer/control/components/SafetyControls.tsx`
+- `src/renderer/output/morphingCanvas.ts`
+- `src/renderer/output/oniricMorphingCanvas.ts`
+- `src/renderer/output/psyHypMorphingCanvas.ts`
+
+Regole:
+
+- `lowPowerMode` deve restare controllabile dalla UI Safety.
+- Liquid/Oniric in basso consumo limitano FPS e layer.
+- PsyHyp in basso consumo usa qualita' leggera, DPR 1 e frame pacing piu' economico.
+- Non usare `lowPowerMode` per cambiare il look artistico: deve ridurre costo, non ridefinire i preset.
 
 ## Skill: Settings E Preset
 
@@ -222,6 +276,8 @@ Regole:
 - normalizzare settings caricati da disco
 - vecchi alias colore vanno mappati a nuovi id
 - `softMode` resta manuale salvo reset/preset che lo riportano a `false`
+- `motionProfile` deve restare uno tra `dub`, `techno`, `ambient`
+- `lowPowerMode` deve fare merge coi default anche per settings salvati vecchi
 
 ## Skill: Documentazione
 

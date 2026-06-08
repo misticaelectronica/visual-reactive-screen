@@ -2,9 +2,11 @@ export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 
 export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp'
 export type FlashMode = 'high' | 'mid' | 'low' | 'off'
+export type MotionProfile = 'dub' | 'techno' | 'ambient'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp']
 export const FLASH_MODES: FlashMode[] = ['high', 'mid', 'low', 'off']
+export const MOTION_PROFILES: MotionProfile[] = ['dub', 'techno', 'ambient']
 
 export function isMorphingAlgorithm(value: unknown): value is MorphingAlgorithm {
   return typeof value === 'string' && MORPHING_ALGORITHMS.includes(value as MorphingAlgorithm)
@@ -44,6 +46,7 @@ export interface AppSettings {
   useMorphing: boolean
   morphingAlgorithm: MorphingAlgorithm
   morphingPresetId: string
+  motionProfile: MotionProfile
   debugMorphingVisibility: boolean
   morphingOpacity: number
   morphingMinOpacity: number

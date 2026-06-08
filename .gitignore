@@ -122,6 +122,8 @@ electron-builder.env
 .tmp/
 tmp/
 temp/
+build/icon.iconset/
+build/icon.tiff
 
 # Coverage / tests
 coverage/

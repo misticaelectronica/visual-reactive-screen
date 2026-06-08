@@ -45,3 +45,26 @@ Quando modificare preset:
 - controllare `DEFAULT_SETTINGS`
 - verificare normalizzazione settings se si aggiungono nuovi id
 - assicurare che Match Genere/Colore resti coerente
+
+## Skill: Profilo Movimento
+
+Usare quando il visual e' troppo nervoso, troppo lento o non adatto al genere.
+
+Regole:
+
+- il controllo vive in `VisualControls.tsx`
+- `dub` e' il default elastico e flessibile
+- `techno` deve essere pulsante ma non scattoso
+- `ambient` deve essere super fluido e meno transiente
+- ogni modifica deve arrivare nei tre renderer morphing tramite `settings.motionProfile`
+
+## Skill: Basso Consumo UI
+
+Usare quando si aggiunge o modifica una riduzione carico.
+
+Regole:
+
+- il toggle vive in `SafetyControls.tsx`
+- il campo e' `settings.lowPowerMode`
+- deve essere salvato/ripristinato come gli altri settings
+- non deve attivare `softMode` automaticamente

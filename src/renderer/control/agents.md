@@ -10,6 +10,8 @@ Guida per agenti che modificano la Control Window.
 - loop `requestAnimationFrame` che produce `VisualStatePayload`
 - preset genere/colore e dynamic preset
 - safety controls
+- profilo movimento musicale (`dub`, `techno`, `ambient`)
+- modalita' basso consumo
 
 ## File
 
@@ -27,6 +29,9 @@ Guida per agenti che modificano la Control Window.
 - Non cambiare preset o settings senza aggiornare default/normalizzazione se serve.
 - Non rendere `softMode` automatico: resta scelta manuale salvo reset/preset.
 - Non spostare Web Audio fuori dalla finestra Electron senza ridisegnare permessi e IPC.
+- `motionProfile` e' un controllo artistico principale: dub elastico, techno pulsante, ambient fluido.
+- `lowPowerMode` deve restare in Safety e non deve cambiare identita' dei preset, solo il costo render.
+- Quando si modifica la sensibilita' del visual, verificare sia reattivita' sia nervosismo.
 
 ## Diagnosi Output Nero
 
@@ -44,3 +49,5 @@ Se output e' nero ma Control gira:
 - pulsanti output funzionano
 - `sendVisualState` chiamato anche senza audio
 - background window non blocca il loop
+- cambio `Profilo movimento` arriva nell'output tramite `settings`
+- modalita' basso consumo viene salvata e ripristinata

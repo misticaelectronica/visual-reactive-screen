@@ -9,6 +9,8 @@ Guida per agenti che modificano la Output Window.
 - creare/distruggere renderer morphing
 - gestire crossfade dynamic preset
 - mostrare diagnostica minima quando non arrivano stati
+- applicare `motionProfile` ai renderer morphing
+- rispettare `lowPowerMode` nei canvas
 
 ## File
 
@@ -27,6 +29,22 @@ Guida per agenti che modificano la Output Window.
 - Cambio algoritmo deve distruggere il vecchio controller.
 - `Use morphing OFF` deve distruggere il controller.
 - Non lasciare overlay debug in produzione se non richiesto.
+- `motionProfile` deve cambiare comportamento musicale senza cambiare identita' del preset.
+- In `lowPowerMode`, ridurre costo render senza rompere cleanup, crossfade o fullscreen.
+- PsyHyp deve leggere `morphingPresetId`: i preset non devono restare sempre `default`.
+
+## Movimento Musicale
+
+Profili:
+
+- `dub`: movimento elastico, sub morbido, release piu' flessibile.
+- `techno`: pulse visibile ma clampato, niente tremolio su ogni transiente.
+- `ambient`: smoothing alto, deformazioni lente, continuita' fluida.
+
+Regola pratica:
+
+- Se il visual sembra scollegato dal ritmo, aumentare aggancio con smoothing e gain controllati.
+- Se il visual sembra nervoso, ridurre transienti diretti e usare piu' envelope/release.
 
 ## Output Nero
 

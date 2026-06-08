@@ -136,6 +136,49 @@ function mixValue(a: number, b: number, progress: number): number {
   return a + (b - a) * progress
 }
 
+function motionTuning(profile: AppSettings['motionProfile'] | undefined) {
+  if (profile === 'techno') {
+    return {
+      smoothing: { low: 0.095, lowMid: 0.105, mid: 0.115, high: 0.085 },
+      kickAttack: 0.17,
+      kickGain: 1.65,
+      subGain: 1.20,
+      beatGain: 0.70,
+      speedGain: 0.86,
+      highGain: 0.64,
+      densityGain: 0.72,
+      opacityBeat: 0.18,
+      scaleBeat: 0.22,
+    }
+  }
+  if (profile === 'ambient') {
+    return {
+      smoothing: { low: 0.040, lowMid: 0.045, mid: 0.050, high: 0.035 },
+      kickAttack: 0.075,
+      kickGain: 0.48,
+      subGain: 0.72,
+      beatGain: 0.14,
+      speedGain: 0.30,
+      highGain: 0.24,
+      densityGain: 0.20,
+      opacityBeat: 0.04,
+      scaleBeat: 0.06,
+    }
+  }
+  return {
+    smoothing: { low: 0.065, lowMid: 0.070, mid: 0.075, high: 0.055 },
+    kickAttack: 0.11,
+    kickGain: 0.88,
+    subGain: 1.05,
+    beatGain: 0.32,
+    speedGain: 0.48,
+    highGain: 0.38,
+    densityGain: 0.42,
+    opacityBeat: 0.09,
+    scaleBeat: 0.12,
+  }
+}
+
 function randomOniricDuration(rng: () => number): number {
   return ONIRIC_DEFAULT_MIN_TRANSITION_MS + rng() * (ONIRIC_DEFAULT_MAX_TRANSITION_MS - ONIRIC_DEFAULT_MIN_TRANSITION_MS)
 }
@@ -649,10 +692,12 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     const visualBlendMode = blendMode === 'source-over' ? 'screen' : blendMode
     canvas.style.mixBlendMode = visualBlendMode
 
-    smoothedLow += (currentBands.low - smoothedLow) * 0.12
-    smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * 0.13
-    smoothedMid += (currentBands.mid - smoothedMid) * 0.14
-    smoothedHigh += (currentBands.high - smoothedHigh) * 0.10
+    const tuning = motionTuning(currentSettings.motionProfile)
+
+    smoothedLow += (currentBands.low - smoothedLow) * tuning.smoothing.low
+    smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * tuning.smoothing.lowMid
+    smoothedMid += (currentBands.mid - smoothedMid) * tuning.smoothing.mid
+    smoothedHigh += (currentBands.high - smoothedHigh) * tuning.smoothing.high
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
     const softenedFlashTarget = flashTarget * 0.65
@@ -670,15 +715,15 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
 
     const rawKickPulse = Math.max(0, currentBands.low - smoothedLow)
-    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * 0.24
-    const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * 2.8, 0, 0.55)
-    const subPressure = clamp(smoothedLow * (currentSettings.subMovement ?? 0.26) * 1.55, 0, 0.85)
-    const beatDrive = clamp(kickPulse * 1.45 + Math.max(0, currentBands.lowMid - smoothedLowMid) * 0.85, 0, 0.95)
+    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * tuning.kickAttack
+    const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * tuning.kickGain, 0, 0.42)
+    const subPressure = clamp(smoothedLow * (currentSettings.subMovement ?? 0.26) * tuning.subGain, 0, 0.70)
+    const beatDrive = clamp(kickPulse * tuning.beatGain + Math.max(0, currentBands.lowMid - smoothedLowMid) * tuning.beatGain, 0, 0.52)
 
-    const bodyDensity = (smoothedLowMid * 0.65 + currentBands.lowMid * 0.35) * preset.lowMidDeformationAmount * 0.68 * (1 + subPressure * 0.82 + beatDrive * 0.75)
-    const midGlow = (smoothedMid * 0.55 + currentBands.mid * 0.45) * preset.midOpacityAmount * (0.76 + debugSettings.glowIntensity * 0.34)
+    const bodyDensity = (smoothedLowMid * 0.78 + currentBands.lowMid * 0.22) * preset.lowMidDeformationAmount * 0.56 * (1 + subPressure * 0.72 + beatDrive * tuning.densityGain)
+    const midGlow = (smoothedMid * 0.70 + currentBands.mid * 0.30) * preset.midOpacityAmount * (0.68 + debugSettings.glowIntensity * 0.30)
     const flashGlow = smoothedFlash * 0.10
-    const highTension = (smoothedHigh * 0.55 + currentBands.high * 0.45) * preset.highNoiseAmount * 0.58
+    const highTension = (smoothedHigh * 0.72 + currentBands.high * 0.28) * preset.highNoiseAmount * tuning.highGain
 
     // Correzione 3: Assorbimento del flash come energia interna
     let integratedFlashGlow = smoothedMorphingFlash
@@ -701,15 +746,15 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
-    const effectiveSpeed = clamp(preset.speed * (2.35 + beatDrive * 1.30 + highTension * 1.20), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED * 1.22)
-    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 2.8 + beatDrive * 2.2 + Math.sin(defaultTransitionProgress * Math.PI) * 2), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    const effectiveSpeed = clamp(preset.speed * (1.95 + beatDrive * tuning.speedGain + highTension * 0.72), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
+    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.8 + subPressure * 1.8 + beatDrive * 1.1 + Math.sin(defaultTransitionProgress * Math.PI) * 2), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     let effectiveBlur = clamp(preset.blur * (0.38 + debugSettings.edgeSoftness * 0.30), ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
     let effectiveOpacity = clamp(
-      Math.max(preset.opacity * 1.34, debugSettings.opacity) + subPressure * 0.27 + beatDrive * 0.34,
+      Math.max(preset.opacity * 1.34, debugSettings.opacity) + subPressure * 0.20 + beatDrive * tuning.opacityBeat,
       ORGANIC_MIN_ALPHA,
       ORGANIC_MAX_ALPHA
     )
-    let effectiveScale = clamp(preset.scale * debugSettings.scale * 1.05 + subPressure * 0.45 + beatDrive * 0.40, 0.85, 2.16)
+    let effectiveScale = clamp(preset.scale * debugSettings.scale * 1.05 + subPressure * 0.34 + beatDrive * tuning.scaleBeat, 0.85, 2.05)
 
     let midGlowBoost = midGlow
     let integratedFlashGlowBoost = integratedFlashGlow
@@ -786,8 +831,8 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         x = width / 2 + Math.cos(angle) * centerDist + motion.driftX * 0.5
         y = height / 2 + Math.sin(angle) * centerDist + motion.driftY * 0.5
       } else {
-        x += motion.driftX + bodyDensity * width * 0.12 * Math.sin(t * speed * 0.53 + phase) + Math.sin(t * speed * 0.15 + phase) * width * 0.055 * highTension
-        y += motion.driftY + bodyDensity * height * 0.12 * Math.cos(t * speed * 0.49 + phase) + Math.cos(t * speed * 0.11 + phase) * height * 0.055 * highTension
+        x += motion.driftX + bodyDensity * width * 0.085 * Math.sin(t * speed * 0.53 + phase) + Math.sin(t * speed * 0.15 + phase) * width * 0.035 * highTension
+        y += motion.driftY + bodyDensity * height * 0.085 * Math.cos(t * speed * 0.49 + phase) + Math.cos(t * speed * 0.11 + phase) * height * 0.035 * highTension
       }
 
       let radius =
@@ -795,7 +840,7 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
         effectiveScale *
         (0.28 + pseudoRandom(seed + 1) * 0.28) *
         geom.radiusPulse *
-        (1 + subPressure * 1.5 + beatDrive * 1.18)
+        (1 + subPressure * 1.15 + beatDrive * tuning.scaleBeat)
 
       if (profile.density === 'particulate') {
         radius *= 0.22
@@ -833,8 +878,8 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
       const outerAlpha = clamp(alpha * (0.10 + debugSettings.glowIntensity * 0.04), 0.035, 0.14)
 
       // Correzione 3: Flash integrated multipliers
-      radius *= 1 + integratedFlashGlowBoost * 0.08 + beatDrive * 0.12
-      alpha += integratedFlashGlowBoost * 0.08 + beatDrive * 0.10
+      radius *= 1 + integratedFlashGlowBoost * 0.07 + beatDrive * tuning.scaleBeat * 0.45
+      alpha += integratedFlashGlowBoost * 0.07 + beatDrive * tuning.opacityBeat * 0.55
       innerAlpha += integratedFlashGlowBoost * 0.22
       midAlpha += integratedFlashGlowBoost * 0.09
 

@@ -1,4 +1,5 @@
-import { app, BrowserWindow, session, systemPreferences } from 'electron'
+import path from 'node:path'
+import { app, BrowserWindow, nativeImage, session, systemPreferences } from 'electron'
 import { registerIpcHandlers } from './ipc'
 import { createControlWindow, closeOutputWindow } from './windows'
 
@@ -25,10 +26,16 @@ async function requestMacMicrophonePermission(): Promise<void> {
   await systemPreferences.askForMediaAccess('microphone').catch(() => false)
 }
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
+function configureAppIcon(): void {
+  const icon = nativeImage.createFromPath(path.join(app.getAppPath(), 'build', 'icon.png'))
+  if (icon.isEmpty()) return
+  if (process.platform === 'darwin') {
+    app.dock?.setIcon(icon)
   }
+}
+
+app.on('window-all-closed', () => {
+  app.quit()
 })
 
 app.on('activate', () => {
@@ -38,6 +45,7 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(async () => {
+  configureAppIcon()
   configureMediaPermissions()
   await requestMacMicrophonePermission()
   registerIpcHandlers()

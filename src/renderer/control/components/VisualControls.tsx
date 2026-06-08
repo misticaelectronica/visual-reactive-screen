@@ -81,6 +81,17 @@ export function VisualControls({ settings, onChange }: Props) {
             ))}
           </select>
         </label>
+        <label>
+          Profilo movimento
+          <select
+            value={settings.motionProfile ?? 'dub'}
+            onChange={(e) => onChange({ motionProfile: e.target.value as AppSettings['motionProfile'], softMode: false })}
+          >
+            <option value="dub">Dub - elastico</option>
+            <option value="techno">Techno - pulsante</option>
+            <option value="ambient">Ambient - fluido</option>
+          </select>
+        </label>
       </div>
 
       <legend>Debug morphing onirico</legend>

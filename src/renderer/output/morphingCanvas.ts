@@ -70,6 +70,49 @@ function mixColor(c1: RGBColor, c2: RGBColor, ratio: number): RGBColor {
   }
 }
 
+function motionTuning(profile: AppSettings['motionProfile'] | undefined) {
+  if (profile === 'techno') {
+    return {
+      smoothing: { low: 0.10, lowMid: 0.11, mid: 0.12, high: 0.09 },
+      kickAttack: 0.18,
+      kickGain: 1.75,
+      subGain: 1.25,
+      beatGain: 0.72,
+      speedGain: 0.92,
+      detailGain: 0.75,
+      deformationGain: 0.82,
+      radiusBeat: 0.62,
+      opacityBeat: 0.18,
+    }
+  }
+  if (profile === 'ambient') {
+    return {
+      smoothing: { low: 0.045, lowMid: 0.050, mid: 0.055, high: 0.040 },
+      kickAttack: 0.08,
+      kickGain: 0.55,
+      subGain: 0.78,
+      beatGain: 0.18,
+      speedGain: 0.42,
+      detailGain: 0.30,
+      deformationGain: 0.38,
+      radiusBeat: 0.18,
+      opacityBeat: 0.06,
+    }
+  }
+  return {
+    smoothing: { low: 0.070, lowMid: 0.075, mid: 0.080, high: 0.060 },
+    kickAttack: 0.12,
+    kickGain: 0.95,
+    subGain: 1.10,
+    beatGain: 0.36,
+    speedGain: 0.58,
+    detailGain: 0.44,
+    deformationGain: 0.55,
+    radiusBeat: 0.34,
+    opacityBeat: 0.10,
+  }
+}
+
 export function createMorphingCanvas(container: HTMLElement) {
   const canvas = document.createElement('canvas')
   canvas.className = 'morphing-layer'
@@ -131,19 +174,21 @@ export function createMorphingCanvas(container: HTMLElement) {
 
     canvas.style.mixBlendMode = preset.blendMode || 'screen'
 
+    const tuning = motionTuning(currentSettings.motionProfile)
+
     // Smoothing band energies for fluid motion
-    smoothedBands.low += (currentBands.low - smoothedBands.low) * 0.12
-    smoothedBands.lowMid += (currentBands.lowMid - smoothedBands.lowMid) * 0.13
-    smoothedBands.mid += (currentBands.mid - smoothedBands.mid) * 0.14
-    smoothedBands.high += (currentBands.high - smoothedBands.high) * 0.10
+    smoothedBands.low += (currentBands.low - smoothedBands.low) * tuning.smoothing.low
+    smoothedBands.lowMid += (currentBands.lowMid - smoothedBands.lowMid) * tuning.smoothing.lowMid
+    smoothedBands.mid += (currentBands.mid - smoothedBands.mid) * tuning.smoothing.mid
+    smoothedBands.high += (currentBands.high - smoothedBands.high) * tuning.smoothing.high
 
     // Modulazione tramite subMovement e kickMovement del preset audio attivo
     const rawKickPulse = Math.max(0, currentBands.low - smoothedBands.low)
-    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * 0.24
-    const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * 2.8, 0, 0.55)
-    const subPressure = clamp(smoothedBands.low * (currentSettings.subMovement ?? 0.26) * 1.55, 0, 0.85)
-    const beatDrive = clamp(kickPulse * 1.45 + Math.max(0, currentBands.lowMid - smoothedBands.lowMid) * 0.85, 0, 0.95)
-    const rhythmicDetail = clamp(currentBands.high * preset.highNoiseAmount * 1.8, 0, 0.55)
+    smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * tuning.kickAttack
+    const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * tuning.kickGain, 0, 0.42)
+    const subPressure = clamp(smoothedBands.low * (currentSettings.subMovement ?? 0.26) * tuning.subGain, 0, 0.72)
+    const beatDrive = clamp(kickPulse * tuning.beatGain + Math.max(0, currentBands.lowMid - smoothedBands.lowMid) * tuning.beatGain, 0, 0.55)
+    const rhythmicDetail = clamp(currentBands.high * preset.highNoiseAmount * tuning.detailGain, 0, 0.32)
 
     // Correzione 5: Smoothing del flash nel morphing
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
@@ -153,10 +198,10 @@ export function createMorphingCanvas(container: HTMLElement) {
       smoothedMorphingFlash += (flashTarget - smoothedMorphingFlash) * 0.045
     }
 
-    const effectiveSpeed = clamp(preset.speed * (2.15 + beatDrive * 1.20 + rhythmicDetail * 0.55), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED * 1.22)
+    const effectiveSpeed = clamp(preset.speed * (1.75 + beatDrive * tuning.speedGain + rhythmicDetail * 0.45), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
 
     // Advance time
-    time += effectiveSpeed * 0.05 * (1 + rhythmicDetail * 1.45) * (1 + subPressure * 0.65 + beatDrive * 0.95)
+    time += effectiveSpeed * 0.05 * (1 + rhythmicDetail * 0.75) * (1 + subPressure * 0.46 + beatDrive * 0.42)
 
     const w = canvas.width
     const h = canvas.height
@@ -180,10 +225,10 @@ export function createMorphingCanvas(container: HTMLElement) {
     ctx.globalCompositeOperation = preset.blendMode || 'screen'
 
     // Correzione 1: limiti interni e clamps per visibilità organica aumentata
-    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 2.6 + beatDrive * 2.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
+    let effectiveVeilCount = clamp(Math.round(preset.shapeCount * 2.5 + subPressure * 1.6 + beatDrive * 1.0), ORGANIC_MIN_LAYER_COUNT, ORGANIC_MAX_LAYER_COUNT)
     let effectiveBlur = clamp(preset.blur * 0.58, ORGANIC_MIN_BLUR, ORGANIC_MAX_BLUR)
-    let effectiveOpacity = clamp(preset.opacity * 1.42 + subPressure * 0.26 + beatDrive * 0.32, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    let effectiveScale = clamp(preset.scale * 1.10 + subPressure * 0.44 + beatDrive * 0.38, 0.85, 2.08)
+    let effectiveOpacity = clamp(preset.opacity * 1.42 + subPressure * 0.20 + beatDrive * tuning.opacityBeat, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
+    let effectiveScale = clamp(preset.scale * 1.10 + subPressure * 0.34 + beatDrive * 0.22, 0.85, 2.00)
 
     let midGlowBoost = (smoothedBands.mid * 0.55 + currentBands.mid * 0.45) * preset.midOpacityAmount * 0.78
     let integratedFlashGlowBoost = smoothedMorphingFlash
@@ -232,11 +277,11 @@ export function createMorphingCanvas(container: HTMLElement) {
       scaleFactor *= 0.92
     }
 
-    let baseRadius = Math.min(w, h) * 0.3 * scaleFactor * (1 + subPressure * 1.5 + beatDrive * 1.15)
+    let baseRadius = Math.min(w, h) * 0.3 * scaleFactor * (1 + subPressure * 1.20 + beatDrive * tuning.radiusBeat)
     
     // Correzione 3: Flash integrated multiplier sul raggio
     baseRadius *= 1 + integratedFlashGlowBoost * 0.08
-    smoothedRadius += (baseRadius - smoothedRadius) * (smoothedRadius === 0 ? 1 : 0.18)
+    smoothedRadius += (baseRadius - smoothedRadius) * (smoothedRadius === 0 ? 1 : tuning.smoothing.low * 1.35)
 
     let baseOp = effectiveOpacity + midGlowBoost
     if (profile.spatialBias === 'fieldWide') {
@@ -246,15 +291,15 @@ export function createMorphingCanvas(container: HTMLElement) {
     // Correzione 3: Flash integrated alpha addition
     let op = baseOp + integratedFlashGlowBoost * 0.16
     op = clamp(op * contrastOpacityMult * contrastInnerAlphaMult, ORGANIC_MIN_ALPHA, ORGANIC_MAX_ALPHA)
-    smoothedOpacity += (op - smoothedOpacity) * (smoothedOpacity === 0 ? 1 : 0.20)
-    smoothedScale += (effectiveScale - smoothedScale) * 0.15
+    smoothedOpacity += (op - smoothedOpacity) * (smoothedOpacity === 0 ? 1 : tuning.smoothing.mid * 1.45)
+    smoothedScale += (effectiveScale - smoothedScale) * tuning.smoothing.lowMid * 1.25
 
     // Correzione 8: Presenza minima del morphing
     const minPresence = isOrganicPreset(presetId) ? 0.12 : 0.08
     op = Math.max(smoothedOpacity, minPresence)
-    baseRadius = smoothedRadius * (1 + (smoothedScale - effectiveScale) * 0.08 + beatDrive * 0.10)
-    smoothedCx += (cx - smoothedCx) * (smoothedCx === 0 ? 1 : 0.12)
-    smoothedCy += (cy - smoothedCy) * (smoothedCy === 0 ? 1 : 0.12)
+    baseRadius = smoothedRadius * (1 + (smoothedScale - effectiveScale) * 0.08 + beatDrive * 0.045)
+    smoothedCx += (cx - smoothedCx) * (smoothedCx === 0 ? 1 : tuning.smoothing.lowMid)
+    smoothedCy += (cy - smoothedCy) * (smoothedCy === 0 ? 1 : tuning.smoothing.lowMid)
 
     const shapesToDraw = effectiveVeilCount
 
@@ -267,7 +312,7 @@ export function createMorphingCanvas(container: HTMLElement) {
       for (let j = 0; j <= points; j++) {
         const angle = (j / points) * Math.PI * 2
         
-        let def = preset.deformation + (smoothedBands.lowMid * preset.lowMidDeformationAmount * 0.72) + beatDrive * 0.18
+        let def = preset.deformation + (smoothedBands.lowMid * preset.lowMidDeformationAmount * 0.66) + beatDrive * tuning.deformationGain * 0.12
         if (profile.density === 'membrane') {
           def *= 1.25
         }

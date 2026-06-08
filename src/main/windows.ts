@@ -15,6 +15,10 @@ function preloadPath(): string {
   return path.join(appResourceRoot(), 'dist-electron', 'preload.cjs')
 }
 
+function iconPath(): string {
+  return path.join(appResourceRoot(), 'build', 'icon.png')
+}
+
 export function getControlWindow(): BrowserWindow | null {
   return controlWindow
 }
@@ -37,6 +41,7 @@ export function createControlWindow(): BrowserWindow {
     width: 980,
     height: 900,
     title: 'Mistica Electronica Visual Reactive Screen',
+    icon: iconPath(),
     webPreferences: {
       preload: preloadPath(),
       contextIsolation: true,
@@ -53,6 +58,8 @@ export function createControlWindow(): BrowserWindow {
   }
   controlWindow.on('closed', () => {
     controlWindow = null
+    closeOutputWindow()
+    app.quit()
   })
 
   return controlWindow
@@ -110,6 +117,7 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     show: true,
     skipTaskbar: true,
     autoHideMenuBar: true,
+    icon: iconPath(),
     webPreferences: {
       preload: preloadPath(),
       contextIsolation: true,

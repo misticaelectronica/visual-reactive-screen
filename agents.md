@@ -60,6 +60,8 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non cambiare globalmente il motore audio per correggere un singolo renderer morphing.
 - Non lasciare debug overlay o flag debug attivi in produzione live, salvo richiesta esplicita.
 - Non rendere il build Mac Intel parte del build normale: e' un extra.
+- Non rendere i renderer troppo nervosi inseguendo ogni transiente audio: dub, techno e ambient devono avere comportamenti diversi.
+- Non rimuovere `lowPowerMode`: serve per ridurre carico CPU/FPS/layer durante live lunghi o su macchine calde.
 
 ## Punti Delicati
 
@@ -166,6 +168,19 @@ Regole:
 - I renderer devono pulire RAF, canvas e listener in `destroy()`.
 - PsyHypMorphing ha budget performance interno; non aumentare DPR/FPS/punti senza verifiche reali.
 - Oniric ha controlli dedicati di debug/visibilita nella UI.
+- `motionProfile` governa la risposta musicale:
+  - `dub`: default elastico, sub morbido, release flessibile.
+  - `techno`: pulse piu' marcato ma clampato, movimento rotondo.
+  - `ambient`: smoothing alto, transienti ridotti, continuita' fluida.
+- `lowPowerMode` riduce il costo render:
+  - Liquid/Oniric limitano FPS e layer.
+  - PsyHyp forza qualita' leggera, DPR ridotto e frame pacing piu' economico.
+- I blink/flash devono restare presenti ma non scattosi: preferire picchi piu' bassi, decay curvo e cooldown/rate limit conservativi.
+
+Preset recenti:
+
+- `alien-contact` / Contatto Alieno: disponibile in Liquid, Oniric e PsyHyp; usa due poli/civilta' e un ponte di segnali, evitando icone sci-fi letterali.
+- `solchi-abitudine`, `materia-malleabile`, `percorsi-laterali`, `impronte-lavate`: famiglie materiche astratte condivise da Liquid/Oniric e disponibili anche in PsyHyp.
 
 ## Persistenza
 
@@ -180,6 +195,8 @@ Normalizzazione in `src/main/settings.ts`:
 - `morphingAlgorithm` invalido -> `liquid`
 - `flashMode` invalido -> `mid`
 - `softMode` valido solo se `true`
+- `motionProfile` deve restare uno tra `dub`, `techno`, `ambient`
+- `lowPowerMode` valido solo se booleano
 - alias vecchi preset colore -> nuovi id
 - dynamic preset flags normalizzati
 

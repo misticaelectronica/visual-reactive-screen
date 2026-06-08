@@ -43,13 +43,18 @@
     "directories": {
       "output": "release"
     },
-    "files": ["dist/**/*", "dist-electron/**/*"],
+    "files": ["dist/**/*", "dist-electron/**/*", "build/icon.png"],
+    "icon": "build/icon",
     "mac": {
       "category": "public.app-category.music",
+      "icon": "build/icon.icns",
       "identity": null,
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Mistica Electronica Visual Reactive Screen usa l'ingresso audio selezionato per generare visual reattivi."
       }
+    },
+    "win": {
+      "icon": "build/icon.ico"
     }
   }
 }

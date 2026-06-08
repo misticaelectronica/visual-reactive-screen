@@ -21,8 +21,8 @@ const PSY_AURA_BLUR = 24
 const PSY_SILHOUETTE_BLUR = 8
 const PSY_STRUCTURE_BLUR = 2
 const PSY_FLASH_GLOW_BLUR = 16
-const MIN_TRANSITION_MS = 7000
-const MAX_TRANSITION_MS = 11000
+const MIN_TRANSITION_MS = 8500
+const MAX_TRANSITION_MS = 13500
 const PSY_MAIN_ALPHA_MIN = 0.32
 const PSY_MAIN_ALPHA_MAX = 0.78
 const PSY_DEFAULT_SCALE = 1.42
@@ -192,6 +192,43 @@ function phaseSettings(phase: PsyTransitionPhase): {
 function updateEnvelope(current: number, target: number, attack: number, release: number): number {
   const coefficient = target > current ? attack : release
   return current + (target - current) * coefficient
+}
+
+function motionTuning(profile: AppSettings['motionProfile'] | undefined) {
+  if (profile === 'techno') {
+    return {
+      attack: { low: 0.15, lowMid: 0.15, mid: 0.14, high: 0.12 },
+      release: { low: 0.052, lowMid: 0.056, mid: 0.062, high: 0.048 },
+      subGain: 1.0,
+      kickGain: 0.90,
+      twistGain: 0.86,
+      glowGain: 1.0,
+      detailGain: 0.88,
+      bridgePulse: 0.80,
+    }
+  }
+  if (profile === 'ambient') {
+    return {
+      attack: { low: 0.07, lowMid: 0.075, mid: 0.075, high: 0.055 },
+      release: { low: 0.032, lowMid: 0.036, mid: 0.040, high: 0.030 },
+      subGain: 0.58,
+      kickGain: 0.28,
+      twistGain: 0.36,
+      glowGain: 0.70,
+      detailGain: 0.42,
+      bridgePulse: 0.26,
+    }
+  }
+  return {
+    attack: { low: 0.105, lowMid: 0.110, mid: 0.105, high: 0.080 },
+    release: { low: 0.042, lowMid: 0.046, mid: 0.050, high: 0.038 },
+    subGain: 0.88,
+    kickGain: 0.52,
+    twistGain: 0.58,
+    glowGain: 0.84,
+    detailGain: 0.58,
+    bridgePulse: 0.42,
+  }
 }
 
 function hexToRgb(hex: string): RGBColor {
@@ -1433,10 +1470,12 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
   audio.previousMid = previousMid
   audio.previousHigh = previousHigh
 
-  audio.low = updateEnvelope(audio.low, bands.low, 0.20, 0.055)
-  audio.lowMid = updateEnvelope(audio.lowMid, bands.lowMid, 0.19, 0.060)
-  audio.mid = updateEnvelope(audio.mid, bands.mid, 0.18, 0.068)
-  audio.high = updateEnvelope(audio.high, bands.high, 0.15, 0.052)
+  const tuning = motionTuning(settings.motionProfile)
+
+  audio.low = updateEnvelope(audio.low, bands.low, tuning.attack.low, tuning.release.low)
+  audio.lowMid = updateEnvelope(audio.lowMid, bands.lowMid, tuning.attack.lowMid, tuning.release.lowMid)
+  audio.mid = updateEnvelope(audio.mid, bands.mid, tuning.attack.mid, tuning.release.mid)
+  audio.high = updateEnvelope(audio.high, bands.high, tuning.attack.high, tuning.release.high)
 
   audio.lowTransient = Math.max(0, audio.low - previousLow)
   audio.lowMidTransient = Math.max(0, audio.lowMid - previousLowMid)
@@ -1458,11 +1497,24 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
 
   const subMovement = settings.subMovement ?? PSY_SUB_MOVEMENT_FALLBACK
   const kickMovement = settings.kickMovement ?? PSY_KICK_MOVEMENT_FALLBACK
-  audio.subBounce = clamp(audio.reactiveLow * subMovement * PSY_SUB_BOUNCE_GAIN, 0, 1.05)
-  audio.kickBounce = clamp(audio.lowTransient * kickMovement * PSY_KICK_BOUNCE_GAIN + Math.max(0, bands.low - audio.low) * 0.26, 0, 0.55)
-  audio.bodyTwist = clamp(audio.reactiveLowMid * PSY_TWIST_GAIN + audio.lowMidTransient * 0.28, 0, 1.02)
-  audio.midGlow = clamp(audio.reactiveMid * PSY_MID_GLOW_GAIN + audio.midTransient * 0.32, 0, 1.50)
-  audio.highDetail = clamp(audio.reactiveHigh * PSY_HIGH_DETAIL_GAIN + audio.highTransient * 0.18, 0, 0.18)
+  audio.subBounce = clamp(audio.reactiveLow * subMovement * PSY_SUB_BOUNCE_GAIN * tuning.subGain, 0, 0.92)
+  audio.kickBounce = clamp(
+    (audio.lowTransient * kickMovement * PSY_KICK_BOUNCE_GAIN + Math.max(0, bands.low - audio.low) * 0.18) *
+      tuning.kickGain,
+    0,
+    0.38,
+  )
+  audio.bodyTwist = clamp(
+    (audio.reactiveLowMid * PSY_TWIST_GAIN + audio.lowMidTransient * 0.20) * tuning.twistGain,
+    0,
+    0.72,
+  )
+  audio.midGlow = clamp((audio.reactiveMid * PSY_MID_GLOW_GAIN + audio.midTransient * 0.24) * tuning.glowGain, 0, 1.20)
+  audio.highDetail = clamp(
+    (audio.reactiveHigh * PSY_HIGH_DETAIL_GAIN + audio.highTransient * 0.12) * tuning.detailGain,
+    0,
+    0.12,
+  )
 
   audio.flash = updateEnvelope(audio.flash, flashTarget, 0.16, 0.040)
 }

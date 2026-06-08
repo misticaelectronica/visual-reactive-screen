@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   useMorphing: false,
   morphingAlgorithm: 'liquid',
   morphingPresetId: 'ritual-drift',
+  motionProfile: 'dub',
   debugMorphingVisibility: false,
   morphingOpacity: 0.62,
   morphingMinOpacity: 0.42,
