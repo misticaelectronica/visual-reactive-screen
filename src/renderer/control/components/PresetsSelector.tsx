@@ -274,7 +274,6 @@ export function PresetsSelector({ settings, onApplyPreset, onChangeSettings }: P
             type="checkbox"
             checked={settings.dynamicMorphingRotationEnabled}
             onChange={(e) => onChangeSettings({ dynamicMorphingRotationEnabled: e.target.checked })}
-            disabled={!settings.dynamicPresetEnabled}
           />
           Rotazione morphing
         </label>

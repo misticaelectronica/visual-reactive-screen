@@ -8,6 +8,7 @@ import {
   closeOutputWindow,
   createOutputWindow,
 } from './windows'
+import { vectorizeBrainImage } from './brainVectorizer'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getDisplays, () => getAllDisplayInfo())
@@ -26,12 +27,11 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.loadSettings, () => loadSettingsFromDisk())
 
-  let _vsCalls = 0
   ipcMain.on(IPC_CHANNELS.sendVisualState, (_event, state: VisualStatePayload) => {
-    _vsCalls++
-    if (_vsCalls <= 5 || _vsCalls % 120 === 0) {
-      console.log(`[main] sendVisualState #${_vsCalls}`, state.backgroundColor)
-    }
     broadcastVisualState(state)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.vectorizeBrainImage, (_event, bytes: unknown) => {
+    return vectorizeBrainImage(bytes)
   })
 }

@@ -1,6 +1,7 @@
 import type { AppSettings, MorphingAlgorithm } from '@shared/types'
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
+import { SLIT_SCAN_PRESETS } from '@shared/slitScanPresets'
 
 interface Props {
   settings: AppSettings
@@ -12,12 +13,14 @@ const ONIRIC_PRESET_OPTIONS = [{ id: 'default', name: 'default' }, ...MORPHING_P
 function firstPresetIdForAlgorithm(algorithm: MorphingAlgorithm): string {
   if (algorithm === 'psy-hyp') return PSY_HYP_MORPHING_PRESETS[0]?.id ?? 'default'
   if (algorithm === 'oniric') return ONIRIC_PRESET_OPTIONS[0]?.id ?? 'default'
+  if (algorithm === '2001') return SLIT_SCAN_PRESETS[0]?.id ?? 'base'
   return MORPHING_PRESETS[0]?.id ?? 'ritual-drift'
 }
 
 function presetExistsForAlgorithm(algorithm: MorphingAlgorithm, presetId: string): boolean {
   if (algorithm === 'psy-hyp') return PSY_HYP_MORPHING_PRESETS.some((preset) => preset.id === presetId)
   if (algorithm === 'oniric') return ONIRIC_PRESET_OPTIONS.some((preset) => preset.id === presetId)
+  if (algorithm === '2001') return SLIT_SCAN_PRESETS.some((preset) => preset.id === presetId)
   return MORPHING_PRESETS.some((preset) => preset.id === presetId)
 }
 
@@ -28,7 +31,9 @@ export function VisualControls({ settings, onChange }: Props) {
       ? PSY_HYP_MORPHING_PRESETS
       : morphingAlgorithm === 'oniric'
         ? ONIRIC_PRESET_OPTIONS
-      : MORPHING_PRESETS
+        : morphingAlgorithm === '2001'
+          ? SLIT_SCAN_PRESETS
+          : MORPHING_PRESETS
   const presetValue = presetOptions.some((preset) => preset.id === settings.morphingPresetId)
     ? settings.morphingPresetId
     : firstPresetIdForAlgorithm(morphingAlgorithm)
@@ -41,9 +46,30 @@ export function VisualControls({ settings, onChange }: Props) {
           <input
             type="checkbox"
             checked={settings.useMorphing}
-            onChange={(e) => onChange({ useMorphing: e.target.checked })}
+            onChange={(e) =>
+              onChange({
+                useMorphing: e.target.checked,
+                useBrain: e.target.checked ? false : settings.useBrain,
+              })
+            }
           />
           <strong>Use morphing</strong>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={settings.useBrain}
+            onChange={(e) =>
+              onChange({
+                useBrain: e.target.checked,
+                useMorphing: e.target.checked ? false : settings.useMorphing,
+                dynamicMorphingRotationEnabled: e.target.checked
+                  ? false
+                  : settings.dynamicMorphingRotationEnabled,
+              })
+            }
+          />
+          <strong>Brain</strong>
         </label>
         <label>
           Morphing Algorithm
@@ -63,6 +89,7 @@ export function VisualControls({ settings, onChange }: Props) {
             disabled={!settings.useMorphing}
           >
             <option value="liquid">Liquid Morphing</option>
+            <option value="2001">2001</option>
             <option value="oniric">Oniric Morphing</option>
             <option value="psy-hyp">PsyHypMorphing</option>
           </select>

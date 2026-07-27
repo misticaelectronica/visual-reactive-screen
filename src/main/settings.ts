@@ -29,6 +29,7 @@ export function saveSettingsToDisk(settings: AppSettings): void {
 }
 
 function normalizeSettings(settings: AppSettings): AppSettings {
+  const useBrain = settings.useBrain === true
   const colorPresetAliases: Record<string, string> = {
     'red-and-black-balzac': 'mistica-electronica-default',
     'festival-origine-aluminum-black': 'mistica-electronica-festival',
@@ -40,6 +41,8 @@ function normalizeSettings(settings: AppSettings): AppSettings {
 
   return {
     ...settings,
+    useBrain,
+    useMorphing: useBrain ? false : settings.useMorphing === true,
     morphingAlgorithm: isMorphingAlgorithm(settings.morphingAlgorithm)
       ? settings.morphingAlgorithm
       : 'liquid',
@@ -48,6 +51,6 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,
-    dynamicMorphingRotationEnabled: settings.dynamicMorphingRotationEnabled !== false,
+    dynamicMorphingRotationEnabled: useBrain ? false : settings.dynamicMorphingRotationEnabled !== false,
   }
 }

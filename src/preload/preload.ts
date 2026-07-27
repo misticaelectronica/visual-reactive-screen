@@ -39,6 +39,10 @@ const outputApi: OutputApi = {
     ipcRenderer.on(IPC_CHANNELS.visualStatePush, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.visualStatePush, handler)
   },
+  vectorizeBrainImage: (bytes: Uint8Array) =>
+    ipcRenderer.invoke(IPC_CHANNELS.vectorizeBrainImage, bytes) as ReturnType<
+      OutputApi['vectorizeBrainImage']
+    >,
 }
 
 function isOutputEntry(): boolean {

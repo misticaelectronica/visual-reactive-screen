@@ -1,10 +1,10 @@
 export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 
-export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp'
+export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp' | '2001'
 export type FlashMode = 'high' | 'mid' | 'low' | 'off'
 export type MotionProfile = 'dub' | 'techno' | 'ambient'
 
-export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp']
+export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
 export const FLASH_MODES: FlashMode[] = ['high', 'mid', 'low', 'off']
 export const MOTION_PROFILES: MotionProfile[] = ['dub', 'techno', 'ambient']
 
@@ -44,6 +44,7 @@ export interface AppSettings {
   selectedDisplayId: number | null
   selectedAudioInputId: string | null
   useMorphing: boolean
+  useBrain: boolean
   morphingAlgorithm: MorphingAlgorithm
   morphingPresetId: string
   motionProfile: MotionProfile
@@ -145,7 +146,21 @@ export const IPC_CHANNELS = {
   /** Main → output renderer */
   visualStatePush: 'fx:visual-state-push',
   outputClosed: 'fx:output-closed',
+  vectorizeBrainImage: 'fx:vectorize-brain-image',
 } as const
+
+export type BrainVectorizationResult =
+  | {
+      ok: true
+      svg: string
+      profile: string
+      durationMs: number
+      sourceBytes: number
+    }
+  | {
+      ok: false
+      error: string
+    }
 
 export interface VisualStatePayload {
   backgroundColor: string
@@ -157,6 +172,13 @@ export interface VisualStatePayload {
   bandEnergies?: BandEnergies
   settings?: AppSettings
   whiteMix?: number
+}
+
+export type MorphingTransitionKind = 'standard' | 'enter2001' | 'exit2001' | 'internal2001'
+
+export interface MorphingTransitionState {
+  kind: MorphingTransitionKind
+  progress: number
 }
 
 export interface MorphingPreset {
@@ -188,4 +210,5 @@ export interface ControlApi {
 
 export interface OutputApi {
   onVisualState: (cb: (state: VisualStatePayload) => void) => () => void
+  vectorizeBrainImage: (bytes: Uint8Array) => Promise<BrainVectorizationResult>
 }

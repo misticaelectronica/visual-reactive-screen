@@ -166,14 +166,8 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
   return { ok: true }
 }
 
-let _broadcastCount = 0
 export function broadcastVisualState(payload: unknown): void {
   latestVisualState = payload
-  _broadcastCount++
-  if (_broadcastCount <= 5 || _broadcastCount % 120 === 0) {
-    const hasWin = outputWindow !== null && !outputWindow.isDestroyed()
-    console.log(`[main] broadcast #${_broadcastCount} outputWindow=${hasWin}`)
-  }
   if (outputWindow && !outputWindow.isDestroyed()) {
     outputWindow.webContents.send(IPC_CHANNELS.visualStatePush, payload)
   }

@@ -223,6 +223,12 @@ Regole:
 - dynamic preset puo' fare crossfade tra controller
 - cambio preset PsyHyp deve aggiornare il renderer e non restare bloccato su `default`
 - i preset PsyHyp devono essere inclusi in `PSY_HYP_MORPHING_PRESETS` per comparire in UI e rotazione
+- i preset 2001 devono essere inclusi in `SLIT_SCAN_PRESETS` per comparire in UI e rotazione
+- non compensare 2001 duplicando artificialmente lo stesso preset nella rotazione
+- `deep-dance-norwell` deve restare variante deep del tunnel 2001, con fessura centrale circa 400% piu presente, glow laterale morbido, silhouette sfumata con lavaggio cromatico mascherata dentro la luce e senza asset/librerie esterne
+- `parallel-slit` deve mantenere slit centrale stabile e linee parallele, senza jitter/oscillazione forte
+- `parallel-slit-ultra` deve restare prospettico come `parallel-slit`, con fasci circa 400% piu larghi, circa 100% piu lunghi, stratificati/trasparenti, apertura laterale molto contenuta, velocita Z maggiore, slit bianca sottile e senza movimento orizzontale diretto
+- da/verso 2001 usare transizioni `enter2001` / `exit2001`; tra preset 2001 usare `internal2001` senza ricreare il controller
 
 Budget PsyHypMorphing da rispettare:
 

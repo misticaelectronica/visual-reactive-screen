@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   selectedDisplayId: null,
   selectedAudioInputId: null,
   useMorphing: false,
+  useBrain: false,
   morphingAlgorithm: 'liquid',
   morphingPresetId: 'ritual-drift',
   motionProfile: 'dub',

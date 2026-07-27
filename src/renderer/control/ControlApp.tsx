@@ -5,6 +5,7 @@ import type { AppSettings, BandEnergies, MorphingAlgorithm } from '@shared/types
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
+import { SLIT_SCAN_PRESETS } from '@shared/slitScanPresets'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
 import { AudioInputSelector } from './components/AudioInputSelector'
@@ -85,6 +86,12 @@ function buildDynamicMorphingCandidates(): DynamicMorphingCandidate[] {
       algorithm: 'psy-hyp' as const,
       presetId: preset.id,
     })),
+    ...SLIT_SCAN_PRESETS.map((preset) => ({
+      id: `2001:${preset.id}`,
+      label: preset.name,
+      algorithm: '2001' as const,
+      presetId: preset.id,
+    })),
   ]
 }
 
@@ -106,12 +113,13 @@ function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNo
     liquid: candidates.filter((candidate) => candidate.algorithm === 'liquid' && candidate.id !== current.id),
     oniric: candidates.filter((candidate) => candidate.algorithm === 'oniric' && candidate.id !== current.id),
     psyHyp: candidates.filter((candidate) => candidate.algorithm === 'psy-hyp' && candidate.id !== current.id),
+    slitScan: candidates.filter((candidate) => candidate.algorithm === '2001' && candidate.id !== current.id),
   }
   const weightedFamilies = [
-    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.30 : 0 },
-    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.30 : 0 },
-    // PsyHyp has fewer preset families than Liquid/Oniric, so it keeps family-level compensation.
-    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.40 : 0 },
+    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.23 : 0 },
+    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.23 : 0 },
+    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.24 : 0 },
+    { family: 'slitScan' as const, weight: pools.slitScan.length > 0 ? 0.20 : 0 },
   ]
   const total = weightedFamilies.reduce((sum, item) => sum + item.weight, 0)
   if (total <= 0) {
@@ -123,7 +131,10 @@ function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNo
   for (const item of weightedFamilies) {
     roll -= item.weight
     if (roll <= 0) {
-      const pool = pools[item.family]
+      if (item.family === 'slitScan') {
+        return pools.slitScan[Math.floor(Math.random() * pools.slitScan.length)]
+      }
+      const pool = item.family === 'liquid' ? pools.liquid : item.family === 'oniric' ? pools.oniric : pools.psyHyp
       return pool[Math.floor(Math.random() * pool.length) % pool.length]
     }
   }
@@ -131,8 +142,8 @@ function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNo
   return pool[Math.floor(Math.random() * pool.length) % pool.length]
 }
 
-function morphingRotationDelay(settings: AppSettings): number {
-  if (settings.useMorphing && settings.morphingAlgorithm === 'psy-hyp') {
+function morphingRotationDelay(useMorphing: boolean, morphingAlgorithm: MorphingAlgorithm): number {
+  if (useMorphing && morphingAlgorithm === 'psy-hyp') {
     return randomBetween(PSY_HYP_MORPHING_MIN_MS, PSY_HYP_MORPHING_MAX_MS)
   }
   return randomBetween(MORPHING_PRESET_MIN_MS, MORPHING_PRESET_MAX_MS)
@@ -339,7 +350,7 @@ export function ControlApp() {
       morphingRotationTimerRef.current = null
     }
 
-    if (!settings.dynamicPresetEnabled || !settings.dynamicMorphingRotationEnabled) {
+    if (!settings.dynamicMorphingRotationEnabled || settings.useBrain) {
       nextNoMorphingDueAtRef.current = 0
       return
     }
@@ -349,11 +360,11 @@ export function ControlApp() {
       nextNoMorphingDueAtRef.current = now + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
     }
 
-    const scheduleMorphingRotation = () => {
-      const delay = morphingRotationDelay(settings)
+    const scheduleMorphingRotation = (isFirstRun: boolean = false) => {
+      const delay = isFirstRun ? 0 : morphingRotationDelay(settings.useMorphing, settings.morphingAlgorithm)
       morphingRotationTimerRef.current = window.setTimeout(() => {
         setSettings((current) => {
-          if (!current.dynamicPresetEnabled || !current.dynamicMorphingRotationEnabled) return current
+          if (!current.dynamicMorphingRotationEnabled) return current
           const nowInner = Date.now()
           const forceNoMorphing = nowInner >= nextNoMorphingDueAtRef.current
           const candidate = pickDynamicMorphingCandidate(candidateFromSettings(current), forceNoMorphing)
@@ -362,6 +373,7 @@ export function ControlApp() {
               nowInner + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
             return {
               ...current,
+              useBrain: false,
               useMorphing: false,
             }
           }
@@ -369,6 +381,7 @@ export function ControlApp() {
           return {
             ...current,
             ...visibilityPatchForMorphing(candidate),
+            useBrain: false,
             useMorphing: true,
             morphingAlgorithm: candidate.algorithm,
             morphingPresetId: candidate.presetId ?? 'default',
@@ -378,7 +391,7 @@ export function ControlApp() {
       }, delay)
     }
 
-    scheduleMorphingRotation()
+    scheduleMorphingRotation(true)
     return () => {
       if (morphingRotationTimerRef.current) {
         window.clearTimeout(morphingRotationTimerRef.current)
@@ -386,11 +399,10 @@ export function ControlApp() {
       }
     }
   }, [
-    settings.dynamicPresetEnabled,
     settings.dynamicMorphingRotationEnabled,
     settings.morphingAlgorithm,
-    settings.morphingPresetId,
     settings.useMorphing,
+    settings.useBrain,
   ])
 
   if (!api) {

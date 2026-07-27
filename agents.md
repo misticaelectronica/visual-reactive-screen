@@ -161,12 +161,17 @@ Algoritmi:
 - Liquid Morphing: `src/renderer/output/morphingCanvas.ts`
 - Oniric Morphing: `src/renderer/output/oniricMorphingCanvas.ts`
 - PsyHypMorphing: `src/renderer/output/psyHypMorphingCanvas.ts`
+- 2001 Morphing: `src/renderer/output/slitScanCanvas.ts`
 
 Regole:
 
 - `Use morphing OFF` deve distruggere il controller morphing.
 - I renderer devono pulire RAF, canvas e listener in `destroy()`.
 - PsyHypMorphing ha budget performance interno; non aumentare DPR/FPS/punti senza verifiche reali.
+- 2001 usa preset condivisi in `src/shared/slitScanPresets.ts`; non duplicare artificialmente `default` nella rotazione.
+- Preset 2001 richiesti: `base`, `bright-dense`, `deep-dense`, `deep-dance-norwell`, `horizontal`, `parallel-slit`, `parallel-slit-ultra`, `eq-progressive`.
+- Transizioni 2001 in `src/renderer/output/OutputApp.tsx`: `enter2001`, `exit2001`, `internal2001`.
+- Il renderer 2001 legge `setTransitionState()` e non deve resettare i ribbon tra preset 2001.
 - Oniric ha controlli dedicati di debug/visibilita nella UI.
 - `motionProfile` governa la risposta musicale:
   - `dub`: default elastico, sub morbido, release flessibile.
