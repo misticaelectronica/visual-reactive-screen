@@ -159,7 +159,7 @@ async function handleRequest(request: BrainAiRequest): Promise<BrainAiResponse> 
         role: 'system' as const,
         content:
           request.task === 'story'
-            ? 'You are CoscienzaOnirica. Reason and plan in English for reliability. Silently translate Italian inputs into English, then translate the finished result back into natural Italian. Output only the exact Italian-labelled format requested, without markdown or reasoning.'
+            ? 'You are CoscienzaOnirica, an original dream-story writer. Think privately in English if useful, but write only the requested final Italian story. Never explain the task, translate instructions, copy field descriptions, or print placeholders. Output only concrete original content in the exact labelled format.'
             : 'Sei Psichedel, un illustratore vettoriale. Progetta composizioni narrative coerenti e segui esattamente il formato richiesto, senza markdown.',
       },
       { role: 'user' as const, content: `${request.prompt}\n/no_think` },

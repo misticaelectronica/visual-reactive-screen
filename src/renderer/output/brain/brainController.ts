@@ -11,7 +11,11 @@ import {
   PsychedelInfrastructureError,
   type PsychedelRasterPreview,
 } from './psichedel'
-import { sampleBrainPhrases, sampleContinuityPhrase } from './brainPhrases'
+import {
+  sampleBrainPhrases,
+  sampleContinuityPhrase,
+  selectBrainPhraseCount,
+} from './brainPhrases'
 import { createBrainSvgScene, type BrainSvgController } from './brainSvgScene'
 import { BrainRhythmClock } from './brainRhythm'
 import { brainLog, brainWarn } from './brainLog'
@@ -263,10 +267,12 @@ export function createBrainController(container: HTMLElement) {
 
   const scheduleGenerationRetry = (infrastructureFailure: boolean) => {
     retryAttempt += 1
-    const delayMs = Math.min(
-      BRAIN_CONFIG.retryMaximumDelayMs,
-      BRAIN_CONFIG.retryInitialDelayMs * 2 ** Math.min(6, retryAttempt - 1),
-    )
+    const delayMs = infrastructureFailure
+      ? Math.min(
+          BRAIN_CONFIG.retryMaximumDelayMs,
+          BRAIN_CONFIG.retryInitialDelayMs * 2 ** Math.min(6, retryAttempt - 1),
+        )
+      : BRAIN_CONFIG.retryInitialDelayMs
     window.clearTimeout(retryTimerId)
     retryTimerId = window.setTimeout(() => {
       retryTimerId = 0
@@ -451,13 +457,13 @@ export function createBrainController(container: HTMLElement) {
   const generateStoryBatch = async (targetCount: number) => {
     const missingCount = Math.max(0, targetCount - storyQueue.length)
     if (missingCount === 0) return
-    const maximumAttempts = Math.max(missingCount, missingCount * 2)
+    const maximumAttempts = Math.max(4, missingCount * 4)
     let attempts = 0
     brainLog('pipeline', 'ciclo associazioni narrative avviato', {
       requestedStories: missingCount,
       queuedStories: storyQueue.length,
     })
-    storyAi = new BrainAiClient()
+    storyAi ??= new BrainAiClient()
     try {
       while (
         !destroyed &&
@@ -469,9 +475,10 @@ export function createBrainController(container: HTMLElement) {
         const continuityPhrase = previousStory
           ? sampleContinuityPhrase(previousStory.synopsis)
           : null
+        const requestedPhraseCount = selectBrainPhraseCount()
         const randomPhraseCount = Math.max(
           1,
-          BRAIN_CONFIG.phraseSampleCount - (continuityPhrase ? 1 : 0),
+          requestedPhraseCount - (continuityPhrase ? 1 : 0),
         )
         const randomPhrases = sampleBrainPhrases(randomPhraseCount, recentPhrases)
         const phrases = continuityPhrase
@@ -482,7 +489,7 @@ export function createBrainController(container: HTMLElement) {
         )
         brainLog('pipeline', 'nuova associazione casuale inviata a CoscienzaOnirica', {
           batchAttempt: attempts,
-          requested: BRAIN_CONFIG.phraseSampleCount,
+          requested: requestedPhraseCount,
           randomPhrases,
           continuityPhrase,
           previousStoryId: previousStory?.title ?? null,
@@ -519,12 +526,16 @@ export function createBrainController(container: HTMLElement) {
         }
       }
     } finally {
-      storyAi.destroy()
-      storyAi = null
-      brainLog('pipeline', 'ciclo associazioni narrative completato; modello rilasciato', {
+      const generatedAtLeastOneStory = storyQueue.length > 0
+      if (generatedAtLeastOneStory || destroyed) {
+        storyAi?.destroy()
+        storyAi = null
+      }
+      brainLog('pipeline', 'ciclo associazioni narrative completato', {
         generatedStories: storyQueue.length,
         targetCount,
         attempts,
+        textModelRetainedForImmediateRetry: !generatedAtLeastOneStory && !destroyed,
       })
       await new Promise<void>((resolve) => window.setTimeout(resolve, 100))
     }

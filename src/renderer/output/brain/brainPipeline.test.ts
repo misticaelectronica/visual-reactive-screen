@@ -18,7 +18,7 @@ import { createBrainSvgScene } from './brainSvgScene'
 import { inspectBrainVector, type PsychedelVectorizer } from './brainVectorQuality'
 import type { PsychedelImageGenerator } from './psychedelImageGenerator'
 import { interludePayload, selectBrainInterlude } from './brainInterlude'
-import { sampleContinuityPhrase } from './brainPhrases'
+import { sampleContinuityPhrase, selectBrainPhraseCount } from './brainPhrases'
 
 const PHRASES = [
   'Una memoria terrestre viene interpretata da una mente non terrestre.',
@@ -177,8 +177,9 @@ describe('CoscienzaOnirica', () => {
     expect(story.title).toBe('Il giardino di Elisa')
     expect(prompts).toHaveLength(2)
     expect(prompts[0]).not.toContain('Il custode del segnale')
-    expect(prompts[1]).toContain('Bozza incompleta')
-    expect(prompts[1]).toContain('Keep its protagonist')
+    expect(prompts[1]).not.toContain('Bozza incompleta')
+    expect(prompts[1]).toContain('START OVER')
+    expect(prompts[1]).toContain(PHRASES[0])
   })
 
   it('rifiuta e corregge un racconto che ripete la stessa frase narrativa', async () => {
@@ -226,9 +227,11 @@ describe('CoscienzaOnirica', () => {
       'Esito',
     ])
     expect(prompts).toHaveLength(1)
-    expect(prompts[0]).toContain('exactly these three Italian-labelled fields')
-    expect(prompts[0]).toContain('Work internally in English')
-    expect(prompts[0]).toContain('COLORI:')
+    expect(prompts[0]).toContain('Return exactly three lines')
+    expect(prompts[0]).toContain('Think privately in English')
+    expect(prompts[0]).toContain('Line 3 starts with COLORI:')
+    expect(prompts[0]).not.toContain('titolo finale in italiano')
+    expect(prompts[0]).not.toContain('racconto finale continuo in italiano')
   })
 
   it('conserva i cinque colori narrativi proposti dalla AI', async () => {
@@ -826,6 +829,11 @@ describe('Brain interstory morphing', () => {
 })
 
 describe('Brain narrative continuity', () => {
+  it('sceglie casualmente quattro oppure cinque frasi per ogni nuova storia', () => {
+    expect(selectBrainPhraseCount(() => 0)).toBe(4)
+    expect(selectBrainPhraseCount(() => 0.999)).toBe(5)
+  })
+
   it('estrae una frase reale della storia precedente come terzo spunto', () => {
     const previous =
       'La custode apre il portale sotto la fabbrica. Il seme registra il rumore delle macchine. All’alba il bosco restituisce il segnale.'

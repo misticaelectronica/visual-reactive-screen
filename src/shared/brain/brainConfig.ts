@@ -1,6 +1,7 @@
 export const BRAIN_CONFIG = {
-  pipelineRevision: 'shared-morphing-rotation-v36',
-  phraseSampleCount: 3,
+  pipelineRevision: 'story-recovery-4-5-phrases-v37',
+  phraseSampleMinCount: 4,
+  phraseSampleMaxCount: 5,
   phraseMemoryCount: 12,
   storyMemoryCount: 6,
   storyQueueTarget: 1,
@@ -23,7 +24,7 @@ export const BRAIN_CONFIG = {
   imageGenerationTimeoutMs: 180_000,
   imageCapabilityTimeoutMs: 12_000,
   imageModelLoadTimeoutMs: 20 * 60_000,
-  retryInitialDelayMs: 5_000,
+  retryInitialDelayMs: 2_000,
   retryMaximumDelayMs: 60_000,
   vectorMaxSourceBytes: 12 * 1024 * 1024,
   modelDtype: 'q4' as const,

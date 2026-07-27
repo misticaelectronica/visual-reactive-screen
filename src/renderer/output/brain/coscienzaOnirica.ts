@@ -403,19 +403,19 @@ export class CoscienzaOnirica {
       ? 'One Italian input prompt comes directly from the previous story. Reuse it naturally as a causal seed; an explicit link field is not required.'
       : 'This is the first story in the cycle.'
     const storyPrompt = [
-      'Work internally in English, but output the final values only in Italian.',
-      'Silently translate the Italian input prompts into English before planning.',
-      'Plan a concrete original story of 70-100 words in English, then translate it into natural Italian.',
+      'WRITE THE STORY NOW. Do not explain, translate, or repeat these instructions.',
+      'Think privately in English if useful. The visible answer must contain only natural Italian.',
+      'Create one concrete original story of 70-100 words.',
       'Invent a named protagonist and a place. Include an initiating event, conflict, transformation and conclusion.',
       'Connect the prompts causally without copying or commenting on them.',
       recentStoryConstraint,
       continuityConstraint,
       'Choose five hexadecimal colors matching the story tone.',
       `ITALIAN INPUT PROMPTS:\n${phrases.map((phrase) => `- ${phrase}`).join('\n')}`,
-      'Output exactly these three Italian-labelled fields, without markdown or English notes:',
-      'TITOLO: titolo finale in italiano',
-      'STORIA: racconto finale continuo in italiano',
-      'COLORI: #112233, #445566, #778899, #aabbcc, #ddeeff',
+      'Return exactly three lines. Line 1 starts with TITOLO: and contains an invented title.',
+      'Line 2 starts with STORIA: and contains the complete story.',
+      'Line 3 starts with COLORI: and contains exactly five coherent hexadecimal colors.',
+      'Never output field descriptions, placeholders, brackets, markdown, analysis, or English notes.',
     ].join('\n')
     try {
       let coreText = await this.ai.generate('story', storyPrompt, {
@@ -442,16 +442,16 @@ export class CoscienzaOnirica {
           response: coreText.slice(0, 3_000),
         })
         const coreRepairPrompt = [
-          'Repair the draft by reasoning in English, then output only natural Italian values.',
-          'Keep its protagonist, event and source prompts.',
-          'STORIA must be a complete causal 70-100 word story with a conclusion.',
-          'Return only TITOLO, STORIA and COLORI, without markdown.',
+          'START OVER. The previous answer copied instructions instead of writing a story.',
+          'Write a new concrete causal story of 70-100 words with a named protagonist, conflict, transformation and conclusion.',
+          'Think privately in English if useful; visible content must be natural Italian.',
           directPredecessor
             ? 'One input phrase already comes from the previous story; incorporate it naturally.'
             : 'This is the first story.',
-          'COLORI must contain five coherent hexadecimal colors.',
           `ITALIAN INPUT PROMPTS:\n${phrases.map((phrase) => `- ${phrase}`).join('\n')}`,
-          `DRAFT TO REPAIR:\n${coreText.slice(0, 2_500)}`,
+          'Return exactly three lines beginning TITOLO:, STORIA:, COLORI:.',
+          'After COLORI: write exactly five coherent hexadecimal colors.',
+          'Do not explain the task and do not output placeholders, brackets, markdown, analysis or English notes.',
         ].join('\n')
         brainLog('coscienza', 'autocorrezione nucleo narrativo inviata')
         coreText = await this.ai.generate('story', coreRepairPrompt, {
