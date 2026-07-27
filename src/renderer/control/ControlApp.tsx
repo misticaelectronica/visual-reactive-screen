@@ -3,9 +3,11 @@ import './control.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppSettings, BandEnergies, MorphingAlgorithm } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
-import { MORPHING_PRESETS } from '@shared/morphingPresets'
-import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
-import { SLIT_SCAN_PRESETS } from '@shared/slitScanPresets'
+import {
+  morphingRotationCandidateFromSettings,
+  pickMorphingRotationCandidate,
+  type MorphingRotationCandidate,
+} from '@shared/morphingRotation'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
 import { AudioInputSelector } from './components/AudioInputSelector'
@@ -34,13 +36,6 @@ const PSY_HYP_MORPHING_MAX_MS = 85_000
 const NO_MORPHING_MIN_INTERVAL_MS = 180_000
 const NO_MORPHING_MAX_INTERVAL_MS = 420_000
 
-type DynamicMorphingCandidate = {
-  id: string
-  label: string
-  algorithm: 'none' | MorphingAlgorithm
-  presetId?: string
-}
-
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
@@ -64,84 +59,6 @@ function pickWeightedColorPreset(currentId: string | null | undefined) {
   return weighted[weighted.length - 1]?.preset ?? COLOR_PRESETS[0]
 }
 
-function buildDynamicMorphingCandidates(): DynamicMorphingCandidate[] {
-  return [
-    { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' },
-    ...MORPHING_PRESETS.map((preset) => ({
-      id: `liquid:${preset.id}`,
-      label: `Liquid Morphing - ${preset.name}`,
-      algorithm: 'liquid' as const,
-      presetId: preset.id,
-    })),
-    { id: 'oniric:default', label: 'Oniric Morphing - default', algorithm: 'oniric', presetId: 'default' },
-    ...MORPHING_PRESETS.map((preset) => ({
-      id: `oniric:${preset.id}`,
-      label: `Oniric Morphing - ${preset.name}`,
-      algorithm: 'oniric' as const,
-      presetId: preset.id,
-    })),
-    ...PSY_HYP_MORPHING_PRESETS.map((preset) => ({
-      id: `psy-hyp:${preset.id}`,
-      label: `PsyHypMorphing - ${preset.name}`,
-      algorithm: 'psy-hyp' as const,
-      presetId: preset.id,
-    })),
-    ...SLIT_SCAN_PRESETS.map((preset) => ({
-      id: `2001:${preset.id}`,
-      label: preset.name,
-      algorithm: '2001' as const,
-      presetId: preset.id,
-    })),
-  ]
-}
-
-function candidateFromSettings(settings: AppSettings): DynamicMorphingCandidate {
-  if (!settings.useMorphing) return { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' }
-  return {
-    id: `${settings.morphingAlgorithm}:${settings.morphingPresetId}`,
-    label: `${settings.morphingAlgorithm} - ${settings.morphingPresetId}`,
-    algorithm: settings.morphingAlgorithm,
-    presetId: settings.morphingPresetId,
-  }
-}
-
-function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNoMorphing: boolean): DynamicMorphingCandidate {
-  const candidates = buildDynamicMorphingCandidates()
-  if (forceNoMorphing) return candidates[0]
-
-  const pools = {
-    liquid: candidates.filter((candidate) => candidate.algorithm === 'liquid' && candidate.id !== current.id),
-    oniric: candidates.filter((candidate) => candidate.algorithm === 'oniric' && candidate.id !== current.id),
-    psyHyp: candidates.filter((candidate) => candidate.algorithm === 'psy-hyp' && candidate.id !== current.id),
-    slitScan: candidates.filter((candidate) => candidate.algorithm === '2001' && candidate.id !== current.id),
-  }
-  const weightedFamilies = [
-    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.23 : 0 },
-    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.23 : 0 },
-    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.24 : 0 },
-    { family: 'slitScan' as const, weight: pools.slitScan.length > 0 ? 0.20 : 0 },
-  ]
-  const total = weightedFamilies.reduce((sum, item) => sum + item.weight, 0)
-  if (total <= 0) {
-    const fallback = candidates.filter((candidate) => candidate.id !== current.id && candidate.algorithm !== 'none')
-    return fallback[Math.floor(Math.random() * fallback.length) % fallback.length] ?? candidates[0]
-  }
-
-  let roll = Math.random() * total
-  for (const item of weightedFamilies) {
-    roll -= item.weight
-    if (roll <= 0) {
-      if (item.family === 'slitScan') {
-        return pools.slitScan[Math.floor(Math.random() * pools.slitScan.length)]
-      }
-      const pool = item.family === 'liquid' ? pools.liquid : item.family === 'oniric' ? pools.oniric : pools.psyHyp
-      return pool[Math.floor(Math.random() * pool.length) % pool.length]
-    }
-  }
-  const pool = pools.psyHyp.length > 0 ? pools.psyHyp : pools.liquid.length > 0 ? pools.liquid : pools.oniric
-  return pool[Math.floor(Math.random() * pool.length) % pool.length]
-}
-
 function morphingRotationDelay(useMorphing: boolean, morphingAlgorithm: MorphingAlgorithm): number {
   if (useMorphing && morphingAlgorithm === 'psy-hyp') {
     return randomBetween(PSY_HYP_MORPHING_MIN_MS, PSY_HYP_MORPHING_MAX_MS)
@@ -149,7 +66,7 @@ function morphingRotationDelay(useMorphing: boolean, morphingAlgorithm: Morphing
   return randomBetween(MORPHING_PRESET_MIN_MS, MORPHING_PRESET_MAX_MS)
 }
 
-function visibilityPatchForMorphing(candidate: DynamicMorphingCandidate): Partial<AppSettings> {
+function visibilityPatchForMorphing(candidate: MorphingRotationCandidate): Partial<AppSettings> {
   if (candidate.algorithm !== 'oniric') return {}
   return {
     morphingOpacity: 0.62,
@@ -367,7 +284,10 @@ export function ControlApp() {
           if (!current.dynamicMorphingRotationEnabled) return current
           const nowInner = Date.now()
           const forceNoMorphing = nowInner >= nextNoMorphingDueAtRef.current
-          const candidate = pickDynamicMorphingCandidate(candidateFromSettings(current), forceNoMorphing)
+          const candidate = pickMorphingRotationCandidate(
+            morphingRotationCandidateFromSettings(current),
+            forceNoMorphing,
+          )
           if (candidate.algorithm === 'none') {
             nextNoMorphingDueAtRef.current =
               nowInner + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)

@@ -246,7 +246,7 @@ export function createBrainController(container: HTMLElement) {
   let junctionStartedAt = 0
   let interludeController: BrainInterludeController | null = null
   let interludeSpec: BrainInterludeSpec | null = null
-  let previousInterludeAlgorithm: BrainInterludeSpec['algorithm'] | null = null
+  let previousInterludeSpec: BrainInterludeSpec | null = null
   let generating = false
   let frameIndex = 0
   let frameStartedAt = 0
@@ -386,8 +386,8 @@ export function createBrainController(container: HTMLElement) {
       storyQueue[0] ??
       null
     destroyInterlude()
-    interludeSpec = selectBrainInterlude(previousInterludeAlgorithm)
-    previousInterludeAlgorithm = interludeSpec.algorithm
+    interludeSpec = selectBrainInterlude(previousInterludeSpec)
+    previousInterludeSpec = interludeSpec
     interludeController = createBrainInterlude(interludeHost, interludeSpec)
     interludeController.setOpacity?.(1)
     if (latestPayload) {
@@ -621,7 +621,7 @@ export function createBrainController(container: HTMLElement) {
       if (
         nextProduction &&
         junctionElapsed >= BRAIN_CONFIG.interstoryMinimumDurationMs &&
-        (onBeat || junctionElapsed >= BRAIN_CONFIG.interstoryMinimumDurationMs + 2_000)
+        (onBeat || junctionElapsed >= BRAIN_CONFIG.interstoryMinimumDurationMs + 800)
       ) {
         brainLog('pipeline', 'morphing intermedio completato; apertura della storia successiva', {
           nextStoryId: nextProduction.story.id,

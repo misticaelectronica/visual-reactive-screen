@@ -789,15 +789,16 @@ describe('Brain pipeline end-to-end', () => {
 })
 
 describe('Brain interstory morphing', () => {
-  it('sceglie un algoritmo nativo diverso da quello usato nel raccordo precedente', () => {
+  it('riusa la rotazione morphing del programma senza ripetere lo stesso preset', () => {
     const first = selectBrainInterlude(null, () => 0)
-    const second = selectBrainInterlude(first.algorithm, () => 0)
+    const second = selectBrainInterlude(first, () => 0)
 
     expect(first.algorithm).toBe('liquid')
-    expect(second.algorithm).toBe('oniric')
-    expect(second.algorithm).not.toBe(first.algorithm)
     expect(first.presetId.length).toBeGreaterThan(0)
     expect(second.presetId.length).toBeGreaterThan(0)
+    expect(`${second.algorithm}:${second.presetId}`).not.toBe(
+      `${first.algorithm}:${first.presetId}`,
+    )
   })
 
   it('attiva il renderer scelto senza modificare permanentemente le impostazioni Brain', () => {
