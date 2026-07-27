@@ -55,6 +55,13 @@ function isInfrastructureError(error: unknown): boolean {
   return /webgpu|webassembly|wasm|backend|tokenizer|caricamento del modello|verifica webgpu/i.test(message)
 }
 
+const ARCHITECTURE_FOCUS =
+  /\b(?:architettura|facciata|edificio protagonista|casa protagonista|interno della casa|interno dell edificio|palazzo|grattacielo|cathedral|temple|architecture|facade|building as (?:the )?(?:main|central) subject)\b/i
+
+function architectureIsTheSubject(frame: DreamFrame): boolean {
+  return ARCHITECTURE_FOCUS.test(`${frame.description} ${frame.visualIntent}`)
+}
+
 export class PsychedelInfrastructureError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options)
@@ -69,22 +76,26 @@ export function buildPsychedelImagePrompt(
   mode: ImageRenderMode = 'standard',
 ): string {
   const compositionOptions = [
-    'Wide lateral composition with a strong horizon and separated depth planes.',
-    'Intimate close composition focused on one tactile action and expressive material detail.',
-    'Low oblique viewpoint with a clear diagonal flow and a single dominant silhouette.',
-    'Overhead spatial composition with an asymmetric focal point and generous negative space.',
-    'Frontal monumental composition with layered foreground, subject and distant environment.',
+    'Wide lateral view, separated depth planes.',
+    'Intimate close view of one tactile action.',
+    'Low oblique view, diagonal flow, one silhouette.',
+    'Overhead asymmetric view with negative space.',
+    'Frontal view with layered organic depth.',
   ]
   const compositionIndex =
     hashSeed(`${story.title}|${frame.id}|${frame.description}`) %
     compositionOptions.length
+  const architectureDirection = architectureIsTheSubject(frame)
+    ? 'Architecture is explicitly central: show only the named structure, never generic housing.'
+    : 'ARCHITECTURE ABSENT. No houses, buildings, city, village, skyline, rooms, streets or facades. Render open organic terrain, bodies, plants, chemical matter and machinery.'
   return [
-    `Scene: ${frame.description.slice(0, 240)}`,
-    `Visual: ${frame.visualIntent.slice(0, 180)}`,
+    architectureDirection,
+    `Scene: ${frame.description.slice(0, 155)}`,
+    `Palette: ${story.palette.join(', ')}.`,
+    'Psychedelic cinematic realism; one legible action; fluid organic forms.',
     compositionOptions[compositionIndex],
-    `Exact palette: ${story.palette.join(', ')}.`,
-    'Museum-grade psychedelic cinematic realism, legible action, clear focal depth.',
-    'Only named subjects. Avoid clip-art, text, collage, patterns and random fragments.',
+    `Visual: ${frame.visualIntent.slice(0, 105)}`,
+    'Only named subjects. Avoid clip-art, text, collage and random fragments.',
     attempt > 0
       ? 'Alternative interpretation with a stronger subject.'
       : 'Keep recurring characters coherent.',

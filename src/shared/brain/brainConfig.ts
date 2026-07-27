@@ -1,5 +1,5 @@
 export const BRAIN_CONFIG = {
-  pipelineRevision: 'carry-over-phrase-v34',
+  pipelineRevision: 'organic-no-architecture-v35',
   phraseSampleCount: 3,
   phraseMemoryCount: 12,
   storyMemoryCount: 6,

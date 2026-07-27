@@ -454,15 +454,28 @@ describe('Psichedel', () => {
     const prompt = buildPsychedelImagePrompt(story, story.frames[1])
     expect(prompt).toContain(story.frames[1].description)
     expect(prompt).not.toContain(story.synopsis)
-    expect(prompt.indexOf(story.frames[1].description)).toBeLessThan(
-      prompt.indexOf('Museum-grade'),
-    )
+    expect(prompt.indexOf('ARCHITECTURE ABSENT')).toBeLessThan(prompt.indexOf('Scene:'))
     expect(prompt.length).toBeLessThan(700)
-    expect(prompt).toContain('Museum-grade')
+    expect(prompt).toContain('Psychedelic cinematic realism')
     expect(prompt).toContain(story.palette.join(', '))
     expect(prompt).toContain(story.frames[1].visualIntent)
     expect(prompt).toContain('Avoid clip-art')
+    expect(prompt).toContain('No houses, buildings, city, village')
     expect(prompt).not.toContain('kind: human')
+  })
+
+  it('ammette architettura soltanto quando è esplicitamente il soggetto del fotogramma', () => {
+    const story = defaultStory()
+    const architecturalFrame = {
+      ...story.frames[0],
+      description: 'Elisa osserva una facciata vivente che reagisce al segnale.',
+      visualIntent: 'La facciata è il soggetto centrale, isolata nel vuoto.',
+    }
+    const prompt = buildPsychedelImagePrompt(story, architecturalFrame)
+
+    expect(prompt).toContain('Architecture is explicitly central')
+    expect(prompt).not.toContain('ARCHITECTURE ABSENT')
+    expect(prompt).toContain('never generic housing')
   })
 
   it('accetta una vettorializzazione ricca e rifiuta una figura naïf', () => {
