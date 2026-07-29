@@ -175,6 +175,7 @@ export function ControlApp() {
         flashMode: output.flashMode,
         useMorphing: settings.useMorphing,
         bandEnergies,
+        movingAverages,
         settings,
         whiteMix: output.debug.whiteMix,
       })
@@ -363,25 +364,25 @@ export function ControlApp() {
 
       <section className="warning">
         <strong>Avviso salute:</strong> luci intermittenti possono provocare fastidio o scatenare crisi in
-        persone con epilessia fotosensibile. Usa limiti di frequenza, cooldown, modalità soft e il pulsante
-        Panic/Off in caso di necessità. Questa app non fornisce valutazioni mediche.
+        persone con epilessia fotosensibile. Usa limiti di frequenza, intervallo minimo, modalità morbida e il pulsante
+        Emergenza/Spegni in caso di necessità. Questa app non fornisce valutazioni mediche.
       </section>
 
       <section className="toolbar">
         <button type="button" onClick={() => void openOutput()} disabled={outputOpen}>
-          Apri uscita fullscreen
+          Apri uscita a schermo intero
         </button>
         <button type="button" onClick={() => void closeOutput()} disabled={!outputOpen}>
           Chiudi uscita
         </button>
         <button type="button" onClick={onTestFlash}>
-          Test flash
+          Prova flash
         </button>
         <button type="button" className="danger" onClick={onPanic}>
-          Panic / Off
+          Emergenza / Spegni
         </button>
         <button type="button" onClick={onPanicRelease} disabled={!panic}>
-          Riprendi (rilascia panic)
+          Riprendi
         </button>
         <button type="button" onClick={() => void refreshDisplays()}>
           Aggiorna display

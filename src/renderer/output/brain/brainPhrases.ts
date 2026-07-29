@@ -1,13 +1,31 @@
-import phrasesRaw from '@shared/brain/brainPhrases.txt?raw'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import { brainLog } from './brainLog'
 
-export const BRAIN_PHRASES = phrasesRaw
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter((line) => line.length > 0 && !line.startsWith('#'))
+export let BRAIN_PHRASES: string[] = []
 
-brainLog('phrases', `lette ${BRAIN_PHRASES.length} frasi dal file di configurazione`)
+export function parseBrainPhrases(raw: string): string[] {
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'))
+}
+
+export async function loadBrainPhrases(): Promise<readonly string[]> {
+  const api = window.fxOutput
+  if (!api) {
+    throw new Error('Bridge Electron non disponibile per leggere config/brainPhrases.txt')
+  }
+  const raw = await api.readBrainConfigFile('brainPhrases.txt')
+  const phrases = parseBrainPhrases(raw)
+  if (phrases.length === 0) {
+    throw new Error('config/brainPhrases.txt non contiene frasi valide')
+  }
+  BRAIN_PHRASES = phrases
+  brainLog('phrases', `lette ${phrases.length} frasi da config/brainPhrases.txt`, {
+    reload: true,
+  })
+  return phrases
+}
 
 export function selectBrainPhraseCount(random: () => number = Math.random): number {
   return (
@@ -20,6 +38,9 @@ export function selectBrainPhraseCount(random: () => number = Math.random): numb
 }
 
 export function sampleBrainPhrases(count: number, previous: readonly string[] = []): string[] {
+  if (BRAIN_PHRASES.length === 0) {
+    throw new Error('Le frasi Brain non sono state caricate da config/brainPhrases.txt')
+  }
   const requested = Math.max(1, Math.min(BRAIN_PHRASES.length, Math.round(count)))
   const fresh = BRAIN_PHRASES.filter((phrase) => !previous.includes(phrase))
   const pool = fresh.length >= requested ? fresh : [...BRAIN_PHRASES]

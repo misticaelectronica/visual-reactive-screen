@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { app, BrowserWindow, screen } from 'electron'
 import { IPC_CHANNELS } from '@shared/types'
+import { attachRendererLogging } from './sessionLogger'
 
 let controlWindow: BrowserWindow | null = null
 let outputWindow: BrowserWindow | null = null
@@ -50,6 +51,7 @@ export function createControlWindow(): BrowserWindow {
       backgroundThrottling: false,
     },
   })
+  attachRendererLogging(controlWindow.webContents, 'control')
 
   if (import.meta.env.DEV && process.env.VITE_DEV_SERVER_URL) {
     void controlWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}/control.html`)
@@ -132,15 +134,9 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
   const showFallback = setTimeout(ensureOutputVisible, 500)
 
   // Diagnostic logging
-  outputWindow.webContents.on('did-fail-load', (_e, errCode, errDesc) => {
+  attachRendererLogging(outputWindow.webContents, 'output')
+  outputWindow.webContents.on('did-fail-load', () => {
     clearTimeout(showFallback)
-    console.error(`[main] output did-fail-load: ${errCode} ${errDesc}`)
-  })
-  outputWindow.webContents.on('render-process-gone', (_e, details) => {
-    console.error(`[main] output render-process-gone:`, details)
-  })
-  outputWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
-    console.log(`[output renderer:${level}] ${message} (${sourceId}:${line})`)
   })
 
   if (import.meta.env.DEV && process.env.VITE_DEV_SERVER_URL) {

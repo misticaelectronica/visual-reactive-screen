@@ -59,6 +59,15 @@
       "dist-electron/**/*",
       "build/icon.png"
     ],
+    "extraResources": [
+      {
+        "from": "config",
+        "to": "config",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "icon": "build/icon",
     "mac": {
       "category": "public.app-category.music",

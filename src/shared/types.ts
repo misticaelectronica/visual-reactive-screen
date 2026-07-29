@@ -147,7 +147,10 @@ export const IPC_CHANNELS = {
   visualStatePush: 'fx:visual-state-push',
   outputClosed: 'fx:output-closed',
   vectorizeBrainImage: 'fx:vectorize-brain-image',
+  readBrainConfigFile: 'fx:read-brain-config-file',
 } as const
+
+export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
 
 export type BrainVectorizationResult =
   | {
@@ -170,6 +173,7 @@ export interface VisualStatePayload {
   flashMode?: FlashMode
   useMorphing?: boolean
   bandEnergies?: BandEnergies
+  movingAverages?: BandEnergies
   settings?: AppSettings
   whiteMix?: number
 }
@@ -211,4 +215,5 @@ export interface ControlApi {
 export interface OutputApi {
   onVisualState: (cb: (state: VisualStatePayload) => void) => () => void
   vectorizeBrainImage: (bytes: Uint8Array) => Promise<BrainVectorizationResult>
+  readBrainConfigFile: (fileName: BrainConfigFileName) => Promise<string>
 }

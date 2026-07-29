@@ -5,7 +5,9 @@ import { brainLog, brainWarn } from './brainLog'
 type PendingRequest = {
   resolve: (text: string) => void
   reject: (error: Error) => void
-  timeoutId: number
+  message: BrainAiRequest
+  timeoutId: number | null
+  settled: boolean
 }
 
 export class BrainAiCancelledError extends Error {
@@ -15,14 +17,35 @@ export class BrainAiCancelledError extends Error {
   }
 }
 
+const INFRASTRUCTURE_ERROR_PATTERNS = [
+  /can't create a session/i,
+  /no available backend/i,
+  /failed to (?:create|load|initialize)/i,
+  /type error: type \(tensor\(/i,
+  /webassembly.*failed/i,
+  /nessun modello di fallback distinto/i,
+] as const
+
+export function isBrainAiInfrastructureMessage(message: string): boolean {
+  return INFRASTRUCTURE_ERROR_PATTERNS.some((pattern) => pattern.test(message))
+}
+
+export class BrainAiInfrastructureError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'BrainAiInfrastructureError'
+  }
+}
+
 export class BrainAiClient {
-  private readonly worker: Worker | null
+  private worker: Worker | null = null
   private readonly pending = new Map<string, PendingRequest>()
+  private readonly queue: string[] = []
+  private activeRequestId: string | null = null
+  private destroyed = false
 
   constructor() {
-    this.worker = BRAIN_CONFIG.aiEnabled
-      ? new Worker(new URL('./brainAiWorker.ts', import.meta.url), { type: 'module' })
-      : null
+    this.createWorker()
     brainLog(
       'ai',
       this.worker ? 'worker AI creato' : 'AI disabilitata',
@@ -30,31 +53,54 @@ export class BrainAiClient {
         ? {
             pipelineRevision: BRAIN_CONFIG.pipelineRevision,
             storyModel: BRAIN_CONFIG.storyModelId,
+            storyFallbackModel: BRAIN_CONFIG.storyFallbackModelId,
+            memoModel: BRAIN_CONFIG.memoModelId,
             visualModel: BRAIN_CONFIG.visualModelId,
+            inputTranslationModel: BRAIN_CONFIG.inputTranslationModelId,
+            uiTranslationModel: BRAIN_CONFIG.uiTranslationModelId,
             dtype: {
               webGpu: BRAIN_CONFIG.webGpuModelDtype,
               wasm: BRAIN_CONFIG.modelDtype,
+              translation: BRAIN_CONFIG.translationModelDtype,
             },
           }
         : undefined,
     )
 
-    this.worker?.addEventListener('message', (event: MessageEvent<BrainAiResponse>) => {
+  }
+
+  private createWorker(): void {
+    if (!BRAIN_CONFIG.aiEnabled || this.destroyed) return
+    const worker = new Worker(new URL('./brainAiWorker.ts', import.meta.url), {
+      type: 'module',
+    })
+    this.worker = worker
+    worker.addEventListener('message', (event: MessageEvent<BrainAiResponse>) => {
+      if (this.worker !== worker) return
       const response = event.data
       const request = this.pending.get(response.id)
       if (!request) return
-      window.clearTimeout(request.timeoutId)
+      if (request.timeoutId !== null) window.clearTimeout(request.timeoutId)
       this.pending.delete(response.id)
-      if (response.ok) {
+      if (this.activeRequestId === response.id) this.activeRequestId = null
+      if (response.ok && !request.settled) {
         brainLog('ai', `risposta ${response.id} ricevuta`)
+        request.settled = true
         request.resolve(response.text)
-      } else {
+      } else if (!response.ok && !request.settled) {
         brainWarn('ai', `richiesta ${response.id} fallita`, response.error)
-        request.reject(new Error(response.error))
+        request.settled = true
+        request.reject(
+          isBrainAiInfrastructureMessage(response.error)
+            ? new BrainAiInfrastructureError(response.error)
+            : new Error(response.error),
+        )
       }
+      this.dispatchNext()
     })
 
-    this.worker?.addEventListener('error', (event) => {
+    worker.addEventListener('error', (event) => {
+      if (this.worker !== worker) return
       brainWarn('ai', 'errore worker', event.message)
       this.rejectAll(new Error(event.message || 'Brain AI worker non disponibile'))
     })
@@ -75,27 +121,66 @@ export class BrainAiClient {
       maxNewTokens: tokenLimits?.maxNewTokens,
     })
     return new Promise<string>((resolve, reject) => {
-      const timeoutId = window.setTimeout(() => {
-        this.pending.delete(id)
-        brainWarn('ai', `timeout richiesta ${task}`, { id })
-        reject(new Error(`Timeout ${task}`))
-      }, BRAIN_CONFIG.generationTimeoutMs)
-      this.pending.set(id, { resolve, reject, timeoutId })
-      this.worker?.postMessage(message)
+      this.pending.set(id, {
+        resolve,
+        reject,
+        message,
+        timeoutId: null,
+        settled: false,
+      })
+      this.queue.push(id)
+      this.dispatchNext()
+    })
+  }
+
+  async releaseTranslationModels(): Promise<void> {
+    await this.generate('release-ai-models', '', {
+      maxNewTokens: 0,
+      minNewTokens: 0,
     })
   }
 
   destroy(): void {
     brainLog('ai', 'arresto worker AI')
+    this.destroyed = true
     this.rejectAll(new BrainAiCancelledError())
     this.worker?.terminate()
+    this.worker = null
   }
 
   private rejectAll(error: Error): void {
     for (const request of this.pending.values()) {
-      window.clearTimeout(request.timeoutId)
-      request.reject(error)
+      if (request.timeoutId !== null) window.clearTimeout(request.timeoutId)
+      if (!request.settled) request.reject(error)
     }
     this.pending.clear()
+    this.queue.length = 0
+    this.activeRequestId = null
+  }
+
+  private dispatchNext(): void {
+    if (!this.worker || this.activeRequestId !== null) return
+    const id = this.queue.shift()
+    if (!id) return
+    const request = this.pending.get(id)
+    if (!request) {
+      this.dispatchNext()
+      return
+    }
+    this.activeRequestId = id
+    request.timeoutId = window.setTimeout(() => {
+      if (request.settled) return
+      const error = new Error(`Timeout ${request.message.task}`)
+      brainWarn(
+        'ai',
+        `timeout richiesta ${request.message.task}; worker terminato e ricreato`,
+        { id },
+      )
+      this.worker?.terminate()
+      this.worker = null
+      this.rejectAll(error)
+      this.createWorker()
+    }, request.message.task === 'story' ? 45_000 : BRAIN_CONFIG.generationTimeoutMs)
+    this.worker.postMessage(request.message)
   }
 }

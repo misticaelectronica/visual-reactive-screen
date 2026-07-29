@@ -7,19 +7,26 @@ import {
 import type { ModelId } from 'web-txt2img'
 import { AutoTokenizer } from '@huggingface/transformers'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
+import { PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE } from '@shared/brain/imageModelManifest'
 import { brainLog, brainWarn } from './brainLog'
+import { Sd15OnnxWebGpuRuntime } from './sd15OnnxWebGpu'
+import { getBrainRenderingConfig } from './brainRenderingConfig'
 
 export interface PsychedelImageGenerator {
   generate(
     prompt: string,
     seed: number,
     mode?: ImageRenderMode,
-  ): Promise<{ blob: Blob; durationMs: number; model?: ModelId }>
+    timeoutMs?: number,
+  ): Promise<{ blob: Blob; durationMs: number; model?: string }>
   release(): Promise<void>
   destroy(): void
 }
 
 export type ImageRenderMode = 'standard' | 'high-quality' | 'enhanced'
+
+const LEGACY_STANDARD_MODEL: ModelId = 'sd-turbo'
+const LEGACY_HIGH_QUALITY_MODEL: ModelId = 'janus-pro-1b'
 
 type ImageResult =
   | { ok: true; blob: Blob; timeMs: number }
@@ -107,10 +114,10 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
       brainLog('psichedel-image', 'caricamento modello text-to-image reale', {
         pipelineRevision: BRAIN_CONFIG.pipelineRevision,
         model,
-        quality: model === BRAIN_CONFIG.highQualityImageModelId ? 'high-quality' : 'standard',
+        quality: model === LEGACY_HIGH_QUALITY_MODEL ? 'high-quality' : 'standard',
         backend: 'WebGPU',
         downloadApprox:
-          model === BRAIN_CONFIG.highQualityImageModelId
+          model === LEGACY_HIGH_QUALITY_MODEL
             ? '2.25 GB (solo al primo avvio, poi cache locale)'
             : '2.34 GB (solo al primo avvio, poi cache locale)',
       })
@@ -125,7 +132,7 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
           backendPreference: ['webgpu'],
           ort: ortRuntime,
           wasmPaths,
-          ...(model === BRAIN_CONFIG.imageModelId
+          ...(model === LEGACY_STANDARD_MODEL
             ? { tokenizerProvider: createClipTokenizer }
             : {}),
           onProgress: (progress: { pct?: number; phase?: string; message?: string }) => {
@@ -171,11 +178,12 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
     prompt: string,
     seed: number,
     mode: ImageRenderMode = 'standard',
+    timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
   ): Promise<{ blob: Blob; durationMs: number; model?: ModelId }> {
     const model =
       mode === 'high-quality'
-        ? BRAIN_CONFIG.highQualityImageModelId
-        : BRAIN_CONFIG.imageModelId
+        ? LEGACY_HIGH_QUALITY_MODEL
+        : LEGACY_STANDARD_MODEL
     await this.ensureReady(model)
     brainLog('psichedel-image', 'inferenza immagine AI avviata', {
       model,
@@ -184,20 +192,21 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
       prompt,
     })
     const abortController = new AbortController()
+    const renderingConfig = getBrainRenderingConfig()
     try {
       const result = (await this.withTimeout(
         generateImage({
           model,
           prompt,
           seed,
-          width: BRAIN_CONFIG.imageWidth,
-          height: BRAIN_CONFIG.imageHeight,
+          width: renderingConfig.image.width,
+          height: renderingConfig.image.height,
           signal: abortController.signal,
           onProgress: (progress) => {
             brainLog('psichedel-image', `fase ${progress.phase}`, { pct: progress.pct })
           },
         }),
-        BRAIN_CONFIG.imageGenerationTimeoutMs,
+        Math.min(BRAIN_CONFIG.imageGenerationTimeoutMs, timeoutMs),
         'Timeout generazione immagine AI',
       )) as ImageResult
       if (!result.ok) {
@@ -231,6 +240,128 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
       this.readyPromise = null
       this.lastLoadProgress = -10
     }
+  }
+
+  destroy(): void {
+    this.destroyed = true
+    void this.release()
+  }
+}
+
+export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator {
+  private readonly runtime = new Sd15OnnxWebGpuRuntime(
+    PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE,
+    window.location.protocol === 'file:'
+      ? BRAIN_CONFIG.imageModelLocalBaseUrl
+      : BRAIN_CONFIG.imageModelBaseUrl,
+  )
+  private activeGeneration: AbortController | null = null
+  private destroyed = false
+  private lastProgressKey = ''
+
+  async generate(
+    prompt: string,
+    seed: number,
+    mode: ImageRenderMode = 'standard',
+    timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
+  ): Promise<{ blob: Blob; durationMs: number; model?: string }> {
+    if (this.destroyed) throw new Error('Psichedel è stato arrestato')
+    this.activeGeneration?.abort()
+    const controller = new AbortController()
+    this.activeGeneration = controller
+    const renderingConfig = getBrainRenderingConfig()
+    const steps =
+      mode === 'high-quality'
+        ? renderingConfig.image.qualitySteps
+        : mode === 'enhanced'
+          ? renderingConfig.image.enhancedSteps
+          : renderingConfig.image.standardSteps
+    const inferenceGeometry =
+      mode === 'high-quality'
+        ? {
+            width: renderingConfig.image.width,
+            height: renderingConfig.image.height,
+          }
+        : mode === 'enhanced'
+          ? { width: 512, height: 320 }
+          : { width: 448, height: 256 }
+    const startedAt = performance.now()
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      Math.min(BRAIN_CONFIG.imageGenerationTimeoutMs, timeoutMs),
+    )
+    brainLog('psichedel-image', 'inferenza Explicit ONNX avviata', {
+      model: PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE.id,
+      source: PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE.sourceRepository,
+      mode,
+      steps,
+      seed,
+      prompt,
+      backend: 'WebGPU',
+      safetyChecker: false,
+    })
+    try {
+      const blob = await this.runtime.generate({
+        prompt,
+        seed,
+        width: renderingConfig.image.width,
+        height: renderingConfig.image.height,
+        inferenceWidth: inferenceGeometry.width,
+        inferenceHeight: inferenceGeometry.height,
+        steps,
+        signal: controller.signal,
+        onProgress: (progress) => {
+          const rounded = progress.pct === undefined
+            ? null
+            : Math.floor(progress.pct / 10) * 10
+          const progressKey = `${progress.phase}:${progress.component ?? ''}:${rounded ?? ''}:${progress.source ?? ''}`
+          if (progressKey === this.lastProgressKey) return
+          this.lastProgressKey = progressKey
+          brainLog('psichedel-image', `${progress.phase}: ${progress.message}`, {
+            model: PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE.id,
+            pct: progress.pct,
+            component: progress.component,
+            source: progress.source,
+          })
+        },
+      })
+      const durationMs = performance.now() - startedAt
+      brainLog('psichedel-image', 'immagine Explicit ONNX generata', {
+        model: PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE.id,
+        mode,
+        steps,
+        width: renderingConfig.image.width,
+        height: renderingConfig.image.height,
+        bytes: blob.size,
+        durationMs: Math.round(durationMs),
+      })
+      return {
+        blob,
+        durationMs,
+        model: PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE.name,
+      }
+    } catch (error) {
+      if (
+        error instanceof DOMException
+        && error.name === 'AbortError'
+        && !this.destroyed
+      ) {
+        throw new Error(
+          `Timeout generazione Explicit dopo ${Math.min(BRAIN_CONFIG.imageGenerationTimeoutMs, timeoutMs)} ms`,
+          { cause: error },
+        )
+      }
+      throw error
+    } finally {
+      window.clearTimeout(timeoutId)
+      if (this.activeGeneration === controller) this.activeGeneration = null
+    }
+  }
+
+  async release(): Promise<void> {
+    this.activeGeneration?.abort()
+    this.activeGeneration = null
+    await this.runtime.release()
   }
 
   destroy(): void {

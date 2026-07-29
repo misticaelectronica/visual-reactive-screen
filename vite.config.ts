@@ -8,6 +8,7 @@ import renderer from 'vite-plugin-electron-renderer'
 const sharedAlias = {
   '@shared': path.resolve(__dirname, 'src/shared'),
 }
+const prototypeOnly = process.env.PSYCHEDEL_PROTOTYPE === '1'
 
 const ORT_WASM_FILES = [
   'ort-wasm-simd-threaded.wasm',
@@ -55,42 +56,81 @@ function ortWasmAssets(): Plugin {
   }
 }
 
+function brainModelAssets(): Plugin {
+  const sourceDirectory = path.resolve(__dirname, '.model-artifacts')
+  return {
+    name: 'brain-model-assets',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/prototype-models', (request, response, next) => {
+        const relativePath = decodeURIComponent(request.url?.split('?')[0] ?? '')
+          .replace(/^\/+/, '')
+        const sourcePath = path.resolve(sourceDirectory, relativePath)
+        if (
+          !sourcePath.startsWith(`${sourceDirectory}${path.sep}`)
+          || !fs.existsSync(sourcePath)
+          || !fs.statSync(sourcePath).isFile()
+        ) {
+          next()
+          return
+        }
+        const stat = fs.statSync(sourcePath)
+        response.statusCode = 200
+        response.setHeader('Content-Length', stat.size)
+        response.setHeader(
+          'Content-Type',
+          sourcePath.endsWith('.json')
+            ? 'application/json; charset=utf-8'
+            : 'application/octet-stream',
+        )
+        response.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        fs.createReadStream(sourcePath).pipe(response)
+      })
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     ortWasmAssets(),
+    brainModelAssets(),
     react(),
-    electron({
-      main: {
-        entry: 'src/main/main.ts',
-        vite: {
-          build: {
-            rollupOptions: {
-              external: ['@visioncortex/vtracer'],
-            },
-          },
-          resolve: {
-            alias: sharedAlias,
-          },
-        },
-      },
-      preload: {
-        input: path.join(__dirname, 'src/preload/preload.ts'),
-        vite: {
-          build: {
-            rollupOptions: {
-              output: {
-                format: 'cjs',
-                entryFileNames: '[name].cjs',
+    ...(prototypeOnly
+      ? []
+      : [
+          electron({
+            main: {
+              entry: 'src/main/main.ts',
+              vite: {
+                build: {
+                  rollupOptions: {
+                    external: ['@visioncortex/vtracer'],
+                  },
+                },
+                resolve: {
+                  alias: sharedAlias,
+                },
               },
             },
-          },
-          resolve: {
-            alias: sharedAlias,
-          },
-        },
-      },
-    }),
-    renderer(),
+            preload: {
+              input: path.join(__dirname, 'src/preload/preload.ts'),
+              vite: {
+                build: {
+                  rollupOptions: {
+                    output: {
+                      format: 'cjs',
+                      entryFileNames: '[name].cjs',
+                    },
+                  },
+                },
+                resolve: {
+                  alias: sharedAlias,
+                },
+              },
+            },
+          }),
+          renderer(),
+        ]),
   ],
   resolve: {
     alias: sharedAlias,

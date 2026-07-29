@@ -40,7 +40,7 @@ export function VisualControls({ settings, onChange }: Props) {
 
   return (
     <fieldset className="panel">
-      <legend>Morphing & Visuals</legend>
+      <legend>Morphing e visuali</legend>
       <div className="grid2" style={{ marginBottom: '16px' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
@@ -53,7 +53,7 @@ export function VisualControls({ settings, onChange }: Props) {
               })
             }
           />
-          <strong>Use morphing</strong>
+          <strong>Usa morphing</strong>
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
@@ -72,7 +72,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <strong>Brain</strong>
         </label>
         <label>
-          Morphing Algorithm
+          Algoritmo morphing
           <select
             value={morphingAlgorithm}
             onChange={(e) => {
@@ -95,7 +95,7 @@ export function VisualControls({ settings, onChange }: Props) {
           </select>
         </label>
         <label>
-          Morphing Preset
+          Preset morphing
           <select
             value={presetValue}
             onChange={(e) => onChange({ morphingPresetId: e.target.value, softMode: false })}
@@ -238,18 +238,18 @@ export function VisualControls({ settings, onChange }: Props) {
         </label>
       </div>
 
-      <legend>Flash, decay e colori</legend>
+      <legend>Flash, dissolvenza e colori</legend>
       <div className="grid2">
         <label>
-          Flash mode
+          Modalità flash
           <select
             value={settings.flashMode}
             onChange={(e) => onChange({ flashMode: e.target.value as AppSettings['flashMode'] })}
           >
-            <option value="high">High</option>
-            <option value="mid">Mid</option>
-            <option value="low">Low</option>
-            <option value="off">Off</option>
+            <option value="high">Alti</option>
+            <option value="mid">Medi</option>
+            <option value="low">Bassi</option>
+            <option value="off">Disattivato</option>
           </select>
         </label>
         <label>
@@ -264,7 +264,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.flashDurationMs} ms</span>
         </label>
         <label>
-          Decay (ms)
+          Dissolvenza (ms)
           <input
             type="range"
             min={80}
@@ -275,7 +275,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.decayMs} ms</span>
         </label>
         <label>
-          Cooldown (ms)
+          Intervallo minimo (ms)
           <input
             type="range"
             min={40}
@@ -298,7 +298,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.sensitivity.toFixed(2)}</span>
         </label>
         <label>
-          Max flash / sec
+          Flash massimi al secondo
           <input
             type="range"
             min={0.05}
@@ -310,7 +310,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.maxFlashesPerSecond.toFixed(2)}</span>
         </label>
         <label>
-          FFT size
+          Dimensione FFT
           <select
             value={settings.fftSize}
             onChange={(e) => onChange({ fftSize: Number(e.target.value) as AppSettings['fftSize'] })}
@@ -323,7 +323,7 @@ export function VisualControls({ settings, onChange }: Props) {
           </select>
         </label>
         <label>
-          Smoothing analyser
+          Livellamento analizzatore
           <input
             type="range"
             min={0}
@@ -337,7 +337,7 @@ export function VisualControls({ settings, onChange }: Props) {
       </div>
       <div className="grid2 colors">
         <label>
-          Idle
+          Riposo
           <input
             type="color"
             value={settings.idleColor}

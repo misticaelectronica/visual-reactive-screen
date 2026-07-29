@@ -27,5 +27,36 @@ describe('BrainRhythmClock', () => {
 
     expect(second.beat).toBe(false)
     expect(second.beatPhase).toBeGreaterThan(first.beatPhase)
+    expect(second.musicalPosition).toBeGreaterThan(first.musicalPosition)
+  })
+
+  it('non riporta indietro il movimento quando la fase attraversa una battuta virtuale', () => {
+    const clock = new BrainRhythmClock()
+    const quiet = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    const positions: number[] = []
+
+    for (let now = 100; now <= 1_600; now += 100) {
+      positions.push(clock.update(quiet, now).musicalPosition)
+    }
+
+    expect(
+      positions.every(
+        (position, index) => index === 0 || position > positions[index - 1],
+      ),
+    ).toBe(true)
+    expect(positions.at(-1)).toBeGreaterThan(2)
+  })
+
+  it('non resetta la posizione continua quando rileva un nuovo transiente', () => {
+    const clock = new BrainRhythmClock()
+    const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
+    const kick = { ...quiet, low: 0.85 }
+
+    clock.update(quiet, 100)
+    const before = clock.update(quiet, 450)
+    const onBeat = clock.update(kick, 500)
+
+    expect(onBeat.beat).toBe(true)
+    expect(onBeat.musicalPosition).toBeGreaterThan(before.musicalPosition)
   })
 })

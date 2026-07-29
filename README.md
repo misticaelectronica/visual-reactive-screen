@@ -20,8 +20,13 @@ L'app ha due finestre:
 - Preset genere e preset colore, con opzione **Match Genere/Colore**.
 - Rotazione dinamica opzionale di colori e morphing.
 - Modalita **Brain**, alternativa al morphing standard: CoscienzaOnirica scrive una storia,
-  Psichedel genera raster originali con SD-Turbo, VTracer li converte in SVG a colori e
+  Psichedel genera raster originali con PornMaster SD 1.5 Explicit ONNX, VTracer li converte in SVG a colori e
   un controllo qualita rifiuta composizioni povere o troppo pesanti prima del rendering.
+  La configurazione dei modelli, i filtri Hugging Face e i parametri della pipeline sono
+  descritti in [`docs/brain-ai-pipeline.md`](docs/brain-ai-pipeline.md). La migrazione
+  browser verso il singolo modello Explicit, ora usato come generatore standard in
+  sviluppo, è documentata in
+  [`docs/psychedel-explicit-v1.md`](docs/psychedel-explicit-v1.md).
 - Tre algoritmi morphing Canvas 2D:
   - **Liquid Morphing**
   - **Oniric Morphing**
@@ -38,8 +43,13 @@ L'app ha due finestre:
 - pnpm
 - macOS, Linux o Windows con supporto Electron
 - Per uso audio: permessi microfono/cattura audio concessi al sistema
-- Per Brain: GPU con supporto WebGPU. Il primo avvio scarica SD-Turbo (circa 2,34 GB);
+- Per Brain: GPU con supporto WebGPU. Il primo avvio carica il checkpoint Explicit
+  ONNX (circa 2,02 GiB);
   gli avvii successivi riutilizzano la cache locale.
+
+Il generatore Explicit richiede circa 2,02 GiB di artefatti ONNX e almeno
+8 GB di memoria dichiarata dal browser. I requisiti definitivi verranno fissati
+dopo il collaudo del repository remoto e la misura del picco GPU.
 
 Installazione dipendenze:
 
@@ -66,6 +76,21 @@ pnpm dev
 La finestra di controllo carica `control.html`. La finestra di uscita viene aperta dal pulsante **Apri uscita fullscreen** dopo aver scelto un display.
 
 Non aprire manualmente la control UI nel browser: il bridge Electron `window.fxControl` e' disponibile solo nella finestra Electron.
+
+## Configurazione esterna di Brain
+
+I file dati modificabili sono nella cartella [`config/`](config/README.md), fuori
+da `src/` e dai bundle Vite:
+
+- `config/brainPhrases.txt`: elenco attivo, una frase per riga;
+- `config/brainPhrases.example.txt`: raccolta di esempio non caricata.
+
+Brain rilegge `brainPhrases.txt` dal filesystem prima di generare ogni nuova
+storia. Le modifiche hanno quindi effetto dalla storia successiva senza
+ricompilazione.
+
+Nelle applicazioni pacchettizzate la cartella viene copiata in
+`Contents/Resources/config` su macOS, esternamente al codice compilato.
 
 ## Build produzione locale
 

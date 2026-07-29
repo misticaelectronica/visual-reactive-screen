@@ -2,10 +2,21 @@ import path from 'node:path'
 import { app, BrowserWindow, nativeImage, session, systemPreferences } from 'electron'
 import { registerIpcHandlers } from './ipc'
 import { createControlWindow, closeOutputWindow } from './windows'
+import {
+  configureBrainModelProtocol,
+  registerBrainModelScheme,
+} from './brainModelProtocol'
+import { closeSessionLogger, installSessionLogger } from './sessionLogger'
 
+installSessionLogger()
 app.commandLine.appendSwitch('disable-background-timer-throttling')
 app.commandLine.appendSwitch('disable-renderer-backgrounding')
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+app.commandLine.appendSwitch('force-gpu-mem-available-mb', '4096')
+app.commandLine.appendSwitch('max-gpu-memory-buffer-size', '4096')
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+registerBrainModelScheme()
 
 function configureMediaPermissions(): void {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -47,6 +58,7 @@ app.on('activate', () => {
 app.whenReady().then(async () => {
   configureAppIcon()
   configureMediaPermissions()
+  configureBrainModelProtocol()
   await requestMacMicrophonePermission()
   registerIpcHandlers()
   createControlWindow()
@@ -54,4 +66,5 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   closeOutputWindow()
+  closeSessionLogger()
 })

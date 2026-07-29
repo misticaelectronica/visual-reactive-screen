@@ -5,6 +5,7 @@ export type DreamFrame = {
   title: string
   description: string
   visualIntent: string
+  imagePrompt?: string
   energy: number
   durationMs: number
 }
@@ -17,7 +18,14 @@ export type DreamStory = {
   continuityPhrase: string | null
   palette: [string, string, string, string, string]
   sourcePhrases: string[]
+  /** Contesto tematico invariabile inviato a Psichedel con ogni fotogramma. */
+  mainArgument?: string
   frames: DreamFrame[]
+  englishTitle?: string
+  englishSynopsis?: string
+  englishBridge?: string | null
+  sessionMemo?: [string, string, string]
+  sessionSynthesis?: boolean
 }
 
 export type PsychedelScene = {
@@ -31,7 +39,14 @@ export type BrainProduction = {
   scenes: PsychedelScene[]
 }
 
-export type BrainAiTask = 'story' | 'scene'
+export type BrainAiTask =
+  | 'story'
+  | 'memo'
+  | 'scene'
+  | 'translate-input'
+  | 'translate-ui'
+  | 'release-translators'
+  | 'release-ai-models'
 
 export type BrainAiRequest = {
   id: string

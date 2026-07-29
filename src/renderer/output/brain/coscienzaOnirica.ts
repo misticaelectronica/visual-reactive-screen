@@ -2,7 +2,12 @@ import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { DreamFrame, DreamStory } from '@shared/brain/brainTypes'
 import { BrainAiCancelledError, type BrainAiClient } from './brainAiClient'
 import { brainLog, brainWarn } from './brainLog'
+import {
+  normalizeEnglishStoryEnvelope,
+  type BrainTranslator,
+} from './brainTranslator'
 import { extractJsonObjects } from './extractJsonObjects'
+import { getBrainRenderingConfig } from './brainRenderingConfig'
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -24,6 +29,60 @@ function words(text: string): string[] {
   return text.toLocaleLowerCase().match(/\p{L}+/gu) ?? []
 }
 
+const STRONG_EXPLICIT_ADULT_TERMS =
+  /(?:\bsesso(?:\s+orale|\s+anale|\s+vaginale|\s+di\s+gruppo)?\b|\bsex(?:ual|\s+toy|\s+toys|\s+act|\s+acts|\s+scene|\s+scenes|\s+oral|\s+group)?\b|\bpenetrazion\w*\b|\bpenetrat\w*\b|\bmasturb\w*\b|\borgasm\w*\b|\bstimolazion\w*\b|\bstimulat\w*\b|\brapport[oi]\s+sessual\w*\b|\bintercourse\b|\boral\s+(?:pleasure|contact|activity|stimulation)\b|\b(?:anal|vaginal|genital)\s+(?:sex|contact|stimulation|play)\b|\bfellati\w*\b|\bcunniling\w*\b|\bblow\s*job\w*\b|\bhand\s*job\w*\b|\bfinger(?:ing|ed|s)?\b|\bsex\s*toy\w*\b|\bdildo\w*\b|\bvibrator\w*\b|\bclimax(?:es|ed|ing)?\b)/iu
+
+const ADULT_CONTEXT_TERMS =
+  /(?:\beccitazion\w*\b|\barousal\b|\bpiacere\b|\bpleasure\b|\bintimit\w*\b|\bintimacy\b)/iu
+
+export function containsExplicitAdultContent(text: string): boolean {
+  return (
+    STRONG_EXPLICIT_ADULT_TERMS.test(text) ||
+    ADULT_CONTEXT_TERMS.test(text)
+  )
+}
+
+export function preservesExplicitAdultContent(
+  source: string,
+  generated: string,
+): boolean {
+  return STRONG_EXPLICIT_ADULT_TERMS.test(source)
+    ? STRONG_EXPLICIT_ADULT_TERMS.test(generated)
+    : !containsExplicitAdultContent(source) ||
+        containsExplicitAdultContent(generated)
+}
+
+function explicitContentDiagnostics(text: string): {
+  strong: boolean
+  contextual: boolean
+  matchedTerm: string | null
+} {
+  return {
+    strong: STRONG_EXPLICIT_ADULT_TERMS.test(text),
+    contextual: ADULT_CONTEXT_TERMS.test(text),
+    matchedTerm: text.match(STRONG_EXPLICIT_ADULT_TERMS)?.[0] ?? null,
+  }
+}
+
+const ITALIAN_LANGUAGE_MARKERS = new Set([
+  'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'del', 'della',
+  'nel', 'nella', 'che', 'con', 'per', 'mentre', 'quando', 'allora', 'dopo',
+  'prima', 'suo', 'sua', 'sono', 'viene', 'diventa',
+])
+
+const ENGLISH_LANGUAGE_MARKERS = new Set([
+  'the', 'an', 'and', 'of', 'in', 'between', 'with', 'from', 'when', 'then',
+  'after', 'before', 'she', 'he', 'her', 'his', 'they', 'their', 'through',
+  'into', 'becomes', 'finds', 'discovers',
+])
+
+export function appearsItalian(text: string): boolean {
+  const tokens = words(text)
+  const italianScore = tokens.filter((word) => ITALIAN_LANGUAGE_MARKERS.has(word)).length
+  const englishScore = tokens.filter((word) => ENGLISH_LANGUAGE_MARKERS.has(word)).length
+  return englishScore < 5 || italianScore >= englishScore
+}
+
 function normalizedSentence(text: string): string {
   return words(text).join(' ')
 }
@@ -33,6 +92,23 @@ function hasRepeatedNarrativeSentence(text: string): boolean {
     .map(normalizedSentence)
     .filter((sentence) => words(sentence).length >= 8)
   return new Set(sentences).size !== sentences.length
+}
+
+const NARRATIVE_META_ARTIFACTS =
+  /(?:\b(?:colore|colori)\s+del\s+sogno\b|\bdream\s+colou?rs?\b|\bcolou?rs?\s+of\s+(?:the\s+)?dream\b|\b(?:colore|color|colour)\s*(?:del\s+sogno\s*)?\d+\s*:|\b(?:fotogramma|frame|momento|visual)\s*[_-]?\d+\s*:|\b(?:titolo|title|storia|story|legame|bridge|colori|colors)\s*:)/iu
+
+export function isRenderableNarrative(text: string): boolean {
+  if (NARRATIVE_META_ARTIFACTS.test(text)) return false
+  const moments = splitSentences(text).filter(
+    (sentence) => words(sentence).length >= 6,
+  )
+  return (
+    // Il modello piccolo riesce affidabilmente a produrre quattro passaggi
+    // narrativi; il renderer li espande poi in sei fotogrammi senza perdere
+    // una storia valida solo perché non ha scritto sei frasi.
+    moments.length >= 4 &&
+    new Set(moments.map(normalizedSentence)).size === moments.length
+  )
 }
 
 function escapedPattern(value: string): string {
@@ -134,7 +210,7 @@ export function analyzeNarrativeFormat(text: string): NarrativeParseResult {
       description: parts[1],
       visualIntent: parts[2],
       energy,
-      durationMs: BRAIN_CONFIG.frameDurationMs,
+      durationMs: getBrainRenderingConfig().timing.frameDurationMs,
     })
   }
   return issues.length > 0
@@ -216,7 +292,9 @@ function storyCoreFromResponse(
       : null
   const synopsis = requiredText(labeledSynopsis ?? looseSynopsis, 35)
   if (!title || !synopsis) return null
+  if (!appearsItalian(`${title} ${synopsis}`)) return null
   if (hasRepeatedNarrativeSentence(synopsis)) return null
+  if (!isRenderableNarrative(synopsis)) return null
   const normalizedSynopsis = synopsis.toLocaleLowerCase()
   const copiedPhraseCount = phrases.filter((phrase) =>
     normalizedSynopsis.includes(phrase.toLocaleLowerCase()),
@@ -238,6 +316,28 @@ function storyCoreFromResponse(
   }
 }
 
+function storyCoreFromEnglishEnvelope(text: string): StoryCore | null {
+  const title = requiredText(
+    labeledBlock(text, 'TITLE', ['STORY']),
+    1,
+  )
+  const synopsis = requiredText(
+    labeledBlock(text, 'STORY', ['BRIDGE']),
+    20,
+  )
+  if (!title || !synopsis || !isRenderableNarrative(synopsis)) return null
+  return {
+    title: title.slice(0, 100),
+    synopsis: synopsis.slice(0, 1_200),
+    bridge:
+      requiredText(
+        labeledBlock(text, 'BRIDGE', ['COLORS']),
+        5,
+      )?.slice(0, 420) ?? null,
+    palette: paletteFromUnknown(labeledBlock(text, 'COLORS', [])),
+  }
+}
+
 function splitSentences(text: string): string[] {
   return text
     .replace(/\s+/g, ' ')
@@ -246,29 +346,126 @@ function splitSentences(text: string): string[] {
     .filter(Boolean) ?? []
 }
 
-function splitIntoFourMoments(synopsis: string): string[] {
+export function splitIntoFourMoments(synopsis: string): string[] {
+  const frameCount = BRAIN_CONFIG.renderFrameCount
   const sentences = splitSentences(synopsis)
-  if (sentences.length >= 4) {
-    const groups = Array.from({ length: 4 }, (_, index) => {
-      const start = Math.floor((index * sentences.length) / 4)
-      const end = Math.floor(((index + 1) * sentences.length) / 4)
+  if (sentences.length >= frameCount) {
+    const groups = Array.from({ length: frameCount }, (_, index) => {
+      const start = Math.floor((index * sentences.length) / frameCount)
+      const end = Math.floor(((index + 1) * sentences.length) / frameCount)
       return sentences.slice(start, Math.max(start + 1, end)).join(' ')
     })
     if (groups.every((group) => words(group).length >= 8)) return groups
   }
 
-  const synopsisWords = synopsis.trim().split(/\s+/)
-  return Array.from({ length: 4 }, (_, index) => {
-    const start = Math.floor((index * synopsisWords.length) / 4)
-    const end = Math.floor(((index + 1) * synopsisWords.length) / 4)
-    return synopsisWords.slice(start, Math.max(start + 1, end)).join(' ')
-  })
+  const completeSentences = sentences.length > 0 ? sentences : [synopsis.trim()]
+  const momentIndexes = Array.from(
+    { length: frameCount },
+    (_, index) => Math.min(
+      completeSentences.length - 1,
+      Math.floor((index * completeSentences.length) / frameCount),
+    ),
+  )
+  const introductions = [
+    'All’inizio',
+    'Il richiamo cresce quando',
+    'In seguito',
+    'L’attrito appare quando',
+    'La trasformazione avviene quando',
+    'Alla fine',
+  ]
+  return momentIndexes.map(
+    (sentenceIndex, index) =>
+      `${introductions[index]}: ${completeSentences[sentenceIndex]}`,
+  )
+}
+
+function completeSentence(text: string): string {
+  const cleaned = text.trim()
+  return /[.!?]$/u.test(cleaned) ? cleaned : `${cleaned}.`
+}
+
+export function compactOutgoingBridge(bridge: string | null): string | null {
+  if (!bridge) return null
+  const bridgeWords = bridge.trim().split(/\s+/u)
+  if (bridgeWords.length <= 18) return bridge.trim()
+  return completeSentence(bridgeWords.slice(0, 18).join(' '))
+}
+
+export function preserveExplicitSourceContent(
+  generatedSynopsis: string,
+  sourcePhrases: readonly string[],
+): string {
+  const generatedMoments = splitSentences(generatedSynopsis)
+  const explicitMoments = sourcePhrases
+    .filter((phrase) => containsExplicitAdultContent(phrase))
+    .map(completeSentence)
+  const ordered = [
+    generatedMoments[0],
+    ...explicitMoments,
+    ...generatedMoments.slice(1),
+  ].filter((moment): moment is string => Boolean(moment?.trim()))
+  const unique: string[] = []
+  for (const moment of ordered) {
+    if (
+      !unique.some(
+        (candidate) =>
+          normalizedSentence(candidate) === normalizedSentence(moment),
+      )
+    ) {
+      unique.push(completeSentence(moment))
+    }
+  }
+  return unique.slice(0, 6).join(' ')
+}
+
+function replaceEnglishSynopsis(envelope: string, synopsis: string): string {
+  return envelope.replace(
+    /^STORY:\s*[\s\S]*?(?=^BRIDGE:)/imu,
+    `STORY: ${synopsis}\n`,
+  )
+}
+
+function fallbackUiCore(phrases: readonly string[]): StoryCore {
+  const synopsis = phrases.map(completeSentence).join(' ')
+  const titleWords = words(phrases[0] ?? 'sogno in movimento')
+    .filter((word) => word.length >= 4)
+    .slice(0, 3)
+  const title = titleWords.length >= 2
+    ? titleWords
+        .map((word) => `${word.charAt(0).toLocaleUpperCase()}${word.slice(1)}`)
+        .join(' ')
+    : 'Sogno in movimento'
+  const lastPhrase = completeSentence(phrases.at(-1) ?? 'Un segnale resta in attesa')
+  return {
+    title,
+    synopsis,
+    bridge: `${lastPhrase.replace(/[.!?]$/u, '')} apre un dettaglio inatteso oltre la soglia successiva.`,
+    palette: [...DEFAULT_DREAM_PALETTE],
+  }
+}
+
+export function inferMainArgument(source: readonly string[], synopsis: string): string {
+  const text = `${source.join(' ')} ${synopsis}`.toLocaleLowerCase()
+  if (containsExplicitAdultContent(text)) {
+    return 'consensual adult sexual interaction and physical intimacy'
+  }
+  if (/psicolog|psycholog|trauma|paura|fear|memoria|memory|identit|identity/iu.test(text)) {
+    return 'psychological transformation and memory'
+  }
+  if (/educazion|education|impar|learn|insegn|teach/iu.test(text)) {
+    return 'learning, education and discovery'
+  }
+  if (/incontro|relationship|relazione|dialog|conversation|coppia|couple|gruppo|group|umani|human/iu.test(text)) {
+    return 'human relationships and social interaction'
+  }
+  return 'dream narrative and sensory transformation'
 }
 
 export function storyFromCore(core: StoryCore, phrases: string[]): DreamStory {
   const moments = splitIntoFourMoments(core.synopsis)
-  const labels = ['Apertura', 'Sviluppo', 'Trasformazione', 'Esito']
-  const energies = [0.32, 0.56, 0.86, 0.68]
+  const labels = ['Apertura', 'Richiamo', 'Sviluppo', 'Attrito', 'Trasformazione', 'Esito']
+  const energies = [0.26, 0.42, 0.58, 0.78, 0.9, 0.66]
   return {
     id: `story-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     title: core.title,
@@ -277,13 +474,14 @@ export function storyFromCore(core: StoryCore, phrases: string[]): DreamStory {
     continuityPhrase: null,
     palette: core.palette,
     sourcePhrases: phrases,
+    mainArgument: inferMainArgument(phrases, core.synopsis),
     frames: moments.map((description, index) => ({
       id: `frame-${index + 1}`,
       title: labels[index],
       description,
-      visualIntent: `Rappresentazione fedele e concreta di questo momento narrativo: ${description}`,
+      visualIntent: `Scena narrativa concreta con un soggetto riconoscibile e una sola azione visibile: ${description}`,
       energy: energies[index],
-      durationMs: BRAIN_CONFIG.frameDurationMs,
+      durationMs: getBrainRenderingConfig().timing.frameDurationMs,
     })),
   }
 }
@@ -297,6 +495,86 @@ function similarity(left: string, right: string): number {
 }
 
 export type DreamStoryMemory = Pick<DreamStory, 'title' | 'synopsis'>
+export type SessionMemo = [string, string, string]
+export type VisualPlan = [string, string, string, string]
+
+export function selectSessionSynthesisInterval(
+  random: () => number = Math.random,
+): number {
+  const span =
+    BRAIN_CONFIG.sessionSynthesisMaxStories -
+    BRAIN_CONFIG.sessionSynthesisMinStories +
+    1
+  return (
+    BRAIN_CONFIG.sessionSynthesisMinStories +
+    Math.floor(clamp(random(), 0, 0.999999) * span)
+  )
+}
+
+export function parseSessionMemo(text: string): SessionMemo | null {
+  const cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/[*`]/g, '')
+    .trim()
+  const labeled = [1, 2, 3].map((index) =>
+    labeledBlock(cleaned, `MEMO${index}`, index < 3 ? [`MEMO${index + 1}`] : []),
+  )
+  const candidates = labeled.every((sentence) => sentence !== null)
+    ? labeled
+    : splitSentences(cleaned)
+  if (candidates.length !== 3) return null
+  const sentences = candidates.map((sentence) => requiredText(sentence, 6))
+  if (sentences.some((sentence) => sentence === null)) return null
+  const memo = sentences as SessionMemo
+  if (!appearsItalian(memo.join(' '))) return null
+  if (new Set(memo.map(normalizedSentence)).size !== 3) return null
+  return memo
+}
+
+export function parseVisualPlan(text: string): VisualPlan | null {
+  const cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/[*`]/g, '')
+    .trim()
+  const prompts = [1, 2, 3, 4].map((index) =>
+    requiredText(
+      labeledBlock(
+        cleaned,
+        `VISUAL${index}`,
+        index < 4 ? [`VISUAL${index + 1}`] : [],
+      ),
+      8,
+    ),
+  )
+  if (prompts.some((prompt) => prompt === null)) return null
+  const plan = prompts as VisualPlan
+  if (new Set(plan.map(normalizedSentence)).size !== 4) return null
+  return plan
+}
+
+type StoryGenerationOptions = {
+  sessionMemo?: readonly string[]
+  sessionSynthesis?: boolean
+  continuitySeed?: string | null
+  recentBridges?: readonly string[]
+}
+
+export function bridgeIsNew(
+  bridge: string | null,
+  continuitySeed: string | null,
+  recentBridges: readonly string[],
+): boolean {
+  if (!bridge || words(bridge).length < 5) return false
+  const candidates = [
+    ...(continuitySeed ? [continuitySeed] : []),
+    ...recentBridges,
+  ]
+  return candidates.every(
+    (previous) =>
+      normalizedSentence(bridge) !== normalizedSentence(previous) &&
+      similarity(bridge, previous) < 0.58,
+  )
+}
 
 export function resemblesRecentStory(
   story: DreamStoryMemory,
@@ -316,6 +594,8 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
   const title = requiredText(data.title, 2)
   const synopsis = requiredText(data.synopsis, 35)
   if (!title || !synopsis) return null
+  if (!isRenderableNarrative(synopsis)) return null
+  if (!appearsItalian(`${title} ${synopsis}`)) return null
   if (hasRepeatedNarrativeSentence(synopsis)) return null
   const normalizedSynopsis = synopsis.toLocaleLowerCase()
   const copiedPhraseCount = phrases.filter((phrase) =>
@@ -342,11 +622,7 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
       description: description.slice(0, 420),
       visualIntent: visualIntent.slice(0, 360),
       energy: clamp(typeof frame.energy === 'number' ? frame.energy : (index + 1) / frameCount, 0.05, 1),
-      durationMs: clamp(
-        typeof frame.durationMs === 'number' ? frame.durationMs : BRAIN_CONFIG.frameDurationMs,
-        6_000,
-        30_000,
-      ),
+      durationMs: getBrainRenderingConfig().timing.frameDurationMs,
     })
   }
   if (new Set(frames.map((frame) => normalizedSentence(frame.description))).size < frameCount) {
@@ -373,21 +649,130 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
     continuityPhrase: requiredText(data.continuityPhrase, 6)?.slice(0, 420) ?? null,
     palette: paletteFromUnknown(data.palette),
     sourcePhrases: phrases,
+    mainArgument:
+      requiredText(data.mainArgument, 3)?.slice(0, 160) ??
+      inferMainArgument(phrases, synopsis),
     frames,
   }
 }
 
 export class CoscienzaOnirica {
-  constructor(private readonly ai: Pick<BrainAiClient, 'generate'>) {}
+  constructor(
+    private readonly ai: Pick<BrainAiClient, 'generate'>,
+    private readonly translator?: Pick<
+      BrainTranslator,
+      'inputsToEnglish' | 'storyForUi'
+    > & { inputTranslationEnabled?: () => boolean },
+  ) {}
 
   async generate(
     phrases: string[],
     recentStories: readonly DreamStoryMemory[] = [],
+    options: StoryGenerationOptions = {},
   ): Promise<DreamStory> {
+    const sessionSynthesis = options.sessionSynthesis === true
+    const continuitySeed = options.continuitySeed?.trim() || null
+    const recentBridges = options.recentBridges ?? []
+    const explicitSource = containsExplicitAdultContent(phrases.join(' '))
+    let englishVisualMoments: string[] | null = null
+    let englishDisplay: Pick<
+      DreamStory,
+      'englishTitle' | 'englishSynopsis' | 'englishBridge'
+    > | null = null
+    let englishCore: StoryCore | null = null
+    let explicitContentVerifiedFromEnglish = false
+    let uiExplicitLossLogged = false
+    const recentStoriesForValidation = sessionSynthesis
+      ? recentStories.filter(
+          (story) => normalizedSentence(story.title) !== 'questo sogno',
+        )
+      : recentStories
+    const prepareStory = (story: DreamStory): DreamStory => {
+      if (!isRenderableNarrative(story.synopsis)) {
+        throw new Error(
+          'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
+        )
+      }
+      if (
+        explicitSource &&
+        !preservesExplicitAdultContent(
+          phrases.join(' '),
+          `${story.title} ${story.synopsis}`,
+        )
+      ) {
+        const generatedSynopsis = story.synopsis
+        story.synopsis = preserveExplicitSourceContent(
+          story.synopsis,
+          phrases,
+        )
+        const restoredMoments = splitIntoFourMoments(story.synopsis)
+        story.frames.forEach((frame, index) => {
+          frame.description = restoredMoments[index]
+          frame.visualIntent =
+            `Scena narrativa concreta con un soggetto riconoscibile e una sola azione visibile: ${restoredMoments[index]}`
+        })
+        if (!uiExplicitLossLogged) {
+          uiExplicitLossLogged = true
+          brainWarn(
+            'coscienza',
+            'contenuto esplicito ripristinato letteralmente dagli input originali',
+            {
+              sourcePhrases: phrases,
+              generatedSynopsis,
+              preservedSynopsis: story.synopsis,
+              englishSourceVerified: explicitContentVerifiedFromEnglish,
+            },
+          )
+        }
+      }
+      const originalBridge = story.bridge
+      story.bridge = compactOutgoingBridge(story.bridge)
+      if (originalBridge !== story.bridge) {
+        brainWarn('coscienza', 'anello di giunzione troppo lungo; compatto per la storia successiva', {
+          originalWords: words(originalBridge ?? '').length,
+          compactedWords: words(story.bridge ?? '').length,
+        })
+      }
+      if (!bridgeIsNew(story.bridge, continuitySeed, recentBridges)) {
+        throw new Error(
+          'CoscienzaOnirica non ha prodotto un nuovo anello di giunzione',
+        )
+      }
+      story.continuityPhrase = continuitySeed
+      if (englishDisplay) Object.assign(story, englishDisplay)
+      if (englishVisualMoments?.length === story.frames.length) {
+        story.frames.forEach((frame, index) => {
+          frame.imagePrompt = englishVisualMoments?.[index]
+        })
+      }
+      if (sessionSynthesis) {
+        story.title = 'Questo sogno'
+        story.sessionSynthesis = true
+      }
+      return story
+    }
     brainLog('coscienza', 'generazione storia avviata', {
       phrases,
       recentStories: recentStories.map((story) => story.title),
+      sessionMemo: options.sessionMemo ?? [],
+      sessionSynthesis,
+      continuitySeed,
+      recentBridges,
+      explicitSource,
     })
+    const translatedInputs = this.translator
+      ? await this.translator.inputsToEnglish(
+          continuitySeed ? [...phrases, continuitySeed] : phrases,
+        )
+      : continuitySeed
+        ? [...phrases, continuitySeed]
+        : phrases
+    const narrativePhrases = translatedInputs.slice(0, phrases.length)
+    const dedicatedInputTranslation =
+      this.translator?.inputTranslationEnabled?.() ?? false
+    const translatedContinuitySeed = continuitySeed
+      ? translatedInputs.at(-1) ?? continuitySeed
+      : null
     const recentStoryConstraint =
       recentStories.length > 0
         ? [
@@ -399,32 +784,192 @@ export class CoscienzaOnirica {
           ].join('\n')
         : 'Avoid generic plots and familiar formulas. Invent one specific event.'
     const directPredecessor = recentStories.at(-1) ?? null
-    const continuityConstraint = directPredecessor
-      ? 'One Italian input prompt comes directly from the previous story. Reuse it naturally as a causal seed; an explicit link field is not required.'
-      : 'This is the first story in the cycle.'
+    const continuityConstraint = translatedContinuitySeed
+      ? [
+          'LIGHT CONTINUITY SEED FROM THE PREVIOUS STORY:',
+          translatedContinuitySeed,
+          'Let this seed influence only one secondary detail. Do not continue the previous plot or make it the main subject.',
+        ].join('\n')
+      : 'This is the first story in the cycle; invent its outgoing bridge freely.'
+    const synthesisConstraint = sessionSynthesis
+      ? [
+          'This is the periodic synthesis of everything Brain has understood in this session.',
+          'Transform the session memo into one new concrete story, not a summary or a list.',
+          'The title must be exactly: Questo sogno',
+          `SESSION MEMO:\n${(options.sessionMemo ?? []).map((sentence) => `- ${sentence}`).join('\n')}`,
+        ].join('\n')
+      : 'This is an ordinary new dream in the session.'
     const storyPrompt = [
-      'WRITE THE STORY NOW. Do not explain, translate, or repeat these instructions.',
-      'Think privately in English if useful. The visible answer must contain only natural Italian.',
-      'Create one concrete original story of 70-100 words.',
-      'Invent a named protagonist and a place. Include an initiating event, conflict, transformation and conclusion.',
-      'Connect the prompts causally without copying or commenting on them.',
+      'WRITE ONE STORY NOW. Output only the four requested lines.',
+      ...(this.translator
+        ? ['Write the complete intermediate story in natural English.']
+        : ['Think privately in English if useful. The visible answer must contain only natural Italian.']),
+      'STORY must contain 55-80 words in exactly 4-6 complete chronological sentences.',
+      'Use a named adult protagonist, one concrete place, an initiating event, conflict, transformation and conclusion.',
+      'Connect the source prompts causally. Never discuss or copy the instructions.',
+      ...(explicitSource
+        ? [
+            'All participants are consenting adults. Preserve the explicit physical actions literally, without euphemisms or symbolism.',
+          ]
+        : [
+            'Do not introduce sexual content that is absent from the source prompts.',
+          ]),
       recentStoryConstraint,
       continuityConstraint,
-      'Choose five hexadecimal colors matching the story tone.',
-      `ITALIAN INPUT PROMPTS:\n${phrases.map((phrase) => `- ${phrase}`).join('\n')}`,
-      'Return exactly three lines. Line 1 starts with TITOLO: and contains an invented title.',
-      'Line 2 starts with STORIA: and contains the complete story.',
-      'Line 3 starts with COLORI: and contains exactly five coherent hexadecimal colors.',
-      'Never output field descriptions, placeholders, brackets, markdown, analysis, or English notes.',
+      synthesisConstraint,
+      'BRIDGE must be one new concrete open-ended sentence of 8-16 words. COLORS must be exactly five hexadecimal colors.',
+      ...(recentBridges.length > 0
+        ? [
+            `NEVER REPEAT THESE EARLIER BRIDGES:\n${recentBridges
+              .slice(-BRAIN_CONFIG.storyMemoryCount)
+              .map((bridge) => `- ${bridge}`)
+              .join('\n')}`,
+          ]
+        : []),
+      ...(dedicatedInputTranslation
+        ? [
+            `ENGLISH INPUT PROMPTS:\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
+            `AUTHORITATIVE ORIGINAL ITALIAN PROMPTS:\n${phrases.map((phrase) => `- ${phrase}`).join('\n')}`,
+          ]
+        : [
+            `SOURCE INPUT PROMPTS (Italian or English; understand them directly):\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
+          ]),
+      `Return exactly four lines. Line 1 starts with ${this.translator ? 'TITLE' : 'TITOLO'}:.`,
+      `Line 2 starts with ${this.translator ? 'STORY' : 'STORIA'}: and contains the complete story.`,
+      `Line 3 starts with ${this.translator ? 'BRIDGE' : 'LEGAME'}: and contains the outgoing bridge only.`,
+      `Line 4 starts with ${this.translator ? 'COLORS' : 'COLORI'}: and contains exactly five hexadecimal colors.`,
+      'No markdown, headings, lists, notes, placeholders or extra fields.',
     ].join('\n')
     try {
       let coreText = await this.ai.generate('story', storyPrompt, {
-        maxNewTokens: 360,
-        minNewTokens: 90,
+        maxNewTokens: BRAIN_CONFIG.storyMaxNewTokens,
+        minNewTokens: 48,
       })
+      if (this.translator) {
+        let normalizedEnglishStory = normalizeEnglishStoryEnvelope(coreText)
+        let englishSynopsis = normalizedEnglishStory
+          ? labeledBlock(normalizedEnglishStory, 'STORY', ['BRIDGE'])
+          : null
+        if (!englishSynopsis || !isRenderableNarrative(englishSynopsis)) {
+          brainWarn(
+            'coscienza',
+            'risposta inglese priva di una trama; avvio autocorrezione sulla stessa associazione',
+            {
+              response: coreText.slice(0, 2_000),
+              normalizedStory: englishSynopsis,
+            },
+          )
+          const narrativeRepairPrompt = [
+            'REWRITE THE FAILED ANSWER AS ONE STORY. Do not explain the mistake.',
+            'Write 55-80 words in exactly 4-6 complete chronological sentences.',
+            'Include a named adult protagonist, one concrete place, an initiating event, conflict, transformation and conclusion.',
+            'Do not output numbered bridges, field descriptions, lists, notes or fragments.',
+            ...(explicitSource
+              ? [
+                  'Preserve the consensual explicit physical actions from the source prompts literally. Do not replace them with euphemisms or symbolism.',
+                ]
+              : [
+                  'Do not introduce sexual content absent from the source prompts.',
+                ]),
+            `ENGLISH INPUT PROMPTS:\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
+            `Return exactly four lines: TITLE:, STORY:, BRIDGE:, COLORS:.`,
+            'BRIDGE must be one short outgoing bridge only. COLORS must contain exactly five hexadecimal colors.',
+          ].join('\n')
+          brainLog(
+            'coscienza',
+            'autocorrezione narrativa inglese inviata',
+            { reason: 'trama assente o sostituita da metadati' },
+          )
+          coreText = await this.ai.generate('story', narrativeRepairPrompt, {
+            maxNewTokens: Math.min(160, BRAIN_CONFIG.storyMaxNewTokens + 20),
+            minNewTokens: 48,
+          })
+          normalizedEnglishStory = normalizeEnglishStoryEnvelope(coreText)
+          englishSynopsis = normalizedEnglishStory
+            ? labeledBlock(normalizedEnglishStory, 'STORY', ['BRIDGE'])
+            : null
+        }
+        if (!normalizedEnglishStory || !englishSynopsis) {
+          brainWarn('coscienza', 'autocorrezione inglese incompleta', {
+            response: coreText.slice(0, 2_000),
+          })
+          throw new Error(
+            'CoscienzaOnirica non ha prodotto una storia inglese completa',
+          )
+        }
+        if (
+          explicitSource &&
+          !preservesExplicitAdultContent(
+              phrases.join(' '),
+              englishSynopsis,
+            )
+        ) {
+          const generatedSynopsis = englishSynopsis
+          englishSynopsis = preserveExplicitSourceContent(
+            englishSynopsis,
+            // Psichedel riceve soltanto prompt inglesi: se il modello storia
+            // attenua un’azione, il ripristino non deve reintrodurla in
+            // italiano e renderla meno leggibile al CLIP di SD-Turbo.
+            narrativePhrases,
+          )
+          normalizedEnglishStory = replaceEnglishSynopsis(
+            normalizedEnglishStory,
+            englishSynopsis,
+          )
+          brainWarn(
+            'coscienza',
+            'storia inglese neutralizzata dal modello; contenuto originale ripristinato senza scartare la generazione',
+            {
+              sourcePhrases: phrases,
+              generatedStory: generatedSynopsis,
+              preservedStory: englishSynopsis,
+              sourceDetection: explicitContentDiagnostics(phrases.join(' ')),
+              generatedDetection: explicitContentDiagnostics(
+                generatedSynopsis,
+              ),
+            },
+          )
+        }
+        if (explicitSource) explicitContentVerifiedFromEnglish = true
+        if (!isRenderableNarrative(englishSynopsis)) {
+          brainWarn(
+            'coscienza',
+            'storia rifiutata: contiene metadati o non offre quattro momenti visivi',
+            {
+              generatedStory: englishSynopsis ?? normalizedEnglishStory,
+            },
+          )
+          throw new Error(
+            'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
+          )
+        }
+        englishVisualMoments = englishSynopsis
+          ? splitIntoFourMoments(englishSynopsis)
+          : null
+        englishDisplay = {
+          englishTitle:
+            labeledBlock(normalizedEnglishStory, 'TITLE', ['STORY']) ?? undefined,
+          englishSynopsis,
+          englishBridge:
+            labeledBlock(normalizedEnglishStory, 'BRIDGE', ['COLORS']) ?? null,
+        }
+        englishCore = storyCoreFromEnglishEnvelope(normalizedEnglishStory)
+        if (normalizedEnglishStory !== coreText.replace(/[*`]/g, '').trim()) {
+          brainLog(
+            'coscienza',
+            'storia inglese recuperata da un formato narrativo non conforme',
+            {
+              original: coreText.slice(0, 2_000),
+              recovered: normalizedEnglishStory.slice(0, 2_000),
+            },
+          )
+        }
+        coreText = await this.translator.storyForUi(normalizedEnglishStory)
+      }
       const legacyCompleteStory = storyFromResponse(coreText, phrases)
+      if (legacyCompleteStory) prepareStory(legacyCompleteStory)
       const legacyDuplicate = legacyCompleteStory
-        ? resemblesRecentStory(legacyCompleteStory, recentStories)
+        ? resemblesRecentStory(legacyCompleteStory, recentStoriesForValidation)
         : null
       if (legacyDuplicate) {
         throw new Error(
@@ -437,6 +982,23 @@ export class CoscienzaOnirica {
       }
 
       let core = storyCoreFromResponse(coreText, phrases)
+      if (!core && this.translator) {
+        // Quando la traduzione UI è disattivata, storyForUi mantiene
+        // intenzionalmente titolo e trama in inglese. Il parser italiano li
+        // rifiuta: usare qui le frasi sorgente perdeva la storia già valida e,
+        // con input brevi, prepareStory la scartava innescando il loop.
+        core = englishCore ?? fallbackUiCore(narrativePhrases)
+        brainWarn(
+          'coscienza',
+          'traduzione UI assente; mantengo la storia inglese verificata senza scartarla',
+          {
+            translatedUi: coreText.slice(0, 2_000),
+            fallbackTitle: core.title,
+            fallbackBridge: core.bridge,
+            imagePrompts: englishVisualMoments,
+          },
+        )
+      }
       if (!core) {
         brainWarn('coscienza', 'nucleo narrativo non valido; avvio autocorrezione', {
           response: coreText.slice(0, 3_000),
@@ -444,23 +1006,67 @@ export class CoscienzaOnirica {
         const coreRepairPrompt = [
           'START OVER. The previous answer copied instructions instead of writing a story.',
           'Write a new concrete causal story of 70-100 words with a named protagonist, conflict, transformation and conclusion.',
-          'Think privately in English if useful; visible content must be natural Italian.',
-          directPredecessor
-            ? 'One input phrase already comes from the previous story; incorporate it naturally.'
+          'Inside STORY write exactly 4-6 complete chronological sentences and no labels, color lists, numbered fields or instructions.',
+          ...(this.translator
+            ? ['Write the complete intermediate story in natural English.']
+            : ['Think privately in English if useful; visible content must be natural Italian.']),
+          directPredecessor && translatedContinuitySeed
+            ? `Use this previous bridge only as a secondary detail: ${translatedContinuitySeed}`
             : 'This is the first story.',
-          `ITALIAN INPUT PROMPTS:\n${phrases.map((phrase) => `- ${phrase}`).join('\n')}`,
-          'Return exactly three lines beginning TITOLO:, STORIA:, COLORI:.',
-          'After COLORI: write exactly five coherent hexadecimal colors.',
+          synthesisConstraint,
+          `${this.translator ? 'ENGLISH' : 'ITALIAN'} INPUT PROMPTS:\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
+          'Invent a new short outgoing bridge that is not a repetition of the incoming seed.',
+          `Return exactly four lines beginning ${this.translator ? 'TITLE:, STORY:, BRIDGE:, COLORS:' : 'TITOLO:, STORIA:, LEGAME:, COLORI:'}.`,
+          `After ${this.translator ? 'COLORS' : 'COLORI'}: write exactly five coherent hexadecimal colors.`,
           'Do not explain the task and do not output placeholders, brackets, markdown, analysis or English notes.',
         ].join('\n')
         brainLog('coscienza', 'autocorrezione nucleo narrativo inviata')
         coreText = await this.ai.generate('story', coreRepairPrompt, {
-          maxNewTokens: 380,
-          minNewTokens: 90,
+          maxNewTokens: Math.min(160, BRAIN_CONFIG.storyMaxNewTokens + 20),
+          minNewTokens: 48,
         })
+        if (this.translator) {
+          const normalizedRepair = normalizeEnglishStoryEnvelope(coreText)
+          if (!normalizedRepair) {
+            throw new Error(
+              'CoscienzaOnirica non ha prodotto una storia inglese completa durante la correzione',
+            )
+          }
+          const repairedEnglishSynopsis = labeledBlock(
+            normalizedRepair,
+            'STORY',
+            ['BRIDGE'],
+          )
+          if (
+            explicitSource &&
+            (!repairedEnglishSynopsis ||
+              !preservesExplicitAdultContent(
+                phrases.join(' '),
+                repairedEnglishSynopsis,
+              ))
+          ) {
+            throw new Error(
+              'CoscienzaOnirica ha eliminato il contenuto esplicito presente negli input',
+            )
+          }
+          if (explicitSource) explicitContentVerifiedFromEnglish = true
+          if (
+            !repairedEnglishSynopsis ||
+            !isRenderableNarrative(repairedEnglishSynopsis)
+          ) {
+            throw new Error(
+              'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
+            )
+          }
+          englishVisualMoments = repairedEnglishSynopsis
+            ? splitIntoFourMoments(repairedEnglishSynopsis)
+            : null
+          coreText = await this.translator.storyForUi(normalizedRepair)
+        }
         const repairedCompleteStory = storyFromResponse(coreText, phrases)
+        if (repairedCompleteStory) prepareStory(repairedCompleteStory)
         const repairedDuplicate = repairedCompleteStory
-          ? resemblesRecentStory(repairedCompleteStory, recentStories)
+          ? resemblesRecentStory(repairedCompleteStory, recentStoriesForValidation)
           : null
         if (repairedDuplicate) {
           throw new Error(
@@ -482,8 +1088,8 @@ export class CoscienzaOnirica {
         throw new Error('CoscienzaOnirica non ha prodotto un nucleo narrativo valido')
       }
       brainLog('coscienza', 'nucleo narrativo verificato', core)
-      const story = storyFromCore(core, phrases)
-      const duplicate = resemblesRecentStory(story, recentStories)
+      const story = prepareStory(storyFromCore(core, phrases))
+      const duplicate = resemblesRecentStory(story, recentStoriesForValidation)
       if (duplicate) {
         brainWarn('coscienza', 'storia rifiutata perché troppo simile a una storia recente', {
           generatedTitle: story.title,
@@ -501,5 +1107,78 @@ export class CoscienzaOnirica {
       brainWarn('coscienza', 'generazione AI fallita; nessuna storia simulata', error)
       throw error
     }
+  }
+
+  async generateSessionMemo(
+    previousMemo: readonly string[],
+    completedStory: DreamStoryMemory,
+  ): Promise<SessionMemo> {
+    const prompt = [
+      'Update Brain session memory after the completed story.',
+      'Understand the general meaning, recurring relationships and transformation across the whole session.',
+      'Do not summarize only the latest plot. Merge it with the previous memory.',
+      'Write exactly three distinct, self-contained sentences in natural Italian.',
+      'Each sentence must express a general insight that can inspire future stories.',
+      'Return exactly three lines beginning MEMO1:, MEMO2:, MEMO3:.',
+      `MEMORIA PRECEDENTE:\n${
+        previousMemo.length > 0
+          ? previousMemo.map((sentence) => `- ${sentence}`).join('\n')
+          : '- Nessuna memoria precedente: questa è la prima storia.'
+      }`,
+      `STORIA APPENA CONCLUSA:\nTitolo: ${completedStory.title}\n${completedStory.synopsis}`,
+    ].join('\n')
+    brainLog('memoria', 'scrittura del memo di sessione avviata', {
+      previousMemo,
+      completedStory,
+    })
+    const response = await this.ai.generate('memo', prompt, {
+      maxNewTokens: 180,
+      minNewTokens: 48,
+    })
+    const memo = parseSessionMemo(response)
+    if (!memo) {
+      brainWarn('memoria', 'memo AI rifiutato; la storia può continuare', {
+        response: response.slice(0, 2_000),
+      })
+      throw new Error('Brain non ha prodotto tre frasi di memoria valide')
+    }
+    brainLog('memoria', 'memo di sessione aggiornato', { memo })
+    return memo
+  }
+
+  async generateVisualPlan(story: DreamStory): Promise<VisualPlan> {
+    const prompt = [
+      'Convert the four Italian story moments into four concise English image prompts.',
+      'Each prompt must describe a concrete visible scene with one identifiable subject, one physical action, a coherent place and a clear camera view.',
+      'Use literal nouns and observable actions. Prefer people, creatures, animals, plants or distinctive objects when present.',
+      'Do not discuss meaning, mood, artistic style, color, symbolism or the writing task.',
+      'Use 18-30 English words per line.',
+      'Return exactly four lines beginning VISUAL1:, VISUAL2:, VISUAL3:, VISUAL4:.',
+      ...story.frames.map(
+        (frame, index) =>
+          `MOMENTO${index + 1}: ${frame.description}`,
+      ),
+    ].join('\n')
+    brainLog('psichedel', 'interpretazione visiva inglese dei fotogrammi avviata', {
+      storyId: story.id,
+      frames: story.frames.map((frame) => frame.description),
+    })
+    const response = await this.ai.generate('scene', prompt, {
+      maxNewTokens: 240,
+      minNewTokens: 80,
+    })
+    const plan = parseVisualPlan(response)
+    if (!plan) {
+      brainWarn('psichedel', 'piano visivo inglese rifiutato', {
+        storyId: story.id,
+        response: response.slice(0, 3_000),
+      })
+      throw new Error('Psichedel non ha prodotto quattro descrizioni visive concrete')
+    }
+    brainLog('psichedel', 'piano visivo inglese verificato', {
+      storyId: story.id,
+      plan,
+    })
+    return plan
   }
 }

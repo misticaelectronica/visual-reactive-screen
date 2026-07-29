@@ -4,30 +4,139 @@ import type {
   BrainStatus,
 } from '@shared/brain/brainTypes'
 import type { BandEnergies, VisualStatePayload } from '@shared/types'
-import { BrainAiClient } from './brainAiClient'
-import { CoscienzaOnirica, type DreamStoryMemory } from './coscienzaOnirica'
+import {
+  BrainAiClient,
+  BrainAiInfrastructureError,
+} from './brainAiClient'
+import {
+  CoscienzaOnirica,
+  selectSessionSynthesisInterval,
+  type DreamStoryMemory,
+  type SessionMemo,
+} from './coscienzaOnirica'
 import {
   Psichedel,
   PsychedelInfrastructureError,
   type PsychedelRasterPreview,
 } from './psichedel'
 import {
+  loadBrainPhrases,
   sampleBrainPhrases,
-  sampleContinuityPhrase,
   selectBrainPhraseCount,
 } from './brainPhrases'
-import { createBrainSvgScene, type BrainSvgController } from './brainSvgScene'
-import { BrainRhythmClock } from './brainRhythm'
-import { brainLog, brainWarn } from './brainLog'
 import {
-  createBrainInterlude,
-  interludePayload,
-  selectBrainInterlude,
-  type BrainInterludeController,
-  type BrainInterludeSpec,
-} from './brainInterlude'
+  createBrainSvgScene,
+  type BrainMorphShape,
+  type BrainSvgController,
+} from './brainSvgScene'
+import { BrainRhythmClock } from './brainRhythm'
+import {
+  brainLog,
+  brainWarn,
+  subscribeBrainLog,
+  type BrainLogEntry,
+} from './brainLog'
+import {
+  calculateBrainFrameTiming,
+  selectBrainFrameMorphPattern,
+  selectBrainRecycledFrameIndex,
+  type BrainFrameMorphPattern,
+} from './brainFrameMotion'
+import { reconcileBrainModelCache } from './brainModelCache'
+import { BrainTranslator } from './brainTranslator'
+import {
+  getBrainRenderingConfig,
+  loadBrainRenderingConfig,
+} from './brainRenderingConfig'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
+const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
+const PROCESS_DATA_KEYS = [
+  'phrases',
+  'randomPhrases',
+  'italian',
+  'english',
+  'title',
+  'storyTitle',
+  'synopsis',
+  'description',
+  'visualIntent',
+  'intent',
+  'prompt',
+  'effectivePrompts',
+  'imagePrompt',
+  'translatedStory',
+  'response',
+  'frameTitle',
+  'mode',
+  'model',
+  'steps',
+  'attempt',
+  'pct',
+] as const
+
+function updateSessionMemoLocally(
+  previousMemo: SessionMemo | null,
+  story: BrainProduction['story'],
+): SessionMemo {
+  const latest = `${story.title}: ${story.synopsis}`.slice(0, 420)
+  if (previousMemo) {
+    return [previousMemo[1], previousMemo[2], latest]
+  }
+  const moments = story.frames
+    .slice(0, 3)
+    .map((frame) => `${story.title}: ${frame.description}`.slice(0, 420))
+  return [
+    moments[0] ?? latest,
+    moments[1] ?? latest,
+    moments[2] ?? latest,
+  ]
+}
+
+function compactProcessValue(value: unknown, depth = 0): string {
+  if (value instanceof Error) return value.message
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, 8)
+      .map((item, index) => {
+        const rendered = compactProcessValue(item, depth + 1)
+        return typeof item === 'object'
+          ? `[${index + 1}] ${rendered}`
+          : `• ${rendered}`
+      })
+      .join('\n')
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const preferred = PROCESS_DATA_KEYS.filter((key) => key in record)
+    const keys = preferred.length > 0
+      ? preferred
+      : Object.keys(record).filter((key) => key !== 'stack').slice(0, 8)
+    return keys
+      .map((key) => {
+        const rendered = compactProcessValue(record[key], depth + 1)
+        return depth === 0
+          ? `${key.toLocaleUpperCase()} > ${rendered}`
+          : `${key}: ${rendered}`
+      })
+      .join('\n')
+  }
+  return value == null ? '' : String(value)
+}
+
+function processMonitorText(entry: BrainLogEntry): string {
+  const data = compactProcessValue(entry.data).trim()
+  return [
+    entry.message.toLocaleUpperCase(),
+    ...(data ? ['------------------------', data] : []),
+  ]
+    .join('\n')
+    .slice(0, 2_400)
+}
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
@@ -48,26 +157,34 @@ export function createBrainController(container: HTMLElement) {
     inset: '0',
     overflow: 'hidden',
     pointerEvents: 'none',
+    contain: 'layout style paint',
   })
   const svgHost = document.createElement('div')
-  Object.assign(svgHost.style, { position: 'absolute', inset: '0', zIndex: '1' })
-  const interludeHost = document.createElement('div')
-  Object.assign(interludeHost.style, {
+  Object.assign(svgHost.style, {
+    position: 'absolute',
+    inset: '0',
+    zIndex: '1',
+    willChange: 'transform',
+    transform: 'translateZ(0)',
+    contain: 'layout style paint',
+  })
+  const edgeSoftener = document.createElement('div')
+  Object.assign(edgeSoftener.style, {
     position: 'absolute',
     inset: '0',
     zIndex: '2',
-    overflow: 'hidden',
+    pointerEvents: 'none',
   })
   const storyElement = document.createElement('div')
   Object.assign(storyElement.style, {
     position: 'absolute',
     left: '0',
-    bottom: '14px',
+    top: '12px',
+    bottom: '12px',
     zIndex: '3',
-    width: 'min(430px, 34vw)',
-    maxHeight: '62vh',
+    width: 'min(310px, 23vw)',
     boxSizing: 'border-box',
-    padding: '11px 13px 12px 14px',
+    padding: '12px 12px 14px 13px',
     overflow: 'hidden',
     color: '#73ef8a',
     background:
@@ -82,14 +199,80 @@ export function createBrainController(container: HTMLElement) {
     fontWeight: '500',
     lineHeight: '1.42',
     letterSpacing: '0.035em',
-    opacity: '0.88',
+    opacity: '0.616',
     whiteSpace: 'pre-line',
     textShadow: '0 0 4px rgba(84,255,115,0.28)',
+    display: 'flex',
+    flexDirection: 'column',
+    willChange: 'transform',
+    transform: 'translateZ(0)',
+    contain: 'layout style paint',
   })
+  const italianStoryElement = document.createElement('div')
+  Object.assign(italianStoryElement.style, {
+    minHeight: '0',
+    overflow: 'hidden',
+    flex: '1 1 auto',
+  })
+  const englishStoryElement = document.createElement('div')
+  Object.assign(englishStoryElement.style, {
+    display: 'none',
+    maxHeight: '27%',
+    minHeight: '0',
+    marginTop: '9px',
+    paddingTop: '7px',
+    overflow: 'hidden',
+    borderTop: '1px solid rgba(87, 221, 110, 0.16)',
+    color: '#6eba78',
+    fontSize: '0.76em',
+    lineHeight: '1.3',
+    letterSpacing: '0.02em',
+    opacity: '0.46',
+  })
+  const processMonitor = document.createElement('div')
+  processMonitor.setAttribute('aria-live', 'polite')
+  processMonitor.dataset.brainProcessMonitor = 'true'
+  Object.assign(processMonitor.style, {
+    position: 'relative',
+    flex: '0 0 clamp(118px, 18vh, 168px)',
+    minHeight: '0',
+    margin: '9px -4px -5px',
+    padding: '7px 7px 6px',
+    overflow: 'hidden',
+    border: '1px solid rgba(92,238,115,0.2)',
+    background:
+      'repeating-linear-gradient(0deg, rgba(92,255,122,0.03) 0, rgba(92,255,122,0.03) 1px, transparent 1px, transparent 4px), rgba(0,8,3,0.86)',
+    boxShadow: 'inset 0 0 14px rgba(21,105,39,0.12)',
+    color: '#74e68a',
+    fontSize: '0.72em',
+    lineHeight: '1.28',
+    letterSpacing: '0.025em',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    opacity: '0.82',
+  })
+  const processHeader = document.createElement('div')
+  Object.assign(processHeader.style, {
+    marginBottom: '5px',
+    paddingBottom: '4px',
+    borderBottom: '1px solid rgba(92,238,115,0.2)',
+    color: '#9dffac',
+    fontSize: '0.9em',
+    letterSpacing: '0.08em',
+  })
+  processHeader.textContent = 'BRAIN // PROCESSO'
+  const processBody = document.createElement('div')
+  processBody.textContent = 'IN ATTESA DEL PRIMO PASSAGGIO'
+  processMonitor.append(processHeader, processBody)
+  storyElement.append(
+    italianStoryElement,
+    englishStoryElement,
+    processMonitor,
+  )
   const statusElement = document.createElement('div')
   Object.assign(statusElement.style, {
     position: 'absolute',
-    right: 'calc(min(180px, 14vw) + 10px)',
+    right: `calc(${RASTER_MONITOR_WIDTH} + 10px)`,
     bottom: '14px',
     zIndex: '3',
     color: '#e7dff1',
@@ -101,6 +284,8 @@ export function createBrainController(container: HTMLElement) {
     opacity: String(BRAIN_CONFIG.statusOpacity),
     textAlign: 'right',
     whiteSpace: 'pre-line',
+    willChange: 'transform',
+    transform: 'translateZ(0)',
   })
   const rasterMonitor = document.createElement('div')
   Object.assign(rasterMonitor.style, {
@@ -108,10 +293,10 @@ export function createBrainController(container: HTMLElement) {
     top: '12px',
     right: '0',
     zIndex: '3',
-    width: 'min(180px, 14vw)',
+    width: RASTER_MONITOR_WIDTH,
     maxHeight: 'calc(100vh - 24px)',
     boxSizing: 'border-box',
-    padding: '9px 8px 10px',
+    padding: '6px 6px 7px',
     overflow: 'hidden',
     color: '#6bea83',
     background:
@@ -123,23 +308,35 @@ export function createBrainController(container: HTMLElement) {
     fontSize: '9px',
     lineHeight: '1.3',
     letterSpacing: '0.045em',
-    opacity: '0.78',
+    opacity: '0.546',
+    willChange: 'transform',
+    transform: 'translateZ(0)',
+    contain: 'layout style paint',
   })
   const rasterHeader = document.createElement('div')
-  rasterHeader.textContent = 'PSICHEDEL // RAW BUFFER'
+  rasterHeader.textContent = 'PSICHEDEL // BUFFER GREZZO'
   Object.assign(rasterHeader.style, {
-    marginBottom: '7px',
-    paddingBottom: '5px',
+    marginBottom: '4px',
+    paddingBottom: '3px',
     borderBottom: '1px solid rgba(87,221,110,0.22)',
   })
   const rasterList = document.createElement('div')
   Object.assign(rasterList.style, {
     display: 'grid',
-    gap: '7px',
+    gap: '4px',
   })
   rasterMonitor.append(rasterHeader, rasterList)
-  root.append(svgHost, interludeHost, storyElement, rasterMonitor, statusElement)
+  root.append(svgHost, edgeSoftener, storyElement, rasterMonitor, statusElement)
   container.appendChild(root)
+  const unsubscribeProcessMonitor = subscribeBrainLog((entry) => {
+    processHeader.textContent =
+      `BRAIN // ${entry.stage.toLocaleUpperCase()} // ${
+        entry.level === 'warn' ? 'ATTENZIONE' : 'PROCESSO'
+      }`
+    processHeader.style.color =
+      entry.level === 'warn' ? '#e6b66f' : '#9dffac'
+    processBody.textContent = processMonitorText(entry)
+  })
 
   const rasterUrls = new Set<string>()
   const showRawRaster = (preview: PsychedelRasterPreview) => {
@@ -149,17 +346,18 @@ export function createBrainController(container: HTMLElement) {
     const entry = document.createElement('div')
     entry.dataset.url = url
     Object.assign(entry.style, {
-      padding: '4px',
+      padding: '3px',
       background: 'rgba(1,8,3,0.72)',
       border: '1px solid rgba(92,238,115,0.2)',
     })
     const lens = document.createElement('div')
+    const imageConfig = getBrainRenderingConfig().image
     Object.assign(lens.style, {
       position: 'relative',
       width: '100%',
-      aspectRatio: '1',
+      aspectRatio: `${imageConfig.width} / ${imageConfig.height}`,
       overflow: 'hidden',
-      marginBottom: '4px',
+      marginBottom: '2px',
       borderRadius: '44% 48% 46% 42% / 34% 38% 46% 42%',
       background: '#031008',
       boxShadow:
@@ -168,13 +366,14 @@ export function createBrainController(container: HTMLElement) {
     const image = document.createElement('img')
     image.src = url
     image.alt = `Raster grezzo ${preview.frameTitle}`
+    image.loading = 'eager'
+    image.decoding = 'async'
     Object.assign(image.style, {
       display: 'block',
       width: '100%',
       height: '100%',
-      objectFit: 'cover',
-      filter: 'saturate(0.82) contrast(1.12) blur(0.45px)',
-      transform: 'scale(1.055)',
+      objectFit: 'contain',
+      objectPosition: 'center',
     })
     const dreamLensOverlay = document.createElement('div')
     Object.assign(dreamLensOverlay.style, {
@@ -184,7 +383,6 @@ export function createBrainController(container: HTMLElement) {
         'radial-gradient(ellipse at 46% 42%, transparent 0 34%, rgba(102,255,139,0.055) 48%, rgba(2,18,8,0.38) 72%, rgba(0,5,2,0.88) 100%), radial-gradient(ellipse at 32% 24%, rgba(215,255,226,0.2) 0 2%, transparent 11%)',
       boxShadow:
         'inset 10px 4px 17px rgba(168,255,190,0.08), inset -12px -8px 22px rgba(0,0,0,0.72)',
-      backdropFilter: 'blur(0.65px)',
     })
     const bottleRings = document.createElement('div')
     Object.assign(bottleRings.style, {
@@ -199,37 +397,41 @@ export function createBrainController(container: HTMLElement) {
     const label = document.createElement('div')
     const qualityLabel =
       preview.mode === 'high-quality'
-        ? 'HQ'
+        ? 'ALTA QUALITÀ'
         : preview.mode === 'enhanced'
-          ? 'ENHANCED'
-          : 'STD'
-    label.textContent = `${preview.frameId.toUpperCase()} // TRY_${preview.attempt} // ${qualityLabel}\n${preview.model}`
+          ? 'MIGLIORATA'
+          : 'STANDARD'
+    label.textContent = `${preview.frameId.toUpperCase()} // TENTATIVO_${preview.attempt} // ${qualityLabel}\n${preview.model}`
     Object.assign(label.style, {
       whiteSpace: 'pre-line',
-      fontSize: '8px',
+      fontSize: '7px',
       opacity: '0.62',
-      marginBottom: '4px',
+      marginBottom: '2px',
     })
     const dreamCaption = document.createElement('div')
     const compactMeaning =
-      preview.dreamMeaning.length > 150
-        ? `${preview.dreamMeaning.slice(0, 147).trimEnd()}…`
+      preview.dreamMeaning.length > 84
+        ? `${preview.dreamMeaning.slice(0, 81).trimEnd()}…`
         : preview.dreamMeaning
-    dreamCaption.textContent = `DREAM > ${preview.frameTitle.toLocaleUpperCase()}\n${compactMeaning}`
+    dreamCaption.textContent = `PROMPT IMMAGINE > ${preview.frameTitle.toLocaleUpperCase()}\n${compactMeaning}`
     Object.assign(dreamCaption.style, {
       whiteSpace: 'pre-line',
       color: '#88f19a',
-      fontSize: '8.5px',
-      lineHeight: '1.35',
+      fontSize: '7px',
+      lineHeight: '1.2',
+      maxHeight: '2.4em',
+      overflow: 'hidden',
       letterSpacing: '0.025em',
       textShadow: '0 0 3px rgba(84,255,115,0.24)',
     })
     entry.append(lens, label, dreamCaption)
     rasterList.appendChild(entry)
-    while (rasterList.children.length > 5) {
+    while (rasterList.children.length > BRAIN_CONFIG.renderFrameCount) {
       const oldest = rasterList.firstElementChild as HTMLElement | null
       const oldestUrl = oldest?.dataset.url
       if (oldestUrl) {
+        const oldestImage = oldest?.querySelector<HTMLImageElement>('img')
+        if (oldestImage) oldestImage.src = ''
         URL.revokeObjectURL(oldestUrl)
         rasterUrls.delete(oldestUrl)
       }
@@ -238,32 +440,66 @@ export function createBrainController(container: HTMLElement) {
   }
 
   let destroyed = false
-  const psychedel = new Psichedel(undefined, undefined, showRawRaster)
+  let imageInferenceActive = false
+  const psychedel = new Psichedel(
+    undefined,
+    undefined,
+    showRawRaster,
+    undefined,
+    (active) => {
+      imageInferenceActive = active
+      // Ogni anteprima resta visibile mentre UNet prepara la successiva.
+      rasterList.style.display = 'grid'
+      edgeSoftener.style.display = active ? 'none' : 'block'
+      root.setAttribute(
+        'data-brain-image-inference',
+        active ? 'active' : 'idle',
+      )
+    },
+  )
   const rhythmClock = new BrainRhythmClock()
   let storyAi: BrainAiClient | null = null
+  let brainTranslator: BrainTranslator | null = null
   let status: BrainStatus | null = null
   let currentProduction: BrainProduction | null = null
   let nextProduction: BrainProduction | null = null
   let pendingStory: BrainProduction['story'] | null = null
   const storyQueue: BrainProduction['story'][] = []
-  let junctionActive = false
-  let junctionStartedAt = 0
-  let interludeController: BrainInterludeController | null = null
-  let interludeSpec: BrainInterludeSpec | null = null
-  let previousInterludeSpec: BrainInterludeSpec | null = null
+  let recyclingStoryFrames = false
   let generating = false
   let frameIndex = 0
   let frameStartedAt = 0
   let transitionStartedAt = 0
+  let currentFrameMorphPattern: BrainFrameMorphPattern = 'marea'
+  let previousFrameMorphPattern: BrainFrameMorphPattern | null = null
   let currentSvg: BrainSvgController | null = null
-  let previousSvg: BrainSvgController | null = null
+  let outgoingSvg: BrainSvgController | null = null
+  let transitionCounterpartShapes: BrainMorphShape[] = []
   let latestPayload: VisualStatePayload | null = null
   let recentPhrases: string[] = []
   let recentStories: DreamStoryMemory[] = []
+  let nextContinuityPhrase: string | null = null
+  let recentBridges: string[] = []
+  let sessionMemo: SessionMemo | null = null
+  let ordinaryStoriesSinceSynthesis = 0
+  let nextSessionSynthesisAt = selectSessionSynthesisInterval()
   const generationFailures = new Map<string, number>()
   let retryAttempt = 0
   let rafId = 0
   let retryTimerId = 0
+  const applySurfaceConfig = () => {
+    const { edgeFeatherPx, edgeDarkness } =
+      getBrainRenderingConfig().composition
+    edgeSoftener.style.boxShadow =
+      edgeFeatherPx > 0
+        ? `inset 0 0 ${edgeFeatherPx}px rgba(0, 0, 0, ${edgeDarkness})`
+        : 'none'
+  }
+  applySurfaceConfig()
+  const modelCacheReady = Promise.all([
+    reconcileBrainModelCache(),
+    loadBrainRenderingConfig().then(applySurfaceConfig),
+  ])
 
   const scheduleGenerationRetry = (infrastructureFailure: boolean) => {
     retryAttempt += 1
@@ -286,8 +522,8 @@ export function createBrainController(container: HTMLElement) {
       queuedStories: storyQueue.length,
     })
     statusElement.textContent = currentProduction
-      ? `brain · rendering\nretry generation in ${Math.ceil(delayMs / 1_000)}s`
-      : `brain · generation\nretry in ${Math.ceil(delayMs / 1_000)}s`
+      ? `brain · visualizzazione\nnuova generazione tra ${Math.ceil(delayMs / 1_000)}s`
+      : `brain · generazione\nnuovo tentativo tra ${Math.ceil(delayMs / 1_000)}s`
   }
 
   const setStatus = (nextStatus: BrainStatus) => {
@@ -295,10 +531,10 @@ export function createBrainController(container: HTMLElement) {
     status = nextStatus
     statusElement.textContent =
       status === 'generation'
-        ? 'brain · generation\nwaiting for story…'
+        ? 'brain · generazione\nin attesa della storia…'
         : status === 'rendering+generation'
-          ? 'brain · rendering + generation'
-          : 'brain · rendering'
+          ? 'brain · visualizzazione + generazione'
+          : 'brain · visualizzazione'
     brainLog('status', nextStatus)
   }
 
@@ -308,35 +544,59 @@ export function createBrainController(container: HTMLElement) {
     frameNumber?: number,
   ) =>
     [
-      'COSCIENZA_ONIRICA // DREAM STREAM',
-      `STORY_ID > ${story.id}`,
-      `SUBJECT  > ${story.title.toLocaleUpperCase()}`,
+      'COSCIENZA_ONIRICA // FLUSSO ONIRICO',
+      `ID_STORIA > ${story.id}`,
+      `SOGGETTO   > ${story.title.toLocaleUpperCase()}`,
       '----------------------------------------',
       story.synopsis,
+      ...(story.sessionSynthesis
+        ? ['', 'QUESTO SOGNO > SINTESI DELLA SESSIONE']
+        : []),
+      ...(story.sessionMemo
+        ? [
+            '',
+            'MEMO DI BRAIN',
+            ...story.sessionMemo.map(
+              (sentence, index) => `${index + 1}. ${sentence}`,
+            ),
+          ]
+        : []),
       ...(story.continuityPhrase
-        ? ['', `CARRY_OVER > ${story.continuityPhrase}`]
+        ? ['', `CONTINUITÀ > ${story.continuityPhrase}`]
         : []),
       ...(frame
         ? [
             '',
-            `FRAME_${String((frameNumber ?? 0) + 1).padStart(2, '0')} > ${frame.title.toLocaleUpperCase()}`,
+            `FOTOGRAMMA_${String((frameNumber ?? 0) + 1).padStart(2, '0')} > ${frame.title.toLocaleUpperCase()}`,
             frame.description,
           ]
         : []),
       '',
-      '█ SIGNAL ACTIVE',
+      '█ SEGNALE ATTIVO',
     ].join('\n')
 
-  const destroyPreviousLayers = () => {
-    previousSvg?.destroy()
-    previousSvg = null
-  }
-
-  const destroyInterlude = () => {
-    interludeController?.destroy()
-    interludeController = null
-    interludeSpec = null
-    interludeHost.replaceChildren()
+  const setDreamMonitor = (
+    story: BrainProduction['story'],
+    frame?: BrainProduction['story']['frames'][number],
+    frameNumber?: number,
+    suffix?: string,
+  ) => {
+    italianStoryElement.textContent = [
+      dreamMonitorText(story, frame, frameNumber),
+      ...(suffix ? ['', suffix] : []),
+    ].join('\n')
+    const englishText = story.englishSynopsis?.trim()
+    englishStoryElement.style.display = englishText ? 'block' : 'none'
+    englishStoryElement.textContent = englishText
+      ? [
+          'ENGLISH SOURCE // ORIGINAL NARRATIVE',
+          story.englishTitle ? `TITLE > ${story.englishTitle}` : '',
+          englishText,
+          ...(frame?.imagePrompt ? ['', `FRAME SOURCE > ${frame.imagePrompt}`] : []),
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : ''
   }
 
   const applyFrame = (index: number) => {
@@ -344,9 +604,16 @@ export function createBrainController(container: HTMLElement) {
     const scene = currentProduction.scenes[index]
     if (!scene) return
     const hadVisibleFrame = currentSvg !== null
-    destroyPreviousLayers()
-    previousSvg = currentSvg
+    outgoingSvg?.destroy()
+    outgoingSvg = currentSvg
+    transitionCounterpartShapes = currentSvg?.getMorphShapes() ?? []
+    if (!outgoingSvg) svgHost.textContent = ''
+    else outgoingSvg.element.style.zIndex = '2'
     const frame = currentProduction.story.frames[index]
+    currentFrameMorphPattern = selectBrainFrameMorphPattern(
+      previousFrameMorphPattern,
+    )
+    previousFrameMorphPattern = currentFrameMorphPattern
     currentSvg = createBrainSvgScene(
       svgHost,
       scene,
@@ -357,19 +624,21 @@ export function createBrainController(container: HTMLElement) {
         frameCount: currentProduction.story.frames.length,
       },
     )
-    currentSvg.setOpacity(1)
+    currentSvg.element.style.zIndex = '3'
+    currentSvg.setMorphPattern(currentFrameMorphPattern)
+    currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
     frameStartedAt = performance.now()
     transitionStartedAt = hadVisibleFrame
       ? frameStartedAt
-      : frameStartedAt - BRAIN_CONFIG.transitionDurationMs
+      : frameStartedAt -
+        getBrainRenderingConfig().timing.firstFrameTransitionMs
     if (!hadVisibleFrame) {
       currentSvg.setOpacity(1)
     } else {
-      currentSvg.setTransition(0, 'enter', previousSvg?.getMorphShapes())
-      previousSvg?.setOpacity(0)
+      currentSvg.setTransition(0, 'enter', transitionCounterpartShapes)
     }
-    storyElement.textContent = dreamMonitorText(currentProduction.story, frame, index)
+    setDreamMonitor(currentProduction.story, frame, index)
     brainLog('render', `fotogramma ${index + 1}/${currentProduction.story.frames.length}`, {
       storyId: currentProduction.story.id,
       storyTitle: currentProduction.story.title,
@@ -377,6 +646,7 @@ export function createBrainController(container: HTMLElement) {
       description: frame?.description,
       visualIntent: frame?.visualIntent,
       durationMs: frame?.durationMs,
+      morphPattern: currentFrameMorphPattern,
       image: {
         description: scene.description,
         svgLength: scene.svg.length,
@@ -384,86 +654,60 @@ export function createBrainController(container: HTMLElement) {
     })
   }
 
-  const startInterstoryJunction = () => {
-    if (!currentProduction || junctionActive) return
-    const incomingStory =
-      nextProduction?.story ??
-      pendingStory ??
-      storyQueue[0] ??
-      null
-    destroyInterlude()
-    interludeSpec = selectBrainInterlude(previousInterludeSpec)
-    previousInterludeSpec = interludeSpec
-    interludeController = createBrainInterlude(interludeHost, interludeSpec)
-    interludeController.setOpacity?.(1)
-    if (latestPayload) {
-      interludeController.updateState(interludePayload(latestPayload, interludeSpec))
-    }
-    currentSvg?.setOpacity(0)
-    previousSvg?.setOpacity(0)
-    junctionActive = true
-    junctionStartedAt = performance.now()
-    storyElement.textContent = incomingStory
-      ? [
-          'BRAIN // INTERSTORY LINK',
-          `FROM > ${currentProduction.story.title.toLocaleUpperCase()}`,
-          `TO   > ${incomingStory.title.toLocaleUpperCase()}`,
-          `MORPH > ${interludeSpec.algorithm.toLocaleUpperCase()} / ${interludeSpec.presetId.toLocaleUpperCase()}`,
-          '----------------------------------------',
-          `CARRY_OVER > ${incomingStory.continuityPhrase ?? 'origine autonoma'}`,
-          '',
-          incomingStory.synopsis,
-          '',
-          '◉ NATIVE MORPHING ACTIVE // IMAGE SYNTHESIS',
-        ].join('\n')
-      : [
-          'BRAIN // INTERSTORY LINK',
-          `FROM > ${currentProduction.story.title.toLocaleUpperCase()}`,
-          'TO   > DREAM BUFFER',
-          `MORPH > ${interludeSpec.algorithm.toLocaleUpperCase()} / ${interludeSpec.presetId.toLocaleUpperCase()}`,
-          '----------------------------------------',
-          'Nuove associazioni narrative in elaborazione.',
-          '',
-          '◉ NATIVE MORPHING ACTIVE // GENERATION',
-        ].join('\n')
-    brainLog('pipeline', 'morphing nativo casuale fra storie attivato', {
-      completedStoryId: currentProduction.story.id,
-      incomingStoryId: incomingStory?.id ?? null,
-      incomingStoryTitle: incomingStory?.title ?? null,
-      algorithm: interludeSpec.algorithm,
-      presetId: interludeSpec.presetId,
+  const recycleCurrentStoryFrame = () => {
+    if (!currentProduction) return
+    recyclingStoryFrames = true
+    const nextFrameIndex = selectBrainRecycledFrameIndex(
+      currentProduction.scenes.length,
+      frameIndex,
+    )
+    applyFrame(nextFrameIndex)
+    setDreamMonitor(
+      currentProduction.story,
+      currentProduction.story.frames[nextFrameIndex],
+      nextFrameIndex,
+      'RICIRCOLO ONIRICO > IMMAGINI ESISTENTI IN MOVIMENTO\nATTESA > NUOVA STORIA',
+    )
+    brainLog('pipeline', 'ricircolo leggero dei fotogrammi durante l’attesa', {
+      storyId: currentProduction.story.id,
+      frameIndex: nextFrameIndex,
+      morphPattern: currentFrameMorphPattern,
     })
   }
 
   const startProduction = (production: BrainProduction) => {
-    const completedInterlude = interludeSpec
-    destroyInterlude()
     brainLog('pipeline', 'inizio rendering storia', {
       id: production.story.id,
       title: production.story.title,
       synopsis: production.story.synopsis,
       palette: production.story.palette,
       frameCount: production.story.frames.length,
-      completedInterlude,
     })
     currentProduction = production
-    junctionActive = false
-    storyElement.textContent = dreamMonitorText(production.story)
+    recyclingStoryFrames = false
+    setDreamMonitor(production.story)
     nextProduction = null
     applyFrame(0)
     window.setTimeout(() => void generateNext(), 0)
   }
 
   const generateStoryBatch = async (targetCount: number) => {
+    await modelCacheReady
+    await loadBrainRenderingConfig()
+    applySurfaceConfig()
     const missingCount = Math.max(0, targetCount - storyQueue.length)
     if (missingCount === 0) return
-    const maximumAttempts = Math.max(4, missingCount * 4)
+    const maximumAttempts = Math.max(2, missingCount * 2)
     let attempts = 0
     brainLog('pipeline', 'ciclo associazioni narrative avviato', {
       requestedStories: missingCount,
       queuedStories: storyQueue.length,
     })
     storyAi ??= new BrainAiClient()
+    brainTranslator ??= new BrainTranslator(storyAi, {
+      translateInputs: true,
+      translateUi: false,
+    })
     try {
       while (
         !destroyed &&
@@ -471,19 +715,24 @@ export function createBrainController(container: HTMLElement) {
         attempts < maximumAttempts
       ) {
         attempts += 1
+        await loadBrainPhrases()
         const previousStory = recentStories.at(-1) ?? null
-        const continuityPhrase = previousStory
-          ? sampleContinuityPhrase(previousStory.synopsis)
-          : null
-        const requestedPhraseCount = selectBrainPhraseCount()
+        const continuityPhrase = nextContinuityPhrase
+        const sessionSynthesis =
+          sessionMemo !== null &&
+          ordinaryStoriesSinceSynthesis >= nextSessionSynthesisAt
+        const requestedPhraseCount = sessionSynthesis
+          ? BRAIN_CONFIG.phraseSampleMaxCount
+          : selectBrainPhraseCount()
+        const memoPhrases: readonly string[] =
+          sessionSynthesis && sessionMemo ? sessionMemo : []
         const randomPhraseCount = Math.max(
           1,
-          requestedPhraseCount - (continuityPhrase ? 1 : 0),
+          requestedPhraseCount -
+            memoPhrases.length,
         )
         const randomPhrases = sampleBrainPhrases(randomPhraseCount, recentPhrases)
-        const phrases = continuityPhrase
-          ? [...randomPhrases, continuityPhrase]
-          : randomPhrases
+        const phrases = [...randomPhrases, ...memoPhrases]
         recentPhrases = [...recentPhrases, ...randomPhrases].slice(
           -BRAIN_CONFIG.phraseMemoryCount,
         )
@@ -493,11 +742,92 @@ export function createBrainController(container: HTMLElement) {
           randomPhrases,
           continuityPhrase,
           previousStoryId: previousStory?.title ?? null,
+          sessionMemo,
+          sessionSynthesis,
+          ordinaryStoriesSinceSynthesis,
+          nextSessionSynthesisAt,
           phrases,
         })
         try {
-          const story = await new CoscienzaOnirica(storyAi).generate(phrases, recentStories)
-          story.continuityPhrase = continuityPhrase
+          const coscienza = new CoscienzaOnirica(
+            storyAi,
+            brainTranslator,
+          )
+          const story = await coscienza.generate(phrases, recentStories, {
+            sessionMemo: sessionMemo ?? undefined,
+            sessionSynthesis,
+            continuitySeed: continuityPhrase,
+            recentBridges,
+          })
+          nextContinuityPhrase = story.bridge
+          recentBridges = story.bridge
+            ? [...recentBridges, story.bridge].slice(
+                -BRAIN_CONFIG.storyMemoryCount,
+              )
+            : recentBridges
+          try {
+            const promptsFromOriginalStory = story.frames.map(
+              (frame) => frame.imagePrompt?.trim() || null,
+            )
+            if (promptsFromOriginalStory.every(
+              (prompt): prompt is string => prompt !== null,
+            )) {
+              brainLog(
+                'psichedel',
+                'uso diretto dei fotogrammi inglesi originali della storia AI',
+                {
+                  storyId: story.id,
+                  effectivePrompts: promptsFromOriginalStory,
+                  roundTripTranslation: false,
+                  manipulation: false,
+                },
+              )
+            } else {
+              story.frames.forEach((frame) => {
+                frame.imagePrompt = frame.description
+              })
+              brainLog(
+                'psichedel',
+                'descrizioni inglesi riusate senza una seconda traduzione',
+                {
+                  storyId: story.id,
+                  effectivePrompts: story.frames.map(
+                    (frame) => frame.imagePrompt,
+                  ),
+                  roundTripTranslation: false,
+                  manipulation: false,
+                },
+              )
+            }
+          } catch (visualPlanError) {
+            if (destroyed) throw visualPlanError
+            brainWarn(
+              'psichedel',
+              'traduzione letterale non disponibile; passo la descrizione originale senza modificarla',
+              {
+                storyId: story.id,
+                error: visualPlanError,
+              },
+            )
+          }
+          sessionMemo = updateSessionMemoLocally(sessionMemo, story)
+          story.sessionMemo = sessionMemo
+          brainLog(
+            'memoria',
+            'memo aggiornato localmente senza occupare il modello narrativo',
+            { storyId: story.id, sessionMemo },
+          )
+          if (sessionSynthesis) {
+            ordinaryStoriesSinceSynthesis = 0
+            nextSessionSynthesisAt = selectSessionSynthesisInterval()
+            brainLog('memoria', 'storia periodica “Questo sogno” completata', {
+              storyId: story.id,
+              nextSessionSynthesisAt,
+              sessionMemo,
+            })
+          } else {
+            ordinaryStoriesSinceSynthesis += 1
+          }
           storyQueue.push(story)
           recentStories = [
             ...recentStories,
@@ -510,15 +840,18 @@ export function createBrainController(container: HTMLElement) {
             id: story.id,
             title: story.title,
             synopsis: story.synopsis,
+            incomingBridge: story.continuityPhrase,
+            outgoingBridge: story.bridge,
             sourcePhrases: story.sourcePhrases,
             queueLength: storyQueue.length,
             targetCount,
           })
           if (!currentProduction && storyQueue.length === 1) {
-            storyElement.textContent = `${dreamMonitorText(story)}\nIMAGE SYNTHESIS > QUEUED`
+            setDreamMonitor(story, undefined, undefined, 'SINTESI IMMAGINI > IN CODA')
           }
         } catch (error) {
           if (destroyed) throw error
+          if (error instanceof BrainAiInfrastructureError) throw error
           brainWarn('pipeline', 'associazione narrativa rifiutata; provo nuove frasi', {
             batchAttempt: attempts,
             error,
@@ -526,16 +859,16 @@ export function createBrainController(container: HTMLElement) {
         }
       }
     } finally {
-      const generatedAtLeastOneStory = storyQueue.length > 0
-      if (generatedAtLeastOneStory || destroyed) {
+      if (destroyed) {
         storyAi?.destroy()
         storyAi = null
+        brainTranslator = null
       }
       brainLog('pipeline', 'ciclo associazioni narrative completato', {
         generatedStories: storyQueue.length,
         targetCount,
         attempts,
-        textModelRetainedForImmediateRetry: !generatedAtLeastOneStory && !destroyed,
+        textModelSessionRetained: !destroyed,
       })
       await new Promise<void>((resolve) => window.setTimeout(resolve, 100))
     }
@@ -549,9 +882,15 @@ export function createBrainController(container: HTMLElement) {
     window.clearTimeout(retryTimerId)
     retryTimerId = 0
     generating = true
+    const productionStartedAt = performance.now()
+    const productionDeadlineAt =
+      productionStartedAt + BRAIN_CONFIG.nextStoryHardDeadlineMs
     setStatus(currentProduction ? 'rendering+generation' : 'generation')
     try {
       let story = pendingStory
+      let progressiveProduction: BrainProduction | null = null
+      let progressiveReadyFrames = 0
+      const progressiveScenes = new Map<number, BrainProduction['scenes'][number]>()
       if (!story) {
         await generateStoryBatch(
           currentProduction ? BRAIN_CONFIG.storyQueueTarget : 1,
@@ -567,7 +906,7 @@ export function createBrainController(container: HTMLElement) {
           remainingStories: storyQueue.length,
         })
         if (!currentProduction) {
-          storyElement.textContent = `${dreamMonitorText(story)}\nIMAGE SYNTHESIS > ACTIVE`
+          setDreamMonitor(story, undefined, undefined, 'SINTESI IMMAGINI > ATTIVA')
         }
       } else {
         brainLog('pipeline', 'nuovo tentativo Psichedel sulla storia conservata', {
@@ -575,8 +914,68 @@ export function createBrainController(container: HTMLElement) {
           title: story.title,
         })
       }
-      const scenes = await psychedel.generate(story)
+      await storyAi?.releaseTranslationModels()
+      const scenes = await psychedel.generate(
+        story,
+        productionDeadlineAt,
+        (scene, sceneIndex) => {
+          progressiveScenes.set(sceneIndex, scene)
+          progressiveReadyFrames = progressiveScenes.size
+          if (!progressiveProduction) {
+            // Due immagini reali sono sufficienti per mettere in moto il
+            // sogno. Le altre posizioni usano temporaneamente una delle due
+            // immagini già validate e vengono sostituite appena pronte.
+            if (progressiveScenes.size < 2) return
+            const readyScenes = [...progressiveScenes.entries()]
+              .sort(([left], [right]) => left - right)
+              .map(([, readyScene]) => readyScene)
+            const previousScenes = currentProduction?.scenes ?? readyScenes
+            progressiveProduction = {
+              story,
+              scenes: story.frames.map((frame, index) => {
+                const provisional =
+                  progressiveScenes.get(index) ??
+                  readyScenes[index % readyScenes.length] ??
+                  previousScenes[index % previousScenes.length]
+                return {
+                  frameId: frame.id,
+                  description: `${frame.title}: ${frame.description}`,
+                  svg: provisional.svg,
+                }
+              }),
+            }
+            const startRenderingImmediately = !currentProduction
+            if (currentProduction) {
+              nextProduction = progressiveProduction
+            } else {
+              startProduction(progressiveProduction)
+            }
+            brainLog('pipeline', 'nuova storia resa disponibile dopo due fotogrammi AI', {
+              storyId: story.id,
+              readyFrames: progressiveScenes.size,
+              reusedFrames: progressiveProduction.scenes.length - progressiveScenes.size,
+              startRenderingImmediately,
+            })
+          }
+          progressiveProduction.scenes[sceneIndex] = scene
+          if (currentProduction?.story.id === story.id) {
+            currentProduction.scenes[sceneIndex] = scene
+          }
+          brainLog('pipeline', 'fotogramma nuovo inserito progressivamente nel renderer', {
+            storyId: story.id,
+            frameIndex: sceneIndex,
+            completedFrames: progressiveReadyFrames,
+            totalFrames: story.frames.length,
+          })
+        },
+      )
       if (destroyed) return
+      await psychedel.releaseImageModel()
+      brainLog(
+        'pipeline',
+        'sessioni immagini rilasciate prima della prossima storia',
+        { storyId: story.id },
+      )
       const production = { story, scenes }
       pendingStory = null
       generationFailures.delete(story.id)
@@ -585,9 +984,14 @@ export function createBrainController(container: HTMLElement) {
         storyId: story.id,
         frames: story.frames.length,
         images: scenes.length,
+        durationMs: Math.round(performance.now() - productionStartedAt),
+        targetMs: BRAIN_CONFIG.nextStoryTargetMs,
+        hardDeadlineMs: BRAIN_CONFIG.nextStoryHardDeadlineMs,
       })
       if (!currentProduction) {
         startProduction(production)
+      } else if (currentProduction.story.id === story.id) {
+        currentProduction.scenes = scenes
       } else {
         nextProduction = production
         brainLog('pipeline', 'storia successiva inserita nel buffer', {
@@ -598,7 +1002,10 @@ export function createBrainController(container: HTMLElement) {
     } catch (error) {
       if (destroyed) return
       brainWarn('pipeline', 'errore imprevisto nella generazione', error)
-      if (error instanceof PsychedelInfrastructureError) {
+      if (
+        error instanceof PsychedelInfrastructureError ||
+        error instanceof BrainAiInfrastructureError
+      ) {
         scheduleGenerationRetry(true)
         return
       }
@@ -621,42 +1028,55 @@ export function createBrainController(container: HTMLElement) {
       generating = false
       if (!destroyed && currentProduction) {
         setStatus('rendering')
+        if (!nextProduction && retryTimerId === 0) {
+          window.setTimeout(() => void generateNext(), 0)
+        }
       }
     }
   }
 
-  const advanceTimeline = (now: number, onBeat: boolean) => {
+  const advanceTimeline = (
+    now: number,
+    onBeat: boolean,
+    minimumFrameDurationMs: number,
+  ) => {
     if (!currentProduction) return
-    if (junctionActive) {
-      const junctionElapsed = now - junctionStartedAt
-      if (
-        nextProduction &&
-        junctionElapsed >= BRAIN_CONFIG.interstoryMinimumDurationMs &&
-        (onBeat || junctionElapsed >= BRAIN_CONFIG.interstoryMinimumDurationMs + 800)
-      ) {
-        brainLog('pipeline', 'morphing intermedio completato; apertura della storia successiva', {
-          nextStoryId: nextProduction.story.id,
-          junctionDurationMs: Math.round(junctionElapsed),
-        })
-        startProduction(nextProduction)
-      }
-      return
-    }
     const frame = currentProduction.story.frames[frameIndex]
     if (!frame) return
     const elapsed = now - frameStartedAt
-    if (elapsed < frame.durationMs) return
-    if (!onBeat && elapsed < frame.durationMs + 2_000) return
+    if (elapsed < minimumFrameDurationMs) return
+    if (!onBeat && elapsed < minimumFrameDurationMs + 2_000) return
+    if (recyclingStoryFrames) {
+      if (nextProduction) {
+        brainLog('pipeline', 'nuova storia pronta; uscita dal ricircolo leggero', {
+          previousStoryId: currentProduction.story.id,
+          nextStoryId: nextProduction.story.id,
+        })
+        startProduction(nextProduction)
+        return
+      }
+      recycleCurrentStoryFrame()
+      if (!generating) void generateNext()
+      return
+    }
     if (frameIndex < currentProduction.story.frames.length - 1) {
       applyFrame(frameIndex + 1)
       return
     }
-    brainLog('pipeline', 'storia terminata; ingresso nel morphing nativo casuale', {
+    if (nextProduction) {
+      brainLog('pipeline', 'storia terminata; morphing SVG verso la storia successiva', {
+        storyId: currentProduction.story.id,
+        nextStoryId: nextProduction.story.id,
+      })
+      startProduction(nextProduction)
+      return
+    }
+    brainLog('pipeline', 'storia terminata; riciclo le immagini mentre attendo', {
       storyId: currentProduction.story.id,
-      nextStoryId: nextProduction?.story.id ?? pendingStory?.id ?? null,
+      pendingStoryId: pendingStory?.id ?? null,
       generationActive: generating,
     })
-    startInterstoryJunction()
+    recycleCurrentStoryFrame()
     if (generating) setStatus('rendering+generation')
     if (!generating) void generateNext()
   }
@@ -666,19 +1086,54 @@ export function createBrainController(container: HTMLElement) {
     if (destroyed) return
     const bands = latestPayload?.bandEnergies ?? SILENT_BANDS
     const rhythm = rhythmClock.update(bands, now)
-    advanceTimeline(now, rhythm.beat)
-    const tempoTransitionMs = clamp01(
-      (rhythm.beatDurationMs * 16 - 5_000) / 7_000,
-    ) * 7_000 + 5_000
-    const transition = smootherstep((now - transitionStartedAt) / tempoTransitionMs)
-    currentSvg?.setOpacity(junctionActive ? 0 : 1)
-    currentSvg?.setTransition(transition, 'enter', previousSvg?.getMorphShapes())
-    previousSvg?.setOpacity(0)
-    if (transition >= 1 && previousSvg) destroyPreviousLayers()
+    const frameBeforeAdvance = currentProduction?.story.frames[frameIndex]
+    const timingBeforeAdvance = calculateBrainFrameTiming(
+      rhythm.beatDurationMs,
+      frameBeforeAdvance?.durationMs ??
+        getBrainRenderingConfig().timing.frameDurationMs,
+      currentFrameMorphPattern,
+    )
+    advanceTimeline(now, rhythm.beat, timingBeforeAdvance.totalMs)
+    const activeFrame = currentProduction?.story.frames[frameIndex]
+    const activeTiming = calculateBrainFrameTiming(
+      rhythm.beatDurationMs,
+      activeFrame?.durationMs ??
+        getBrainRenderingConfig().timing.frameDurationMs,
+      currentFrameMorphPattern,
+    )
+    const transition = smootherstep(
+      (now - transitionStartedAt) / activeTiming.transitionMs,
+    )
+    currentSvg?.setOpacity(outgoingSvg ? transition : 1)
+    outgoingSvg?.setOpacity(1 - transition)
+    currentSvg?.setTransition(
+      transition,
+      'enter',
+      transitionCounterpartShapes,
+    )
+    if (transition >= 1 && outgoingSvg) {
+      outgoingSvg.destroy()
+      outgoingSvg = null
+      transitionCounterpartShapes = []
+    }
 
     if (latestPayload?.settings) {
-      currentSvg?.update(bands, latestPayload.settings, now, rhythm)
-      previousSvg?.update(bands, latestPayload.settings, now, rhythm)
+      currentSvg?.setResourcePressure(imageInferenceActive || generating)
+      outgoingSvg?.setResourcePressure(imageInferenceActive || generating)
+      currentSvg?.update(
+        bands,
+        latestPayload.settings,
+        now,
+        rhythm,
+        latestPayload.movingAverages,
+      )
+      outgoingSvg?.update(
+        bands,
+        latestPayload.settings,
+        now,
+        rhythm,
+        latestPayload.movingAverages,
+      )
     }
   }
 
@@ -693,20 +1148,23 @@ export function createBrainController(container: HTMLElement) {
     },
     updateState(payload: VisualStatePayload) {
       latestPayload = payload
-      if (interludeController && interludeSpec) {
-        interludeController.updateState(interludePayload(payload, interludeSpec))
-      }
     },
     destroy() {
       brainLog('pipeline', 'arresto Brain')
       destroyed = true
+      unsubscribeProcessMonitor()
       cancelAnimationFrame(rafId)
       window.clearTimeout(retryTimerId)
       storyAi?.destroy()
       psychedel.destroy()
       currentSvg?.destroy()
-      previousSvg?.destroy()
-      destroyInterlude()
+      outgoingSvg?.destroy()
+      transitionCounterpartShapes = []
+      rasterList
+        .querySelectorAll<HTMLImageElement>('img')
+        .forEach((image) => {
+          image.src = ''
+        })
       for (const url of rasterUrls) URL.revokeObjectURL(url)
       rasterUrls.clear()
       root.remove()

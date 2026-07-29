@@ -43,6 +43,8 @@ const outputApi: OutputApi = {
     ipcRenderer.invoke(IPC_CHANNELS.vectorizeBrainImage, bytes) as ReturnType<
       OutputApi['vectorizeBrainImage']
     >,
+  readBrainConfigFile: (fileName) =>
+    ipcRenderer.invoke(IPC_CHANNELS.readBrainConfigFile, fileName) as Promise<string>,
 }
 
 function isOutputEntry(): boolean {

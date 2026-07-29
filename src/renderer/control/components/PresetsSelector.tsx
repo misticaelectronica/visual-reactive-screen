@@ -250,14 +250,14 @@ export function PresetsSelector({ settings, onApplyPreset, onChangeSettings }: P
 
   return (
     <section className="panel">
-      <h2>Dynamic Preset</h2>
+      <h2>Preset dinamici</h2>
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
         <input
           type="checkbox"
           checked={settings.dynamicPresetEnabled}
           onChange={(e) => onChangeSettings({ dynamicPresetEnabled: e.target.checked })}
         />
-        Dynamic Preset
+        Preset dinamici
       </label>
       <div className="grid2" style={{ marginBottom: '16px' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -279,7 +279,7 @@ export function PresetsSelector({ settings, onApplyPreset, onChangeSettings }: P
         </label>
       </div>
 
-      <h2>Presets Genere</h2>
+      <h2>Preset genere</h2>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
         {AUDIO_PRESETS.map((p, i) => (
           <button key={p.name} type="button" onClick={() => handleAudioPreset(i)}>
@@ -294,10 +294,10 @@ export function PresetsSelector({ settings, onApplyPreset, onChangeSettings }: P
           checked={matchColor} 
           onChange={(e) => setMatchColor(e.target.checked)} 
         />
-        Match Genere/Colore (Applica automaticamente i colori del genere)
+        Abbina genere e colore (applica automaticamente i colori del genere)
       </label>
 
-      <h2>Presets Colore</h2>
+      <h2>Preset colore</h2>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {COLOR_PRESETS.map((p, i) => (
           <button key={p.name} type="button" onClick={() => handleColorPreset(i)}>

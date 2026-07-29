@@ -1,24 +1,48 @@
 import { describe, expect, it } from 'vitest'
 import type { BrainAiTask, DreamStory } from '@shared/brain/brainTypes'
+import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import {
   analyzeNarrativeFormat,
+  appearsItalian,
   bridgeConnectsStories,
+  bridgeIsNew,
+  compactOutgoingBridge,
   CoscienzaOnirica,
+  containsExplicitAdultContent,
+  isRenderableNarrative,
+  preserveExplicitSourceContent,
+  preservesExplicitAdultContent,
   normalizeStory,
   parseNarrativeFormat,
+  parseSessionMemo,
+  parseVisualPlan,
   resemblesRecentStory,
+  selectSessionSynthesisInterval,
+  splitIntoFourMoments,
 } from './coscienzaOnirica'
 import {
+  abstractPsychedelCue,
   buildPsychedelImagePrompt,
+  hasNonTrivialFigure,
+  hasUnusualFigure,
   HighQualityRenderScheduler,
+  isPsychedelInfrastructureError,
+  isPsychedelMemoryPressureError,
   Psichedel,
+  selectLowQualityFrameIndices,
 } from './psichedel'
-import { createBrainSvgScene } from './brainSvgScene'
+import {
+  BRAIN_MAX_DEPTH_LAYERS,
+  BRAIN_MAX_MORPH_GEOMETRIES,
+  createBrainSvgScene,
+  selectBrainGeometryCandidateIndices,
+} from './brainSvgScene'
 import { inspectBrainVector, type PsychedelVectorizer } from './brainVectorQuality'
 import type { PsychedelImageGenerator } from './psychedelImageGenerator'
-import { interludePayload, selectBrainInterlude } from './brainInterlude'
 import { sampleContinuityPhrase, selectBrainPhraseCount } from './brainPhrases'
+import { isBrainAiInfrastructureMessage } from './brainAiClient'
+import { BrainTranslator } from './brainTranslator'
 
 const PHRASES = [
   'Una memoria terrestre viene interpretata da una mente non terrestre.',
@@ -29,6 +53,7 @@ const PHRASES = [
 const DEFAULT_NARRATIVE = [
   'TITOLO: Il giardino di Elisa',
   'STORIA: Elisa custodisce una serra abbandonata ai margini della fabbrica, dove ogni foglia conserva una voce operaia. Una notte intercetta un segnale che fa germogliare metallo e radici insieme. Seguendolo incontra una creatura ferita, nascosta sotto le ciminiere. La paura le impedisce di avvicinarsi, finché la serra ripete un ricordo della creatura. Elisa risponde piantando un seme nella macchina spenta. All’alba, la fabbrica respira come un bosco e consegna a entrambe una memoria nuova.',
+  'LEGAME: Un seme di vetro conserva una voce destinata a un altro luogo.',
   'F1: La serra ascolta :: Elisa scopre foglie luminose nella serra industriale mentre le ciminiere spente riflettono segnali lontani :: Figura umana piccola, vegetazione dominante e fabbrica scura sullo sfondo :: 0.35',
   'F2: La creatura ferita :: Elisa trova una creatura aliena rannicchiata fra radici metalliche sotto una macchina arrugginita :: Due figure separate, macchina centrale e tensione fredda nello spazio vuoto :: 0.58',
   'F3: Il seme nella macchina :: Elisa supera la paura e inserisce un seme vivo nel cuore aperto della macchina :: Mani e seme al centro, umano e alieno collegati da un ponte luminoso :: 0.86',
@@ -43,6 +68,423 @@ function defaultStory(): DreamStory {
 }
 
 describe('CoscienzaOnirica', () => {
+  it('usa traduzione input, storia inglese e traduzione UI in sequenza', async () => {
+    const tasks: BrainAiTask[] = []
+    const prompts: string[] = []
+    const ai = {
+      async generate(task: BrainAiTask, prompt: string): Promise<string> {
+        tasks.push(task)
+        prompts.push(prompt)
+        if (task === 'translate-input') {
+          if (prompt.includes('non terrestre')) {
+            return 'A non-terrestrial mind interprets an earthly memory.'
+          }
+          if (prompt.includes('Materia')) {
+            return 'Matter records every failed attempt at communication.'
+          }
+          return 'Contact creates a third entity belonging to both.'
+        }
+        if (task === 'story') {
+          return [
+            'TITLE: Elisa and the Living Signal',
+            'STORY: Elisa enters an abandoned greenhouse beside the factory and hears voices preserved inside its leaves. A signal awakens metal roots and leads her to a wounded creature. Fear divides them until the greenhouse repeats the creature’s memory. Elisa plants a seed inside a silent machine, joining their separate recollections. At dawn the factory breathes like a forest and returns a shared future to both beings.',
+            'BRIDGE: A glass seed carries one voice toward an unknown shore.',
+            'COLORS: #102030, #8a4f32, #e7d7ba, #39c58a, #7048cc',
+          ].join('\n')
+        }
+        if (task === 'translate-ui') {
+          return prompt === 'Elisa and the Living Signal'
+            ? 'Il giardino di Elisa'
+            : prompt === 'A glass seed carries one voice toward an unknown shore.'
+              ? 'Un seme di vetro porta una voce verso una riva sconosciuta.'
+            : DEFAULT_NARRATIVE.match(/^STORIA:\s*(.+)$/m)?.[1] ?? ''
+        }
+        throw new Error(`Task inatteso: ${task}`)
+      },
+    }
+
+    const story = await new CoscienzaOnirica(
+      ai,
+      new BrainTranslator(ai),
+    ).generate(PHRASES)
+
+    expect(tasks).toEqual([
+      'translate-input',
+      'translate-input',
+      'translate-input',
+      'story',
+      'translate-ui',
+      'translate-ui',
+      'translate-ui',
+    ])
+    expect(prompts[3]).toContain('ENGLISH INPUT PROMPTS:')
+    expect(prompts[3]).toContain('A non-terrestrial mind')
+    expect(prompts[3]).toContain('AUTHORITATIVE ORIGINAL ITALIAN PROMPTS:')
+    expect(prompts[3]).toContain('Line 1 starts with TITLE:')
+    expect(story.title).toBe('Il giardino di Elisa')
+    expect(story.synopsis).toContain('Elisa custodisce una serra')
+    expect(story.frames[0].imagePrompt).toContain(
+      'Elisa enters an abandoned greenhouse',
+    )
+  })
+
+  it('mantiene la storia inglese valida quando la traduzione UI è disattivata', async () => {
+    let storyCalls = 0
+    const englishStory = [
+      'TITLE: The Narrowing Fences',
+      'STORY: Mara enters the old station while the fences close around its empty platforms. She follows a copper signal through the rain and finds a damaged transmitter beneath the clock. The narrowing passage frightens her, but she repairs the antenna with a loose rail. At dawn the fences open toward the fields and the transmitter calls an unknown traveler.',
+      'BRIDGE: A copper signal crosses the fields toward another silent station.',
+      'COLORS: #102030, #405060, #708090, #a0b0c0, #d0e0f0',
+    ].join('\n')
+    const ai = {
+      async generate(task: BrainAiTask): Promise<string> {
+        expect(task).toBe('story')
+        storyCalls += 1
+        return englishStory
+      },
+    }
+    const translator = new BrainTranslator(ai, {
+      translateInputs: false,
+      translateUi: false,
+    })
+
+    const story = await new CoscienzaOnirica(ai, translator).generate([
+      'Poi diventarono sempre più stretti i recinti,',
+      'si mescolavano,',
+      'Era un equilibrio selvaggio,',
+      'la colpa, la vergogna,',
+    ])
+
+    expect(storyCalls).toBe(1)
+    expect(story.title).toBe('The Narrowing Fences')
+    expect(story.synopsis).toContain('Mara enters the old station')
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(story.frames[0].imagePrompt).toContain('Mara enters the old station')
+  })
+
+  it('riconosce gli input adulti espliciti senza confonderli con una storia generica', () => {
+    expect(
+      containsExplicitAdultContent(
+        'Due adulti alternano sesso orale, masturbazione e penetrazione consensuale.',
+      ),
+    ).toBe(true)
+    expect(
+      containsExplicitAdultContent(
+        'Due persone attraversano un ponte e condividono un ricordo.',
+      ),
+    ).toBe(false)
+    expect(
+      preservesExplicitAdultContent(
+        'Due adulti praticano sesso orale consensuale.',
+        'Fra loro cresce soltanto una vaga eccitazione.',
+      ),
+    ).toBe(false)
+    expect(
+      preservesExplicitAdultContent(
+        'Due adulti praticano sesso orale consensuale.',
+        'The adults begin with mutual oral stimulation before changing position.',
+      ),
+    ).toBe(true)
+    expect(
+      preservesExplicitAdultContent(
+        'La penetrazione conclude la sequenza fisica.',
+        'Their consensual intercourse concludes the encounter.',
+      ),
+    ).toBe(true)
+  })
+
+  it('rifiuta metadati e liste di colori usati come momento narrativo', () => {
+    expect(
+      isRenderableNarrative(
+        'Mara incontra Luca vicino al lago. I due osservano una luce sotto la superficie. Il contatto modifica il ritmo dei loro gesti. Alla fine affidano il segnale alla corrente.',
+      ),
+    ).toBe(true)
+    expect(
+      isRenderableNarrative(
+        'Mara incontra Luca vicino al lago. Colore del sogno 1: colore blu che inizia a esplorare una interazione complessa. Il contatto modifica il ritmo. Alla fine compare una lista.',
+      ),
+    ).toBe(false)
+    expect(
+      isRenderableNarrative(
+        'Mara meets Luca beside the lake. Color of dream 1: blue begins a complex interaction. Their contact changes the rhythm. A numbered palette replaces the ending.',
+      ),
+    ).toBe(false)
+  })
+
+  it('ripristina letteralmente gli input espliciti quando la storia li neutralizza', async () => {
+    const explicitPhrases = [
+      'Due adulti praticano sesso orale consensuale.',
+      'La masturbazione reciproca modifica il ritmo.',
+      'La penetrazione conclude la sequenza fisica.',
+    ]
+    const sanitized = [
+      'TITOLO: Il ponte comune',
+      'STORIA: Mara e Luca raggiungono un parco isolato e osservano insieme un ponte colorato. Dopo una breve esitazione incontrano altri viaggiatori, confrontano i propri ricordi e decidono di collaborare. Il dialogo trasforma la diffidenza in fiducia, mentre il gruppo costruisce una nuova alleanza. Alla sera tutti attraversano il ponte e tornano al villaggio con una conoscenza condivisa.',
+      'LEGAME: Una luce rimane accesa oltre il sentiero ancora sconosciuto.',
+      'COLORI: #102030, #405060, #708090, #a0b0c0, #d0e0f0',
+    ].join('\n')
+    const ai = {
+      async generate(): Promise<string> {
+        return sanitized
+      },
+    }
+
+    const story = await new CoscienzaOnirica(ai).generate(explicitPhrases)
+
+    expect(story.synopsis).toContain(
+      'Due adulti praticano sesso orale consensuale.',
+    )
+    expect(story.synopsis).toContain(
+      'La masturbazione reciproca modifica il ritmo.',
+    )
+    expect(
+      preservesExplicitAdultContent(explicitPhrases.join(' '), story.synopsis),
+    ).toBe(true)
+  })
+
+  it('mantiene una struttura narrativa limitata quando ripristina le frasi originali', () => {
+    const preserved = preserveExplicitSourceContent(
+      'Mara entra nella stanza. Cerca Luca fra le tende. I due esitano. Infine lasciano insieme la stanza.',
+      [
+        'Due adulti praticano sesso orale consensuale.',
+        'La masturbazione reciproca modifica il ritmo.',
+        'La penetrazione conclude la sequenza fisica.',
+      ],
+    )
+
+    expect(preserved).toContain('Mara entra nella stanza.')
+    expect(preserved).toContain('sesso orale consensuale.')
+    expect(preserved.match(/[^.!?]+[.!?]/gu)).toHaveLength(6)
+  })
+
+  it('compatta gli anelli di giunzione per non rallentare la storia successiva', () => {
+    const compacted = compactOutgoingBridge(
+      'Tutte le donne sono impegnate in attività auto-ipnotiche mentre il ritmo continua a cambiare e la luce resta in attesa oltre la soglia della stanza successiva per un altro incontro.',
+    )
+
+    expect(compacted?.split(/\s+/u)).toHaveLength(18)
+    expect(compacted).toMatch(/[.!?]$/)
+  })
+
+  it('non scarta una storia esplicita verificata se solo la traduzione UI attenua i termini', async () => {
+    const explicitPhrases = [
+      'Due adulti praticano sesso orale consensuale.',
+      'La masturbazione reciproca modifica il ritmo.',
+      'La penetrazione conclude la sequenza fisica.',
+    ]
+    const englishStory = [
+      'TITLE: The Red Room',
+      'STORY: Mara and Luca enter a private room after agreeing on every boundary. They begin consensual oral sex and watch each other’s reactions. Mutual masturbation changes their rhythm before penetration intensifies their physical encounter. At dawn they stop together and leave the room carrying a new confidence.',
+      'BRIDGE: A red ribbon remains tied to the unopened door.',
+      'COLORS: #18090a, #6f1118, #bb3340, #e7a39f, #f4ddd2',
+    ].join('\n')
+    const italianUiWithoutExplicitTerms = [
+      'TITOLO: La stanza rossa',
+      'STORIA: Mara e Luca entrano in una stanza privata dopo aver concordato ogni limite. Iniziano un incontro e osservano le reciproche reazioni. Il ritmo condiviso trasforma gradualmente la loro esperienza fisica. All’alba si fermano insieme e lasciano la stanza con una nuova sicurezza.',
+      'LEGAME: Un nastro rosso resta legato alla porta ancora chiusa.',
+      'COLORI: #18090a, #6f1118, #bb3340, #e7a39f, #f4ddd2',
+    ].join('\n')
+    const ai = {
+      async generate(): Promise<string> {
+        return englishStory
+      },
+    }
+    const translator = {
+      async inputsToEnglish(): Promise<string[]> {
+        return [
+          'Two adults practice consensual oral sex.',
+          'Mutual masturbation changes the rhythm.',
+          'Penetration concludes the physical sequence.',
+        ]
+      },
+      async storyForUi(): Promise<string> {
+        return italianUiWithoutExplicitTerms
+      },
+    }
+
+    const story = await new CoscienzaOnirica(ai, translator).generate(
+      explicitPhrases,
+    )
+
+    expect(story.synopsis).toContain('Iniziano un incontro')
+    expect(story.frames[0].imagePrompt).toContain(
+      'Mara and Luca enter a private room',
+    )
+    expect(story.frames.map((frame) => frame.imagePrompt).join(' ')).toContain('penetration')
+    expect(story.frames.map((frame) => frame.imagePrompt).join(' ')).toContain('oral sex')
+    expect(story.frames.map((frame) => frame.imagePrompt).join(' ')).not.toContain(
+      'sesso orale',
+    )
+    expect(story.englishSynopsis).toContain('Mutual masturbation')
+    expect(story.englishTitle).toBe('The Red Room')
+  })
+
+  it('non perde la storia quando il traduttore UI restituisce meno di quattro momenti', async () => {
+    const phrases = [
+      'Mara attraversa il corridoio illuminato e trova una porta socchiusa.',
+      'Due adulti praticano sesso orale consensuale dietro il vetro.',
+      'La masturbazione reciproca cambia lentamente il ritmo della stanza.',
+      'La penetrazione conclude l’incontro mentre la luce torna stabile.',
+    ]
+    const ai = {
+      async generate(): Promise<string> {
+        return [
+          'TITLE: The Lit Corridor',
+          'STORY: Mara crosses a lit corridor and finds a half-open door. Two adults practice consensual oral sex behind the glass. Mutual masturbation slowly changes the room rhythm. Penetration concludes the encounter as the light becomes steady.',
+          'BRIDGE: The steady light waits behind the next closed door.',
+          'COLORS: #18090a, #6f1118, #bb3340, #e7a39f, #f4ddd2',
+        ].join('\n')
+      },
+    }
+    const translator = {
+      async inputsToEnglish(): Promise<string[]> {
+        return [
+          'Mara crosses the lit corridor and finds a half-open door.',
+          'Two adults practice consensual oral sex behind the glass.',
+          'Mutual masturbation slowly changes the rhythm of the room.',
+          'Penetration concludes the encounter while the light becomes steady.',
+        ]
+      },
+      async storyForUi(): Promise<string> {
+        return [
+          'TITOLO: Il corridoio',
+          'STORIA: Mara attraversa il corridoio e trova una porta.',
+          'LEGAME: La luce aspetta dietro una porta.',
+          'COLORI: #18090a, #6f1118, #bb3340, #e7a39f, #f4ddd2',
+        ].join('\n')
+      },
+    }
+
+    const story = await new CoscienzaOnirica(ai, translator).generate(phrases)
+
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(story.synopsis).toContain('consensual oral sex')
+    expect(story.frames.map((frame) => frame.imagePrompt).join(' ')).toContain('oral sex')
+  })
+
+  it('riconosce l’italiano e rifiuta una storia chiaramente inglese', () => {
+    expect(appearsItalian(DEFAULT_NARRATIVE)).toBe(true)
+    expect(
+      appearsItalian(
+        'In a small village, a young woman finds the hidden archive and discovers the voices of her past. When she opens the final memory, the village becomes a bridge between worlds and her people learn to heal.',
+      ),
+    ).toBe(false)
+  })
+
+  it('estrae esattamente tre frasi italiane dal memo di sessione', () => {
+    const memo = parseSessionMemo([
+      'MEMO1: Il contatto trasforma chi osserva e chi viene osservato.',
+      'MEMO2: La memoria condivisa sopravvive quando accetta di cambiare forma.',
+      'MEMO3: Ogni conflitto può diventare un linguaggio se produce ascolto reciproco.',
+    ].join('\n'))
+
+    expect(memo).toEqual([
+      'Il contatto trasforma chi osserva e chi viene osservato.',
+      'La memoria condivisa sopravvive quando accetta di cambiare forma.',
+      'Ogni conflitto può diventare un linguaggio se produce ascolto reciproco.',
+    ])
+    expect(parseSessionMemo('MEMO1: Una sola frase non basta per ricordare.')).toBeNull()
+  })
+
+  it('programma “Questo sogno” dopo un intervallo compreso fra tre e cinque storie', () => {
+    expect(selectSessionSynthesisInterval(() => 0)).toBe(3)
+    expect(selectSessionSynthesisInterval(() => 0.5)).toBe(4)
+    expect(selectSessionSynthesisInterval(() => 0.999999)).toBe(5)
+  })
+
+  it('non spezza a metà le frasi quando il racconto contiene meno di quattro periodi', () => {
+    const synopsis = [
+      'Nella piazza vuota, il lago riflette una luce sconosciuta.',
+      'La linguista arriva e trasforma il silenzio in una voce condivisa.',
+      'Alla fine gli abitanti riconoscono nel segnale una memoria comune.',
+    ].join(' ')
+    const moments = splitIntoFourMoments(synopsis)
+
+    expect(moments).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(moments.every((moment) => /[.!?]$/.test(moment))).toBe(true)
+    expect(moments[2]).toContain('La linguista arriva')
+    expect(moments[3]).toContain('gli abitanti riconoscono')
+  })
+
+  it('aggiorna il memo cumulativo usando la storia appena conclusa', async () => {
+    const calls: Array<{ task: BrainAiTask; prompt: string }> = []
+    const ai = {
+      async generate(task: BrainAiTask, prompt: string): Promise<string> {
+        calls.push({ task, prompt })
+        return [
+          'MEMO1: Il contatto modifica entrambe le identità senza cancellarle.',
+          'MEMO2: La materia conserva i fallimenti e li trasforma in possibilità.',
+          'MEMO3: Una memoria condivisa può diventare il seme di un mondo nuovo.',
+        ].join('\n')
+      },
+    }
+    const story = defaultStory()
+    const previousMemo = [
+      'Ogni incontro lascia una traccia nella materia.',
+      'La paura protegge ma impedisce una trasformazione necessaria.',
+      'Le memorie cambiano quando vengono affidate a un altro essere.',
+    ]
+
+    const memo = await new CoscienzaOnirica(ai).generateSessionMemo(previousMemo, story)
+
+    expect(memo).toHaveLength(3)
+    expect(calls[0].task).toBe('memo')
+    expect(calls[0].prompt).toContain(previousMemo[0])
+    expect(calls[0].prompt).toContain(story.synopsis)
+    expect(calls[0].prompt).toContain('MEMO1:')
+  })
+
+  it('genera quattro prompt visivi inglesi concreti prima delle immagini', async () => {
+    const prompts: Array<{ task: BrainAiTask; prompt: string }> = []
+    const response = [
+      'VISUAL1: A woman stands beside a dark lake in an empty town square, watching a pale signal rise from the water.',
+      'VISUAL2: A linguist raises one hand toward a silent crowd while a visible ribbon connects her mouth to their faces.',
+      'VISUAL3: Two thinkers kneel around a metal clock in a bare room as its hands bend toward a human shadow.',
+      'VISUAL4: The townspeople carry a luminous memory sphere across the lake shore beneath a clear night sky.',
+    ].join('\n')
+    const ai = {
+      async generate(task: BrainAiTask, prompt: string): Promise<string> {
+        prompts.push({ task, prompt })
+        return response
+      },
+    }
+    const story = defaultStory()
+
+    const plan = await new CoscienzaOnirica(ai).generateVisualPlan(story)
+
+    expect(parseVisualPlan(response)).toEqual(plan)
+    expect(plan).toHaveLength(4)
+    expect(plan[0]).toContain('woman')
+    expect(prompts[0].task).toBe('scene')
+    expect(prompts[0].prompt).toContain(story.frames[0].description)
+    expect(prompts[0].prompt).toContain('concrete visible scene')
+  })
+
+  it('crea la sintesi periodica con il titolo fisso “Questo sogno”', async () => {
+    const prompts: string[] = []
+    const ai = {
+      async generate(_task: BrainAiTask, prompt: string): Promise<string> {
+        prompts.push(prompt)
+        return DEFAULT_NARRATIVE
+      },
+    }
+    const memo = [
+      'Il contatto trasforma entrambe le identità.',
+      'La materia conserva ciò che le creature dimenticano.',
+      'Il conflitto può generare un linguaggio condiviso.',
+    ]
+
+    const story = await new CoscienzaOnirica(ai).generate(PHRASES, [], {
+      sessionMemo: memo,
+      sessionSynthesis: true,
+    })
+
+    expect(story.title).toBe('Questo sogno')
+    expect(story.sessionSynthesis).toBe(true)
+    expect(prompts[0]).toContain('The title must be exactly: Questo sogno')
+    expect(prompts[0]).toContain(memo[1])
+  })
+
   it('converte una storia narrativa completa in quattro fotogrammi', () => {
     const story = defaultStory()
     expect(story.title).toBe('Il giardino di Elisa')
@@ -187,7 +629,7 @@ describe('CoscienzaOnirica', () => {
       'TITOLO: La luce del sognatore',
       "STORIA: Un gruppo attraversa il bosco per cercare una presenza non umana e scopre un segnale sotto le radici. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto.",
     ].join('\n')
-    const validCore = DEFAULT_NARRATIVE.split('\n').slice(0, 2).join('\n')
+    const validCore = DEFAULT_NARRATIVE.split('\n').slice(0, 3).join('\n')
     const responses = [repeated, validCore]
     let calls = 0
     const ai = {
@@ -201,11 +643,11 @@ describe('CoscienzaOnirica', () => {
 
     expect(calls).toBe(2)
     expect(story.title).toBe('Il giardino di Elisa')
-    expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(4)
+    expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(BRAIN_CONFIG.renderFrameCount)
   })
 
-  it('genera il racconto una sola volta e lo divide in quattro momenti cronologici', async () => {
-    const storyCore = DEFAULT_NARRATIVE.split('\n').slice(0, 2).join('\n')
+  it('genera il racconto una sola volta e lo divide in sei momenti cronologici', async () => {
+    const storyCore = DEFAULT_NARRATIVE.split('\n').slice(0, 3).join('\n')
     const prompts: string[] = []
     const ai = {
       async generate(_task: BrainAiTask, prompt: string): Promise<string> {
@@ -217,26 +659,27 @@ describe('CoscienzaOnirica', () => {
     const story = await new CoscienzaOnirica(ai).generate(PHRASES)
 
     expect(story.title).toBe('Il giardino di Elisa')
-    expect(story.frames).toHaveLength(4)
-    expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(4)
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(BRAIN_CONFIG.renderFrameCount)
     expect(story.palette).toHaveLength(5)
     expect(story.frames.map((frame) => frame.title)).toEqual([
       'Apertura',
+      'Richiamo',
       'Sviluppo',
-      'Trasformazione',
-      'Esito',
+      'Attrito',
     ])
     expect(prompts).toHaveLength(1)
-    expect(prompts[0]).toContain('Return exactly three lines')
+    expect(prompts[0]).toContain('Return exactly four lines')
     expect(prompts[0]).toContain('Think privately in English')
-    expect(prompts[0]).toContain('Line 3 starts with COLORI:')
+    expect(prompts[0]).toContain('Line 3 starts with LEGAME:')
+    expect(prompts[0]).toContain('Line 4 starts with COLORI:')
     expect(prompts[0]).not.toContain('titolo finale in italiano')
     expect(prompts[0]).not.toContain('racconto finale continuo in italiano')
   })
 
   it('conserva i cinque colori narrativi proposti dalla AI', async () => {
     const storyCore = [
-      ...DEFAULT_NARRATIVE.split('\n').slice(0, 2),
+      ...DEFAULT_NARRATIVE.split('\n').slice(0, 3),
       'COLORI: #102030, #8a4f32, #e7d7ba, #39c58a, #7048cc',
     ].join('\n')
     const ai = {
@@ -261,6 +704,7 @@ describe('CoscienzaOnirica', () => {
       '<think></think>',
       '**TITOLO: "La luce del bosco"**',
       'Mara raggiunge una serra sepolta sotto la fabbrica e scopre una creatura che conserva il ricordo di un bosco scomparso. Il segnale della creatura risveglia le radici metalliche, ma Mara teme di perdere la propria memoria. Quando le macchine chiudono ogni uscita, lei affida alla creatura il ricordo della madre. La serra allora spezza il metallo, restituisce il bosco alla luce e unisce le loro memorie senza cancellarne l’identità.',
+      'LEGAME: Una foglia metallica segue il vento verso una frontiera senza nome.',
       'COLORI: #102030, #8a4f32, #e7d7ba, #39c58a, #7048cc',
     ].join('\n')
     const ai = {
@@ -280,6 +724,7 @@ describe('CoscienzaOnirica', () => {
     const validCore = [
       'TITOLO: Il segnale e il bosco',
       "STORIA: Nel bosco una custode raccoglie un segnale diviso in frammenti e scopre che ciascuno contiene una lettera sconosciuta. Seguendo il ritmo incontra una creatura ferita vicino alla fabbrica. La paura interrompe il contatto, ma il movimento dei due corpi costruisce lentamente un alfabeto comune. Quando le macchine invadono la radura, le due specie uniscono radici e metallo per proteggerla. All'alba il conflitto è terminato e il segnale sopravvive come un legame.",
+      'LEGAME: Una lettera sconosciuta riappare nel sonno di una città costiera.',
     ].join('\n')
     const duplicatedFrames = [
       'F1: Il segnale e il bosco. Il segnale diventa un legame.',
@@ -297,8 +742,8 @@ describe('CoscienzaOnirica', () => {
     const story = await new CoscienzaOnirica(ai).generate(PHRASES)
 
     expect(story.title).toBe('Il segnale e il bosco')
-    expect(story.frames).toHaveLength(4)
-    expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(4)
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(BRAIN_CONFIG.renderFrameCount)
     expect(responses).toEqual([duplicatedFrames])
   })
 
@@ -340,7 +785,9 @@ describe('CoscienzaOnirica', () => {
     )
     expect(prompts[0]).toContain(recent.title)
     expect(prompts[0]).not.toContain(recent.synopsis.slice(0, 100))
-    expect(prompts[0]).toContain('One Italian input prompt comes directly')
+    expect(prompts[0]).toContain(
+      'This is the first story in the cycle; invent its outgoing bridge freely.',
+    )
   })
 
   it('accetta soltanto un legame che unisce concretamente le due storie', () => {
@@ -364,8 +811,30 @@ describe('CoscienzaOnirica', () => {
     ).toBe(false)
   })
 
-  it('genera e conserva il collegamento causale con la storia precedente', async () => {
+  it('rifiuta un anello uguale o troppo simile a quelli già usati', () => {
+    const previous =
+      'Un seme di vetro conserva una voce destinata a un altro luogo.'
+
+    expect(
+      bridgeIsNew(
+        'Una chiave sommersa pulsa sotto una città ancora sconosciuta.',
+        previous,
+        [previous],
+      ),
+    ).toBe(true)
+    expect(bridgeIsNew(previous, previous, [previous])).toBe(false)
+    expect(
+      bridgeIsNew(
+        'Il seme di vetro conserva ancora una voce per un altro luogo.',
+        previous,
+        [previous],
+      ),
+    ).toBe(false)
+  })
+
+  it('genera un nuovo anello e conserva quello precedente come seme leggero', async () => {
     const previous = defaultStory()
+    const prompts: string[] = []
     const response = [
       'TITOLO: La mappa delle maree',
       'STORIA: Nora trova un frammento della fabbrica sulla riva di una laguna salata. Quando lo apre, il metallo libera una voce che altera le maree e costringe il villaggio a lasciare le case. Nora comprende che la voce custodisce una memoria incompleta. Affida allora il frammento alla corrente, che trasforma il ricordo della fabbrica in una mappa luminosa e guida gli abitanti verso una valle fertile dove le macchine possono finalmente riposare.',
@@ -373,20 +842,54 @@ describe('CoscienzaOnirica', () => {
       'COLORI: #071820, #28536b, #d59b55, #79c7b7, #f1e7d0',
     ].join('\n')
     const ai = {
-      async generate(): Promise<string> {
+      async generate(_task: BrainAiTask, prompt: string): Promise<string> {
+        prompts.push(prompt)
         return response
       },
     }
 
-    const story = await new CoscienzaOnirica(ai).generate(PHRASES, [previous])
+    const story = await new CoscienzaOnirica(ai).generate(
+      PHRASES,
+      [previous],
+      {
+        continuitySeed: previous.bridge,
+        recentBridges: previous.bridge ? [previous.bridge] : [],
+      },
+    )
 
     expect(story.title).toBe('La mappa delle maree')
     expect(story.bridge).toContain('memoria della fabbrica')
-    expect(story.frames).toHaveLength(4)
+    expect(story.continuityPhrase).toBe(previous.bridge)
+    expect(story.bridge).not.toBe(previous.bridge)
+    expect(prompts[0]).toContain('LIGHT CONTINUITY SEED')
+    expect(prompts[0]).toContain('only one secondary detail')
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
   })
 })
 
 describe('Psichedel', () => {
+  it('sceglie due fotogrammi rapidi dal secondo in poi', () => {
+    const selected = selectLowQualityFrameIndices(4, () => 0.4)
+    expect(selected.size).toBe(2)
+    expect([...selected].every((index) => index >= 1 && index < 4)).toBe(true)
+    expect(selected.has(0)).toBe(false)
+  })
+
+  it('tratta un errore fetch del modello come infrastrutturale e conserva la storia', () => {
+    expect(isPsychedelInfrastructureError(
+      new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation"),
+    )).toBe(true)
+  })
+
+  it('non scambia un errore geometrico ONNX per esaurimento memoria', () => {
+    expect(isPsychedelMemoryPressureError(
+      new Error('Concat dimensions must match: 23 and 24'),
+    )).toBe(false)
+    expect(isPsychedelMemoryPressureError(
+      new Error('WebGPU failed to allocate memory'),
+    )).toBe(true)
+  })
+
   function tracedSvg(): string {
     const colors = ['#14213d', '#fca311', '#e5e5e5', '#37ff8b', '#702963']
     const curves = Array.from({ length: 30 }, (_, index) => {
@@ -417,7 +920,9 @@ describe('Psichedel', () => {
       async release() {
         generator.releases += 1
       },
-      destroy() {},
+      destroy() {
+        generator.releases += 1
+      },
     }
     return generator
   }
@@ -452,33 +957,79 @@ describe('Psichedel', () => {
     ])
   })
 
-  it('costruisce un prompt artistico dal racconto, non un vocabolario di sagome', () => {
+  it('passa la descrizione del fotogramma senza aggiunte automatiche', () => {
     const story = defaultStory()
     const prompt = buildPsychedelImagePrompt(story, story.frames[1])
     expect(prompt).toContain(story.frames[1].description)
-    expect(prompt).not.toContain(story.synopsis)
-    expect(prompt.indexOf('ARCHITECTURE ABSENT')).toBeLessThan(prompt.indexOf('Scene:'))
-    expect(prompt.length).toBeLessThan(700)
-    expect(prompt).toContain('Psychedelic cinematic realism')
-    expect(prompt).toContain(story.palette.join(', '))
-    expect(prompt).toContain(story.frames[1].visualIntent)
-    expect(prompt).toContain('Avoid clip-art')
-    expect(prompt).toContain('No houses, buildings, city, village')
-    expect(prompt).not.toContain('kind: human')
+    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+    expect(prompt).not.toContain('Edward Hopper')
+    expect(prompt).not.toContain('Style direction')
+    expect(prompt).not.toContain(story.palette.join(', '))
   })
 
-  it('ammette architettura soltanto quando è esplicitamente il soggetto del fotogramma', () => {
+  it('non aggiunge soggetti, luoghi o stili a un fotogramma astratto', () => {
+    const story = defaultStory()
+    const abstractFrame = {
+      ...story.frames[0],
+      description: 'Il segnale attraversa la materia e divide il tempo in quattro correnti.',
+      visualIntent: 'Campi sovrapposti cambiano densità nel vuoto.',
+    }
+    const prompt = buildPsychedelImagePrompt(story, abstractFrame)
+
+    expect(hasNonTrivialFigure(abstractFrame.description)).toBe(false)
+    expect(prompt).toContain(abstractFrame.description)
+    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+    expect(hasNonTrivialFigure('Nora incontra una creatura senza volto.')).toBe(true)
+    expect(hasUnusualFigure('Nora incontra una creatura senza volto.')).toBe(true)
+    expect(hasNonTrivialFigure('When she finds the forgotten archive.')).toBe(true)
+    expect(hasUnusualFigure('When she finds the forgotten archive.')).toBe(false)
+  })
+
+  it('invia il testo AI inglese a SD-Turbo senza modificarlo', () => {
+    const story = defaultStory()
+    const frame = {
+      ...story.frames[0],
+      imagePrompt:
+        'A lone linguist stands beside a dark lake, raising a metal receiver toward three silent townspeople in the empty square.',
+    }
+    const prompt = buildPsychedelImagePrompt(story, frame)
+
+    expect(prompt).toContain(frame.imagePrompt)
+    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+  })
+
+  it('non cancella né introduce architettura: conserva esattamente ciò che riceve', () => {
     const story = defaultStory()
     const architecturalFrame = {
       ...story.frames[0],
-      description: 'Elisa osserva una facciata vivente che reagisce al segnale.',
-      visualIntent: 'La facciata è il soggetto centrale, isolata nel vuoto.',
+      description: 'Elisa esce dalla casa, attraversa la città e osserva la facciata della fabbrica.',
+      visualIntent: 'Case, edifici e strade riempiono lo spazio attorno alla protagonista.',
     }
     const prompt = buildPsychedelImagePrompt(story, architecturalFrame)
+    expect(prompt).toContain(architecturalFrame.description)
+    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+  })
 
-    expect(prompt).toContain('Architecture is explicitly central')
-    expect(prompt).not.toContain('ARCHITECTURE ABSENT')
-    expect(prompt).toContain('never generic housing')
+  it('non traduce biblioteca e libri in un edificio letterale', () => {
+    const cue = abstractPsychedelCue(
+      'Lila enters a hidden library filled with books from a lost civilization.',
+    )
+
+    expect(cue).not.toMatch(/\b(?:library|books|civilization)\b/i)
+    expect(cue).toContain('archive of floating memory symbols')
+    expect(cue).toContain('memory fragments')
+    expect(cue).toContain('ancient collective trace')
+  })
+
+  it('astrattizza gli stessi riferimenti quando arrivano in inglese', () => {
+    const cue = abstractPsychedelCue(
+      'A house beside a factory, city streets, a glass facade and two machines.',
+    )
+
+    expect(cue).not.toMatch(/\b(?:house|factory|city|streets|facade|machines)\b/i)
+    expect(cue).toContain('enclosed living forms')
+    expect(cue).toContain('industrial matter')
+    expect(cue).toContain('collective field')
   })
 
   it('accetta una vettorializzazione ricca e rifiuta una figura naïf', () => {
@@ -497,17 +1048,40 @@ describe('Psichedel', () => {
     const story = defaultStory()
     const generator = imageGenerator()
     const captions: string[] = []
-    const scenes = await new Psichedel(
+    const psychedel = new Psichedel(
       generator,
       vectorizer(),
       (preview) => captions.push(preview.dreamMeaning),
-    ).generate(story)
+    )
+    const scenes = await psychedel.generate(story)
     expect(generator.calls).toHaveLength(4)
     expect(scenes.map((scene) => scene.frameId)).toEqual(story.frames.map((frame) => frame.id))
     expect(scenes.every((scene) => scene.svg.includes('<svg'))).toBe(true)
     expect(new Set(generator.calls).size).toBe(4)
+    expect(generator.releases).toBe(0)
+    expect(captions).toEqual(
+      story.frames.map(
+        (frame) => `${frame.description}\n\nMain argument: ${story.mainArgument}`,
+      ),
+    )
+    psychedel.destroy()
     expect(generator.releases).toBe(1)
-    expect(captions).toEqual(story.frames.map((frame) => frame.description))
+  })
+
+  it('consegna la produzione entro la deadline riusando un fotogramma già valido', async () => {
+    const story = defaultStory()
+    const generator = imageGenerator()
+    const scenes = await new Psichedel(generator, vectorizer()).generate(
+      story,
+      0,
+    )
+
+    expect(generator.calls).toHaveLength(1)
+    expect(scenes).toHaveLength(4)
+    expect(new Set(scenes.map((scene) => scene.svg))).toHaveLength(1)
+    expect(scenes.map((scene) => scene.frameId)).toEqual(
+      story.frames.map((frame) => frame.id),
+    )
   })
 
   it('usa un seed diverso per ogni fotogramma della stessa storia', async () => {
@@ -533,6 +1107,40 @@ describe('Psichedel', () => {
     expect(new Set(seeds).size).toBe(4)
   })
 
+  it('completa prima tutti i fotogrammi live senza bloccarli con alta qualità', async () => {
+    const story = defaultStory()
+    const modes: Array<string | undefined> = []
+    const inferenceStates: boolean[] = []
+    const generator: PsychedelImageGenerator = {
+      async generate(_prompt, _seed, mode) {
+        modes.push(mode)
+        return { blob: new Blob(['raster-ai'], { type: 'image/png' }), durationMs: 2 }
+      },
+      async release() {},
+      destroy() {},
+    }
+
+    await new Psichedel(
+      generator,
+      vectorizer(),
+      undefined,
+      new HighQualityRenderScheduler(() => 0),
+      (active) => inferenceStates.push(active),
+    ).generate(story, performance.now() + 60_000)
+
+    expect(modes).toHaveLength(4)
+    expect(modes[0]).toBe('enhanced')
+    expect(modes.filter((mode) => mode === 'standard')).toHaveLength(2)
+    expect(modes.filter((mode) => mode === 'enhanced')).toHaveLength(2)
+    expect(modes).not.toContain('high-quality')
+    expect(inferenceStates).toEqual([
+      true, false,
+      true, false,
+      true, false,
+      true, false,
+    ])
+  })
+
   it('dopo un errore di memoria HQ non ritenta Janus nelle immagini successive', async () => {
     const story = defaultStory()
     const modes: Array<string | undefined> = []
@@ -554,14 +1162,8 @@ describe('Psichedel', () => {
     ).generate(story)
 
     expect(scenes).toHaveLength(4)
-    expect(modes.filter((mode) => mode === 'high-quality')).toHaveLength(1)
-    expect(modes).toEqual([
-      'standard',
-      'high-quality',
-      'enhanced',
-      'standard',
-      'enhanced',
-    ])
+    expect(modes.filter((mode) => mode === 'high-quality').length).toBeLessThanOrEqual(1)
+    expect(modes.filter((mode) => mode === 'standard').length).toBeGreaterThanOrEqual(2)
   })
 
   it('non ripete l’inferenza quando fallisce il backend WebGPU', async () => {
@@ -586,7 +1188,7 @@ describe('Psichedel', () => {
     expect(releases).toBe(1)
   })
 
-  it('monta le forme SVG direttamente nel livello visibile senza filtro vettoriale', () => {
+  it('monta le forme SVG a pieno schermo senza texture blur fullscreen', () => {
     const story = defaultStory()
     const scenes = [{ frameId: story.frames[0].id, description: 'test', svg: tracedSvg() }]
     const host = document.createElement('div')
@@ -606,17 +1208,51 @@ describe('Psichedel', () => {
       2_000,
     )
     const secondAnimatedFill = controller.element.querySelector('path')?.getAttribute('fill')
+    const animatedLayer = controller.element.querySelector<SVGGElement>('g > g')
+    const echoes = controller.element.querySelectorAll('[data-brain-echo]')
 
     expect(controller.element.isConnected).toBe(true)
     expect(controller.element.style.opacity).toBe('1')
-    expect(controller.element.style.transform).toBe('')
-    expect(controller.element.style.filter).toBe('')
+    expect(controller.element.style.transform).toBe('scaleX(1.05) scaleY(1.02)')
+    expect(controller.element.style.filter).toBe('none')
+    expect(controller.element.style.perspective).toBe('')
+    expect(controller.element.getAttribute('preserveAspectRatio')).toBe('xMidYMid slice')
+    expect(controller.element.getAttribute('data-brain-pov')).toBe('deriva')
+    expect(controller.element.style.overflow).toBe('hidden')
     expect(firstAnimatedFill).not.toBe(secondAnimatedFill)
     expect(controller.element.querySelectorAll('path').length).toBe(5)
     expect(controller.element.querySelector('filter')).toBeNull()
+    expect(animatedLayer?.style.willChange).toBe('')
+    expect(animatedLayer?.style.transform).toBe('')
+    controller.setResourcePressure(true)
+    expect(
+      [...echoes].every(
+        (echo) =>
+          (echo as SVGElement).style.display === 'none' &&
+          (echo as SVGElement).style.opacity === '0',
+      ),
+    ).toBe(true)
+    expect(animatedLayer?.getAttribute('transform')).toMatch(
+      /^translate\(.+\) rotate\(.+\)$/,
+    )
+    expect(animatedLayer?.getAttribute('transform')).toContain('scale(')
+    expect(echoes).toHaveLength(3)
+    expect((echoes[0] as SVGUseElement).style.opacity).toBe('0')
+    controller.setResourcePressure(false)
+    expect((echoes[0] as SVGUseElement).style.display).toBe('block')
+    expect(Number(controller.element.getAttribute('data-brain-complexity'))).toBeGreaterThan(0)
 
     controller.destroy()
     host.remove()
+  })
+
+  it('riconosce un modello ONNX non caricabile come errore infrastrutturale', () => {
+    expect(
+      isBrainAiInfrastructureMessage(
+        "Can't create a session. Type Error: Type (tensor(float16)) does not match expected type (tensor(float)).",
+      ),
+    ).toBe(true)
+    expect(isBrainAiInfrastructureMessage('La storia non contiene quattro fotogrammi')).toBe(false)
   })
 
   it('anima con la palette narrativa anche le forme SVG che non sono path', () => {
@@ -679,6 +1315,40 @@ describe('Psichedel', () => {
     )
 
     expect(path?.getAttribute('d')).toBe(compoundPath)
+    expect(
+      path?.querySelector('[data-brain-static-micro-motion="true"]'),
+    ).not.toBeNull()
+    expect(
+      controller.element.getAttribute(
+        'data-brain-static-micro-motion-count',
+      ),
+    ).toBe('1')
+    controller.destroy()
+    host.remove()
+  })
+
+  it('dà una micro-deriva continua anche alle forme fuori dal budget RAF', () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const paths = Array.from(
+      { length: BRAIN_MAX_DEPTH_LAYERS + BRAIN_MAX_MORPH_GEOMETRIES + 8 },
+      (_, index) =>
+        `<path fill="#778899" d="M${index * 3} 10 L${index * 3 + 2} 10 L${index * 3 + 1} 14 Z"/>`,
+    ).join('')
+    const controller = createBrainSvgScene(host, {
+      frameId: 'dormant-micro-motion',
+      description: 'micro variazioni periferiche',
+      svg: `<svg viewBox="0 0 512 512">${paths}</svg>`,
+    })
+
+    const dormantMotion = controller.element.querySelectorAll(
+      '[data-brain-dormant-micro-motion="true"]',
+    )
+
+    expect(dormantMotion.length).toBeGreaterThan(0)
+    expect(dormantMotion[0]?.getAttribute('repeatCount')).toBe('indefinite')
+    expect(dormantMotion[0]?.getAttribute('values')).toContain(';')
+
     controller.destroy()
     host.remove()
   })
@@ -791,40 +1461,22 @@ describe('Brain pipeline end-to-end', () => {
   })
 })
 
-describe('Brain interstory morphing', () => {
-  it('riusa la rotazione morphing del programma senza ripetere lo stesso preset', () => {
-    const first = selectBrainInterlude(null, () => 0)
-    const second = selectBrainInterlude(first, () => 0)
+describe('budget geometrico Brain', () => {
+  it('seleziona soltanto i tracciati principali entro il limite live', () => {
+    const complexities = Array.from({ length: 120 }, (_, index) => index + 1)
+    complexities[7] = -1
+    const selected = selectBrainGeometryCandidateIndices(complexities)
 
-    expect(first.algorithm).toBe('liquid')
-    expect(first.presetId.length).toBeGreaterThan(0)
-    expect(second.presetId.length).toBeGreaterThan(0)
-    expect(`${second.algorithm}:${second.presetId}`).not.toBe(
-      `${first.algorithm}:${first.presetId}`,
-    )
-  })
-
-  it('attiva il renderer scelto senza modificare permanentemente le impostazioni Brain', () => {
-    const payload = {
-      backgroundColor: '#000000',
-      brightness: 0,
-      flashActive: false,
-      flashIntensity: 0,
-      flashMode: 'off' as const,
-      whiteMix: 0,
-      useMorphing: false,
-      bandEnergies: { low: 0, lowMid: 0, mid: 0, high: 0 },
-      settings: DEFAULT_SETTINGS,
-    }
-    const transformed = interludePayload(payload, {
-      algorithm: '2001',
-      presetId: 'parallel-slit',
-    })
-
-    expect(transformed.settings?.useBrain).toBe(false)
-    expect(transformed.settings?.morphingAlgorithm).toBe('2001')
-    expect(transformed.settings?.morphingPresetId).toBe('parallel-slit')
-    expect(payload.settings.useBrain).toBe(DEFAULT_SETTINGS.useBrain)
+    expect(selected).toHaveLength(BRAIN_MAX_MORPH_GEOMETRIES)
+    expect(selected).toContain(119)
+    expect(selected).not.toContain(7)
+    expect(
+      selected.every(
+        (index, position) =>
+          position === 0 ||
+          complexities[selected[position - 1]] >= complexities[index],
+      ),
+    ).toBe(true)
   })
 })
 

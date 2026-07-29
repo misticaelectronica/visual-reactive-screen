@@ -340,7 +340,7 @@ export function OutputApp() {
             pointerEvents: 'none',
           }}
         >
-          OUTPUT READY - waiting for visual state
+          USCITA PRONTA — in attesa dello stato visuale
         </div>
       ) : null}
       {/* Debug overlay — rimuovere dopo verifica */}
@@ -360,9 +360,9 @@ export function OutputApp() {
           lineHeight: 1.6,
         }}
       >
-        fxOutput: ✓<br />
-        msgs: {msgCount}<br />
-        color: {lastColor}
+        uscita: ✓<br />
+        messaggi: {msgCount}<br />
+        colore: {lastColor}
       </div>
     </div>
   )

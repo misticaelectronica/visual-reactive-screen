@@ -1,5 +1,9 @@
 import { ipcMain } from 'electron'
-import type { AppSettings, VisualStatePayload } from '@shared/types'
+import type {
+  AppSettings,
+  BrainConfigFileName,
+  VisualStatePayload,
+} from '@shared/types'
 import { IPC_CHANNELS } from '@shared/types'
 import { getAllDisplayInfo } from './displays'
 import { loadSettingsFromDisk, saveSettingsToDisk } from './settings'
@@ -9,6 +13,7 @@ import {
   createOutputWindow,
 } from './windows'
 import { vectorizeBrainImage } from './brainVectorizer'
+import { readBrainConfigFile } from './brainConfigFiles'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getDisplays, () => getAllDisplayInfo())
@@ -34,4 +39,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.vectorizeBrainImage, (_event, bytes: unknown) => {
     return vectorizeBrainImage(bytes)
   })
+
+  ipcMain.handle(
+    IPC_CHANNELS.readBrainConfigFile,
+    (_event, fileName: BrainConfigFileName) => readBrainConfigFile(fileName),
+  )
 }

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prototipo Psichedel Explicit WebGPU</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, monospace; }
+      body { margin: 0; background: #050806; color: #77ef91; }
+      main { width: min(920px, calc(100vw - 32px)); margin: 24px auto; display: grid; gap: 16px; }
+      textarea, input, button { font: inherit; color: inherit; background: #07120a; border: 1px solid #286b37; padding: 10px; }
+      textarea { min-height: 110px; resize: vertical; }
+      .actions { display: flex; gap: 8px; }
+      #output { width: min(100%, 512px); aspect-ratio: 1; object-fit: contain; background: #020302; }
+      #state { white-space: pre-wrap; color: #a4f3b5; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Psichedel Explicit — collaudo WebGPU</h1>
+      <div id="model"></div>
+      <textarea id="prompt">A cinematic adult human figure in a dim room, precise anatomy, dramatic light, realistic painting</textarea>
+      <input id="seed" type="number" value="42" aria-label="Seed" />
+      <div class="actions">
+        <button id="generate" type="button">Genera</button>
+        <button id="cancel" type="button">Annulla</button>
+      </div>
+      <div id="state">In attesa</div>
+      <img id="output" alt="Risultato del prototipo" />
+    </main>
+    <script type="module" src="/src/renderer/output/brain/psychedelModelPrototype.ts"></script>
+  </body>
+</html>

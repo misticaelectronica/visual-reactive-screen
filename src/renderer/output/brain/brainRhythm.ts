@@ -4,6 +4,7 @@ export type BrainRhythmState = {
   beat: boolean
   beatIndex: number
   beatPhase: number
+  musicalPosition: number
   beatPulse: number
   beatDurationMs: number
 }
@@ -16,10 +17,12 @@ export class BrainRhythmClock {
   private beatDurationMs = 500
   private beatIndex = 0
   private beatPulse = 0
+  private musicalPosition = 0
 
   update(bands: BandEnergies, now: number): BrainRhythmState {
     const elapsed = this.lastUpdateAt > 0 ? Math.min(150, now - this.lastUpdateAt) : 16
     this.lastUpdateAt = now
+    this.musicalPosition += elapsed / this.beatDurationMs
     const baselineBlend = 1 - Math.exp(-elapsed / 2_200)
     this.baseline += (bands.low - this.baseline) * baselineBlend
     const transient = bands.low - this.previousLow
@@ -41,14 +44,12 @@ export class BrainRhythmClock {
       this.beatPulse *= Math.exp(-elapsed / 210)
     }
 
-    const phase =
-      this.lastBeatAt > 0
-        ? ((now - this.lastBeatAt) / this.beatDurationMs) % 1
-        : (now / this.beatDurationMs) % 1
+    const phase = this.musicalPosition % 1
     return {
       beat,
       beatIndex: this.beatIndex,
       beatPhase: phase,
+      musicalPosition: this.musicalPosition,
       beatPulse: this.beatPulse,
       beatDurationMs: this.beatDurationMs,
     }
