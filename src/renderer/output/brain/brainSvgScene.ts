@@ -1,24 +1,36 @@
 import type { AppSettings, BandEnergies } from '@shared/types'
 import type { DreamStory, PsychedelScene } from '@shared/brain/brainTypes'
-import { brainLog } from './brainLog'
+import { brainLog, brainWarn } from './brainLog'
 import type { BrainRhythmState } from './brainRhythm'
 import {
   BRAIN_FRAME_MORPH_PATTERNS,
   brainPresetMotionTuning,
   calculateBrainCameraMotion,
   calculateBrainDepthMotion,
+  calculateBrainKickDisplacement,
   calculateBrainMicroMotion,
   calculateBrainMotionFrameInterval,
+  calculateBrainSpectrumEnvelope,
   createBrainDepthProfile,
   type BrainFrameMorphPattern,
 } from './brainFrameMotion'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { BrainPerceptionEngine } from './brainPerception'
+import { BrainLiquidMotionClock } from './brainLiquidMotion'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
-const MORPH_POINT_COUNT = 24
+const BASE_MORPH_POINT_COUNT = 24
+const MIN_MORPH_POINT_COUNT = 16
+const MAX_MORPH_POINT_COUNT = 48
 export const BRAIN_MAX_MORPH_GEOMETRIES = 32
 export const BRAIN_MAX_DEPTH_LAYERS = 48
+const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
+const BAND_RELEASE_FACTORS: BandEnergies = {
+  low: 1.45,
+  lowMid: 1.2,
+  mid: 0.95,
+  high: 0.72,
+}
 
 function clamp(value: number, min = 0, max = 1): number {
   return Math.max(min, Math.min(max, value))
@@ -36,6 +48,67 @@ export function selectBrainGeometryCandidateIndices(
     .sort((left, right) => right.complexity - left.complexity)
     .slice(0, Math.max(0, maximum))
     .map(({ index }) => index)
+}
+
+export function calculateBrainShapeMotionScale(
+  coverageRatio: number,
+  maximumAnimatedAreaRatio: number,
+  backgroundMotionScale: number,
+): number {
+  return coverageRatio > maximumAnimatedAreaRatio
+    ? clamp(backgroundMotionScale, 0, 1)
+    : 1
+}
+
+export function calculateBrainGeometryPriority(
+  pathComplexity: number,
+  coverageRatio: number,
+  maximumAnimatedAreaRatio: number,
+  backgroundMotionScale: number,
+): number {
+  if (pathComplexity <= 0) return pathComplexity
+  return pathComplexity * calculateBrainShapeMotionScale(
+    coverageRatio,
+    maximumAnimatedAreaRatio,
+    backgroundMotionScale,
+  )
+}
+
+export function allocateBrainMorphPointCounts(
+  complexities: readonly number[],
+  totalBudget = complexities.length * BASE_MORPH_POINT_COUNT,
+): number[] {
+  if (complexities.length === 0) return []
+  const minimumBudget = complexities.length * MIN_MORPH_POINT_COUNT
+  const maximumBudget = complexities.length * MAX_MORPH_POINT_COUNT
+  const budget = Math.max(minimumBudget, Math.min(maximumBudget, totalBudget))
+  const weights = complexities.map((complexity) =>
+    Math.sqrt(Math.max(1, complexity)),
+  )
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0)
+  const distributable = budget - minimumBudget
+  const exact = weights.map(
+    (weight) => MIN_MORPH_POINT_COUNT + distributable * weight / weightTotal,
+  )
+  const counts = exact.map((count) =>
+    Math.min(MAX_MORPH_POINT_COUNT, Math.floor(count)),
+  )
+  let remaining = budget - counts.reduce((sum, count) => sum + count, 0)
+  const order = exact
+    .map((count, index) => ({ fraction: count - Math.floor(count), index }))
+    .sort((left, right) => right.fraction - left.fraction)
+  while (remaining > 0) {
+    let allocated = false
+    for (const { index } of order) {
+      if (remaining <= 0) break
+      if (counts[index] >= MAX_MORPH_POINT_COUNT) continue
+      counts[index] += 1
+      remaining -= 1
+      allocated = true
+    }
+    if (!allocated) break
+  }
+  return counts
 }
 
 export type BrainMorphShape = {
@@ -120,7 +193,11 @@ function pointsPath(points: Point[]): string {
   return `${commands.join(' ')} Z`
 }
 
-function sampleShape(element: SVGGraphicsElement, fallback: Point): BrainMorphShape {
+function sampleShape(
+  element: SVGGraphicsElement,
+  fallback: Point,
+  pointCount = BASE_MORPH_POINT_COUNT,
+): BrainMorphShape {
   const path = element.localName === 'path' ? (element as SVGPathElement) : null
   const moveCount = path?.getAttribute('d')?.match(/[Mm](?=[\s,.\d+-])/g)?.length ?? 0
   const morphable = path !== null && moveCount <= 1
@@ -129,8 +206,8 @@ function sampleShape(element: SVGGraphicsElement, fallback: Point): BrainMorphSh
     try {
       const length = path.getTotalLength()
       if (Number.isFinite(length) && length > 0) {
-        for (let index = 0; index < MORPH_POINT_COUNT; index++) {
-          const point = path.getPointAtLength((length * index) / MORPH_POINT_COUNT)
+        for (let index = 0; index < pointCount; index++) {
+          const point = path.getPointAtLength((length * index) / pointCount)
           points.push({ x: point.x, y: point.y })
         }
       }
@@ -147,11 +224,11 @@ function sampleShape(element: SVGGraphicsElement, fallback: Point): BrainMorphSh
         { x: box.x + box.width, y: box.y + box.height },
         { x: box.x, y: box.y + box.height },
       ]
-      for (let index = 0; index < MORPH_POINT_COUNT; index++) {
-        points.push(perimeter[Math.floor((index / MORPH_POINT_COUNT) * perimeter.length)])
+      for (let index = 0; index < pointCount; index++) {
+        points.push(perimeter[Math.floor((index / pointCount) * perimeter.length)])
       }
     } catch {
-      points.push(...Array.from({ length: MORPH_POINT_COUNT }, () => ({ ...fallback })))
+      points.push(...Array.from({ length: pointCount }, () => ({ ...fallback })))
     }
   }
   const anchor = points.reduce(
@@ -177,7 +254,7 @@ function staticShape(
     ? { x: Number(firstPoint[1]), y: Number(firstPoint[2]) }
     : fallback
   return {
-    points: Array.from({ length: MORPH_POINT_COUNT }, () => ({ ...anchor })),
+    points: Array.from({ length: BASE_MORPH_POINT_COUNT }, () => ({ ...anchor })),
     anchor,
     fill: parseColor(element.getAttribute('fill')),
     morphable: false,
@@ -185,10 +262,24 @@ function staticShape(
 }
 
 function alignSourcePoints(source: Point[], target: Point[]): Point[] {
-  if (source.length !== target.length || source.length === 0) return source
-  let best: Point[] = source
+  if (source.length === 0 || target.length === 0) return source
+  const normalizedSource = source.length === target.length
+    ? source
+    : Array.from({ length: target.length }, (_, index) => {
+        const sourcePosition = index * source.length / target.length
+        const startIndex = Math.floor(sourcePosition) % source.length
+        const endIndex = (startIndex + 1) % source.length
+        const blend = sourcePosition - Math.floor(sourcePosition)
+        return {
+          x: source[startIndex].x +
+            (source[endIndex].x - source[startIndex].x) * blend,
+          y: source[startIndex].y +
+            (source[endIndex].y - source[startIndex].y) * blend,
+        }
+      })
+  let best: Point[] = normalizedSource
   let bestDistance = Number.POSITIVE_INFINITY
-  for (const candidate of [source, [...source].reverse()]) {
+  for (const candidate of [normalizedSource, [...normalizedSource].reverse()]) {
     for (let shift = 0; shift < candidate.length; shift++) {
       let distance = 0
       for (let index = 0; index < candidate.length; index += 4) {
@@ -215,7 +306,7 @@ function svgElement<K extends keyof SVGElementTagNameMap>(
 }
 
 export type BrainSvgController = {
-  element: SVGSVGElement
+  element: SVGSVGElement | HTMLCanvasElement
   setOpacity: (opacity: number) => void
   getMorphShapes: () => BrainMorphShape[]
   setMorphPattern: (pattern: BrainFrameMorphPattern) => void
@@ -254,6 +345,9 @@ export function createBrainSvgScene(
   const renderingConfig = getBrainRenderingConfig()
   const parsed = new DOMParser().parseFromString(scene.svg, 'image/svg+xml')
   const sourceRoot = parsed.documentElement
+  const baseSceneTransform =
+    `scaleX(${renderingConfig.composition.horizontalStretch}) ` +
+    `scaleY(${renderingConfig.composition.verticalStretch})`
   const svg = svgElement('svg', {
     viewBox: sourceRoot.getAttribute('viewBox') ?? '0 0 1000 1000',
     preserveAspectRatio: renderingConfig.composition.preserveAspectRatio,
@@ -270,8 +364,9 @@ export function createBrainSvgScene(
     pointerEvents: 'none',
     transformOrigin: 'center',
     willChange: 'transform',
+    backfaceVisibility: 'hidden',
     contain: 'layout style paint',
-    transform: `scaleX(${renderingConfig.composition.horizontalStretch}) scaleY(${renderingConfig.composition.verticalStretch})`,
+    transform: baseSceneTransform,
     // Anche un blur minimo crea una texture fullscreen aggiuntiva e compete
     // con l'UNet WebGPU per la memoria delle tile.
     filter: 'none',
@@ -331,27 +426,60 @@ export function createBrainSvgScene(
     colorContext.frameCount > 1
       ? (colorContext.frameIndex / (colorContext.frameCount - 1)) * 1.4
       : 0
-  let smoothedBeatPulse = 0
+  let globalRhythmicEnvelope = 0
   const smoothedEchoOpacities = echoLayers.map(() => 0)
   let resourcePressure = false
+  let adaptivePressureUntil = 0
+  let lastPerformanceWarningAt = Number.NEGATIVE_INFINITY
   const perception = new BrainPerceptionEngine()
+  const liquidMotionClock = new BrainLiquidMotionClock()
   const smoothedBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
   const viewBox = (svg.getAttribute('viewBox') ?? '0 0 1000 1000').split(/\s+/).map(Number)
   const fallback = {
     x: (viewBox[0] ?? 0) + (viewBox[2] ?? 1000) / 2,
     y: (viewBox[1] ?? 0) + (viewBox[3] ?? 1000) / 2,
   }
+  const sceneArea = Math.max(1, (viewBox[2] ?? 1000) * (viewBox[3] ?? 1000))
+  const shapeCoverageRatios = animatedElements.map((element) => {
+    try {
+      const box = element.getBBox()
+      return clamp((box.width * box.height) / sceneArea)
+    } catch {
+      return 0
+    }
+  })
+  const maximumAnimatedAreaRatio =
+    renderingConfig.motion.maximumAnimatedAreaRatio
+  const backgroundMotionScale = renderingConfig.motion.backgroundMotionScale
+  const geometryComplexities = animatedElements.map((element, index) => {
+    if (element.localName !== 'path') return -1
+    const pathData = element.getAttribute('d') ?? ''
+    const moveCount = pathData.match(/[Mm](?=[\s,.\d+-])/g)?.length ?? 0
+    if (moveCount > 1) return -1
+    return calculateBrainGeometryPriority(
+      pathData.length,
+      shapeCoverageRatios[index],
+      maximumAnimatedAreaRatio,
+      backgroundMotionScale,
+    )
+  })
   const geometryCandidateIndices = selectBrainGeometryCandidateIndices(
-    animatedElements.map((element) => {
-      if (element.localName !== 'path') return -1
-      const pathData = element.getAttribute('d') ?? ''
-      const moveCount = pathData.match(/[Mm](?=[\s,.\d+-])/g)?.length ?? 0
-      return moveCount <= 1 ? pathData.length : -1
-    }),
+    geometryComplexities,
   )
   const geometryCandidateSet = new Set(geometryCandidateIndices)
   const geometryCandidateRank = new Map(
     geometryCandidateIndices.map((elementIndex, rank) => [elementIndex, rank]),
+  )
+  const geometryPointCounts = allocateBrainMorphPointCounts(
+    geometryCandidateIndices.map(
+      (index) => geometryComplexities[index] ?? 1,
+    ),
+  )
+  const geometryPointCountByIndex = new Map(
+    geometryCandidateIndices.map((elementIndex, rank) => [
+      elementIndex,
+      geometryPointCounts[rank] ?? BASE_MORPH_POINT_COUNT,
+    ]),
   )
   const ultraHeavyScene = scene.svg.length >= 130_000 || animatedElements.length >= 30
   const heavyScene = ultraHeavyScene || scene.svg.length >= 65_000 || animatedElements.length >= 18
@@ -385,7 +513,6 @@ export function createBrainSvgScene(
     normalDepthLayerCount,
     normalGeometryLayerCount,
   )
-  const normalActiveIndexSet = new Set(normalActiveIndices)
   const lowPowerActiveIndices = buildActiveIndices(
     lowPowerDepthLayerCount,
     lowPowerGeometryLayerCount,
@@ -398,7 +525,11 @@ export function createBrainSvgScene(
   )
   const targetShapes = animatedElements.map((element, index) =>
     geometryCandidateSet.has(index)
-      ? sampleShape(element, fallback)
+      ? sampleShape(
+          element,
+          fallback,
+          geometryPointCountByIndex.get(index),
+        )
       : staticShape(element, fallback),
   )
   const usesFill = animatedElements.map((element) => element.getAttribute('fill') !== 'none')
@@ -431,73 +562,10 @@ export function createBrainSvgScene(
   const elementPhases = animatedElements.map((element, index) =>
     Number(element.getAttribute('data-brain-phase') ?? index),
   )
-  // I tracciati che restano fuori dal budget di trasformazione non devono
-  // sembrare congelati. Affidiamo loro una deriva SMIL lentissima: è nativa
-  // nel compositing SVG, quindi non aggiunge calcoli per punto nel RAF.
-  // Gli elementi inclusi nel budget normale restano invece controllati dal
-  // renderer, senza due trasformazioni sovrapposte.
-  animatedLayers.forEach((layer, index) => {
-    if (normalActiveIndexSet.has(index)) return
-    const phase = (elementPhases[index] ?? index) * 0.73
-    const strength = Math.max(0.08, renderingConfig.motion.microMovement) *
-      (0.34 + ((hashString(`${sceneSeed}:${index}`) % 100) / 100) * 0.38)
-    const driftX = Math.cos(phase) * strength
-    const driftY = Math.sin(phase * 1.17) * strength * 0.78
-    const drift = svgElement('animateTransform', {
-      attributeName: 'transform',
-      type: 'translate',
-      values: `0 0; ${driftX.toFixed(2)} ${driftY.toFixed(2)}; 0 0`,
-      keyTimes: '0;0.5;1',
-      keySplines: '0.42 0 0.58 1;0.42 0 0.58 1',
-      calcMode: 'spline',
-      dur: `${(7.5 + (hashString(`${scene.frameId}:${index}`) % 45) / 10).toFixed(1)}s`,
-      begin: `${(-((hashString(`${scene.frameId}:offset:${index}`) % 70) / 10)).toFixed(1)}s`,
-      repeatCount: 'indefinite',
-      additive: 'sum',
-      'data-brain-dormant-micro-motion': 'true',
-    })
-    layer.appendChild(drift)
-  })
-  let staticMicroMotionCount = 0
-  targetShapes.forEach((target, index) => {
-    // I path composti non vengono ricampionati perché unire sottotracciati
-    // distinti produrrebbe i grandi poligoni già osservati. Ricevono però
-    // una deriva locale indipendente dal movimento di profondità del layer:
-    // così le zone interne della figura non restano otticamente incollate.
-    if (!normalActiveIndexSet.has(index) || target.morphable) return
-    const element = animatedElements[index]
-    const phase = (elementPhases[index] ?? index) * 0.61
-    const strength =
-      Math.max(0.08, renderingConfig.motion.microMovement) *
-      (0.3 + ((hashString(`${sceneSeed}:static:${index}`) % 100) / 100) * 0.34)
-    const driftX = Math.cos(phase) * strength
-    const driftY = Math.sin(phase * 1.23) * strength * 0.72
-    const drift = svgElement('animateTransform', {
-      attributeName: 'transform',
-      type: 'translate',
-      values: [
-        '0 0',
-        `${driftX.toFixed(2)} ${driftY.toFixed(2)}`,
-        `${(-driftX * 0.38).toFixed(2)} ${(-driftY * 0.52).toFixed(2)}`,
-        '0 0',
-      ].join('; '),
-      keyTimes: '0;0.38;0.76;1',
-      keySplines:
-        '0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1',
-      calcMode: 'spline',
-      dur: `${(8.4 + (hashString(`${scene.frameId}:static:${index}`) % 48) / 10).toFixed(1)}s`,
-      begin: `${(-((hashString(`${scene.frameId}:static-offset:${index}`) % 80) / 10)).toFixed(1)}s`,
-      repeatCount: 'indefinite',
-      additive: 'sum',
-      'data-brain-static-micro-motion': 'true',
-    })
-    element.appendChild(drift)
-    staticMicroMotionCount += 1
-  })
-  svg.setAttribute(
-    'data-brain-static-micro-motion-count',
-    String(staticMicroMotionCount),
-  )
+  // Nessuna animazione SMIL autonoma: i tracciati fuori budget restano
+  // immobili finché non ricevono energia audio, evitando lavoro invisibile
+  // e movimento scollegato dalla musica.
+  svg.setAttribute('data-brain-static-micro-motion-count', '0')
   depthProfiles.forEach((profile, index) => {
     animatedLayers[index].setAttribute(
       'data-brain-depth',
@@ -597,7 +665,10 @@ export function createBrainSvgScene(
       }
     },
     update(bands, settings, time, rhythm, movingAverages) {
-      const frameInterval = resourcePressure
+      const updateStartedAt = performance.now()
+      const adaptivePressure = time < adaptivePressureUntil
+      const constrainedRendering = resourcePressure || adaptivePressure
+      const frameInterval = constrainedRendering
         ? 1_000 / 24
         : calculateBrainMotionFrameInterval(
             settings.lowPowerMode,
@@ -613,10 +684,14 @@ export function createBrainSvgScene(
       const presetTuning = brainPresetMotionTuning(settings)
       const elapsed = lastAudioAt > 0 ? Math.min(120, time - lastAudioAt) : frameInterval
       lastAudioAt = time
-      const fluidityMs = presetTuning.fluidityMs
-      const audioBlend = 1 - Math.exp(-elapsed / fluidityMs)
       for (const band of ['low', 'lowMid', 'mid', 'high'] as const) {
-        smoothedBands[band] += (bands[band] - smoothedBands[band]) * audioBlend
+        const responseMs = bands[band] > smoothedBands[band]
+          ? 36
+          : renderingConfig.globalRhythmicMotion.responseMs *
+            BAND_RELEASE_FACTORS[band]
+        const blend = 1 - Math.exp(-elapsed / responseMs)
+        smoothedBands[band] +=
+          (bands[band] - smoothedBands[band]) * blend
       }
       const transformationConfig = renderingConfig.transformation
       const perceptual = perception.update(
@@ -632,24 +707,98 @@ export function createBrainSvgScene(
         'data-brain-metamorphosis',
         perceptual.metamorphosis.toFixed(3),
       )
-      const pulseBlend = 1 - Math.exp(-elapsed / 420)
-      smoothedBeatPulse +=
-        ((rhythm?.beatPulse ?? 0) - smoothedBeatPulse) * pulseBlend
+      const beatPulse = rhythm?.beatPulse ?? 0
+      const bandTransients = rhythm?.bandTransients ?? SILENT_BANDS
       const subAmount = clamp(settings.subMovement / 0.5, 0, 2)
       const pressure = clamp(
         smoothedBands.low * subAmount +
           smoothedBands.lowMid * 0.28 +
-          smoothedBeatPulse * presetTuning.kickScale * 0.14,
+          bandTransients.low * 0.62 +
+          bandTransients.lowMid * 0.18 +
+          beatPulse * presetTuning.kickScale * 0.42,
       )
       const articulation = clamp(
-        (smoothedBands.mid * 0.54 + smoothedBands.high * 0.32) *
+        (smoothedBands.mid * 0.42 +
+          smoothedBands.high * 0.26 +
+          bandTransients.mid * 0.52 +
+          bandTransients.high * 0.38) *
           presetTuning.movementScale,
       )
       const musicalPosition = rhythm
         ? rhythm.musicalPosition
         : time / 500
-      const musicalPhase = musicalPosition * Math.PI * 2
-      const beatPulse = smoothedBeatPulse
+      const globalMotion = renderingConfig.globalRhythmicMotion
+      if (globalMotion.enabled && globalMotion.intensity > 0) {
+        const spectrumEnvelope = calculateBrainSpectrumEnvelope(
+          smoothedBands,
+          beatPulse,
+        )
+        const transientPeak = Math.max(
+          bandTransients.low,
+          bandTransients.lowMid,
+          bandTransients.mid,
+          bandTransients.high,
+        )
+        globalRhythmicEnvelope = clamp(
+          spectrumEnvelope * 0.68 + transientPeak * 0.52,
+        )
+      } else {
+        globalRhythmicEnvelope = 0
+      }
+      const lowDrive = clamp(
+        smoothedBands.low * 0.48 +
+          bandTransients.low * 0.72 +
+          beatPulse * 0.46,
+      )
+      const lowMidDrive = clamp(
+        smoothedBands.lowMid * 0.56 + bandTransients.lowMid * 0.78,
+      )
+      const midDrive = clamp(
+        smoothedBands.mid * 0.54 + bandTransients.mid * 0.82,
+      )
+      const highDrive = clamp(
+        smoothedBands.high * 0.5 + bandTransients.high * 0.9,
+      )
+      const motionActivity = clamp(
+        lowDrive * 0.3 +
+          lowMidDrive * 0.26 +
+          midDrive * 0.24 +
+          highDrive * 0.2,
+      )
+      const liquidMotion = liquidMotionClock.update(
+        smoothedBands,
+        rhythm,
+        elapsed,
+      )
+      const kickDisplacement = globalMotion.enabled
+        ? calculateBrainKickDisplacement(
+            sceneDiagonal,
+            globalMotion.kickDeformationPercent,
+            beatPulse,
+            lowDrive,
+            presetTuning.kickScale * globalMotion.intensity,
+            constrainedRendering ? globalMotion.resourcePressureBoost : 1,
+          )
+        : 0
+      svg.setAttribute(
+        'data-brain-rhythmic-envelope',
+        globalRhythmicEnvelope.toFixed(3),
+      )
+      svg.setAttribute(
+        'data-brain-motion-activity',
+        motionActivity.toFixed(3),
+      )
+      svg.setAttribute(
+        'data-brain-kick-displacement',
+        kickDisplacement.toFixed(2),
+      )
+      // La superficie non oscilla mai come una camera. L’impulso globale
+      // viene distribuito più sotto fra i segmenti, con fasi e bande diverse.
+      if (svg.style.transform !== baseSceneTransform) {
+        svg.style.transform = baseSceneTransform
+      }
+      const musicalPhase = liquidMotion.beatPhase
+      const evolutionPhase = liquidMotion.evolutionPhase
       const frameEnergy = clamp(colorContext.frameEnergy, 0.05, 1)
       const beatsPerColor = 8 - frameEnergy * 3
       const musicalDelta =
@@ -699,22 +848,17 @@ export function createBrainSvgScene(
         camera.x * sceneWidth * 0.024 * cameraMultiplier
       const cameraTravelY =
         camera.y * sceneHeight * 0.018 * cameraMultiplier
-      if (resourcePressure) {
-        // Un solo movimento globale conserva una scena viva mentre l'UNet
-        // occupa la GPU, senza rasterizzare decine di layer indipendenti.
-        content.setAttribute(
-          'transform',
-          `translate(${(cameraTravelX * 0.16).toFixed(2)} ${(cameraTravelY * 0.16).toFixed(2)})`,
-        )
-      } else {
+      // Vietata ogni traslazione coordinata del quadro, anche mentre l’UNet
+      // è attiva: può essere percepita come oscillazione della camera.
+      if (content.hasAttribute('transform')) {
         content.removeAttribute('transform')
       }
-      const maximumDepthLayers = resourcePressure
+      const maximumDepthLayers = constrainedRendering
         ? pressureDepthLayerCount
         : settings.lowPowerMode
         ? lowPowerDepthLayerCount
         : normalDepthLayerCount
-      const echoBudget = resourcePressure || ultraHeavyScene
+      const echoBudget = constrainedRendering || ultraHeavyScene
         ? 0
         : settings.lowPowerMode || heavyScene
         ? Math.min(1, echoLayers.length)
@@ -724,7 +868,7 @@ export function createBrainSvgScene(
       const echoPresence = clamp(
         perceptual.persistence * transformationConfig.persistence * 0.68 +
           perceptual.complexity * transformationConfig.duplication * 0.52,
-      )
+      ) * motionActivity
       echoLayers.forEach((echo, index) => {
         const echoNumber = index + 1
         const layerPresence =
@@ -776,7 +920,7 @@ export function createBrainSvgScene(
           `${mirror}translate(${driftX.toFixed(2)} ${driftY.toFixed(2)}) translate(${sceneCenterX.toFixed(2)} ${sceneCenterY.toFixed(2)}) rotate(${(Math.sin(phase) * (0.35 + perceptual.disorder * 1.8)).toFixed(2)}) scale(${echoScaleX.toFixed(4)} ${echoScaleY.toFixed(4)}) translate(${(-sceneCenterX).toFixed(2)} ${(-sceneCenterY).toFixed(2)})`,
         )
         const targetEchoOpacity =
-          resourcePressure || index >= echoBudget
+          constrainedRendering || index >= echoBudget
             ? 0
             : clamp(
                 (0.025 +
@@ -790,7 +934,7 @@ export function createBrainSvgScene(
         const echoBlend = 1 - Math.exp(-elapsed / 760)
         smoothedEchoOpacities[index] +=
           (targetEchoOpacity - smoothedEchoOpacities[index]) * echoBlend
-        if (resourcePressure || index >= echoBudget || smoothedEchoOpacities[index] < 0.0005) {
+        if (constrainedRendering || index >= echoBudget || smoothedEchoOpacities[index] < 0.0005) {
           smoothedEchoOpacities[index] = 0
           echo.style.opacity = '0'
           echo.style.display = 'none'
@@ -826,7 +970,7 @@ export function createBrainSvgScene(
           }
         })
       }
-      const maximumGeometryLayers = resourcePressure
+      const maximumGeometryLayers = constrainedRendering
         ? pressureGeometryLayerCount
         : settings.lowPowerMode
         ? lowPowerGeometryLayerCount
@@ -835,16 +979,27 @@ export function createBrainSvgScene(
       // Il budget resta fisso e l'intensità continua è affidata allo stato
       // percettivo. Iteriamo solo gli elementi effettivamente animati, non
       // l'intero SVG vettorializzato.
-      const activeIndices = resourcePressure
+      const activeIndices = constrainedRendering
         ? pressureActiveIndices
         : settings.lowPowerMode
         ? lowPowerActiveIndices
         : normalActiveIndices
+      const spectralGroups = [
+        lowDrive,
+        lowMidDrive,
+        midDrive,
+        highDrive,
+      ]
       activeIndices.forEach((index) => {
         const element = animatedElements[index]
         if (!element) return
         const phase = elementPhases[index]
         const target = targetShapes[index]
+        const localMotionScale = calculateBrainShapeMotionScale(
+          shapeCoverageRatios[index],
+          maximumAnimatedAreaRatio,
+          backgroundMotionScale,
+        )
         const source = transitionCounterparts[index] ?? target
         const progress = transitionCounterparts.length > 0 ? lastMorphProgress : 1
         const depthMotion = calculateBrainDepthMotion(
@@ -855,6 +1010,8 @@ export function createBrainSvgScene(
           articulation,
           morphPattern,
         )
+        const depthActivity =
+          (0.025 + motionActivity * 0.975) * localMotionScale
         if (index < maximumDepthLayers) {
           const profile = depthProfiles[index]
           const normalizedDepth = (profile.depth + 1) / 2
@@ -878,20 +1035,24 @@ export function createBrainSvgScene(
               0.024 *
               cameraMultiplier
           const perspectiveX =
-            depthMotion.x +
-            profile.directionX * depthMotion.z * 0.12 +
-            cameraParallaxX
+            (depthMotion.x +
+              profile.directionX * depthMotion.z * 0.12 +
+              cameraParallaxX) *
+            depthActivity
           const perspectiveY =
-            depthMotion.y +
-            profile.directionY * depthMotion.z * 0.09 +
-            cameraParallaxY
+            (depthMotion.y +
+              profile.directionY * depthMotion.z * 0.09 +
+              cameraParallaxY) *
+            depthActivity
           const planarTilt =
-            depthMotion.rotateZ +
-            depthMotion.rotateX * 0.16 -
-            depthMotion.rotateY * 0.12 +
-            camera.yaw * profile.depth * 0.22 * cameraMultiplier
+            (depthMotion.rotateZ +
+              depthMotion.rotateX * 0.16 -
+              depthMotion.rotateY * 0.12 +
+              camera.yaw * profile.depth * 0.22 * cameraMultiplier) *
+            depthActivity
           const propagationWave = Math.sin(
-            time * 0.0011 -
+            musicalPhase * 0.5 +
+              evolutionPhase * 0.62 -
               normalizedDepth *
                 Math.PI *
                 (2.4 + transformationConfig.propagation * 2.8) +
@@ -904,12 +1065,14 @@ export function createBrainSvgScene(
             1 +
             (profile.depth * 0.012 +
               propagationWave * perceptual.propagation * 0.018) *
-              localPerspective
+              localPerspective *
+              depthActivity
           const scaleY =
             1 -
             (profile.depth * 0.009 +
               propagationWave * perceptual.metamorphosis * 0.013) *
-              localPerspective
+              localPerspective *
+              depthActivity
           animatedLayers[index].setAttribute(
             'transform',
             `translate(${perspectiveX.toFixed(2)} ${perspectiveY.toFixed(2)}) rotate(${planarTilt.toFixed(2)} ${target.anchor.x.toFixed(2)} ${target.anchor.y.toFixed(2)}) translate(${target.anchor.x.toFixed(2)} ${target.anchor.y.toFixed(2)}) scale(${scaleX.toFixed(4)} ${scaleY.toFixed(4)}) translate(${(-target.anchor.x).toFixed(2)} ${(-target.anchor.y).toFixed(2)})`,
@@ -926,7 +1089,8 @@ export function createBrainSvgScene(
         const dissolution =
           perceptual.disorder *
           transformationConfig.dissolution *
-          transformationConfig.disintegration
+          transformationConfig.disintegration *
+          motionActivity
         animatedLayers[index].style.opacity = String(
           clamp(1 - dissolution * dissolutionWave * 0.38, 0.56, 1),
         )
@@ -937,10 +1101,30 @@ export function createBrainSvgScene(
           geometryRank !== undefined &&
           geometryRank < maximumGeometryLayers
         ) {
-          const highRipple = clamp(smoothedBands.high * 0.62 + smoothedBands.mid * 0.18)
+          const highRipple = highDrive
+          const spectralGroupIndex =
+            (index + morphPatternIndex) % spectralGroups.length
+          const localSpectralEnergy = clamp(
+            spectralGroups[spectralGroupIndex] * 0.72 +
+              spectralGroups[(spectralGroupIndex + 1) % spectralGroups.length] *
+                0.18 +
+              spectralGroups[
+                (spectralGroupIndex + spectralGroups.length - 1) %
+                  spectralGroups.length
+              ] *
+                0.1,
+          )
+          const globalImpulse = globalMotion.enabled
+            ? globalRhythmicEnvelope *
+              globalMotion.intensity *
+              (constrainedRendering ? globalMotion.resourcePressureBoost : 1) *
+              (0.55 + localSpectralEnergy * 0.45)
+            : 0
           const amplitude =
-            (1.25 + pressure * 4.8 + articulation * 3.1 + highRipple * 1.6) *
-            (1 + beatPulse * 0.22) *
+            (0.06 +
+              lowDrive * 5.4 +
+              midDrive * 2.8 +
+              highRipple * 1.45) *
             presetTuning.movementScale *
             renderingConfig.motion.liquidMultiplier *
             (1 +
@@ -949,16 +1133,34 @@ export function createBrainSvgScene(
                 1.15 +
               perceptual.disorder *
                 transformationConfig.disintegration *
-                0.48)
+                0.48) *
+            (1 + globalImpulse * globalMotion.deformationBoost) *
+            localMotionScale
           const pattern = (index + morphPatternIndex) % 4
+          const flowMultiplier =
+            1 + globalImpulse * globalMotion.flowBoost
           const flowX =
-            Math.sin(musicalPhase * (0.125 + pattern * 0.018) + phase) *
-            (0.8 + pressure * 3.6) *
-            presetTuning.movementScale
+            Math.sin(
+              musicalPhase +
+                evolutionPhase * (0.34 + pattern * 0.06) +
+                phase,
+            ) *
+            lowMidDrive *
+            (1.1 + pressure * 2.4) *
+            presetTuning.movementScale *
+            flowMultiplier *
+            localMotionScale
           const flowY =
-            Math.cos(musicalPhase * (0.1 + pattern * 0.015) + phase * 1.17) *
-            (0.7 + articulation * 3.0) *
-            presetTuning.movementScale
+            Math.cos(
+              musicalPhase * 0.75 -
+                evolutionPhase * (0.28 + pattern * 0.045) +
+                phase * 1.17,
+            ) *
+            lowMidDrive *
+            (0.9 + articulation * 2.2) *
+            presetTuning.movementScale *
+            flowMultiplier *
+            localMotionScale
           const points = target.points.map((targetPoint, pointIndex) => {
             const sourcePoint = source.points[pointIndex] ?? targetPoint
             const radialX = targetPoint.x - target.anchor.x
@@ -970,6 +1172,7 @@ export function createBrainSvgScene(
             const tangentY = normalX
             const transitionEnvelope = Math.sin(Math.PI * progress)
             const pointPhase = pointIndex / Math.max(1, target.points.length)
+            const spatialPhase = pointPhase * Math.PI * 2
             const spatialDelay =
               morphPattern === 'marea'
                 ? Math.sin(pointPhase * Math.PI * 2 + phase) * 0.055
@@ -998,21 +1201,45 @@ export function createBrainSvgScene(
               pointPhase,
               time / 1_000,
               depthProfiles[index].depth,
-              renderingConfig.motion.microMovement,
+              renderingConfig.motion.microMovement *
+                (0.025 + motionActivity * 0.975),
+            )
+            // Struttura armonica di Liquid Morphing applicata ai punti già
+            // esistenti: il beat muove, la fase lenta cambia continuamente
+            // il disegno senza aggiungere segmenti o trasformare la scena.
+            const harmonicWave =
+              Math.sin(
+                spatialPhase * 2 +
+                  musicalPhase +
+                  evolutionPhase * 0.7 +
+                  phase,
+              ) *
+                0.5 +
+              Math.cos(
+                spatialPhase * 3 -
+                  musicalPhase * 0.8 +
+                  evolutionPhase +
+                  phase * 0.73,
+              ) *
+                0.3 +
+              Math.sin(
+                spatialPhase * (4 + highRipple * 1.5) +
+                  musicalPhase * 1.5 +
+                  evolutionPhase * 1.4,
+              ) *
+                0.2
+            const propagationWave = Math.sin(
+              musicalPhase * 0.5 -
+                spatialPhase * transformationConfig.propagation +
+                evolutionPhase * 0.54,
             )
             const wave =
-              musicalPhase * (0.16 + pressure * 0.045) +
+              harmonicWave * Math.PI +
               phase +
-              pointIndex * (0.24 + highRipple * 0.08) +
-              Math.sin(
-                time * 0.00043 -
-                  pointPhase *
-                    Math.PI *
-                    2 *
-                    transformationConfig.propagation,
-              ) *
+              propagationWave *
+                midDrive *
                 perceptual.propagation *
-                1.4
+                1.65
             let liquidX = 0
             let liquidY = 0
             if (pattern === 0) {
@@ -1028,7 +1255,9 @@ export function createBrainSvgScene(
               liquidY = Math.sin(wave * 0.73 + 1.4) * amplitude * 0.72
             } else {
               const pulse = Math.sin(
-                wave + Math.sin(musicalPhase * 0.22 + phase) * (0.8 + beatPulse * 0.5),
+                wave +
+                  Math.sin(musicalPhase + evolutionPhase * 0.42 + phase) *
+                    (0.8 + liquidMotion.kickEnvelope * 0.5),
               )
               liquidX = (normalX * 0.65 + tangentX * 0.35) * pulse * amplitude
               liquidY = (normalY * 0.65 + tangentY * 0.35) * pulse * amplitude
@@ -1038,14 +1267,16 @@ export function createBrainSvgScene(
                 baseX +
                 liquidX +
                 flowX +
-                normalX * microMotion.normal +
-                tangentX * microMotion.tangent,
+                normalX * kickDisplacement * localMotionScale +
+                normalX * microMotion.normal * localMotionScale +
+                tangentX * microMotion.tangent * localMotionScale,
               y:
                 baseY +
                 liquidY +
                 flowY +
-                normalY * microMotion.normal +
-                tangentY * microMotion.tangent,
+                normalY * kickDisplacement * localMotionScale +
+                normalY * microMotion.normal * localMotionScale +
+                tangentY * microMotion.tangent * localMotionScale,
             }
           })
           element.setAttribute('d', pointsPath(points))
@@ -1094,6 +1325,27 @@ export function createBrainSvgScene(
           }
         }
       })
+      const updateCostMs = performance.now() - updateStartedAt
+      const frameBudgetMs = settings.lowPowerMode ? 20 : 12
+      svg.setAttribute(
+        'data-brain-update-cost-ms',
+        updateCostMs.toFixed(2),
+      )
+      if (updateCostMs > frameBudgetMs) {
+        adaptivePressureUntil = Math.max(adaptivePressureUntil, time + 2_000)
+        svg.setAttribute('data-brain-performance-pressure', 'true')
+        if (time - lastPerformanceWarningAt >= 5_000) {
+          lastPerformanceWarningAt = time
+          brainWarn('render', 'budget frame Brain superato; riduco temporaneamente geometrie e FPS', {
+            frameId: scene.frameId,
+            updateCostMs: Math.round(updateCostMs * 100) / 100,
+            frameBudgetMs,
+            activeElements: activeIndices.length,
+          })
+        }
+      } else if (!adaptivePressure) {
+        svg.setAttribute('data-brain-performance-pressure', 'false')
+      }
     },
     destroy() {
       svg.remove()

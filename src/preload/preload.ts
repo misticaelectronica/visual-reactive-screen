@@ -39,8 +39,11 @@ const outputApi: OutputApi = {
     ipcRenderer.on(IPC_CHANNELS.visualStatePush, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.visualStatePush, handler)
   },
-  vectorizeBrainImage: (bytes: Uint8Array) =>
-    ipcRenderer.invoke(IPC_CHANNELS.vectorizeBrainImage, bytes) as ReturnType<
+  sendVisualStateAck: () => {
+    ipcRenderer.send(IPC_CHANNELS.visualStateAck)
+  },
+  vectorizeBrainImage: (bytes, options) =>
+    ipcRenderer.invoke(IPC_CHANNELS.vectorizeBrainImage, bytes, options) as ReturnType<
       OutputApi['vectorizeBrainImage']
     >,
   readBrainConfigFile: (fileName) =>

@@ -384,10 +384,24 @@ modificare `nextInterval()` e i relativi test in `brainPipeline.test.ts`.
 
 ## Vettorializzazione
 
-Il raster viene inviato via IPC al processo main e convertito con
-`@visioncortex/vtracer`.
+Il raster RGBA viene inviato via IPC al processo main. Il motore predefinito è
+`SNIC edge-guided`, interamente CPU e senza modelli aggiuntivi:
 
-Profili attuali:
+1. i pixel vengono trasformati in OKLab;
+2. SNIC genera superpixel connessi usando colore e distanza spaziale;
+3. le regioni adiacenti vengono aggregate quando colore e contrasto del bordo
+   sono compatibili;
+4. i confini vengono ricalcolati dopo le fusioni, così la decisione riguarda la
+   forma corrente e non i superpixel iniziali;
+5. le isole piccole vengono assorbite senza attraversare bordi molto forti;
+6. i perimetri vengono estratti con gerarchia dei vuoti, semplificati entro un
+   budget globale e convertiti in curve SVG arrotondate.
+
+Le metriche `strongEdgeRecall`, rugosità, punte, forme, colori e comandi decidono
+se il candidato è utilizzabile. Se fallisce e `fallbackToVTracer` è attivo, la
+pipeline usa `@visioncortex/vtracer` senza ripetere il pretrattamento raster.
+
+Profili di fallback:
 
 | Profilo | Obiettivo |
 | --- | --- |
@@ -395,8 +409,8 @@ Profili attuali:
 | `detailed` | Più dettagli e colori |
 | `simplified` | Riduzione della complessità |
 
-VTracer prova i profili in ordine e sceglie il primo candidato preferibile; in
-assenza, sceglie quello con penalità strutturale minore.
+VTracer parte da `balanced`, calcola `simplified` solo quando necessario e
+riserva `detailed` al recupero strutturale.
 
 I parametri principali sono in `VECTOR_PROFILES`:
 
@@ -411,6 +425,24 @@ I parametri principali sono in `VECTOR_PROFILES`:
 - `optimize`: livello di ottimizzazione.
 
 Cambiare questi valori può aumentare pesantemente il costo del morphing.
+
+Parametri SNIC principali:
+
+| Parametro | Uso |
+| --- | --- |
+| `snicSuperpixelSize` | Dimensione media delle regioni iniziali |
+| `snicCompactness` | Equilibrio fra vicinanza spaziale e colore |
+| `snicMergeColorThreshold` | Compatibilità cromatica per la fusione |
+| `snicStrongEdgeThreshold` | Protezione dei confini forti |
+| `snicMaximumRegions` | Obiettivo massimo di forme finali |
+| `contourSimplificationTolerance` | Riduzione dei punti con errore limitato |
+| `contourMaximumPoints` | Budget globale della geometria animabile |
+| `minimumStrongEdgeRecall` | Copertura minima richiesta dei bordi forti |
+
+Con i default, un fotogramma 640×360 ha un obiettivo di 72 regioni e 2400 punti.
+Il test prestazionale dedicato verifica inoltre che il percorso resti sotto tre
+secondi su una macchina di sviluppo; normalmente il costo osservato è molto più
+basso e non usa GPU.
 
 ## Controllo qualità SVG
 

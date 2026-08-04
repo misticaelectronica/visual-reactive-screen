@@ -1,9 +1,11 @@
-import type { DreamFrame, DreamStory, PsychedelScene } from '@shared/brain/brainTypes'
+import type {
+  BrainBufferFrame,
+  DreamFrame,
+  DreamStory,
+  PsychedelScene,
+} from '@shared/brain/brainTypes'
 import { brainLog, brainWarn } from './brainLog'
-import {
-  BrainVectorizer,
-  type PsychedelVectorizer,
-} from './brainVectorQuality'
+import type { PsychedelVectorizer } from './brainVectorQuality'
 import {
   ExplicitPsychedelImageGenerator,
   type ImageRenderMode,
@@ -21,6 +23,10 @@ export type PsychedelRasterPreview = {
   model: string
   blob: Blob
 }
+
+const RASTER_FALLBACK_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">' +
+  '<rect width="640" height="360" fill="#050005"/></svg>'
 
 export class HighQualityRenderScheduler {
   private remaining: number
@@ -196,6 +202,8 @@ export function buildPsychedelImagePrompt(
   _attempt = 0,
   _mode: ImageRenderMode = 'standard',
 ): string {
+  void _attempt
+  void _mode
   const framePrompt = frame.imagePrompt?.trim() || frame.description.trim()
   return story.mainArgument?.trim()
     ? `${framePrompt}\n\nMain argument: ${story.mainArgument.trim()}`
@@ -209,7 +217,7 @@ export class Psichedel {
 
   constructor(
     private readonly imageGenerator: PsychedelImageGenerator = new ExplicitPsychedelImageGenerator(),
-    private readonly vectorizer: PsychedelVectorizer = new BrainVectorizer(),
+    _vectorizer?: PsychedelVectorizer,
     private readonly onRaster?: (preview: PsychedelRasterPreview) => void,
     private readonly renderScheduler: HighQualityRenderScheduler = new HighQualityRenderScheduler(),
     private readonly onImageGenerationState?: (active: boolean) => void,
@@ -232,10 +240,10 @@ export class Psichedel {
     })
     const generationRound = this.generationRounds.get(story.id) ?? 0
     this.generationRounds.set(story.id, generationRound + 1)
-    brainLog('psichedel', 'pipeline raster AI → vettorializzazione avviata', {
+    brainLog('psichedel', 'pipeline raster AI → Canvas 2D avviata', {
       storyId: story.id,
       model: BRAIN_CONFIG.imageModelId,
-      vectorizer: 'VTracer color spline',
+      renderer: 'Canvas 2D raster a strisce',
       frames: story.frames.length,
       baseSeed,
       generationRound: generationRound + 1,
@@ -245,7 +253,7 @@ export class Psichedel {
       for (let index = 0; index < story.frames.length; index++) {
         const frame = story.frames[index]
         if (scenesByFrame.has(frame.id)) {
-          brainLog('psichedel', `fotogramma ${index + 1} già vettorializzato; riuso risultato`)
+          brainLog('psichedel', `fotogramma raster ${index + 1} già pronto; riuso risultato`)
           continue
         }
 
@@ -256,12 +264,13 @@ export class Psichedel {
               frameId: frame.id,
               description: `${frame.title}: ${frame.description}`,
               svg: reusableScene.svg,
+              raster: reusableScene.raster,
             }
             scenesByFrame.set(frame.id, deadlineScene)
             onSceneReady?.(deadlineScene, index)
             brainWarn(
               'psichedel',
-              'deadline produzione raggiunta; riuso un fotogramma già vettorializzato',
+              'deadline produzione raggiunta; riuso un fotogramma raster già pronto',
               {
                 storyId: story.id,
                 frameId: frame.id,
@@ -348,22 +357,21 @@ export class Psichedel {
                 BRAIN_CONFIG.imageModelId,
               blob: raster.blob,
             })
-            brainLog('psichedel', `vettorializzazione ${index + 1}/${story.frames.length}`, {
+            brainLog('psichedel', `raster pronta ${index + 1}/${story.frames.length}`, {
               model: raster.model,
               mode,
               rasterBytes: raster.blob.size,
               rasterDurationMs: Math.round(raster.durationMs),
             })
-            const vector = await this.vectorizer.vectorize(raster.blob)
             scene = {
               frameId: frame.id,
               description: `${frame.title}: ${frame.description}`,
-              svg: vector.svg,
+              svg: RASTER_FALLBACK_SVG,
+              raster: raster.blob,
             }
-            brainLog('psichedel', `fotogramma ${index + 1} superato controllo qualità`, {
-              vectorDurationMs: vector.durationMs,
-              vectorProfile: vector.profile,
-              quality: vector.quality,
+            brainLog('psichedel', `fotogramma raster ${index + 1} pronto per Canvas 2D`, {
+              rasterBytes: raster.blob.size,
+              rasterDurationMs: Math.round(raster.durationMs),
             })
           } catch (error) {
             lastError = error
@@ -377,6 +385,7 @@ export class Psichedel {
                   frameId: frame.id,
                   description: `${frame.title}: ${frame.description}`,
                   svg: reusableScene.svg,
+                  raster: reusableScene.raster,
                 }
                 brainWarn(
                   'psichedel',
@@ -422,7 +431,7 @@ export class Psichedel {
 
         if (!scene) {
           throw new Error(
-            `Psichedel non ha prodotto un'immagine vettoriale di qualità per il fotogramma ${index + 1}: ${
+            `Psichedel non ha prodotto una raster valida per il fotogramma ${index + 1}: ${
               lastError instanceof Error ? lastError.message : String(lastError)
             }`,
           )
@@ -433,7 +442,7 @@ export class Psichedel {
 
       const scenes = story.frames.map((frame) => scenesByFrame.get(frame.id))
       if (scenes.some((scene) => !scene)) {
-        throw new Error('Psichedel ha perso uno o più fotogrammi vettoriali verificati')
+        throw new Error('Psichedel ha perso uno o più fotogrammi raster pronti')
       }
       this.retainedScenes.delete(story.id)
       this.generationRounds.delete(story.id)
@@ -453,6 +462,91 @@ export class Psichedel {
   async discard(storyId: string): Promise<void> {
     this.retainedScenes.delete(storyId)
     this.generationRounds.delete(storyId)
+  }
+
+  async generateLowQualityBufferFrame(
+    story: DreamStory,
+  ): Promise<BrainBufferFrame> {
+    const sourceIndex = Math.floor(Math.random() * story.frames.length)
+    const sourceFrame = story.frames[sourceIndex] ?? story.frames[0]
+    if (!sourceFrame) {
+      throw new Error('Psichedel non ha un fotogramma sorgente per il buffer')
+    }
+    const associationType = Math.random() < 0.5 ? 'emotivo' : 'implicito'
+    const associationForLog =
+      story.bridge?.trim() ||
+      story.englishBridge?.trim() ||
+      sourceFrame.description
+    const associationForImage =
+      story.englishBridge?.trim() ||
+      story.bridge?.trim() ||
+      sourceFrame.imagePrompt?.trim() ||
+      sourceFrame.description
+    const sourceImagePrompt =
+      sourceFrame.imagePrompt?.trim() || sourceFrame.description.trim()
+    const frame: DreamFrame = {
+      ...sourceFrame,
+      id: `${story.id}-buffer`,
+      title: 'Collegamento associativo',
+      description: `Collegamento associativo ${associationType}: ${associationForLog}`,
+      visualIntent:
+        associationType === 'emotivo'
+          ? `Immagine-ponte emotiva verso la storia successiva, in continuità con: ${sourceFrame.visualIntent}`
+          : `Immagine-ponte implicita verso la storia successiva, in continuità con: ${sourceFrame.visualIntent}`,
+      imagePrompt:
+        associationType === 'emotivo'
+          ? `${sourceImagePrompt}. Emotional associative bridge: ${associationForImage}`
+          : `${sourceImagePrompt}. Implicit associative bridge: ${associationForImage}`,
+      energy: Math.min(0.56, sourceFrame.energy),
+    }
+    const prompt = buildPsychedelImagePrompt(story, frame, 0, 'interlude')
+    const seed = hashSeed(
+      `${story.id}|buffer|${sourceIndex}|${Math.random()}`,
+    )
+    brainLog('psichedel', 'generazione collegamento associativo bassa qualità dopo il quarto fotogramma', {
+      storyId: story.id,
+      frameId: frame.id,
+      sourceFrameId: sourceFrame.id,
+      associationType,
+      association: associationForLog,
+      mode: 'interlude',
+      seed,
+      prompt,
+    })
+    this.onImageGenerationState?.(true)
+    try {
+      const raster = await this.imageGenerator.generate(
+        prompt,
+        seed,
+        'interlude',
+        BRAIN_CONFIG.imageGenerationTimeoutMs,
+      )
+      this.onRaster?.({
+        storyId: story.id,
+        frameId: frame.id,
+        frameTitle: frame.title,
+        dreamMeaning: prompt,
+        attempt: 1,
+        mode: 'interlude',
+        model: raster.model ?? BRAIN_CONFIG.imageModelId,
+        blob: raster.blob,
+      })
+      const scene: PsychedelScene = {
+        frameId: frame.id,
+        description: `${frame.title}: ${frame.description}`,
+        svg: RASTER_FALLBACK_SVG,
+        raster: raster.blob,
+      }
+      brainLog('psichedel', 'collegamento associativo pronto per il ricircolo casuale', {
+        storyId: story.id,
+        frameId: frame.id,
+        rasterDurationMs: Math.round(raster.durationMs),
+        renderer: 'Canvas 2D raster a strisce',
+      })
+      return { frame, scene, associationType }
+    } finally {
+      this.onImageGenerationState?.(false)
+    }
   }
 
   async releaseImageModel(): Promise<void> {

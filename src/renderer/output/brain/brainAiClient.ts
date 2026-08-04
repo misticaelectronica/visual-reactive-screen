@@ -134,6 +134,13 @@ export class BrainAiClient {
   }
 
   async releaseTranslationModels(): Promise<void> {
+    await this.generate('release-translators', '', {
+      maxNewTokens: 0,
+      minNewTokens: 0,
+    })
+  }
+
+  async releaseAllModels(): Promise<void> {
     await this.generate('release-ai-models', '', {
       maxNewTokens: 0,
       minNewTokens: 0,
@@ -168,6 +175,12 @@ export class BrainAiClient {
       return
     }
     this.activeRequestId = id
+    const timeoutMs = request.message.task === 'story'
+      ? 45_000
+      : request.message.task === 'release-translators' ||
+          request.message.task === 'release-ai-models'
+        ? 12_000
+        : BRAIN_CONFIG.generationTimeoutMs
     request.timeoutId = window.setTimeout(() => {
       if (request.settled) return
       const error = new Error(`Timeout ${request.message.task}`)
@@ -180,7 +193,7 @@ export class BrainAiClient {
       this.worker = null
       this.rejectAll(error)
       this.createWorker()
-    }, request.message.task === 'story' ? 45_000 : BRAIN_CONFIG.generationTimeoutMs)
+    }, timeoutMs)
     this.worker.postMessage(request.message)
   }
 }

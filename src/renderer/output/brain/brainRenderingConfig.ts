@@ -1,5 +1,6 @@
 import { brainLog, brainWarn } from './brainLog'
 import type { BrainFrameMorphPattern } from './brainFrameMotion'
+import type { BrainVectorizationOptions } from '@shared/types'
 
 const ALLOWED_MORPH_PATTERNS = [
   'marea',
@@ -13,6 +14,7 @@ export type BrainRenderingConfig = {
     width: number
     height: number
     standardSteps: number
+    interludeSteps: number
     enhancedSteps: number
     qualitySteps: number
   }
@@ -38,8 +40,20 @@ export type BrainRenderingConfig = {
     liquidMultiplier: number
     microMovement: number
     colorSpeedMultiplier: number
+    maximumAnimatedAreaRatio: number
+    backgroundMotionScale: number
     patterns: BrainFrameMorphPattern[]
   }
+  globalRhythmicMotion: {
+    enabled: boolean
+    intensity: number
+    deformationBoost: number
+    flowBoost: number
+    kickDeformationPercent: number
+    responseMs: number
+    resourcePressureBoost: number
+  }
+  vectorization: BrainVectorizationOptions
   transformation: {
     enabled: boolean
     intensity: number
@@ -69,16 +83,17 @@ export const DEFAULT_BRAIN_RENDERING_CONFIG: BrainRenderingConfig = {
     width: 640,
     height: 360,
     standardSteps: 8,
+    interludeSteps: 4,
     enhancedSteps: 12,
     qualitySteps: 20,
   },
   timing: {
-    frameDurationMs: 9_000,
-    transitionMinMs: 1_100,
-    transitionMaxMs: 2_200,
-    holdMinMs: 4_200,
-    holdMaxMs: 6_500,
-    firstFrameTransitionMs: 1_500,
+    frameDurationMs: 14_000,
+    transitionMinMs: 6_000,
+    transitionMaxMs: 9_000,
+    holdMinMs: 3_500,
+    holdMaxMs: 5_500,
+    firstFrameTransitionMs: 2_500,
   },
   composition: {
     preserveAspectRatio: 'xMidYMid slice',
@@ -89,12 +104,57 @@ export const DEFAULT_BRAIN_RENDERING_CONFIG: BrainRenderingConfig = {
     edgeDarkness: 0.18,
   },
   motion: {
-    movementMultiplier: 1,
-    cameraMultiplier: 1,
-    liquidMultiplier: 1,
-    microMovement: 0.58,
+    movementMultiplier: 1.08,
+    cameraMultiplier: 0.25,
+    liquidMultiplier: 1.12,
+    microMovement: 0.68,
     colorSpeedMultiplier: 1,
+    maximumAnimatedAreaRatio: 0.34,
+    backgroundMotionScale: 0.06,
     patterns: [...ALLOWED_MORPH_PATTERNS],
+  },
+  globalRhythmicMotion: {
+    enabled: true,
+    intensity: 1.1,
+    deformationBoost: 0.62,
+    flowBoost: 0.78,
+    kickDeformationPercent: 0.72,
+    responseMs: 220,
+    resourcePressureBoost: 0.82,
+  },
+  vectorization: {
+    engine: 'snic',
+    fallbackToVTracer: true,
+    preprocessEnabled: true,
+    denoiseRadius: 1,
+    denoiseStrength: 0.28,
+    localContrast: 0,
+    colorSeparation: 0,
+    minimumEdgeRetention: 0.86,
+    paletteColors: 16,
+    spatialCleanupPasses: 1,
+    maximumContourRoughness: 0.16,
+    contourRoughnessPenalty: 1_200,
+    spikeDetectionEnabled: true,
+    minimumCornerAngleDegrees: 24,
+    minimumSpikeLengthRatio: 0.012,
+    maximumAcceptedSpikes: 1,
+    spikePenalty: 420,
+    roundedFinishEnabled: true,
+    roundedStrokeWidth: 0.6,
+    roundedStrokeOpacity: 0.55,
+    snicSuperpixelSize: 24,
+    snicCompactness: 9,
+    snicMergeColorThreshold: 10,
+    snicStrongEdgeThreshold: 8,
+    snicEdgeWeight: 0.7,
+    snicMinimumRegionAreaRatio: 0.0006,
+    snicMaximumRegions: 72,
+    contourSimplificationTolerance: 1.7,
+    contourCurveSmoothing: 0.34,
+    contourMaximumPoints: 2_400,
+    minimumContourAreaRatio: 0.00008,
+    minimumStrongEdgeRecall: 0.7,
   },
   transformation: {
     enabled: true,
@@ -146,6 +206,11 @@ export function normalizeBrainRenderingConfig(
   const composition: Partial<BrainRenderingConfig['composition']> =
     input.composition ?? {}
   const motion: Partial<BrainRenderingConfig['motion']> = input.motion ?? {}
+  const globalRhythmicMotion:
+    Partial<BrainRenderingConfig['globalRhythmicMotion']> =
+      input.globalRhythmicMotion ?? {}
+  const vectorization: Partial<BrainRenderingConfig['vectorization']> =
+    input.vectorization ?? {}
   const transformation: Partial<BrainRenderingConfig['transformation']> =
     input.transformation ?? {}
   const transitionMinMs = finiteNumber(
@@ -200,6 +265,12 @@ export function normalizeBrainRenderingConfig(
         DEFAULT_BRAIN_RENDERING_CONFIG.image.standardSteps,
         4,
         40,
+      )),
+      interludeSteps: Math.round(finiteNumber(
+        image.interludeSteps,
+        DEFAULT_BRAIN_RENDERING_CONFIG.image.interludeSteps,
+        4,
+        16,
       )),
       enhancedSteps: Math.round(finiteNumber(
         image.enhancedSteps,
@@ -273,7 +344,7 @@ export function normalizeBrainRenderingConfig(
         motion.movementMultiplier,
         DEFAULT_BRAIN_RENDERING_CONFIG.motion.movementMultiplier,
         0,
-        3,
+        2,
       ),
       cameraMultiplier: finiteNumber(
         motion.cameraMultiplier,
@@ -299,10 +370,245 @@ export function normalizeBrainRenderingConfig(
         0,
         3,
       ),
+      maximumAnimatedAreaRatio: finiteNumber(
+        motion.maximumAnimatedAreaRatio,
+        DEFAULT_BRAIN_RENDERING_CONFIG.motion.maximumAnimatedAreaRatio,
+        0.08,
+        0.9,
+      ),
+      backgroundMotionScale: finiteNumber(
+        motion.backgroundMotionScale,
+        DEFAULT_BRAIN_RENDERING_CONFIG.motion.backgroundMotionScale,
+        0,
+        0.35,
+      ),
       patterns:
         requestedPatterns.length > 0
           ? [...new Set(requestedPatterns)]
           : [...DEFAULT_BRAIN_RENDERING_CONFIG.motion.patterns],
+    },
+    globalRhythmicMotion: {
+      enabled:
+        globalRhythmicMotion.enabled === undefined
+          ? DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.enabled
+          : globalRhythmicMotion.enabled === true,
+      intensity: finiteNumber(
+        globalRhythmicMotion.intensity,
+        DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.intensity,
+        0,
+        3,
+      ),
+      deformationBoost: finiteNumber(
+        globalRhythmicMotion.deformationBoost,
+        DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.deformationBoost,
+        0,
+        3,
+      ),
+      flowBoost: finiteNumber(
+        globalRhythmicMotion.flowBoost,
+        DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.flowBoost,
+        0,
+        3,
+      ),
+      kickDeformationPercent: finiteNumber(
+        globalRhythmicMotion.kickDeformationPercent,
+        DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.kickDeformationPercent,
+        0,
+        2,
+      ),
+      responseMs: finiteNumber(
+        globalRhythmicMotion.responseMs,
+        DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.responseMs,
+        80,
+        4_000,
+      ),
+      resourcePressureBoost: finiteNumber(
+        globalRhythmicMotion.resourcePressureBoost,
+        DEFAULT_BRAIN_RENDERING_CONFIG.globalRhythmicMotion.resourcePressureBoost,
+        0.5,
+        2.5,
+      ),
+    },
+    vectorization: {
+      engine: vectorization.engine === 'vtracer' ? 'vtracer' : 'snic',
+      fallbackToVTracer:
+        vectorization.fallbackToVTracer === undefined
+          ? DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.fallbackToVTracer
+          : vectorization.fallbackToVTracer === true,
+      preprocessEnabled:
+        vectorization.preprocessEnabled === undefined
+          ? DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.preprocessEnabled
+          : vectorization.preprocessEnabled === true,
+      denoiseRadius: Math.round(finiteNumber(
+        vectorization.denoiseRadius,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.denoiseRadius,
+        1,
+        3,
+      )),
+      denoiseStrength: finiteNumber(
+        vectorization.denoiseStrength,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.denoiseStrength,
+        0,
+        1,
+      ),
+      localContrast: finiteNumber(
+        vectorization.localContrast,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.localContrast,
+        0,
+        0.6,
+      ),
+      colorSeparation: finiteNumber(
+        vectorization.colorSeparation,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.colorSeparation,
+        0,
+        0.5,
+      ),
+      minimumEdgeRetention: finiteNumber(
+        vectorization.minimumEdgeRetention,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumEdgeRetention,
+        0.7,
+        1,
+      ),
+      paletteColors: Math.round(finiteNumber(
+        vectorization.paletteColors,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.paletteColors,
+        4,
+        16,
+      )),
+      spatialCleanupPasses: Math.round(finiteNumber(
+        vectorization.spatialCleanupPasses,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.spatialCleanupPasses,
+        0,
+        2,
+      )),
+      maximumContourRoughness: finiteNumber(
+        vectorization.maximumContourRoughness,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.maximumContourRoughness,
+        0.02,
+        1,
+      ),
+      contourRoughnessPenalty: finiteNumber(
+        vectorization.contourRoughnessPenalty,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.contourRoughnessPenalty,
+        0,
+        10_000,
+      ),
+      spikeDetectionEnabled:
+        vectorization.spikeDetectionEnabled === undefined
+          ? DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.spikeDetectionEnabled
+          : vectorization.spikeDetectionEnabled === true,
+      minimumCornerAngleDegrees: finiteNumber(
+        vectorization.minimumCornerAngleDegrees,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumCornerAngleDegrees,
+        3,
+        60,
+      ),
+      minimumSpikeLengthRatio: finiteNumber(
+        vectorization.minimumSpikeLengthRatio,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumSpikeLengthRatio,
+        0.002,
+        0.2,
+      ),
+      maximumAcceptedSpikes: Math.round(finiteNumber(
+        vectorization.maximumAcceptedSpikes,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.maximumAcceptedSpikes,
+        0,
+        100,
+      )),
+      spikePenalty: finiteNumber(
+        vectorization.spikePenalty,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.spikePenalty,
+        0,
+        2_000,
+      ),
+      roundedFinishEnabled:
+        vectorization.roundedFinishEnabled === undefined
+          ? DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.roundedFinishEnabled
+          : vectorization.roundedFinishEnabled === true,
+      roundedStrokeWidth: finiteNumber(
+        vectorization.roundedStrokeWidth,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.roundedStrokeWidth,
+        0,
+        4,
+      ),
+      roundedStrokeOpacity: finiteNumber(
+        vectorization.roundedStrokeOpacity,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.roundedStrokeOpacity,
+        0,
+        1,
+      ),
+      snicSuperpixelSize: Math.round(finiteNumber(
+        vectorization.snicSuperpixelSize,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicSuperpixelSize,
+        8,
+        64,
+      )),
+      snicCompactness: finiteNumber(
+        vectorization.snicCompactness,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicCompactness,
+        1,
+        40,
+      ),
+      snicMergeColorThreshold: finiteNumber(
+        vectorization.snicMergeColorThreshold,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicMergeColorThreshold,
+        1,
+        40,
+      ),
+      snicStrongEdgeThreshold: finiteNumber(
+        vectorization.snicStrongEdgeThreshold,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicStrongEdgeThreshold,
+        1,
+        40,
+      ),
+      snicEdgeWeight: finiteNumber(
+        vectorization.snicEdgeWeight,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicEdgeWeight,
+        0,
+        3,
+      ),
+      snicMinimumRegionAreaRatio: finiteNumber(
+        vectorization.snicMinimumRegionAreaRatio,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicMinimumRegionAreaRatio,
+        0.00001,
+        0.02,
+      ),
+      snicMaximumRegions: Math.round(finiteNumber(
+        vectorization.snicMaximumRegions,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.snicMaximumRegions,
+        8,
+        180,
+      )),
+      contourSimplificationTolerance: finiteNumber(
+        vectorization.contourSimplificationTolerance,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.contourSimplificationTolerance,
+        0.1,
+        12,
+      ),
+      contourCurveSmoothing: finiteNumber(
+        vectorization.contourCurveSmoothing,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.contourCurveSmoothing,
+        0,
+        1,
+      ),
+      contourMaximumPoints: Math.round(finiteNumber(
+        vectorization.contourMaximumPoints,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.contourMaximumPoints,
+        200,
+        12_000,
+      )),
+      minimumContourAreaRatio: finiteNumber(
+        vectorization.minimumContourAreaRatio,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumContourAreaRatio,
+        0,
+        0.02,
+      ),
+      minimumStrongEdgeRecall: finiteNumber(
+        vectorization.minimumStrongEdgeRecall,
+        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumStrongEdgeRecall,
+        0,
+        1,
+      ),
     },
     transformation: {
       enabled:

@@ -1,4 +1,4 @@
-import type { AppSettings } from '@shared/types'
+import type { AppSettings, BandEnergies } from '@shared/types'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 
 export const BRAIN_FRAME_MORPH_PATTERNS = [
@@ -50,6 +50,51 @@ export type BrainCameraMotion = {
 export type BrainMicroMotion = {
   normal: number
   tangent: number
+}
+
+export function calculateBrainSpectrumEnvelope(
+  bands: BandEnergies,
+  beatPulse: number,
+): number {
+  const broadbandEnergy =
+    (bands.low + bands.lowMid + bands.mid + bands.high) / 4
+  const spectralPeak = Math.max(
+    bands.low,
+    bands.lowMid,
+    bands.mid,
+    bands.high,
+  )
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      broadbandEnergy * 0.55 +
+        spectralPeak * 0.25 +
+        Math.max(0, Math.min(1, beatPulse)) * 0.2,
+    ),
+  )
+}
+
+export function calculateBrainKickDisplacement(
+  sceneDiagonal: number,
+  deformationPercent: number,
+  beatPulse: number,
+  lowDrive: number,
+  kickScale: number,
+  resourceFactor = 1,
+): number {
+  const safeDiagonal = Math.max(0, sceneDiagonal)
+  const safePercent = Math.max(0, Math.min(2, deformationPercent)) / 100
+  const pulse = Math.max(0, Math.min(1, beatPulse))
+  const lowWeight = 0.72 + Math.max(0, Math.min(1, lowDrive)) * 0.28
+  return (
+    safeDiagonal *
+    safePercent *
+    pulse *
+    lowWeight *
+    Math.max(0, kickScale) *
+    Math.max(0, Math.min(1, resourceFactor))
+  )
 }
 
 export function calculateBrainMicroMotion(
@@ -337,10 +382,11 @@ export function calculateBrainFrameTiming(
   const timing = getBrainRenderingConfig().timing
   const patternIndex = BRAIN_FRAME_MORPH_PATTERNS.indexOf(pattern)
   const safeBeatDuration = Math.max(260, Math.min(1_200, beatDurationMs))
-  // Il morph resta agganciato a pochi battiti: il tempo configurato è un
-  // limite reale, non una lunga rotazione che trattiene la scena precedente.
-  const transitionBeats = 3 + (patternIndex % 3)
-  const holdBeats = 10 + ((patternIndex + 1) % 3) * 2
+  // Il morph attraversa una frase musicale lunga, ma i livelli interni
+  // avanzano sul singolo beat. Così la transizione è lenta senza diventare
+  // una dissolvenza inerte o un'oscillazione autonoma.
+  const transitionBeats = 12 + (patternIndex % 3) * 2
+  const holdBeats = 8 + ((patternIndex + 1) % 3) * 2
   const transitionMs = Math.max(
     timing.transitionMinMs,
     Math.min(

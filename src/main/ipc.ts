@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import type {
   AppSettings,
   BrainConfigFileName,
+  BrainVectorizationOptions,
   VisualStatePayload,
 } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/types'
@@ -11,6 +12,7 @@ import {
   broadcastVisualState,
   closeOutputWindow,
   createOutputWindow,
+  handleVisualStateAck,
 } from './windows'
 import { vectorizeBrainImage } from './brainVectorizer'
 import { readBrainConfigFile } from './brainConfigFiles'
@@ -36,8 +38,16 @@ export function registerIpcHandlers(): void {
     broadcastVisualState(state)
   })
 
-  ipcMain.handle(IPC_CHANNELS.vectorizeBrainImage, (_event, bytes: unknown) => {
-    return vectorizeBrainImage(bytes)
+  ipcMain.on(IPC_CHANNELS.visualStateAck, () => {
+    handleVisualStateAck()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.vectorizeBrainImage, (
+    _event,
+    bytes: unknown,
+    options?: BrainVectorizationOptions,
+  ) => {
+    return vectorizeBrainImage(bytes, options)
   })
 
   ipcMain.handle(

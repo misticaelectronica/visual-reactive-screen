@@ -23,7 +23,11 @@ export interface PsychedelImageGenerator {
   destroy(): void
 }
 
-export type ImageRenderMode = 'standard' | 'high-quality' | 'enhanced'
+export type ImageRenderMode =
+  | 'standard'
+  | 'interlude'
+  | 'high-quality'
+  | 'enhanced'
 
 const LEGACY_STANDARD_MODEL: ModelId = 'sd-turbo'
 const LEGACY_HIGH_QUALITY_MODEL: ModelId = 'janus-pro-1b'
@@ -275,6 +279,8 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
         ? renderingConfig.image.qualitySteps
         : mode === 'enhanced'
           ? renderingConfig.image.enhancedSteps
+          : mode === 'interlude'
+            ? renderingConfig.image.interludeSteps
           : renderingConfig.image.standardSteps
     const inferenceGeometry =
       mode === 'high-quality'

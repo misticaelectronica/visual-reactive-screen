@@ -32,11 +32,20 @@ export type PsychedelScene = {
   frameId: string
   description: string
   svg: string
+  /** Raster originale usata dal renderer Canvas 2D; l'SVG resta solo fallback. */
+  raster?: Blob
+}
+
+export type BrainBufferFrame = {
+  frame: DreamFrame
+  scene: PsychedelScene
+  associationType: 'emotivo' | 'implicito'
 }
 
 export type BrainProduction = {
   story: DreamStory
   scenes: PsychedelScene[]
+  bufferFrame?: BrainBufferFrame
 }
 
 export type BrainAiTask =

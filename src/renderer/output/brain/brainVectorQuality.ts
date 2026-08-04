@@ -1,4 +1,7 @@
 import { sanitizeBrainSvg } from './sanitizeBrainSvg'
+import { getBrainRenderingConfig } from './brainRenderingConfig'
+import { brainWarn } from './brainLog'
+import type { BrainRasterPixels } from '@shared/types'
 
 const DRAWABLE_SELECTOR = 'path,circle,ellipse,rect,line,polyline,polygon'
 const COLOR_PATTERN = /^(?:#[0-9a-f]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-z]+)$/i
@@ -67,7 +70,9 @@ export function inspectBrainVector(markup: string): BrainVectorQuality {
   if (drawables.length < 5) issues.push('meno di cinque forme riconoscibili')
   if (drawables.length > 180) issues.push('troppe forme per il rendering live')
   if (paths.length < 4) issues.push('numero di tracciati insufficiente')
-  if (pathCommands < 24) issues.push('curve e contorni insufficientemente articolati')
+  // Questo controllo resta una barriera strutturale, non una misura estetica:
+  // premiare molti comandi favorirebbe proprio la frammentazione da eliminare.
+  if (pathCommands < 12) issues.push('geometria vettoriale incompleta')
   if (colors.size < 3) issues.push('gamma cromatica insufficiente')
 
   return {
@@ -88,7 +93,27 @@ export interface PsychedelVectorizer {
     quality: BrainVectorQuality
     durationMs: number
     profile?: string
+    detectedSpikes?: number
+    contourRoughness?: number
   }>
+}
+
+async function rasterPixels(blob: Blob): Promise<BrainRasterPixels> {
+  const bitmap = await createImageBitmap(blob)
+  try {
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (!context) throw new Error('Canvas 2D non disponibile')
+    context.drawImage(bitmap, 0, 0)
+    const image = context.getImageData(0, 0, bitmap.width, bitmap.height)
+    return {
+      rgba: new Uint8Array(image.data),
+      width: bitmap.width,
+      height: bitmap.height,
+    }
+  } finally {
+    bitmap.close()
+  }
 }
 
 export class BrainVectorizer implements PsychedelVectorizer {
@@ -97,7 +122,21 @@ export class BrainVectorizer implements PsychedelVectorizer {
     if (!api?.vectorizeBrainImage) {
       throw new Error('Servizio di vettorializzazione Brain non disponibile nel preload')
     }
-    const result = await api.vectorizeBrainImage(new Uint8Array(await blob.arrayBuffer()))
+    let source: Uint8Array | BrainRasterPixels
+    try {
+      source = await rasterPixels(blob)
+    } catch (error) {
+      brainWarn(
+        'vettorializzazione',
+        'pretrattamento raster non disponibile; uso il file codificato',
+        error,
+      )
+      source = new Uint8Array(await blob.arrayBuffer())
+    }
+    const result = await api.vectorizeBrainImage(
+      source,
+      getBrainRenderingConfig().vectorization,
+    )
     if (!result.ok) throw new Error(`Vettorializzazione fallita: ${result.error}`)
 
     const quality = inspectBrainVector(result.svg)
@@ -106,6 +145,13 @@ export class BrainVectorizer implements PsychedelVectorizer {
     }
     const svg = sanitizeBrainSvg(result.svg)
     if (!svg) throw new Error('SVG rifiutato dalla sanitizzazione')
-    return { svg, quality, durationMs: result.durationMs, profile: result.profile }
+    return {
+      svg,
+      quality,
+      durationMs: result.durationMs,
+      profile: result.profile,
+      detectedSpikes: result.detectedSpikes,
+      contourRoughness: result.contourRoughness,
+    }
   }
 }

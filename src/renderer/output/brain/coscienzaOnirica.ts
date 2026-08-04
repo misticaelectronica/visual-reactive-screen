@@ -658,7 +658,8 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
 
 export class CoscienzaOnirica {
   constructor(
-    private readonly ai: Pick<BrainAiClient, 'generate'>,
+    private readonly ai: Pick<BrainAiClient, 'generate'> &
+      Partial<Pick<BrainAiClient, 'releaseTranslationModels'>>,
     private readonly translator?: Pick<
       BrainTranslator,
       'inputsToEnglish' | 'storyForUi'
@@ -767,6 +768,17 @@ export class CoscienzaOnirica {
       : continuitySeed
         ? [...phrases, continuitySeed]
         : phrases
+    if (this.translator && this.ai.releaseTranslationModels) {
+      await this.ai.releaseTranslationModels()
+      brainLog(
+        'coscienza',
+        'traduttore input rilasciato prima del caricamento narrativo',
+        {
+          translatedInputs: translatedInputs.length,
+          nextModel: BRAIN_CONFIG.storyModelId,
+        },
+      )
+    }
     const narrativePhrases = translatedInputs.slice(0, phrases.length)
     const dedicatedInputTranslation =
       this.translator?.inputTranslationEnabled?.() ?? false

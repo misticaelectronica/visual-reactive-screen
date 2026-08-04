@@ -1,5 +1,5 @@
 export const BRAIN_CONFIG = {
-  pipelineRevision: 'qwen25-svg-story-core-loop-fix-v73',
+  pipelineRevision: 'qwen25-snic-contours-v89',
   phraseSampleMinCount: 4,
   phraseSampleMaxCount: 5,
   phraseMemoryCount: 12,
@@ -36,6 +36,10 @@ export const BRAIN_CONFIG = {
   imageGenerationTimeoutMs: 120_000,
   nextStoryTargetMs: 120_000,
   nextStoryHardDeadlineMs: 180_000,
+  // Breve assestamento dopo il rilascio delle sessioni immagini: impedisce
+  // che il modello narrativo venga creato mentre WebGPU sta ancora liberando
+  // gli allocator della storia precedente.
+  interStoryGpuHandoffMs: 500,
   imageCapabilityTimeoutMs: 12_000,
   imageModelLoadTimeoutMs: 20 * 60_000,
   retryInitialDelayMs: 2_000,

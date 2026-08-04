@@ -145,12 +145,55 @@ export const IPC_CHANNELS = {
   sendVisualState: 'fx:send-visual-state',
   /** Main → output renderer */
   visualStatePush: 'fx:visual-state-push',
+  /** Output renderer → Main ACK */
+  visualStateAck: 'fx:visual-state-ack',
   outputClosed: 'fx:output-closed',
   vectorizeBrainImage: 'fx:vectorize-brain-image',
   readBrainConfigFile: 'fx:read-brain-config-file',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
+
+export type BrainVectorizationOptions = {
+  engine: 'snic' | 'vtracer'
+  fallbackToVTracer: boolean
+  preprocessEnabled: boolean
+  denoiseRadius: number
+  denoiseStrength: number
+  localContrast: number
+  colorSeparation: number
+  minimumEdgeRetention: number
+  paletteColors: number
+  spatialCleanupPasses: number
+  maximumContourRoughness: number
+  contourRoughnessPenalty: number
+  spikeDetectionEnabled: boolean
+  minimumCornerAngleDegrees: number
+  minimumSpikeLengthRatio: number
+  maximumAcceptedSpikes: number
+  spikePenalty: number
+  roundedFinishEnabled: boolean
+  roundedStrokeWidth: number
+  roundedStrokeOpacity: number
+  snicSuperpixelSize: number
+  snicCompactness: number
+  snicMergeColorThreshold: number
+  snicStrongEdgeThreshold: number
+  snicEdgeWeight: number
+  snicMinimumRegionAreaRatio: number
+  snicMaximumRegions: number
+  contourSimplificationTolerance: number
+  contourCurveSmoothing: number
+  contourMaximumPoints: number
+  minimumContourAreaRatio: number
+  minimumStrongEdgeRecall: number
+}
+
+export type BrainRasterPixels = {
+  rgba: Uint8Array
+  width: number
+  height: number
+}
 
 export type BrainVectorizationResult =
   | {
@@ -159,6 +202,11 @@ export type BrainVectorizationResult =
       profile: string
       durationMs: number
       sourceBytes: number
+      detectedSpikes: number
+      contourRoughness: number
+      strongEdgeRecall?: number
+      regionCount?: number
+      pointCount?: number
     }
   | {
       ok: false
@@ -176,6 +224,13 @@ export interface VisualStatePayload {
   movingAverages?: BandEnergies
   settings?: AppSettings
   whiteMix?: number
+  audioTimestampMs?: number
+  sequenceNumber?: number
+  /** Solo diagnostica aggregata; non influenza motore audio o rendering. */
+  performanceTelemetry?: {
+    sequence: number
+    sentAtEpochMs: number
+  }
 }
 
 export type MorphingTransitionKind = 'standard' | 'enter2001' | 'exit2001' | 'internal2001'
@@ -214,6 +269,10 @@ export interface ControlApi {
 
 export interface OutputApi {
   onVisualState: (cb: (state: VisualStatePayload) => void) => () => void
-  vectorizeBrainImage: (bytes: Uint8Array) => Promise<BrainVectorizationResult>
+  sendVisualStateAck: () => void
+  vectorizeBrainImage: (
+    source: Uint8Array | BrainRasterPixels,
+    options?: BrainVectorizationOptions,
+  ) => Promise<BrainVectorizationResult>
   readBrainConfigFile: (fileName: BrainConfigFileName) => Promise<string>
 }

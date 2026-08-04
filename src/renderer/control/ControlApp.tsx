@@ -91,6 +91,7 @@ export function ControlApp() {
   const morphingRotationTimerRef = useRef<number | null>(null)
   const nextNoMorphingDueAtRef = useRef(0)
   const visStateRef = useRef(createInitialVisualEngineState())
+  const telemetrySequenceRef = useRef(0)
   const lastMovingRef = useRef<BandEnergies>({
     low: 0.05,
     lowMid: 0.05,
@@ -178,7 +179,14 @@ export function ControlApp() {
         movingAverages,
         settings,
         whiteMix: output.debug.whiteMix,
+        audioTimestampMs: performance.timeOrigin + t,
+        sequenceNumber: telemetrySequenceRef.current,
+        performanceTelemetry: {
+          sequence: telemetrySequenceRef.current,
+          sentAtEpochMs: performance.timeOrigin + t,
+        },
       })
+      telemetrySequenceRef.current += 1
 
       raf = requestAnimationFrame(loop)
     }

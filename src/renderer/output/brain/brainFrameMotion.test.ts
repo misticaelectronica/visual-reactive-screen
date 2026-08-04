@@ -5,8 +5,10 @@ import {
   calculateBrainCameraMotion,
   calculateBrainDepthMotion,
   calculateBrainFrameTiming,
+  calculateBrainKickDisplacement,
   calculateBrainMicroMotion,
   calculateBrainMotionFrameInterval,
+  calculateBrainSpectrumEnvelope,
   createBrainDepthProfile,
   selectBrainFrameMorphPattern,
   selectBrainRecycledFrameIndex,
@@ -35,6 +37,24 @@ describe('movimento dei fotogrammi Brain', () => {
       ).toBeLessThan(0.01)
     }
     expect(samples.every(({ normal }) => Math.abs(normal) < 1)).toBe(true)
+  })
+
+  it('collega l’impulso a tutte le bande e al beat reale', () => {
+    const silence = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    expect(calculateBrainSpectrumEnvelope(silence, 0)).toBe(0)
+    for (const band of ['low', 'lowMid', 'mid', 'high'] as const) {
+      expect(calculateBrainSpectrumEnvelope({ ...silence, [band]: 1 }, 0))
+        .toBeGreaterThan(0)
+    }
+    expect(calculateBrainSpectrumEnvelope(silence, 1)).toBeGreaterThan(0)
+  })
+
+  it('rende il kick visibile senza una trasformazione globale della scena', () => {
+    expect(calculateBrainKickDisplacement(1_400, 0.72, 0, 1, 1)).toBe(0)
+    expect(calculateBrainKickDisplacement(1_400, 0.72, 1, 1, 1))
+      .toBeCloseTo(10.08)
+    expect(calculateBrainKickDisplacement(1_400, 0.72, 1, 1, 1, 0.82))
+      .toBeCloseTo(8.2656)
   })
 
   it('non ripete consecutivamente lo stesso pattern di trasformazione', () => {
@@ -82,6 +102,7 @@ describe('movimento dei fotogrammi Brain', () => {
   it('ricicla un fotogramma diverso da quello attualmente visibile', () => {
     expect(selectBrainRecycledFrameIndex(4, 0, () => 0)).toBe(1)
     expect(selectBrainRecycledFrameIndex(4, 3, () => 0.999)).toBe(2)
+    expect(selectBrainRecycledFrameIndex(5, 0, () => 0.999)).toBe(4)
     expect(selectBrainRecycledFrameIndex(1, 0, () => 0.5)).toBe(0)
   })
 

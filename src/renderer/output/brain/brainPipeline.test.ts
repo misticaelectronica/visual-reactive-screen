@@ -35,6 +35,9 @@ import {
 import {
   BRAIN_MAX_DEPTH_LAYERS,
   BRAIN_MAX_MORPH_GEOMETRIES,
+  allocateBrainMorphPointCounts,
+  calculateBrainGeometryPriority,
+  calculateBrainShapeMotionScale,
   createBrainSvgScene,
   selectBrainGeometryCandidateIndices,
 } from './brainSvgScene'
@@ -160,6 +163,39 @@ describe('CoscienzaOnirica', () => {
     expect(story.synopsis).toContain('Mara enters the old station')
     expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
     expect(story.frames[0].imagePrompt).toContain('Mara enters the old station')
+  })
+
+  it('rilascia il traduttore prima di caricare il modello narrativo', async () => {
+    const events: string[] = []
+    const englishStory = [
+      'TITLE: The Living Station',
+      'STORY: Mara enters an abandoned station and hears a copper signal beneath the clock. She follows the sound through a flooded tunnel and discovers a damaged transmitter. Fear delays her until the signal repeats her own name. Mara repairs the antenna with a loose rail. At dawn the transmitter opens a path toward the fields and calls an unknown traveler.',
+      'BRIDGE: A copper signal crosses the fields toward another silent station.',
+      'COLORS: #102030, #405060, #708090, #a0b0c0, #d0e0f0',
+    ].join('\n')
+    const ai = {
+      async generate(task: BrainAiTask, prompt: string): Promise<string> {
+        events.push(task)
+        if (task === 'translate-input') return `English: ${prompt}`
+        if (task === 'story') return englishStory
+        throw new Error(`Task inatteso: ${task}`)
+      },
+      async releaseTranslationModels(): Promise<void> {
+        events.push('release-translators')
+      },
+    }
+    const translator = new BrainTranslator(ai, {
+      translateInputs: true,
+      translateUi: false,
+    })
+
+    await new CoscienzaOnirica(ai, translator).generate(PHRASES)
+
+    const releaseIndex = events.indexOf('release-translators')
+    const storyIndex = events.indexOf('story')
+    expect(releaseIndex).toBeGreaterThan(events.lastIndexOf('translate-input'))
+    expect(storyIndex).toBeGreaterThan(releaseIndex)
+    expect(events.filter((event) => event === 'release-translators')).toHaveLength(1)
   })
 
   it('riconosce gli input adulti espliciti senza confonderli con una storia generica', () => {
@@ -1068,6 +1104,37 @@ describe('Psichedel', () => {
     expect(generator.releases).toBe(1)
   })
 
+  it('genera dopo i quattro fotogrammi un collegamento associativo a quattro step', async () => {
+    const story = defaultStory()
+    const generator = imageGenerator()
+    const previewModes: string[] = []
+    const psychedel = new Psichedel(
+      generator,
+      vectorizer(),
+      (preview) => previewModes.push(preview.mode),
+    )
+
+    await psychedel.generate(story)
+    const buffer = await psychedel.generateLowQualityBufferFrame(story)
+
+    expect(generator.calls).toHaveLength(5)
+    expect(previewModes.at(-1)).toBe('interlude')
+    expect(buffer.frame.id).toBe(`${story.id}-buffer`)
+    expect(buffer.frame.title).toBe('Collegamento associativo')
+    expect(['emotivo', 'implicito']).toContain(buffer.associationType)
+    expect(buffer.frame.description).toContain(
+      `Collegamento associativo ${buffer.associationType}`,
+    )
+    expect(buffer.frame.description).toContain(story.bridge ?? '')
+    expect(buffer.scene.frameId).toBe(buffer.frame.id)
+    expect(buffer.scene.svg).toContain('<svg')
+    expect(generator.calls.at(-1)).toContain(
+      buffer.associationType === 'emotivo'
+        ? 'Emotional associative bridge'
+        : 'Implicit associative bridge',
+    )
+  })
+
   it('consegna la produzione entro la deadline riusando un fotogramma già valido', async () => {
     const story = defaultStory()
     const generator = imageGenerator()
@@ -1213,7 +1280,13 @@ describe('Psichedel', () => {
 
     expect(controller.element.isConnected).toBe(true)
     expect(controller.element.style.opacity).toBe('1')
-    expect(controller.element.style.transform).toBe('scaleX(1.05) scaleY(1.02)')
+    expect(controller.element.style.transform).not.toContain('translate3d(')
+    expect(controller.element.style.transform).not.toContain('rotate(')
+    expect(controller.element.style.transform).not.toContain('skewX(')
+    expect(controller.element.style.transform).not.toMatch(/(?:^|\s)scale\(/u)
+    expect(controller.element.style.transform).toContain(
+      'scaleX(1.05) scaleY(1.02)',
+    )
     expect(controller.element.style.filter).toBe('none')
     expect(controller.element.style.perspective).toBe('')
     expect(controller.element.getAttribute('preserveAspectRatio')).toBe('xMidYMid slice')
@@ -1225,6 +1298,11 @@ describe('Psichedel', () => {
     expect(animatedLayer?.style.willChange).toBe('')
     expect(animatedLayer?.style.transform).toBe('')
     controller.setResourcePressure(true)
+    controller.update(
+      { low: 0.4, lowMid: 0.7, mid: 0.9, high: 1 },
+      DEFAULT_SETTINGS,
+      3_000,
+    )
     expect(
       [...echoes].every(
         (echo) =>
@@ -1236,11 +1314,46 @@ describe('Psichedel', () => {
       /^translate\(.+\) rotate\(.+\)$/,
     )
     expect(animatedLayer?.getAttribute('transform')).toContain('scale(')
+    expect(animatedLayer?.parentElement?.hasAttribute('transform')).toBe(false)
     expect(echoes).toHaveLength(3)
     expect((echoes[0] as SVGUseElement).style.opacity).toBe('0')
     controller.setResourcePressure(false)
     expect((echoes[0] as SVGUseElement).style.display).toBe('block')
     expect(Number(controller.element.getAttribute('data-brain-complexity'))).toBeGreaterThan(0)
+    expect(
+      Number(controller.element.getAttribute('data-brain-rhythmic-envelope')),
+    ).toBeGreaterThan(0)
+
+    controller.destroy()
+    host.remove()
+  })
+
+  it('ferma quasi del tutto le curve in silenzio e le riattiva con lo spettro', () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const controller = createBrainSvgScene(host, {
+      frameId: 'audio-locked-curves',
+      description: 'curve collegate allo spettro',
+      svg: tracedSvg(),
+    })
+    const silent = { low: 0, lowMid: 0, mid: 0, high: 0 }
+
+    controller.update(silent, DEFAULT_SETTINGS, 1_000)
+    const silentPath = controller.element.querySelector('path')?.getAttribute('d')
+    expect(controller.element.getAttribute('data-brain-motion-activity')).toBe(
+      '0.000',
+    )
+
+    controller.update(
+      { low: 0.3, lowMid: 0.55, mid: 0.8, high: 1 },
+      DEFAULT_SETTINGS,
+      1_100,
+    )
+    const activePath = controller.element.querySelector('path')?.getAttribute('d')
+    expect(
+      Number(controller.element.getAttribute('data-brain-motion-activity')),
+    ).toBeGreaterThan(0)
+    expect(activePath).not.toBe(silentPath)
 
     controller.destroy()
     host.remove()
@@ -1317,17 +1430,17 @@ describe('Psichedel', () => {
     expect(path?.getAttribute('d')).toBe(compoundPath)
     expect(
       path?.querySelector('[data-brain-static-micro-motion="true"]'),
-    ).not.toBeNull()
+    ).toBeNull()
     expect(
       controller.element.getAttribute(
         'data-brain-static-micro-motion-count',
       ),
-    ).toBe('1')
+    ).toBe('0')
     controller.destroy()
     host.remove()
   })
 
-  it('dà una micro-deriva continua anche alle forme fuori dal budget RAF', () => {
+  it('non anima autonomamente le forme fuori dal budget RAF', () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const paths = Array.from(
@@ -1345,9 +1458,7 @@ describe('Psichedel', () => {
       '[data-brain-dormant-micro-motion="true"]',
     )
 
-    expect(dormantMotion.length).toBeGreaterThan(0)
-    expect(dormantMotion[0]?.getAttribute('repeatCount')).toBe('indefinite')
-    expect(dormantMotion[0]?.getAttribute('values')).toContain(';')
+    expect(dormantMotion).toHaveLength(0)
 
     controller.destroy()
     host.remove()
@@ -1477,6 +1588,22 @@ describe('budget geometrico Brain', () => {
           complexities[selected[position - 1]] >= complexities[index],
       ),
     ).toBe(true)
+  })
+
+  it('assegna più punti alle forme complesse senza aumentare il budget totale', () => {
+    const counts = allocateBrainMorphPointCounts([16, 64, 256, 4_096])
+
+    expect(counts.reduce((sum, count) => sum + count, 0)).toBe(4 * 24)
+    expect(counts[3]).toBeGreaterThan(counts[0])
+    expect(Math.min(...counts)).toBeGreaterThanOrEqual(16)
+    expect(Math.max(...counts)).toBeLessThanOrEqual(48)
+  })
+
+  it('toglie priorità e movimento ai fondali che coprono troppa scena', () => {
+    expect(calculateBrainShapeMotionScale(0.2, 0.34, 0.06)).toBe(1)
+    expect(calculateBrainShapeMotionScale(0.7, 0.34, 0.06)).toBe(0.06)
+    expect(calculateBrainGeometryPriority(1_000, 0.7, 0.34, 0.06))
+      .toBeCloseTo(60)
   })
 })
 

@@ -61,6 +61,8 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non lasciare debug overlay o flag debug attivi in produzione live, salvo richiesta esplicita.
 - Non rendere il build Mac Intel parte del build normale: e' un extra.
 - Non rendere i renderer troppo nervosi inseguendo ogni transiente audio: dub, techno e ambient devono avere comportamenti diversi.
+- Non applicare oscillazioni, derive laterali, rotazioni, zoom o pulsazioni ritmiche all’intero quadro: possono causare mal di mare. Distribuire sempre il movimento fra segmenti con fasi differenti e mantenere la camera stabile.
+- Non simulare reattività musicale con oscillazioni temporali autonome: le curve devono usare fase riallineata al beat e transienti distinti per `low`, `lowMid`, `mid` e `high`. In silenzio il movimento geometrico deve essere quasi nullo.
 - Non rimuovere `lowPowerMode`: serve per ridurre carico CPU/FPS/layer durante live lunghi o su macchine calde.
 
 ## Punti Delicati
@@ -203,7 +205,41 @@ Normalizzazione in `src/main/settings.ts`:
 - `motionProfile` deve restare uno tra `dub`, `techno`, `ambient`
 - `lowPowerMode` valido solo se booleano
 - alias vecchi preset colore -> nuovi id
-- dynamic preset flags normalizzati
+## Gestione Piani Di Lavoro E Tracciamento Task (Cartella working/)
+
+Per garantire la continuità operativa, la tracciabilità delle decisioni e la persistenza dello stato fra differenti sessioni di lavoro, agenti e sviluppatori DEVONO utilizzare la cartella `working/`.
+
+### 1. Struttura Obbligatoria della Cartella `working/`
+
+- **`working/STATE.md`**: Quadro sintetico aggiornato ad ogni sessione con lo stato globale, il Macrotask attivo ed i Prossimi Passi (Next Steps).
+- **`working/tasks/macrotasks.md`**: Elenco e stato dei Macrotask (passati, in corso, pianificati).
+- **`working/tasks/tasks-registry.md`**: Registro di tutti i micro-task atomici (stati `[TODO]`, `[IN_PROGRESS]`, `[DONE]`, `[BLOCKED]`).
+- **`working/plans/`**:
+  - `template-piano-di-lavoro.md`: Modello standard per la creazione di nuovi Piani di Lavoro.
+  - `piano-XXX-<nome>.md`: File dedicati ai singoli Piani di Lavoro per funzionalità o refactoring complessi.
+- **`working/sessions/session-history.md`**: Storico cronologico delle sessioni di sviluppo svolte e registrazione della sessione in corso.
+
+### 2. Workflow Obbligatorio dell'Agente con i Piani di Lavoro
+
+1. **Fase Iniziale (Avvio Turno / Sessione)**:
+   - Prima di intraprendere qualsiasi modifica, leggere `working/STATE.md` e `working/tasks/macrotasks.md` per acquisire il contesto corrente del progetto.
+   - Verificare l'eventuale presenza di un Piano di Lavoro attivo in `working/plans/`.
+
+2. **Creazione di un Piano di Lavoro ("Piano di Lavoro")**:
+   - Per qualsiasi richiesta complessa, nuovo macrotask o refactoring architetturale, l'agente DEVE creare un nuovo file di piano in `working/plans/piano-XXX-<nome>.md` partendo da `working/plans/template-piano-di-lavoro.md`.
+   - Il Piano di Lavoro deve definire:
+     - **Obiettivo e Contesto**: Scopo chiaro del piano e dipendenze.
+     - **Verifica delle Regole di `agents.md`**: Conferma che le modifiche non violino le regole fondamentali (es. `backgroundThrottling: false`, permessi audio macOS, stabilità della camera, low power mode).
+     - **Fasi di Implementazione**: Suddivisione in fasi ed elenchi di task con checkbox `[ ]`.
+     - **Validation Plan**: Comandi di build/test (`pnpm typecheck`, `pnpm build`) e procedure di test manuale.
+
+3. **Durante l'Esecuzione**:
+   - Spuntare i task completati nel Piano di Lavoro ed in `working/tasks/tasks-registry.md`.
+   - Aggiornare lo stato di avanzamento in `working/STATE.md`.
+
+4. **Fine Sessione o Consegna**:
+   - Registrare la sessione in `working/sessions/session-history.md` specificando: data/ora, obiettivi, task completati e stato finale.
+   - Verificare che tutti i file in `working/` siano coerenti prima di completare il turno.
 
 ## Checklist Prima Di Consegnare
 

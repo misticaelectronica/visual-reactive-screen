@@ -175,6 +175,7 @@ export function OutputApp() {
     surfaceRef.current = createVisualSurface(rootRef.current)
 
     const off = api.onVisualState((state: VisualStatePayload) => {
+      api.sendVisualStateAck?.()
       // Base flat color
       surfaceRef.current?.setColor(state.backgroundColor)
       
