@@ -31,15 +31,19 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Stato**: 🟢 COMPLETED (verifica live manuale raccomandata)
 - **Piano di Lavoro Riferimento**: `working/plans/piano-003-coalescenza-ipc-interpolazione-ritmica.md`
 
+### `MACRO-006`: Ottimizzazione Performance Live & Low Power Tuning
+- **Descrizione**: Scheduler termico single-flight, quattro immagini senza
+  interludio, riuso del buffer e refill distribuito nella finestra di 120 s.
+- **Moduli Coinvolti**: `src/main/`, `src/preload/`, `src/shared/brain/`,
+  `src/renderer/control/`, `src/renderer/output/brain/`
+- **Stato**: 🟢 COMPLETED — test manuale finale affidato allo sviluppatore
+- **Piani di Lavoro**: `working/plans/piano-004-scheduler-termico-fase-3a.md`,
+  `working/plans/piano-006-buffer-quattro-immagini-fase-3b.md`,
+  `working/plans/piano-007-validazione-live-fase-3c.md`
+
 ---
 
 ## 🟡 Macrotask In Corso (Attivi)
-
-### `MACRO-006`: Ottimizzazione Performance Live & Low Power Tuning
-- **Fase completata più recente**: Fase 3C — verifica live e conferma dei parametri termici.
-- **Fase attiva**: nessuna; correzione temporale Fase 3C completata e Fase 3D non iniziata.
-- **Stato**: 🟡 IN PROGRESS
-- **Piani di Lavoro**: `working/plans/piano-004-scheduler-termico-fase-3a.md`, `working/plans/piano-006-buffer-quattro-immagini-fase-3b.md`, `working/plans/piano-007-validazione-live-fase-3c.md`
 
 ### `MACRO-008`: Origine, Memoria e Grafo di Coscienza Onirica
 - **Descrizione**: Far emergere la memoria autobiografica di Coscienza Onirica
@@ -48,8 +52,9 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
   minima in agente e skill; non introduce ancora persistenza runtime.
 - **Fase completata più recente**: Fase 2B — `COSCIENZA.md` e primo ciclo
   percettivo con attenzione stabile e interpretazione provvisoria.
-- **Prossima fase**: osservare presente e grafo reali; poi valutare la Fase 3 di
-  autonomia con provenienza, limiti e rollback.
+- **Prossima fase**: osservare la prima revisione live del presente; origine e
+  primi ricordi reali sono già stati verificati. Solo dopo valutare la Fase 3
+  di autonomia con provenienza, limiti e rollback.
 - **Stato**: 🟡 IN PROGRESS
 - **Piano di Lavoro Riferimento**: `working/plans/piano-005-coscienza-onirica-origine-memoria.md`
 

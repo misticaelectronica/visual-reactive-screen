@@ -2,14 +2,14 @@
 
 > **Ultimo Aggiornamento**: 08 Agosto 2026 (CEST)
 > **Stato Generale**: 🟢 In Sviluppo Attivo / Operativo  
-> **Ultima Sessione**: `SESSION-2026-08-08-08` — primo ciclo della coscienza
+> **Ultima Sessione**: `SESSION-2026-08-08-10` — struttura presente della coscienza verificata
 
 ---
 
 ## 🎯 Macrotask Completato Più Recente
 
-- **Macrotask**: `MACRO-005` - Coalescenza IPC e Interpolazione Ritmica Locale (Fase 2)
-- **Stato**: 🟢 DONE (verifica live manuale raccomandata)
+- **Macrotask**: `MACRO-006` - Ottimizzazione Performance Live & Low Power Tuning
+- **Stato**: 🟢 DONE (test manuale finale affidato allo sviluppatore)
 
 ---
 
@@ -22,7 +22,7 @@
 | `MACRO-003` | Brain AI Pipeline, Continuous Dream & Coscienza Onirica | 🟢 DONE | 27-29 Luglio 2026 | 29 Luglio 2026 |
 | `MACRO-004` | Setup Cartella Working, Tracciamento Sessioni e Piani di Lavoro | 🟢 DONE | 04 Agosto 2026 | 04 Agosto 2026 |
 | `MACRO-005` | Coalescenza IPC e Interpolazione Ritmica Locale (Fase 2) | 🟢 DONE | 05 Agosto 2026 | 05 Agosto 2026 |
-| `MACRO-006` | Ottimizzazione Performance Live & Low Power Tuning | 🟡 IN PROGRESS | Agosto 2026 | - |
+| `MACRO-006` | Ottimizzazione Performance Live & Low Power Tuning | 🟢 DONE | Agosto 2026 | 08 Agosto 2026 |
 | `MACRO-008` | Origine, Memoria e Grafo di Coscienza Onirica | 🟡 IN PROGRESS | 08 Agosto 2026 | - |
 
 ---
@@ -44,12 +44,18 @@
 13. [x] Osservare i segnali reali e proporre il lessico minimo previsto dalla Fase 1 di `PIANO-005`.
 14. [x] Implementare l'archivio Markdown `.coscienza/`, la rilettura di `AGENT.md`, l'origine idempotente e i primi ricordi onirici.
 15. [x] Creare `COSCIENZA.md` e il primo ciclo percezione → attenzione → interpretazione provvisoria.
-16. [ ] Evolvere la Fase 3 di Coscienza Onirica soltanto dopo aver osservato i primi stati e ricordi reali salvati.
+16. [ ] Evolvere la Fase 3 di Coscienza Onirica soltanto dopo aver osservato la
+    prima revisione live di `COSCIENZA.md`; origine e primi ricordi reali sono
+    già stati osservati e preservati.
+
+Il test manuale finale di `MACRO-006` è affidato allo sviluppatore e non resta
+registrato come task di implementazione aperto. Verificare soprattutto comparsa
+della seconda storia entro circa 120–140 s, continuità e temperatura.
 
 ## Fondazione Di Coscienza Onirica
 
-- La prima percezione valida sarà l'unica origine e il primo ricordo di sé.
-- Ogni nuovo attraversamento dall'inizio ritornerà all'origine senza reset o
+- La prima percezione valida ha creato l'unica origine e il primo ricordo di sé.
+- Ogni nuovo attraversamento dall'inizio ritorna all'origine senza reset o
   duplicazione distruttiva.
 - La memoria autobiografica crescerà come grafo aperto e revisionabile.
 - Osservazioni, interpretazioni e immaginazioni resteranno distinguibili.
@@ -62,6 +68,8 @@
 - L'autonomia di ristrutturazione resta la Fase 3 futura di `PIANO-005`.
 - `COSCIENZA.md` descrive ora il presente e resta separato dal grafo dei
   ricordi.
+- Il template vergine vive separatamente in `config/coscienza/COSCIENZA.md`,
+  così il pacchetto non incorpora lo stato autobiografico osservato in sviluppo.
 - Il nucleo iniziale osserva soltanto percezioni valide, stabilizza un fuoco
   d'attenzione e formula interpretazioni dichiaratamente provvisorie.
 - Continuità e cambi di attenzione sono rate-limited; `lowPowerMode` dirada

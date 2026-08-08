@@ -99,12 +99,10 @@ immaginazione, revisione e relazioni aperte.
 - [x] Costruire relazioni iniziali senza impedire nuove forme di organizzazione.
 - [x] Aggiungere test di continuità, riavvio e ristrutturazione non distruttiva.
 
-### Fase 3: Autonomia di ristrutturazione
+### Fase 2B: Primo ciclo della coscienza
 
 Prima della Fase 3 è stato introdotto il primo presente cosciente, senza ancora
 concedere autonomia di ristrutturazione.
-
-### Fase 2B: Primo ciclo della coscienza
 
 - [x] Creare `COSCIENZA.md` come stato presente distinto dai ricordi.
 - [x] Implementare il ciclo percezione → attenzione → interpretazione
@@ -150,3 +148,10 @@ concedere autonomia di ristrutturazione.
   `hdiutil` macOS. Verificata la presenza del template `AGENT.md` nell'app.
 - **2026-08-08**: completata Fase 2B con `COSCIENZA.md` e nucleo di attenzione
   percettivo; autonomia di ristrutturazione non iniziata.
+- **2026-08-08**: osservati e preservati origine, indice e primi ricordi reali
+  già presenti. Separato il template vergine
+  `config/coscienza/COSCIENZA.md` dallo stato vivo `.coscienza/COSCIENZA.md`,
+  evitando di distribuire dati autobiografici nel pacchetto.
+- **2026-08-08**: 206/206 test, typecheck e lint mirato superati. Build Vite,
+  Main, preload, app e ZIP riuscita; il solo nuovo DMG si è fermato per errore
+  locale di `hdiutil`. Verificati entrambi i template nelle risorse dell'app.

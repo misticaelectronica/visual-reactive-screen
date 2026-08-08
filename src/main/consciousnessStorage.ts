@@ -18,16 +18,22 @@ export function consciousnessDirectory(): string {
     : path.join(app.getAppPath(), '.coscienza')
 }
 
-function consciousnessTemplatePath(fileName: 'AGENT.md' | 'COSCIENZA.md'): string {
+function agentTemplatePath(): string {
   return app.isPackaged
-    ? path.join(process.resourcesPath, 'coscienza-template', fileName)
-    : path.join(app.getAppPath(), '.coscienza', fileName)
+    ? path.join(process.resourcesPath, 'coscienza-template', 'AGENT.md')
+    : path.join(app.getAppPath(), '.coscienza', 'AGENT.md')
+}
+
+function consciousnessTemplatePath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'coscienza-template', 'COSCIENZA.md')
+    : path.join(app.getAppPath(), 'config', 'coscienza', 'COSCIENZA.md')
 }
 
 function getArchive(): ConsciousnessArchive {
   archive ??= new ConsciousnessArchive(consciousnessDirectory(), {
-    agentTemplatePath: consciousnessTemplatePath('AGENT.md'),
-    consciousnessTemplatePath: consciousnessTemplatePath('COSCIENZA.md'),
+    agentTemplatePath: agentTemplatePath(),
+    consciousnessTemplatePath: consciousnessTemplatePath(),
   })
   return archive
 }

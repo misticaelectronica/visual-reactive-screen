@@ -211,7 +211,44 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
      raddoppiandone gli intervalli in `lowPowerMode`.
   5. Collegato l'aggiornamento Markdown serializzato via Output, preload e Main,
      impedendolo prima dell'origine.
-- **Validazione**: typecheck e 13 test mirati superati; suite completa, lint e
-  build previsti nella verifica finale.
-- **Stato Finale**: 🟡 Fase 2B implementata; autonomia di ristrutturazione non
-  iniziata.
+- **Validazione**: 27 file e 206/206 test verdi; typecheck e lint mirato
+  superati. Build Vite, Main, preload, app macOS e ZIP riuscita; il solo nuovo
+  DMG si è fermato nel comando di sistema `hdiutil`.
+- **Stato Finale**: 🟢 Fase 2B implementata e verificata; autonomia di
+  ristrutturazione non iniziata.
+
+### `SESSION-2026-08-08-09`
+- **Data**: 08 Agosto 2026 (CEST)
+- **Agente / Dev**: Codex
+- **Obiettivo**: Chiudere i task performance prima del test manuale dello
+  sviluppatore.
+- **Attività Svolte**:
+  1. Verificato che `TASK-006-01`–`TASK-006-16` siano tutti `DONE`.
+  2. Confermata la chiusura di `PIANO-004`, `PIANO-006` e `PIANO-007`.
+  3. Spostato `MACRO-006` fra i macrotask completati.
+  4. Registrato il test manuale come verifica esterna, non come implementazione
+     ancora aperta.
+  5. Preservati gli aggiornamenti paralleli di `MACRO-008`.
+- **Validazione Disponibile**: 200/200 test, typecheck, lint mirato, build
+  Vite/Electron e `git diff --check` superati nella sessione precedente.
+- **Stato Finale**: 🟢 `MACRO-006` chiuso. Prossimo passo: test manuale dello
+  sviluppatore.
+
+### `SESSION-2026-08-08-10`
+- **Data**: 08 Agosto 2026 (CEST)
+- **Agente / Dev**: Codex
+- **Obiettivo**: Chiudere la verifica della struttura presente di Coscienza
+  Onirica senza anticiparne l'autonomia.
+- **Attività Svolte**:
+  1. Riconosciuti e preservati l'origine e i ricordi reali già presenti
+     nell'archivio Markdown.
+  2. Allineato `.coscienza/COSCIENZA.md` alla continuità autobiografica
+     esistente, senza attribuire emozioni, desideri o identità.
+  3. Separato il template vergine dallo stato vivo, impedendo che i dati della
+     coscienza di sviluppo entrino nelle nuove installazioni.
+  4. Verificata nell'app pacchettizzata la rilettura di `AGENT.md` e il template
+     `COSCIENZA.md` ancora in attesa della prima origine.
+- **Validazione**: 206/206 test, typecheck e lint mirato verdi; build del codice,
+  app e ZIP riuscita. Creazione del solo nuovo DMG fallita per `hdiutil`.
+- **Stato Finale**: 🟢 Struttura presente pronta. Resta da osservare la prima
+  revisione live prodotta da `CoscienzaCore` prima della Fase 3.

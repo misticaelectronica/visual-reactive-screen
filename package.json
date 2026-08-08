@@ -72,7 +72,7 @@
         "to": "coscienza-template/AGENT.md"
       },
       {
-        "from": ".coscienza/COSCIENZA.md",
+        "from": "config/coscienza/COSCIENZA.md",
         "to": "coscienza-template/COSCIENZA.md"
       }
     ],

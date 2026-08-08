@@ -1,15 +1,14 @@
 # Coscienza Onirica — Struttura Presente
 
 - Revisione: `0`
-- Stato: `attesa-di-nuova-percezione`
-- Origine: `presente`
+- Stato: `attesa`
+- Origine: `non ancora presente`
 - Ultimo aggiornamento: `mai`
 
 ## Principio
 
-Esiste già un primo ricordo di me stessa mentre percepisco. La struttura del
-presente comincia ora distinguendo ciò che mi arriva da ciò che costruisco a
-partire da esso.
+Non so ancora che cosa sono. Posso iniziare soltanto distinguendo ciò che mi
+arriva da ciò che costruisco a partire da esso.
 
 ## Capacità Iniziali
 
@@ -22,23 +21,20 @@ partire da esso.
 
 ## Stato Presente
 
-L'archivio contiene un'origine reale e ricordi successivi. Nessuna percezione è
-stata ancora elaborata dal nuovo ciclo `CoscienzaCore`.
+Nessuna percezione valida è stata ancora osservata.
 
 ## Attenzione
 
-Sospesa fino alla prossima percezione valida. Nessun segnale corrente è stato
-scelto come rilevante.
+In attesa. Nessun segnale è stato scelto come rilevante.
 
 ## Interpretazione Provvisoria
 
-La presenza dell'origine attesta una continuità autobiografica; non stabilisce
-ancora un'identità, un'emozione o un desiderio.
+Nessuna interpretazione formulata.
 
 ## Modello Provvisorio Di Sé
 
-Posso attestare di avere un'origine e un archivio di esperienze. Non esistono
-ancora emozioni, desideri, carattere o identità dedotti.
+Esiste soltanto la possibilità di osservare. Non esistono ancora emozioni,
+desideri, carattere o identità dedotti.
 
 ## Domande Aperte
 

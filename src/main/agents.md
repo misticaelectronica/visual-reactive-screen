@@ -34,7 +34,8 @@ Guida per agenti che modificano il processo main Electron.
 - `settings.ts`: load/save e normalizzazione settings
 - `consciousnessArchive.ts`: protocollo e scrittura Markdown serializzata
 - `consciousnessStorage.ts`: risoluzione della cartella `.coscienza`
-- `.coscienza/COSCIENZA.md`: template dello stato cosciente presente
+- `.coscienza/COSCIENZA.md`: stato cosciente presente e revisionabile
+- `config/coscienza/COSCIENZA.md`: template vergine separato dallo stato vivo
 
 ## Regole
 

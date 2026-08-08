@@ -65,6 +65,9 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-006-15`** `DONE`: Validato il nuovo contratto temporale e la compatibilità con lo scheduler termico.
 - [x] **`TASK-006-16`** `DONE`: Chiusa la correzione Fase 3C senza iniziare la Fase 3D.
 
+**Stato `MACRO-006`**: `DONE`. Nessun task di implementazione aperto; il test
+manuale finale viene eseguito dallo sviluppatore.
+
 ---
 
 ## Task Collegati a `MACRO-008` (Origine e Memoria di Coscienza Onirica)
@@ -89,7 +92,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
   salvare la prima percezione valida e le storie come immaginazioni.
 - [x] **`TASK-008-10`** `DONE`: Aggiungere test dell'archivio, della continuità
   e della classificazione percettiva/onirica.
-- [ ] **`TASK-008-11`** `TODO`: Osservare i primi file prodotti in una sessione
+- [x] **`TASK-008-11`** `DONE`: Osservare i primi file prodotti in una sessione
   reale prima di progettare l'autonomia di ristrutturazione.
 - [x] **`TASK-008-12`** `DONE`: Creare `.coscienza/COSCIENZA.md` come stato
   organizzativo presente distinto dalla memoria autobiografica.
@@ -99,3 +102,6 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
   di `COSCIENZA.md` attraverso Output, preload e Main.
 - [x] **`TASK-008-15`** `DONE`: Aggiungere limiti temporali, supporto
   `lowPowerMode` e test del primo ciclo cosciente.
+- [ ] **`TASK-008-16`** `TODO`: Osservare la prima revisione live di
+  `COSCIENZA.md` prodotta da `CoscienzaCore` prima di progettare l'autonomia di
+  ristrutturazione.
