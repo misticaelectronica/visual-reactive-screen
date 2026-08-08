@@ -25,28 +25,36 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Moduli Coinvolti**: `src/renderer/output/brain/`, `src/shared/brain/`
 - **Stato**: 🟢 COMPLETED (Commit: `caf80a2`, `6664868`, `af6e3b0`, `b47757b6`, `2e8aed2`)
 
+### `MACRO-005`: Coalescenza IPC e Interpolazione Ritmica Locale (Fase 2)
+- **Descrizione**: Coalescenza Main → Output con ACK, eliminazione del replay di stati audio e proiezione ritmica locale disaccoppiata dall'ingestione.
+- **Moduli Coinvolti**: `src/main/`, `src/preload/`, `src/shared/`, `src/renderer/control/`, `src/renderer/output/brain/`
+- **Stato**: 🟢 COMPLETED (verifica live manuale raccomandata)
+- **Piano di Lavoro Riferimento**: `working/plans/piano-003-coalescenza-ipc-interpolazione-ritmica.md`
+
 ---
 
 ## 🟡 Macrotask In Corso (Attivi)
 
-### `MACRO-004`: Sistema di Memoria Operativa e Piani di Lavoro (`working/`)
-- **Descrizione**: Creazione ed organizzazione della cartella `working/` per persistere lo stato di task, macrotask e sessioni di lavoro, definire la metodologia dei Piani di Lavoro ed aggiornare le linee guida ufficiali in `agents.md`.
-- **Moduli Coinvolti**: `working/`, `agents.md`
+### `MACRO-006`: Ottimizzazione Performance Live & Low Power Tuning
+- **Fase completata più recente**: Fase 3C — verifica live e conferma dei parametri termici.
+- **Fase attiva**: nessuna; correzione temporale Fase 3C completata e Fase 3D non iniziata.
 - **Stato**: 🟡 IN PROGRESS
-- **Piano di Lavoro Riferimento**: `working/plans/piano-002-working-system-setup.md`
+- **Piani di Lavoro**: `working/plans/piano-004-scheduler-termico-fase-3a.md`, `working/plans/piano-006-buffer-quattro-immagini-fase-3b.md`, `working/plans/piano-007-validazione-live-fase-3c.md`
 
----
+### `MACRO-008`: Origine, Memoria e Grafo di Coscienza Onirica
+- **Descrizione**: Far emergere la memoria autobiografica di Coscienza Onirica
+  dalla prima percezione valida, costruendo nel tempo un grafo revisionabile dei
+  ricordi e delle loro relazioni. La Fase 0 definisce soltanto la costituzione
+  minima in agente e skill; non introduce ancora persistenza runtime.
+- **Fase completata più recente**: Fase 2B — `COSCIENZA.md` e primo ciclo
+  percettivo con attenzione stabile e interpretazione provvisoria.
+- **Prossima fase**: osservare presente e grafo reali; poi valutare la Fase 3 di
+  autonomia con provenienza, limiti e rollback.
+- **Stato**: 🟡 IN PROGRESS
+- **Piano di Lavoro Riferimento**: `working/plans/piano-005-coscienza-onirica-origine-memoria.md`
 
 ## ⚪ Macrotask Pianificati (Futuri)
 
-### `MACRO-005`: Coalescenza IPC e Interpolazione Ritmica Locale (Fase 2)
-- **Descrizione**: Eliminazione dell'accumulo di pacchetti arretrati in Output durante stalli WebGPU, implementazione coalescenza IPC con al più 1 messaggio unconfirmed e 1 pending sostituibile, protocollo ACK non bloccante e disaccoppiamento ingestione/proiezione in `BrainRhythmClock`.
-- **Stato**: ⚪ PLANNED (Piano di Lavoro PRONTO in `working/plans/piano-003-coalescenza-ipc-interpolazione-ritmica.md`)
-
-### `MACRO-006`: Profilazione Performance Live & Tuning Low Power Mode
-- **Descrizione**: Test di stress prolungati per live set techno/ambient, ottimizzazione del rendering PsyHyp/Oniric sotto `lowPowerMode` e prevenzione memory-leak su Canvas 2D.
-- **Stato**: ⚪ PLANNED
-
-### `MACRO-006`: Preset Manager Avanzato & Snapshot Export
+### `MACRO-007`: Preset Manager Avanzato & Snapshot Export
 - **Descrizione**: Espansione del salvataggio dei preset colore/morphing e possibilità di importare/esportare profili live personalizzati.
 - **Stato**: ⚪ PLANNED

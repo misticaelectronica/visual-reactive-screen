@@ -1,5 +1,4 @@
 import type {
-  BrainBufferFrame,
   DreamFrame,
   DreamStory,
   PsychedelScene,
@@ -12,6 +11,7 @@ import {
   type PsychedelImageGenerator,
 } from './psychedelImageGenerator'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
+import type { BrainInferenceScheduler } from './brainThermalScheduler'
 
 export type PsychedelRasterPreview = {
   storyId: string
@@ -221,7 +221,12 @@ export class Psichedel {
     private readonly onRaster?: (preview: PsychedelRasterPreview) => void,
     private readonly renderScheduler: HighQualityRenderScheduler = new HighQualityRenderScheduler(),
     private readonly onImageGenerationState?: (active: boolean) => void,
+    private readonly inferenceScheduler?: BrainInferenceScheduler,
   ) {}
+
+  private runInference<T>(task: () => Promise<T>): Promise<T> {
+    return this.inferenceScheduler?.run(task) ?? task()
+  }
 
   async generate(
     story: DreamStory,
@@ -330,21 +335,23 @@ export class Psichedel {
               prompt,
               promptPolicy: 'testo AI tradotto letteralmente; nessuna aggiunta o riscrittura',
             })
-            const remainingMs = Number.isFinite(deadlineAt)
-              ? Math.max(5_000, deadlineAt - performance.now())
-              : BRAIN_CONFIG.imageGenerationTimeoutMs
-            this.onImageGenerationState?.(true)
-            let raster: Awaited<ReturnType<PsychedelImageGenerator['generate']>>
-            try {
-              raster = await this.imageGenerator.generate(
-                prompt,
-                seed,
-                mode,
-                remainingMs,
-              )
-            } finally {
-              this.onImageGenerationState?.(false)
-            }
+            const raster: Awaited<ReturnType<PsychedelImageGenerator['generate']>> =
+              await this.runInference(async () => {
+                const remainingMs = Number.isFinite(deadlineAt)
+                  ? Math.max(5_000, deadlineAt - performance.now())
+                  : BRAIN_CONFIG.imageGenerationTimeoutMs
+                this.onImageGenerationState?.(true)
+                try {
+                  return await this.imageGenerator.generate(
+                    prompt,
+                    seed,
+                    mode,
+                    remainingMs,
+                  )
+                } finally {
+                  this.onImageGenerationState?.(false)
+                }
+              })
             this.onRaster?.({
               storyId: story.id,
               frameId: frame.id,
@@ -462,91 +469,6 @@ export class Psichedel {
   async discard(storyId: string): Promise<void> {
     this.retainedScenes.delete(storyId)
     this.generationRounds.delete(storyId)
-  }
-
-  async generateLowQualityBufferFrame(
-    story: DreamStory,
-  ): Promise<BrainBufferFrame> {
-    const sourceIndex = Math.floor(Math.random() * story.frames.length)
-    const sourceFrame = story.frames[sourceIndex] ?? story.frames[0]
-    if (!sourceFrame) {
-      throw new Error('Psichedel non ha un fotogramma sorgente per il buffer')
-    }
-    const associationType = Math.random() < 0.5 ? 'emotivo' : 'implicito'
-    const associationForLog =
-      story.bridge?.trim() ||
-      story.englishBridge?.trim() ||
-      sourceFrame.description
-    const associationForImage =
-      story.englishBridge?.trim() ||
-      story.bridge?.trim() ||
-      sourceFrame.imagePrompt?.trim() ||
-      sourceFrame.description
-    const sourceImagePrompt =
-      sourceFrame.imagePrompt?.trim() || sourceFrame.description.trim()
-    const frame: DreamFrame = {
-      ...sourceFrame,
-      id: `${story.id}-buffer`,
-      title: 'Collegamento associativo',
-      description: `Collegamento associativo ${associationType}: ${associationForLog}`,
-      visualIntent:
-        associationType === 'emotivo'
-          ? `Immagine-ponte emotiva verso la storia successiva, in continuità con: ${sourceFrame.visualIntent}`
-          : `Immagine-ponte implicita verso la storia successiva, in continuità con: ${sourceFrame.visualIntent}`,
-      imagePrompt:
-        associationType === 'emotivo'
-          ? `${sourceImagePrompt}. Emotional associative bridge: ${associationForImage}`
-          : `${sourceImagePrompt}. Implicit associative bridge: ${associationForImage}`,
-      energy: Math.min(0.56, sourceFrame.energy),
-    }
-    const prompt = buildPsychedelImagePrompt(story, frame, 0, 'interlude')
-    const seed = hashSeed(
-      `${story.id}|buffer|${sourceIndex}|${Math.random()}`,
-    )
-    brainLog('psichedel', 'generazione collegamento associativo bassa qualità dopo il quarto fotogramma', {
-      storyId: story.id,
-      frameId: frame.id,
-      sourceFrameId: sourceFrame.id,
-      associationType,
-      association: associationForLog,
-      mode: 'interlude',
-      seed,
-      prompt,
-    })
-    this.onImageGenerationState?.(true)
-    try {
-      const raster = await this.imageGenerator.generate(
-        prompt,
-        seed,
-        'interlude',
-        BRAIN_CONFIG.imageGenerationTimeoutMs,
-      )
-      this.onRaster?.({
-        storyId: story.id,
-        frameId: frame.id,
-        frameTitle: frame.title,
-        dreamMeaning: prompt,
-        attempt: 1,
-        mode: 'interlude',
-        model: raster.model ?? BRAIN_CONFIG.imageModelId,
-        blob: raster.blob,
-      })
-      const scene: PsychedelScene = {
-        frameId: frame.id,
-        description: `${frame.title}: ${frame.description}`,
-        svg: RASTER_FALLBACK_SVG,
-        raster: raster.blob,
-      }
-      brainLog('psichedel', 'collegamento associativo pronto per il ricircolo casuale', {
-        storyId: story.id,
-        frameId: frame.id,
-        rasterDurationMs: Math.round(raster.durationMs),
-        renderer: 'Canvas 2D raster a strisce',
-      })
-      return { frame, scene, associationType }
-    } finally {
-      this.onImageGenerationState?.(false)
-    }
   }
 
   async releaseImageModel(): Promise<void> {

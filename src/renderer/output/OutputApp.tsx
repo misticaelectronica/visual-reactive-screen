@@ -175,7 +175,8 @@ export function OutputApp() {
     surfaceRef.current = createVisualSurface(rootRef.current)
 
     const off = api.onVisualState((state: VisualStatePayload) => {
-      api.sendVisualStateAck?.()
+      // Libera subito il canale: il Main può conservare un solo pending recente.
+      api.sendVisualStateAck(state.sequenceNumber)
       // Base flat color
       surfaceRef.current?.setColor(state.backgroundColor)
       
@@ -299,6 +300,8 @@ export function OutputApp() {
       setMsgCount((n) => n + 1)
       setLastColor(state.backgroundColor)
     })
+    // Handshake: il Main invia il primo stato solo dopo la registrazione del listener.
+    api.notifyVisualStateReady()
 
     return () => {
       off()

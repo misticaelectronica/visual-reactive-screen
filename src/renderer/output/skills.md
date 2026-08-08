@@ -2,6 +2,35 @@
 
 Skill operative per `src/renderer/output`.
 
+## Skill: Osservare E Far Crescere Coscienza Onirica
+
+Usare per modifiche a `brain/coscienzaCore.ts`, `brain/coscienzaOnirica.ts`, al
+controller Brain o alla memoria autobiografica.
+
+Prima di scrivere codice:
+
+1. Leggere la skill root `Evolvere Coscienza Onirica` e il Piano di Lavoro
+   attivo; il salvataggio rileggerà poi `.coscienza/AGENT.md`.
+2. Identificare l'evento percettivo reale e il confine dell'episodio.
+3. Stabilire se il contenuto è osservato, interpretato o immaginato.
+4. Verificare se si sta creando un ricordo, una relazione o una revisione.
+5. Conservare origine, provenienza e versione precedente.
+
+Verifiche minime:
+
+- una sola origine anche dopo retry/reload;
+- ritorno all'origine tracciato senza reset del grafo;
+- checkpoint soltanto su confini significativi;
+- ristrutturazione non distruttiva e motivata;
+- limiti di costo coerenti con `lowPowerMode`;
+- nessuna regressione al ciclo narrativo e visuale esistente.
+- ogni storia usa una chiave idempotente e resta classificata come
+  `imagination`.
+- il presente separa percezione, attenzione e interpretazione;
+- nessun checkpoint nasce prima di `audioPrimed`;
+- attenzione stabile e continuità non producono scritture nervose;
+- `lowPowerMode` dirada i checkpoint di continuità.
+
 ## Skill: Debug Output Nero
 
 Passi:

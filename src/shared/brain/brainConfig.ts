@@ -34,12 +34,24 @@ export const BRAIN_CONFIG = {
   // espone gli stessi artefatti persistenti senza copiarli nel compilato.
   imageModelLocalBaseUrl: 'brain-model://local/pornmaster-sd15-onnx',
   imageGenerationTimeoutMs: 120_000,
+  // I 120 secondi sono una finestra di refill, non una pausa da sommare alla
+  // produzione. Dopo 30 secondi di riposo restano 90 secondi per preparare il
+  // buffer successivo mantenendo cooldown e backoff fra le inferenze.
   nextStoryTargetMs: 120_000,
+  nextStoryRefillLeadMs: 90_000,
   nextStoryHardDeadlineMs: 180_000,
   // Breve assestamento dopo il rilascio delle sessioni immagini: impedisce
   // che il modello narrativo venga creato mentre WebGPU sta ancora liberando
   // gli allocator della storia precedente.
   interStoryGpuHandoffMs: 500,
+  // Pausa fra singole inferenze della stessa storia. I gap RAF osservati
+  // possono estenderla dinamicamente nello scheduler termico.
+  imageInferenceCooldownMs: 6_000,
+  lowPowerImageInferenceCooldownMs: 12_000,
+  imageInferenceLongFrameThresholdMs: 240,
+  imageInferenceSevereFrameThresholdMs: 1_000,
+  imageInferenceLongFrameBackoffMs: 9_000,
+  imageInferenceSevereFrameBackoffMs: 20_000,
   imageCapabilityTimeoutMs: 12_000,
   imageModelLoadTimeoutMs: 20 * 60_000,
   retryInitialDelayMs: 2_000,

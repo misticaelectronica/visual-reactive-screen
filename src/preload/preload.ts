@@ -39,8 +39,11 @@ const outputApi: OutputApi = {
     ipcRenderer.on(IPC_CHANNELS.visualStatePush, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.visualStatePush, handler)
   },
-  sendVisualStateAck: () => {
-    ipcRenderer.send(IPC_CHANNELS.visualStateAck)
+  sendVisualStateAck: (sequenceNumber) => {
+    ipcRenderer.send(IPC_CHANNELS.visualStateAck, { sequenceNumber })
+  },
+  notifyVisualStateReady: () => {
+    ipcRenderer.send(IPC_CHANNELS.visualStateAck, { ready: true })
   },
   vectorizeBrainImage: (bytes, options) =>
     ipcRenderer.invoke(IPC_CHANNELS.vectorizeBrainImage, bytes, options) as ReturnType<
@@ -48,6 +51,14 @@ const outputApi: OutputApi = {
     >,
   readBrainConfigFile: (fileName) =>
     ipcRenderer.invoke(IPC_CHANNELS.readBrainConfigFile, fileName) as Promise<string>,
+  saveConsciousnessMemory: (draft) =>
+    ipcRenderer.invoke(IPC_CHANNELS.saveConsciousnessMemory, draft) as ReturnType<
+      OutputApi['saveConsciousnessMemory']
+    >,
+  updateConsciousnessState: (snapshot) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateConsciousnessState, snapshot) as ReturnType<
+      OutputApi['updateConsciousnessState']
+    >,
 }
 
 function isOutputEntry(): boolean {

@@ -1104,7 +1104,7 @@ describe('Psichedel', () => {
     expect(generator.releases).toBe(1)
   })
 
-  it('genera dopo i quattro fotogrammi un collegamento associativo a quattro step', async () => {
+  it('mantiene quattro immagini e non avvia una quinta inferenza interludio', async () => {
     const story = defaultStory()
     const generator = imageGenerator()
     const previewModes: string[] = []
@@ -1114,24 +1114,44 @@ describe('Psichedel', () => {
       (preview) => previewModes.push(preview.mode),
     )
 
-    await psychedel.generate(story)
-    const buffer = await psychedel.generateLowQualityBufferFrame(story)
+    const scenes = await psychedel.generate(story)
 
-    expect(generator.calls).toHaveLength(5)
-    expect(previewModes.at(-1)).toBe('interlude')
-    expect(buffer.frame.id).toBe(`${story.id}-buffer`)
-    expect(buffer.frame.title).toBe('Collegamento associativo')
-    expect(['emotivo', 'implicito']).toContain(buffer.associationType)
-    expect(buffer.frame.description).toContain(
-      `Collegamento associativo ${buffer.associationType}`,
+    expect(generator.calls).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(scenes).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(previewModes).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(previewModes).not.toContain('interlude')
+  })
+
+  it('attraversa il gate termico per ogni inferenza reale', async () => {
+    const story = defaultStory()
+    const generator = imageGenerator()
+    const lifecycle: string[] = []
+    const inferenceScheduler = {
+      async run<T>(task: () => Promise<T>): Promise<T> {
+        lifecycle.push('permit')
+        const result = await task()
+        lifecycle.push('release')
+        return result
+      },
+    }
+    const psychedel = new Psichedel(
+      generator,
+      vectorizer(),
+      undefined,
+      new HighQualityRenderScheduler(() => 0.999),
+      (active) => lifecycle.push(active ? 'active' : 'idle'),
+      inferenceScheduler,
     )
-    expect(buffer.frame.description).toContain(story.bridge ?? '')
-    expect(buffer.scene.frameId).toBe(buffer.frame.id)
-    expect(buffer.scene.svg).toContain('<svg')
-    expect(generator.calls.at(-1)).toContain(
-      buffer.associationType === 'emotivo'
-        ? 'Emotional associative bridge'
-        : 'Implicit associative bridge',
+
+    await psychedel.generate(story)
+
+    expect(lifecycle).toEqual(
+      Array.from({ length: BRAIN_CONFIG.renderFrameCount }, () => [
+        'permit',
+        'active',
+        'idle',
+        'release',
+      ]).flat(),
     )
   })
 

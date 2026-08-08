@@ -54,6 +54,20 @@ import {
   loadBrainRenderingConfig,
 } from './brainRenderingConfig'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
+import {
+  BrainThermalScheduler,
+  type BrainThermalSchedulerEvent,
+} from './brainThermalScheduler'
+import {
+  calculateNextImageBufferRefillWindow,
+  isCompleteBrainImageBuffer,
+  shouldActivateProgressiveImageBuffer,
+} from './brainImageBuffer'
+import {
+  createOriginMemoryDraft,
+  createStoryMemoryDraft,
+} from './brainConsciousnessMemory'
+import { CoscienzaCore } from './coscienzaCore'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
@@ -613,6 +627,24 @@ export function createBrainController(container: HTMLElement) {
 
   let destroyed = false
   let imageInferenceActive = false
+  const reportThermalEvent = (event: BrainThermalSchedulerEvent) => {
+    if (event.type === 'long-frame') {
+      brainWarn('thermal', 'gap RAF: estendo la pausa prima della prossima inferenza', event)
+      return
+    }
+    brainLog('thermal', `scheduler inferenza: ${event.type}`, event)
+  }
+  const thermalScheduler = new BrainThermalScheduler({
+    cooldownMs: BRAIN_CONFIG.imageInferenceCooldownMs,
+    lowPowerCooldownMs: BRAIN_CONFIG.lowPowerImageInferenceCooldownMs,
+    longFrameThresholdMs: BRAIN_CONFIG.imageInferenceLongFrameThresholdMs,
+    severeLongFrameThresholdMs:
+      BRAIN_CONFIG.imageInferenceSevereFrameThresholdMs,
+    longFrameBackoffMs: BRAIN_CONFIG.imageInferenceLongFrameBackoffMs,
+    severeLongFrameBackoffMs:
+      BRAIN_CONFIG.imageInferenceSevereFrameBackoffMs,
+    onEvent: reportThermalEvent,
+  })
   const psychedel = new Psichedel(
     undefined,
     undefined,
@@ -629,8 +661,12 @@ export function createBrainController(container: HTMLElement) {
         active ? 'active' : 'idle',
       )
     },
+    thermalScheduler,
   )
-  const rhythmClock = new BrainRhythmClock()
+  const rhythmClock = new BrainRhythmClock({
+    onStalePacketIgnored: () => brainPerformanceMetrics.recordStalePacketIgnored(),
+    onPhaseRealignment: () => brainPerformanceMetrics.recordPhaseRealignment(),
+  })
   let storyAi: BrainAiClient | null = null
   let brainTranslator: BrainTranslator | null = null
   let status: BrainStatus | null = null
@@ -657,12 +693,17 @@ export function createBrainController(container: HTMLElement) {
   let sessionMemo: SessionMemo | null = null
   let ordinaryStoriesSinceSynthesis = 0
   let nextSessionSynthesisAt = selectSessionSynthesisInterval()
+  const consciousnessEpisodeId = `brain-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  const consciousnessCore = new CoscienzaCore(consciousnessEpisodeId)
+  let consciousnessBeginningState: 'idle' | 'saving' | 'done' = 'idle'
+  let nextConsciousnessBeginningAttemptAt = 0
   const generationFailures = new Map<string, number>()
   let retryAttempt = 0
   let rafId = 0
   let retryTimerId = 0
   let generationCooldownTimerId = 0
   let nextGenerationAllowedAt = 0
+  let nextGenerationTargetAt = 0
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -672,6 +713,86 @@ export function createBrainController(container: HTMLElement) {
         : 'none'
   }
   applySurfaceConfig()
+
+  const rememberBeginning = (payload: VisualStatePayload): void => {
+    const now = performance.now()
+    if (
+      consciousnessBeginningState !== 'idle' ||
+      now < nextConsciousnessBeginningAttemptAt
+    ) return
+    const draft = createOriginMemoryDraft(payload, consciousnessEpisodeId)
+    if (!draft) return
+    const outputApi = window.fxOutput
+    if (!outputApi) return
+    consciousnessBeginningState = 'saving'
+    void outputApi.saveConsciousnessMemory(draft).then((result) => {
+      consciousnessBeginningState = 'done'
+      brainLog('memoria', 'origine o ritorno all’origine salvato in Markdown', {
+        kind: result.kind,
+        memoryId: result.memoryId,
+        relativePath: result.relativePath,
+        consultedFiles: result.consultedFiles,
+      })
+    }).catch((error) => {
+      consciousnessBeginningState = 'idle'
+      nextConsciousnessBeginningAttemptAt = performance.now() + 10_000
+      brainWarn('memoria', 'salvataggio dell’origine rimandato', error)
+    })
+  }
+
+  const rememberStory = (
+    story: BrainProduction['story'],
+    memo: readonly string[],
+  ): void => {
+    const draft = createStoryMemoryDraft(
+      story,
+      consciousnessEpisodeId,
+      memo,
+    )
+    const outputApi = window.fxOutput
+    if (!outputApi) return
+    void outputApi.saveConsciousnessMemory(draft).then((result) => {
+      brainLog('memoria', 'ricordo onirico salvato in Markdown', {
+        created: result.created,
+        kind: result.kind,
+        memoryId: result.memoryId,
+        relativePath: result.relativePath,
+        consultedFiles: result.consultedFiles,
+      })
+    }).catch((error) => {
+      brainWarn(
+        'memoria',
+        'ricordo onirico non salvato: origine assente o archivio non disponibile',
+        error,
+      )
+    })
+  }
+
+  const updatePresentConsciousness = (payload: VisualStatePayload): void => {
+    const observedAt = payload.audioTimestampMs ?? (
+      performance.timeOrigin + performance.now()
+    )
+    const snapshot = consciousnessCore.observe(payload, observedAt)
+    if (!snapshot) return
+    const outputApi = window.fxOutput
+    if (!outputApi) return
+    void outputApi.updateConsciousnessState(snapshot).then((result) => {
+      brainLog('coscienza', 'struttura presente aggiornata in Markdown', {
+        revision: result.revision,
+        relativePath: result.relativePath,
+        attention: snapshot.attentionTarget,
+        checkpointReason: snapshot.checkpointReason,
+        consultedFiles: result.consultedFiles,
+      })
+    }).catch((error) => {
+      brainWarn(
+        'coscienza',
+        'aggiornamento della struttura presente rimandato',
+        error,
+      )
+    })
+  }
+
   const modelCacheReady = Promise.all([
     reconcileBrainModelCache(),
     loadBrainRenderingConfig().then(applySurfaceConfig),
@@ -777,15 +898,8 @@ export function createBrainController(container: HTMLElement) {
 
   const applyFrame = (index: number) => {
     if (!currentProduction) return
-    const isBufferFrame =
-      index === currentProduction.story.frames.length &&
-      currentProduction.bufferFrame !== undefined
-    const scene = isBufferFrame
-      ? currentProduction.bufferFrame?.scene
-      : currentProduction.scenes[index]
-    const frame = isBufferFrame
-      ? currentProduction.bufferFrame?.frame
-      : currentProduction.story.frames[index]
+    const scene = currentProduction.scenes[index]
+    const frame = currentProduction.story.frames[index]
     if (!scene || !frame) return
     const hadVisibleFrame = currentSvg !== null
     outgoingSvg?.destroy()
@@ -814,9 +928,7 @@ export function createBrainController(container: HTMLElement) {
           {
             frameEnergy: frame?.energy ?? 0.5,
             frameIndex: index,
-            frameCount:
-              currentProduction.story.frames.length +
-              (currentProduction.bufferFrame ? 1 : 0),
+            frameCount: currentProduction.story.frames.length,
           },
         )
     currentSvg.element.style.zIndex = '3'
@@ -839,14 +951,10 @@ export function createBrainController(container: HTMLElement) {
     }
     setDreamMonitor(currentProduction.story, frame, index)
     currentImageCaption.textContent = [
-      isBufferFrame
-        ? `PSICHEDEL // COLLEGAMENTO ASSOCIATIVO // ${currentProduction.bufferFrame?.associationType.toLocaleUpperCase('it-IT') ?? 'IMPLICITO'}`
-        : `PSICHEDEL // ${frame.title}`,
+      `PSICHEDEL // ${frame.title}`,
       scene.description,
     ].join('  ·  ')
-    brainLog('render', isBufferFrame
-      ? 'collegamento associativo in ricircolo'
-      : `fotogramma ${index + 1}/${currentProduction.story.frames.length}`, {
+    brainLog('render', `fotogramma ${index + 1}/${currentProduction.story.frames.length}`, {
       storyId: currentProduction.story.id,
       storyTitle: currentProduction.story.title,
       frameTitle: frame?.title,
@@ -864,18 +972,13 @@ export function createBrainController(container: HTMLElement) {
   const recycleCurrentStoryFrame = () => {
     if (!currentProduction) return
     recyclingStoryFrames = true
-    const recyclableFrameCount =
-      currentProduction.scenes.length +
-      (currentProduction.bufferFrame ? 1 : 0)
+    const recyclableFrameCount = currentProduction.scenes.length
     const nextFrameIndex = selectBrainRecycledFrameIndex(
       recyclableFrameCount,
       frameIndex,
     )
     applyFrame(nextFrameIndex)
-    const recycledFrame =
-      nextFrameIndex === currentProduction.story.frames.length
-        ? currentProduction.bufferFrame?.frame
-        : currentProduction.story.frames[nextFrameIndex]
+    const recycledFrame = currentProduction.story.frames[nextFrameIndex]
     setDreamMonitor(
       currentProduction.story,
       recycledFrame,
@@ -885,7 +988,7 @@ export function createBrainController(container: HTMLElement) {
     brainLog('pipeline', 'ricircolo leggero dei fotogrammi durante l’attesa', {
       storyId: currentProduction.story.id,
       frameIndex: nextFrameIndex,
-      bufferFrame: nextFrameIndex === currentProduction.story.frames.length,
+      imageBufferSize: recyclableFrameCount,
       morphPattern: currentFrameMorphPattern,
     })
   }
@@ -905,10 +1008,7 @@ export function createBrainController(container: HTMLElement) {
       }
     }
     psycho2dModes.clear()
-    const visualFrames = [
-      ...production.story.frames,
-      ...(production.bufferFrame ? [production.bufferFrame.frame] : []),
-    ]
+    const visualFrames = production.story.frames
     const modeSequence = buildPsycho2dModeSequence(visualFrames.length)
     visualFrames.forEach((frame, index) => {
       psycho2dModes.set(
@@ -1071,6 +1171,7 @@ export function createBrainController(container: HTMLElement) {
             'memo aggiornato localmente senza occupare il modello narrativo',
             { storyId: story.id, sessionMemo },
           )
+          rememberStory(story, sessionMemo)
           if (sessionSynthesis) {
             ordinaryStoriesSinceSynthesis = 0
             nextSessionSynthesisAt = selectSessionSynthesisInterval()
@@ -1141,8 +1242,12 @@ export function createBrainController(container: HTMLElement) {
           generationCooldownTimerId = 0
           void generateNext()
         }, cooldownRemainingMs)
-        brainLog('pipeline', 'pausa termica prima della prossima produzione', {
-          cooldownMs: Math.round(cooldownRemainingMs),
+        brainLog('pipeline', 'attesa prima del refill distribuito', {
+          refillStartsInMs: Math.round(cooldownRemainingMs),
+          targetInMs: Math.max(
+            0,
+            Math.round(nextGenerationTargetAt - performance.now()),
+          ),
           imageModelRetained: true,
         })
       }
@@ -1155,8 +1260,12 @@ export function createBrainController(container: HTMLElement) {
     generating = true
     brainPerformanceMetrics.setGeneration(true)
     const productionStartedAt = performance.now()
-    const productionDeadlineAt =
+    const hardDeadlineAt =
       productionStartedAt + BRAIN_CONFIG.nextStoryHardDeadlineMs
+    const productionDeadlineAt =
+      currentProduction && nextGenerationTargetAt > productionStartedAt
+        ? Math.min(hardDeadlineAt, nextGenerationTargetAt)
+        : hardDeadlineAt
     setStatus(currentProduction ? 'rendering+generation' : 'generation')
     try {
       let story = pendingStory
@@ -1226,17 +1335,17 @@ export function createBrainController(container: HTMLElement) {
                 }
               }),
             }
-            const startRenderingImmediately = !currentProduction
-            if (currentProduction) {
-              nextProduction = progressiveProduction
-            } else {
+            const startRenderingImmediately =
+              shouldActivateProgressiveImageBuffer(Boolean(currentProduction))
+            if (startRenderingImmediately) {
               startProduction(progressiveProduction)
             }
-            brainLog('pipeline', 'nuova storia resa disponibile dopo due fotogrammi AI', {
+            brainLog('pipeline', 'refill progressivo preparato dopo due fotogrammi AI', {
               storyId: story.id,
               readyFrames: progressiveScenes.size,
               reusedFrames: progressiveProduction.scenes.length - progressiveScenes.size,
               startRenderingImmediately,
+              currentBufferRetainedUntilComplete: !startRenderingImmediately,
             })
           }
           progressiveProduction.scenes[sceneIndex] = scene
@@ -1252,39 +1361,41 @@ export function createBrainController(container: HTMLElement) {
         },
       )
       if (destroyed) return
-      let bufferFrame: BrainProduction['bufferFrame']
-      try {
-        bufferFrame = await psychedel.generateLowQualityBufferFrame(story)
-        const bufferFrameKey = `${story.id}:${bufferFrame.frame.id}`
-        vectorizedRasterFrameKeys.add(bufferFrameKey)
-      } catch (bufferError) {
-        if (destroyed) return
-        brainWarn(
-          'psichedel',
-          'collegamento associativo non disponibile; mantengo i quattro fotogrammi narrativi',
-          {
-            storyId: story.id,
-            error: bufferError,
-          },
+      if (!isCompleteBrainImageBuffer(
+        scenes.length,
+        BRAIN_CONFIG.renderFrameCount,
+      )) {
+        throw new Error(
+          `Buffer immagini incompleto: ${scenes.length}/${BRAIN_CONFIG.renderFrameCount}`,
         )
       }
-      nextGenerationAllowedAt =
-        productionStartedAt + BRAIN_CONFIG.nextStoryTargetMs
+      const productionCompletedAt = performance.now()
+      const refillWindow = calculateNextImageBufferRefillWindow(
+        productionCompletedAt,
+        BRAIN_CONFIG.nextStoryTargetMs,
+        BRAIN_CONFIG.nextStoryRefillLeadMs,
+      )
+      nextGenerationAllowedAt = refillWindow.startsAt
+      nextGenerationTargetAt = refillWindow.targetAt
       brainLog(
         'pipeline',
-        'sessioni immagini mantenute in memoria durante la pausa termica',
+        'buffer corrente mantenuto durante il refill distribuito',
         {
           storyId: story.id,
-          nextGenerationInMs: Math.max(
+          imageBufferSize: scenes.length,
+          refillStartsInMs: Math.max(
             0,
             Math.round(nextGenerationAllowedAt - performance.now()),
+          ),
+          nextStoryTargetInMs: Math.max(
+            0,
+            Math.round(nextGenerationTargetAt - performance.now()),
           ),
         },
       )
       const production: BrainProduction = {
         story,
         scenes,
-        ...(bufferFrame ? { bufferFrame } : {}),
       }
       pendingStory = null
       generationFailures.delete(story.id)
@@ -1293,16 +1404,17 @@ export function createBrainController(container: HTMLElement) {
         storyId: story.id,
         frames: story.frames.length,
         images: scenes.length,
-        lowQualityBufferReady: Boolean(bufferFrame),
+        imageBufferSize: scenes.length,
         durationMs: Math.round(performance.now() - productionStartedAt),
-        targetMs: BRAIN_CONFIG.nextStoryTargetMs,
+        refillStartDelayMs:
+          BRAIN_CONFIG.nextStoryTargetMs - BRAIN_CONFIG.nextStoryRefillLeadMs,
+        nextStoryTargetMs: BRAIN_CONFIG.nextStoryTargetMs,
         hardDeadlineMs: BRAIN_CONFIG.nextStoryHardDeadlineMs,
       })
       if (!currentProduction) {
         startProduction(production)
       } else if (currentProduction.story.id === story.id) {
         currentProduction.scenes = scenes
-        currentProduction.bufferFrame = bufferFrame
       } else {
         nextProduction = production
         brainLog('pipeline', 'storia successiva inserita nel buffer', {
@@ -1354,9 +1466,7 @@ export function createBrainController(container: HTMLElement) {
   ) => {
     if (!currentProduction) return
     const frame =
-      frameIndex === currentProduction.story.frames.length
-        ? currentProduction.bufferFrame?.frame
-        : currentProduction.story.frames[frameIndex]
+      currentProduction.story.frames[frameIndex]
     if (!frame) return
     const elapsed = now - frameStartedAt
     if (elapsed < minimumFrameDurationMs) return
@@ -1399,14 +1509,12 @@ export function createBrainController(container: HTMLElement) {
   const render = (now: number) => {
     rafId = requestAnimationFrame(render)
     if (destroyed) return
+    thermalScheduler.recordFrame(now)
     brainPerformanceMetrics.recordOutputRaf(now)
     const bands = latestPayload?.bandEnergies ?? SILENT_BANDS
-    const rhythm = rhythmClock.projectState(now)
+    const rhythm = rhythmClock.projectState(performance.timeOrigin + now)
     const frameBeforeAdvance =
-      currentProduction &&
-      frameIndex === currentProduction.story.frames.length
-        ? currentProduction.bufferFrame?.frame
-        : currentProduction?.story.frames[frameIndex]
+      currentProduction?.story.frames[frameIndex]
     const timingBeforeAdvance = calculateBrainFrameTiming(
       rhythm.beatDurationMs,
       frameBeforeAdvance?.durationMs ??
@@ -1415,10 +1523,7 @@ export function createBrainController(container: HTMLElement) {
     )
     advanceTimeline(now, rhythm.beat, timingBeforeAdvance.totalMs)
     const activeFrame =
-      currentProduction &&
-      frameIndex === currentProduction.story.frames.length
-        ? currentProduction.bufferFrame?.frame
-        : currentProduction?.story.frames[frameIndex]
+      currentProduction?.story.frames[frameIndex]
     const activeTiming = calculateBrainFrameTiming(
       rhythm.beatDurationMs,
       activeFrame?.durationMs ??
@@ -1475,12 +1580,15 @@ export function createBrainController(container: HTMLElement) {
     },
     updateState(payload: VisualStatePayload) {
       latestPayload = payload
-      if (window.fxOutput?.sendVisualStateAck) {
-        window.fxOutput.sendVisualStateAck()
-      }
+      rememberBeginning(payload)
+      updatePresentConsciousness(payload)
+      thermalScheduler.setLowPowerMode(
+        payload.settings?.lowPowerMode === true,
+      )
+      const receivedAt = performance.timeOrigin + performance.now()
       brainPerformanceMetrics.recordVisualPacket(
         payload.performanceTelemetry,
-        performance.timeOrigin + performance.now(),
+        receivedAt,
         performance.now(),
       )
       if (payload.bandEnergies) {
@@ -1489,6 +1597,7 @@ export function createBrainController(container: HTMLElement) {
           payload.audioTimestampMs,
           payload.movingAverages,
           payload.sequenceNumber,
+          receivedAt,
         )
       }
     },
@@ -1498,6 +1607,7 @@ export function createBrainController(container: HTMLElement) {
       brainPerformanceMetrics.setGeneration(false)
       brainPerformanceMetrics.setInference(false)
       brainPerformanceMetrics.report()
+      thermalScheduler.destroy()
       unsubscribeProcessMonitor()
       cancelAnimationFrame(rafId)
       window.clearTimeout(retryTimerId)

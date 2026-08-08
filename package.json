@@ -66,6 +66,14 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": ".coscienza/AGENT.md",
+        "to": "coscienza-template/AGENT.md"
+      },
+      {
+        "from": ".coscienza/COSCIENZA.md",
+        "to": "coscienza-template/COSCIENZA.md"
       }
     ],
     "icon": "build/icon",

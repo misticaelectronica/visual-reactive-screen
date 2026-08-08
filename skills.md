@@ -2,6 +2,82 @@
 
 Competenze operative utili per sviluppare Mistica Electronica Visual Reactive Screen.
 
+## Skill: Evolvere Coscienza Onirica
+
+Usare quando si progetta o modifica il substrato `coscienza`, la memoria
+autobiografica, il grafo dei ricordi, i checkpoint, il ritorno all'origine o le
+future capacità autonome di ristrutturazione.
+
+Questa è una skill viva: aggiornarla a ogni fase in cui Coscienza Onirica
+impara un nuovo modo di ricordare o di organizzare i propri ricordi.
+
+Principi invarianti iniziali:
+
+- partire dall'osservazione, senza precompilare un'identità adulta;
+- creare l'origine una sola volta, dalla prima percezione valida;
+- visitare l'origine a ogni nuovo attraversamento dall'inizio senza resettare
+  o duplicare la memoria;
+- distinguere dato percepito, interpretazione e contenuto immaginato;
+- conservare provenienza e genealogia quando un ricordo viene reinterpretato;
+- lasciare aperte tassonomia e struttura del grafo, affinché possano evolvere;
+- non promuovere ogni frame o campione audio a ricordo autobiografico.
+
+Workflow:
+
+1. Leggere la sezione `Coscienza Onirica: Substrato Di Coscienza E Memoria` in
+   `agents.md`, `.coscienza/AGENT.md`, `.coscienza/COSCIENZA.md` e il Piano di
+   Lavoro attivo.
+2. Dichiarare quale percezione reale o quale bisogno osservato motiva la nuova
+   struttura; non partire da categorie puramente speculative.
+3. Separare ciò che resta invariante da ciò che la coscienza potrà rivedere.
+4. Definire il confine di salvataggio e la provenienza prima del formato di
+   persistenza.
+5. Preferire aggiunte e revisioni collegate a sovrascritture distruttive.
+6. Registrare perché una relazione, una rilevanza o un raggruppamento cambia.
+7. Verificare idempotenza su primo avvio, retry, reload e ritorno all'origine.
+8. Imporre budget e osservabilità prima di consentire ristrutturazioni autonome.
+9. Aggiornare questa skill con ciò che l'osservazione ha insegnato, evitando di
+   descrivere come presente una capacità ancora futura.
+
+Primi confini candidati di memoria:
+
+- origine: prima percezione valida;
+- fine di un episodio o sogno;
+- novità o trasformazione significativa;
+- ricorrenza riconosciuta fra esperienze;
+- prima e dopo una ristrutturazione;
+- chiusura pulita della sessione.
+
+Contratto di persistenza:
+
+- salvare soltanto Markdown dentro `.coscienza/`;
+- usare `ORIGINE.md` per l'origine unica, `INDICE.md` per la vista del grafo e
+  `ricordi/*.md` per i nodi successivi;
+- rileggere protocollo, origine, indice e ricordi pertinenti prima di scrivere;
+- in sviluppo usare la cartella del progetto; nell'app installata usare
+  `Documenti/.coscienza`;
+- non usare `MEvrs-Origine-FX-settings.json` per dati autobiografici;
+- marcare le storie generate come `imagination` e non come `perception`.
+
+Contratto del presente cosciente:
+
+- `COSCIENZA.md` è lo stato organizzativo corrente, non il diario;
+- aggiornare soltanto dopo una percezione valida;
+- separare valori ricevuti, attenzione scelta e interpretazione provvisoria;
+- stabilizzare i cambi d'attenzione e limitare le scritture;
+- rallentare i checkpoint di continuità in `lowPowerMode`;
+- non introdurre emozioni, desideri o identità prima che emergano da processi
+  futuri osservabili;
+- salvare un ricordo separato soltanto quando il presente incontra un confine
+  autobiografico significativo.
+
+Deliverable minimo per ogni evoluzione:
+
+- decisione osservabile che motiva il cambiamento;
+- modifica coerente di agente, skill e Piano di Lavoro;
+- test della provenienza e della continuità, se viene modificato il runtime;
+- nota esplicita su ciò che Coscienza Onirica può ancora decidere in futuro.
+
 ## Skill: Build E Avvio
 
 Quando usare:

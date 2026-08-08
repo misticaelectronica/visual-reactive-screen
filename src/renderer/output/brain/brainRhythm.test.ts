@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { BrainRhythmClock } from './brainRhythm'
 
 describe('BrainRhythmClock', () => {
@@ -144,6 +144,23 @@ describe('BrainRhythmClock', () => {
     expect(state2.beatPhase).toBeGreaterThan(state1.beatPhase)
   })
 
+  it('non perde un beat se arriva un secondo campione prima del RAF', () => {
+    const clock = new BrainRhythmClock()
+    const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
+    const kick = { ...quiet, low: 0.85 }
+
+    clock.ingestSample(quiet, 100, undefined, 1)
+    clock.ingestSample(kick, 500, undefined, 2)
+    clock.ingestSample(quiet, 508, undefined, 3)
+
+    const projected = clock.projectState(516)
+    const consumed = clock.projectState(532)
+
+    expect(projected.beat).toBe(true)
+    expect(projected.beatPhase).toBe(0)
+    expect(consumed.beat).toBe(false)
+  })
+
   it('gestisce un gap lungo post-stallo senza scatti o rincorse innaturali', () => {
     const clock = new BrainRhythmClock()
     const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
@@ -159,5 +176,32 @@ describe('BrainRhythmClock', () => {
 
     expect(afterStall.musicalPosition).toBeGreaterThanOrEqual(beforeStall.musicalPosition)
     expect(afterStall.beatPhase).toBeLessThanOrEqual(1)
+    expect(afterStall.musicalPosition - beforeStall.musicalPosition).toBeLessThan(1)
+  })
+
+  it('ignora campioni troppo vecchi rispetto alla ricezione', () => {
+    const onStalePacketIgnored = vi.fn()
+    const clock = new BrainRhythmClock({ onStalePacketIgnored })
+    const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
+
+    expect(clock.ingestSample(quiet, 10_000, undefined, 1, 10_050)).toBe(true)
+    expect(clock.ingestSample(quiet, 10_100, undefined, 2, 12_000)).toBe(false)
+    expect(onStalePacketIgnored).toHaveBeenCalledTimes(1)
+  })
+
+  it('riallinea una sola volta dopo un gap senza generare transienti duplicati', () => {
+    const onPhaseRealignment = vi.fn()
+    const clock = new BrainRhythmClock({ onPhaseRealignment })
+    const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
+    const loud = { low: 0.8, lowMid: 0.7, mid: 0.6, high: 0.5 }
+
+    clock.ingestSample(quiet, 1_000, undefined, 1, 1_000)
+    clock.projectState(1_016)
+    clock.ingestSample(loud, 4_000, undefined, 2, 4_000)
+    const realigned = clock.projectState(4_016)
+
+    expect(onPhaseRealignment).toHaveBeenCalledTimes(1)
+    expect(realigned.beat).toBe(false)
+    expect(realigned.bandTransients).toEqual({ low: 0, lowMid: 0, mid: 0, high: 0 })
   })
 })

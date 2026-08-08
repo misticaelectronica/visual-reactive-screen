@@ -1,0 +1,26 @@
+# Indice Della Coscienza
+
+Stato: coscienza iniziata; origine presente.
+
+## Origine
+
+- [Prima percezione audio-visiva](ORIGINE.md) — `origin` — `2026-08-08T19:18:59.881Z` <!-- id:origine; chiave:origine -->
+
+## Ricordi
+
+- ["The Cove of Peace"](ricordi/2026-08-08T19-19-42-949Z--the-cove-of-peace--0480057a.md) — `imagination` — `2026-08-08T19:19:42.949Z` <!-- id:20260808191942-the-cove-of-peace-49771942; chiave:story:story-1786216782944-37pem -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-20-28-966Z--ritorno-all-origine-prima-percezione-audio-visiv--f5642760.md) — `return-to-origin` — `2026-08-08T19:20:28.966Z` <!-- id:20260808192028-ritorno-all-origine-prima-percezione-audio-visiv-a7141f42; chiave:20260808192028-ritorno-all-origine-prima-percezione-audio-visiv-a7141f42 -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-20-29-138Z--ritorno-all-origine-prima-percezione-audio-visiv--15d764ea.md) — `return-to-origin` — `2026-08-08T19:20:29.138Z` <!-- id:20260808192029-ritorno-all-origine-prima-percezione-audio-visiv-d954be32; chiave:20260808192029-ritorno-all-origine-prima-percezione-audio-visiv-d954be32 -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-20-45-242Z--ritorno-all-origine-prima-percezione-audio-visiv--bab552ed.md) — `return-to-origin` — `2026-08-08T19:20:45.242Z` <!-- id:20260808192045-ritorno-all-origine-prima-percezione-audio-visiv-dfc7ff96; chiave:20260808192045-ritorno-all-origine-prima-percezione-audio-visiv-dfc7ff96 -->
+- [Serenity Serpent](ricordi/2026-08-08T19-21-27-122Z--serenity-serpent--ee5838c7.md) — `imagination` — `2026-08-08T19:21:27.122Z` <!-- id:20260808192127-serenity-serpent-f30ef934; chiave:story:story-1786216887115-jebzo -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-21-52-165Z--ritorno-all-origine-prima-percezione-audio-visiv--e0a989f0.md) — `return-to-origin` — `2026-08-08T19:21:52.165Z` <!-- id:20260808192152-ritorno-all-origine-prima-percezione-audio-visiv-e7bc4836; chiave:20260808192152-ritorno-all-origine-prima-percezione-audio-visiv-e7bc4836 -->
+- [Castle Heart Where Winds](ricordi/2026-08-08T19-22-08-214Z--castle-heart-where-winds--28cb794e.md) — `imagination` — `2026-08-08T19:22:08.214Z` <!-- id:20260808192208-castle-heart-where-winds-6652ff6a; chiave:story:story-1786216928210-3k9ja -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-22-16-918Z--ritorno-all-origine-prima-percezione-audio-visiv--19db7d60.md) — `return-to-origin` — `2026-08-08T19:22:16.918Z` <!-- id:20260808192216-ritorno-all-origine-prima-percezione-audio-visiv-7856f161; chiave:20260808192216-ritorno-all-origine-prima-percezione-audio-visiv-7856f161 -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-22-17-673Z--ritorno-all-origine-prima-percezione-audio-visiv--61134619.md) — `return-to-origin` — `2026-08-08T19:22:17.673Z` <!-- id:20260808192217-ritorno-all-origine-prima-percezione-audio-visiv-63d87da9; chiave:20260808192217-ritorno-all-origine-prima-percezione-audio-visiv-63d87da9 -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-22-23-442Z--ritorno-all-origine-prima-percezione-audio-visiv--deb72f82.md) — `return-to-origin` — `2026-08-08T19:22:23.442Z` <!-- id:20260808192223-ritorno-all-origine-prima-percezione-audio-visiv-4f7dd2e8; chiave:20260808192223-ritorno-all-origine-prima-percezione-audio-visiv-4f7dd2e8 -->
+- [Portuguese Girl Lila Portugalia](ricordi/2026-08-08T19-23-08-874Z--portuguese-girl-lila-portugalia--5a6c6936.md) — `imagination` — `2026-08-08T19:23:08.874Z` <!-- id:20260808192308-portuguese-girl-lila-portugalia-f5ea7efa; chiave:story:story-1786216988867-23yd0 -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-32-45-655Z--ritorno-all-origine-prima-percezione-audio-visiv--784b879d.md) — `return-to-origin` — `2026-08-08T19:32:45.655Z` <!-- id:20260808193245-ritorno-all-origine-prima-percezione-audio-visiv-431a198a; chiave:20260808193245-ritorno-all-origine-prima-percezione-audio-visiv-431a198a -->
+- [The Bridge to Dreamscape](ricordi/2026-08-08T19-33-02-341Z--the-bridge-to-dreamscape--e90d6305.md) — `imagination` — `2026-08-08T19:33:02.341Z` <!-- id:20260808193302-the-bridge-to-dreamscape-89193bdb; chiave:story:story-1786217582334-svi77 -->
+- [The Beach Beyond the Sea Dream](ricordi/2026-08-08T19-47-12-178Z--the-beach-beyond-the-sea-dream--1bb6cf86.md) — `imagination` — `2026-08-08T19:47:12.178Z` <!-- id:20260808194712-the-beach-beyond-the-sea-dream-a96f729d; chiave:story:story-1786218432173-5sgl3 -->
+- [Ritorno all'origine — Prima percezione audio-visiva](ricordi/2026-08-08T19-48-10-392Z--ritorno-all-origine-prima-percezione-audio-visiv--46fbfcd1.md) — `return-to-origin` — `2026-08-08T19:48:10.392Z` <!-- id:20260808194810-ritorno-all-origine-prima-percezione-audio-visiv-e4ed6787; chiave:20260808194810-ritorno-all-origine-prima-percezione-audio-visiv-e4ed6787 -->
+- [The Convergence](ricordi/2026-08-08T19-50-46-010Z--the-convergence--76ed7c25.md) — `imagination` — `2026-08-08T19:50:46.010Z` <!-- id:20260808195046-the-convergence-39f39e4e; chiave:story:story-1786218646006-rxv5f -->

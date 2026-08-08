@@ -177,6 +177,7 @@ export function ControlApp() {
         useMorphing: settings.useMorphing,
         bandEnergies,
         movingAverages,
+        audioPrimed,
         settings,
         whiteMix: output.debug.whiteMix,
         audioTimestampMs: performance.timeOrigin + t,

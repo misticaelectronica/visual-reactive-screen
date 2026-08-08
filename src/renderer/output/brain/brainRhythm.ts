@@ -24,6 +24,15 @@ const TRANSIENT_RELEASE_MS: BandEnergies = {
   high: 140,
 }
 
+const STALE_PACKET_AGE_MS = 1_500
+const LONG_SAMPLE_GAP_MS = 1_500
+const MAX_PROJECTION_STEP_MS = 300
+
+type BrainRhythmClockHooks = {
+  onStalePacketIgnored?: () => void
+  onPhaseRealignment?: () => void
+}
+
 export class BrainRhythmClock {
   private baseline = 0.08
   private previousBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
@@ -41,27 +50,61 @@ export class BrainRhythmClock {
   private lastEmittedBeatIndex = 0
   private lastSequenceNumber = -1
   private lastBeatDetectedInIngest = false
+  private skipNextProjectionAdvance = false
+
+  constructor(private readonly hooks: BrainRhythmClockHooks = {}) {}
 
   ingestSample(
     bands: BandEnergies,
     timestampMs?: number,
     movingAverages?: BandEnergies,
     sequenceNumber?: number,
+    receivedAtMs?: number,
   ): boolean {
-    if (sequenceNumber !== undefined && sequenceNumber <= this.lastSequenceNumber && this.lastSequenceNumber >= 0) {
+    const now = timestampMs ?? receivedAtMs ?? performance.now()
+    const staleBySequence =
+      sequenceNumber !== undefined &&
+      this.lastSequenceNumber >= 0 &&
+      sequenceNumber <= this.lastSequenceNumber
+    const staleByAge =
+      timestampMs !== undefined &&
+      receivedAtMs !== undefined &&
+      receivedAtMs - timestampMs > STALE_PACKET_AGE_MS
+    const staleByTimestamp = this.lastIngestAt > 0 && now <= this.lastIngestAt
+    if (staleBySequence || staleByAge || staleByTimestamp) {
+      this.hooks.onStalePacketIgnored?.()
       return false
     }
     if (sequenceNumber !== undefined) {
       this.lastSequenceNumber = sequenceNumber
     }
 
-    const now = timestampMs ?? performance.now()
-    const elapsed = this.lastIngestAt > 0 ? Math.min(150, Math.max(1, now - this.lastIngestAt)) : 16
+    const sampleGap = this.lastIngestAt > 0 ? now - this.lastIngestAt : 0
+    const elapsed = sampleGap > 0 ? Math.min(150, sampleGap) : 16
 
-    // Gap lungo / post-stallo: riallinea il tempo senza fare catch-up o replay di vecchi beat
-    if (this.lastIngestAt > 0 && now - this.lastIngestAt > 1_500) {
+    // Gap lungo / post-stallo: riallinea senza trasformare il livello corrente
+    // in un nuovo transiente e senza ripercorrere beat intermedi.
+    if (sampleGap > LONG_SAMPLE_GAP_MS) {
       this.lastBeatAt = now
-      this.musicalPosition = Math.ceil(this.musicalPosition)
+      this.musicalPosition = Math.max(
+        this.musicalPosition,
+        Math.ceil(this.musicalPosition),
+      )
+      this.beatIndex = Math.max(this.beatIndex, Math.floor(this.musicalPosition))
+      this.lastEmittedBeatIndex = Math.max(
+        this.lastEmittedBeatIndex,
+        this.beatIndex,
+      )
+      this.previousBands = { ...bands }
+      this.currentBands = { ...bands }
+      this.bandTransients = { low: 0, lowMid: 0, mid: 0, high: 0 }
+      this.beatPulse = 0
+      if (movingAverages) this.movingAverages = { ...movingAverages }
+      this.lastIngestAt = now
+      this.lastBeatDetectedInIngest = false
+      this.skipNextProjectionAdvance = true
+      this.hooks.onPhaseRealignment?.()
+      return true
     }
 
     this.lastIngestAt = now
@@ -99,7 +142,11 @@ export class BrainRhythmClock {
         (transientTargets.lowMid >= 0.035 && lowMidLift >= 0.12)
       )
 
-    this.lastBeatDetectedInIngest = detectedBeat
+    // Il trasporto può consegnare più campioni prima del RAF successivo.
+    // Mantieni il beat rilevato finché projectState() non lo consuma, altrimenti
+    // un campione immediatamente successivo senza attacco lo cancellerebbe.
+    this.lastBeatDetectedInIngest =
+      this.lastBeatDetectedInIngest || detectedBeat
 
     if (detectedBeat) {
       if (this.lastBeatAt > 0 && sinceBeat >= 260 && sinceBeat <= 1_200) {
@@ -121,7 +168,7 @@ export class BrainRhythmClock {
       this.lastBeatAt = now
       this.beatIndex = Math.max(this.beatIndex + elapsedBeats, 1)
       this.lastEmittedBeatIndex = this.beatIndex
-      this.musicalPosition = this.beatIndex
+      this.musicalPosition = Math.max(this.musicalPosition, this.beatIndex)
       this.beatPulse = 1
     }
 
@@ -129,7 +176,9 @@ export class BrainRhythmClock {
   }
 
   projectState(nowMs: number): BrainRhythmState {
-    const elapsed = this.lastProjectAt > 0 ? Math.min(150, Math.max(1, nowMs - this.lastProjectAt)) : 16
+    const elapsed = this.lastProjectAt > 0
+      ? Math.min(MAX_PROJECTION_STEP_MS, Math.max(0, nowMs - this.lastProjectAt))
+      : 16
     this.lastProjectAt = nowMs
 
     // Decay continuo dei transienti e del pulse fra campioni
@@ -141,11 +190,9 @@ export class BrainRhythmClock {
     let beat = this.lastBeatDetectedInIngest
     this.lastBeatDetectedInIngest = false
 
-    const sinceBeat = nowMs - (this.lastBeatAt > 0 ? this.lastBeatAt : nowMs)
-    if (!beat) {
-      this.musicalPosition = this.lastBeatAt > 0
-        ? this.beatIndex + sinceBeat / this.beatDurationMs
-        : this.musicalPosition + elapsed / this.beatDurationMs
+    if (!beat && !this.skipNextProjectionAdvance) {
+      // Avanzamento solo del delta locale clampato: nessun catch-up dopo RAF sospesi.
+      this.musicalPosition += elapsed / this.beatDurationMs
       const predictedBeatIndex = Math.floor(this.musicalPosition)
       const lowBaseline = Math.max(0.025, this.movingAverages.low ?? this.baseline)
       const predictionHasEnergy =
@@ -161,6 +208,7 @@ export class BrainRhythmClock {
         this.beatPulse = 1
       }
     }
+    this.skipNextProjectionAdvance = false
 
     const phase = beat ? 0 : this.musicalPosition % 1
     return {

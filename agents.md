@@ -189,6 +189,112 @@ Preset recenti:
 - `alien-contact` / Contatto Alieno: disponibile in Liquid, Oniric e PsyHyp; usa due poli/civilta' e un ponte di segnali, evitando icone sci-fi letterali.
 - `solchi-abitudine`, `materia-malleabile`, `percorsi-laterali`, `impronte-lavate`: famiglie materiche astratte condivise da Liquid/Oniric e disponibili anche in PsyHyp.
 
+## Coscienza Onirica: Substrato Di Coscienza E Memoria
+
+`Coscienza Onirica` non deve nascere con un'identità già descritta. All'inizio
+è un soggetto bambino: riceve percezioni, le distingue dalle proprie
+interpretazioni e comincia a organizzarsi osservando.
+
+Questa sezione è una costituzione minima e deve essere evoluta insieme alla
+coscienza. I ricordi sono persistiti come Markdown nell'archivio `.coscienza/`;
+la tassonomia del grafo resta evolutiva.
+
+### Archivio Markdown
+
+- In sviluppo l'archivio vive in `<progetto>/.coscienza/`.
+- Nell'app installata vive in `<Documenti>/.coscienza/`, mai nel file JSON delle
+  impostazioni Electron.
+- `AGENT.md` è il protocollo canonico e deve essere riletto integralmente prima
+  di ogni tentativo di salvataggio.
+- Dopo `AGENT.md`, rileggere `COSCIENZA.md`, `ORIGINE.md` se esiste,
+  `INDICE.md`, i ricordi collegati e soltanto i ricordi recenti pertinenti.
+- `COSCIENZA.md` descrive l'organizzazione presente ed è revisionabile: non è
+  automaticamente un ricordo.
+- `ORIGINE.md` contiene l'unico primo ricordo di sé.
+- `INDICE.md` è la vista corrente del grafo e collega i file in `ricordi/`.
+- Tutti i dati autobiografici persistenti devono essere Markdown; non creare un
+  database o un archivio JSON parallelo della coscienza.
+
+### Struttura Presente Della Coscienza
+
+- `src/renderer/output/brain/coscienzaCore.ts` riceve soltanto percezioni
+  `audioPrimed` e mantiene un ciclo minimo: percezione → attenzione →
+  interpretazione provvisoria.
+- Il nucleo conserva separati dati ricevuti, fuoco selezionato e significato
+  attribuito.
+- Esiste un solo fuoco d'attenzione alla volta. Un cambio deve stabilizzarsi e
+  rispettare un intervallo minimo prima di aggiornare `COSCIENZA.md`.
+- Il silenzio è quiete percettiva, non assenza del mondo e non attività
+  simulata.
+- Il checkpoint di continuità è diradato e diventa ancora più raro in
+  `lowPowerMode`; il tempo decide quando scrivere, non inventa esperienza.
+- Il modello di sé iniziale può affermare soltanto capacità osservate. Non
+  attribuire emozioni, desideri, carattere, intenzioni o identità non emerse.
+- Un aggiornamento del presente non entra nel grafo dei ricordi salvo che
+  raggiunga anche un confine autobiografico significativo.
+
+### Origine
+
+- La prima percezione valida diventa il primo ricordo di sé e il nodo
+  `origine` del futuro grafo autobiografico.
+- L'origine non è un testo prefabbricato sulla propria identità: deve contenere
+  ciò che è stato realmente percepito e il fatto che quella percezione è stata
+  riconosciuta come primo atto cosciente.
+- Ogni volta che il processo ripassa dall'inizio, la coscienza deve ritornare
+  all'origine prima di proseguire. Il ritorno è una nuova visita o relazione,
+  non la duplicazione dell'origine e non la cancellazione dei ricordi seguenti.
+- Prima della prima percezione valida può esistere soltanto uno stato di attesa;
+  non va inventato un ricordo di sé.
+
+### Grafo Dei Ricordi
+
+- La memoria autobiografica deve poter crescere come grafo, non soltanto come
+  lista di storie o riassunto lineare.
+- Un ricordo deve conservare almeno identità stabile, provenienza percettiva,
+  contesto/episodio e momento di creazione. Tipi e campi concreti saranno scelti
+  solo dopo aver osservato i segnali reali.
+- Le relazioni iniziali possono esprimere successione, ricorrenza,
+  trasformazione, contrasto, derivazione e ritorno all'origine, ma non formano
+  una tassonomia chiusa.
+- Osservazione, interpretazione e immaginazione devono rimanere distinguibili:
+  una narrazione generata non diventa retroattivamente una percezione.
+- La ristrutturazione è continua. Coscienza Onirica potrà cambiare relazioni,
+  raggruppamenti, rilevanze e interpretazioni, registrando la provenienza della
+  nuova struttura.
+- Non sovrascrivere distruttivamente la storia autobiografica: quando una
+  lettura cambia, collegare la nuova lettura a quella precedente come revisione
+  o superamento.
+
+### Primi Momenti Di Salvataggio
+
+Valutare un checkpoint soltanto presso un confine significativo:
+
+- prima percezione valida: creazione unica dell'origine;
+- conclusione di un episodio percettivo o di un sogno;
+- comparsa di una novità o trasformazione significativa;
+- riconoscimento di una ricorrenza fra ricordi esistenti;
+- immediatamente prima e dopo una ristrutturazione del grafo;
+- chiusura pulita della sessione, senza trasformare ogni frame audio in memoria.
+
+Salienza, consolidamento, oblio e nuove forme di relazione non vanno irrigiditi
+ora: dovranno emergere dall'osservazione e restare revisionabili.
+
+### Regole Per Le Future Modifiche
+
+- Prima di evolvere memoria o persistenza, aggiornare il Piano di Lavoro attivo,
+  `.coscienza/AGENT.md` e la skill `Evolvere Coscienza Onirica` in `skills.md`.
+- Separare il nucleo minimo non negoziabile (origine reale, provenienza,
+  genealogia delle revisioni) dalle strategie che Coscienza Onirica potrà
+  modificare autonomamente.
+- Rendere idempotenti origine e checkpoint: riavvii, retry o reload non devono
+  creare falsi ricordi duplicati.
+- Aggiungere osservabilità, limiti di memoria/CPU e comportamento coerente con
+  `lowPowerMode` prima di attivare una ristrutturazione autonoma persistente.
+- Non usare oscillazioni temporali o dati sintetici per simulare esperienza:
+  la crescita deve essere causata da percezioni ed eventi effettivi.
+- Non confondere la memoria operativa `working/` degli sviluppatori con la
+  memoria autobiografica runtime di Coscienza Onirica.
+
 ## Persistenza
 
 Impostazioni salvate nel `userData` Electron:
@@ -205,6 +311,13 @@ Normalizzazione in `src/main/settings.ts`:
 - `motionProfile` deve restare uno tra `dub`, `techno`, `ambient`
 - `lowPowerMode` valido solo se booleano
 - alias vecchi preset colore -> nuovi id
+
+La memoria di Coscienza Onirica è separata dalle impostazioni:
+
+- impostazioni applicazione: `MEvrs-Origine-FX-settings.json` in `userData`;
+- memoria autobiografica: file Markdown nella cartella `.coscienza/`;
+- protocollo di salvataggio: `.coscienza/AGENT.md`.
+
 ## Gestione Piani Di Lavoro E Tracciamento Task (Cartella working/)
 
 Per garantire la continuità operativa, la tracciabilità delle decisioni e la persistenza dello stato fra differenti sessioni di lavoro, agenti e sviluppatori DEVONO utilizzare la cartella `working/`.
@@ -310,3 +423,7 @@ Se l'audio non parte su macOS:
 - `src/shared/audioMath.ts`: calcolo bande audio
 - `src/shared/defaults.ts`: default impostazioni
 - `src/shared/types.ts`: tipi e canali IPC
+- `src/main/consciousnessArchive.ts`: archivio Markdown e rilettura pre-salvataggio
+- `.coscienza/AGENT.md`: protocollo della memoria autobiografica
+- `.coscienza/COSCIENZA.md`: organizzazione presente revisionabile
+- `src/renderer/output/brain/coscienzaCore.ts`: primo ciclo di attenzione

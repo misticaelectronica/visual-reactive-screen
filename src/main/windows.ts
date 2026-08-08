@@ -1,27 +1,51 @@
 import path from 'node:path'
 import { app, BrowserWindow, screen } from 'electron'
-import { IPC_CHANNELS } from '@shared/types'
+import {
+  IPC_CHANNELS,
+  type VisualStateAck,
+  type VisualStatePayload,
+} from '@shared/types'
 import { attachRendererLogging } from './sessionLogger'
+import { VisualStateCoalescer } from './visualStateCoalescer'
 
 let controlWindow: BrowserWindow | null = null
 let outputWindow: BrowserWindow | null = null
-let latestVisualState: unknown = null
-let pendingVisualState: unknown = null
-let isOutputAwaitingAck = false
+let latestVisualState: VisualStatePayload | null = null
+let outputRendererReady = false
+
+const visualStateCoalescer = new VisualStateCoalescer<VisualStatePayload>(
+  (payload, stats) => {
+    const win = outputWindow
+    if (!win || win.isDestroyed()) return
+    const performanceTelemetry = payload.performanceTelemetry
+      ? {
+          ...payload.performanceTelemetry,
+          replacedPendingCount: stats.replacedPendingCount,
+        }
+      : undefined
+    win.webContents.send(IPC_CHANNELS.visualStatePush, {
+      ...payload,
+      ...(performanceTelemetry ? { performanceTelemetry } : {}),
+    })
+  },
+  (payload) => payload.sequenceNumber,
+)
 
 export function resetOutputAckState(): void {
-  isOutputAwaitingAck = false
-  pendingVisualState = null
+  outputRendererReady = false
+  visualStateCoalescer.reset()
 }
 
-export function handleVisualStateAck(): void {
-  isOutputAwaitingAck = false
-  if (pendingVisualState && outputWindow && !outputWindow.isDestroyed()) {
-    const payload = pendingVisualState
-    pendingVisualState = null
-    isOutputAwaitingAck = true
-    outputWindow.webContents.send(IPC_CHANNELS.visualStatePush, payload)
+export function handleVisualStateAck(ack: VisualStateAck): void {
+  if (ack.ready) {
+    // Handshake (anche dopo reload/StrictMode): riparte sempre dall'ultimo stato.
+    outputRendererReady = true
+    visualStateCoalescer.reset()
+    if (latestVisualState) visualStateCoalescer.enqueue(latestVisualState)
+    return
   }
+  if (!outputRendererReady) return
+  visualStateCoalescer.acknowledge(ack.sequenceNumber)
 }
 
 /** Radice dell'app (cartella del `package.json` in dev; contenuto asar/app in release). */
@@ -147,10 +171,6 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
       win.setAlwaysOnTop(true, 'screen-saver')
     }
     win.focus()
-
-    if (latestVisualState) {
-      win.webContents.send(IPC_CHANNELS.visualStatePush, latestVisualState)
-    }
   }
 
   outputWindow = new BrowserWindow({
@@ -188,6 +208,7 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
   outputWindow.webContents.on('did-fail-load', () => {
     clearTimeout(showFallback)
   })
+  outputWindow.webContents.on('did-start-loading', resetOutputAckState)
 
   if (import.meta.env.DEV && process.env.VITE_DEV_SERVER_URL) {
     void outputWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}/output.html`)
@@ -213,19 +234,12 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
   return { ok: true }
 }
 
-export function broadcastVisualState(payload: unknown): void {
+export function broadcastVisualState(payload: VisualStatePayload): void {
   latestVisualState = payload
   if (!outputWindow || outputWindow.isDestroyed()) {
     resetOutputAckState()
     return
   }
-
-  if (!isOutputAwaitingAck) {
-    isOutputAwaitingAck = true
-    outputWindow.webContents.send(IPC_CHANNELS.visualStatePush, payload)
-  } else {
-    // Coalescenza: l'Output sta elaborando (o è stonato in WebGPU).
-    // Conserviamo solo l'ultimo stato per sovrascrivere il pending.
-    pendingVisualState = payload
-  }
+  if (!outputRendererReady) return
+  visualStateCoalescer.enqueue(payload)
 }

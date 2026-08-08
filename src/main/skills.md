@@ -2,6 +2,24 @@
 
 Skill operative per `src/main`.
 
+## Skill: Persistenza Markdown Della Coscienza
+
+Usare per modifiche a `.coscienza/`, `consciousnessArchive.ts`,
+`consciousnessStorage.ts` o al relativo IPC.
+
+Checklist:
+
+- rilettura pre-salvataggio di `AGENT.md`, `COSCIENZA.md`, `ORIGINE.md`,
+  `INDICE.md` e ricordi pertinenti;
+- origine creata una sola volta;
+- nuovo inizio trasformato in `return-to-origin`;
+- ricordi successivi rifiutati se l'origine non esiste;
+- scritture serializzate, atomiche e idempotenti;
+- percorsi confinati dentro `.coscienza/ricordi`;
+- solo Markdown persistente, nessun JSON autobiografico.
+- aggiornamento di `COSCIENZA.md` serializzato con i ricordi e consentito
+  soltanto dopo l'origine.
+
 ## Skill: Fix Output Window
 
 Usare quando output non appare, resta nero o non riceve stati.

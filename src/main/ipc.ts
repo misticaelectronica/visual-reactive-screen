@@ -3,6 +3,9 @@ import type {
   AppSettings,
   BrainConfigFileName,
   BrainVectorizationOptions,
+  ConsciousnessMemoryDraft,
+  ConsciousnessStateSnapshot,
+  VisualStateAck,
   VisualStatePayload,
 } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/types'
@@ -12,10 +15,15 @@ import {
   broadcastVisualState,
   closeOutputWindow,
   createOutputWindow,
+  getOutputWindow,
   handleVisualStateAck,
 } from './windows'
 import { vectorizeBrainImage } from './brainVectorizer'
 import { readBrainConfigFile } from './brainConfigFiles'
+import {
+  saveConsciousnessMemory,
+  updateConsciousnessState,
+} from './consciousnessStorage'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getDisplays, () => getAllDisplayInfo())
@@ -38,8 +46,10 @@ export function registerIpcHandlers(): void {
     broadcastVisualState(state)
   })
 
-  ipcMain.on(IPC_CHANNELS.visualStateAck, () => {
-    handleVisualStateAck()
+  ipcMain.on(IPC_CHANNELS.visualStateAck, (event, ack?: VisualStateAck) => {
+    const output = getOutputWindow()
+    if (!output || output.isDestroyed() || event.sender !== output.webContents) return
+    handleVisualStateAck(ack ?? {})
   })
 
   ipcMain.handle(IPC_CHANNELS.vectorizeBrainImage, (
@@ -53,5 +63,16 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.readBrainConfigFile,
     (_event, fileName: BrainConfigFileName) => readBrainConfigFile(fileName),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.saveConsciousnessMemory,
+    (_event, draft: ConsciousnessMemoryDraft) => saveConsciousnessMemory(draft),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.updateConsciousnessState,
+    (_event, snapshot: ConsciousnessStateSnapshot) =>
+      updateConsciousnessState(snapshot),
   )
 }

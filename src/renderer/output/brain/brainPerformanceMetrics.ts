@@ -1,6 +1,7 @@
 export type BrainPerformanceTelemetry = {
   sequence: number
   sentAtEpochMs: number
+  replacedPendingCount?: number
 }
 
 export type BrainPerformanceSummary = {
@@ -9,6 +10,9 @@ export type BrainPerformanceSummary = {
   visualPackets: MetricSeriesSummary & {
     received: number
     missed: number
+    replacedPending: number
+    staleIgnored: number
+    phaseRealignments: number
     latencyMs: MetricSeriesSummary
   }
   canvasFrames: MetricSeriesSummary & {
@@ -61,7 +65,7 @@ function appendSample(target: number[], value: number): void {
   if (target.length > MAX_SAMPLES) target.shift()
 }
 
-class BrainPerformanceMetrics {
+export class BrainPerformanceMetrics {
   private enabled = true
   private windowStartedAt = performance.now()
   private lastReportAt = this.windowStartedAt
@@ -71,6 +75,10 @@ class BrainPerformanceMetrics {
   private lastPacketSequence = -1
   private packetCount = 0
   private missedPacketCount = 0
+  private replacedPendingCount = 0
+  private stalePacketCount = 0
+  private phaseRealignmentCount = 0
+  private lastTransportReplacedCount = 0
   private canvasFrameCount = 0
   private resourcePressureFrames = 0
   private generationActive = false
@@ -116,6 +124,13 @@ class BrainPerformanceMetrics {
       this.missedPacketCount += telemetry.sequence - this.lastPacketSequence - 1
     }
     this.lastPacketSequence = telemetry.sequence
+    if (telemetry.replacedPendingCount !== undefined) {
+      const delta = telemetry.replacedPendingCount >= this.lastTransportReplacedCount
+        ? telemetry.replacedPendingCount - this.lastTransportReplacedCount
+        : telemetry.replacedPendingCount
+      this.replacedPendingCount += delta
+      this.lastTransportReplacedCount = telemetry.replacedPendingCount
+    }
     appendSample(
       this.packetLatencies,
       Math.max(0, receivedAtEpochMs - telemetry.sentAtEpochMs),
@@ -139,11 +154,12 @@ class BrainPerformanceMetrics {
 
   recordStalePacketIgnored(): void {
     if (!this.enabled) return
-    this.missedPacketCount += 1
+    this.stalePacketCount += 1
   }
 
   recordPhaseRealignment(): void {
     if (!this.enabled) return
+    this.phaseRealignmentCount += 1
   }
 
   setGeneration(active: boolean, now = performance.now()): void {
@@ -174,6 +190,9 @@ class BrainPerformanceMetrics {
         ...summarizeMetricSeries(this.packetGaps, true),
         received: this.packetCount,
         missed: this.missedPacketCount,
+        replacedPending: this.replacedPendingCount,
+        staleIgnored: this.stalePacketCount,
+        phaseRealignments: this.phaseRealignmentCount,
         latencyMs: summarizeMetricSeries(this.packetLatencies),
       },
       canvasFrames: {
@@ -199,6 +218,9 @@ class BrainPerformanceMetrics {
     this.lastReportAt = now
     this.packetCount = 0
     this.missedPacketCount = 0
+    this.replacedPendingCount = 0
+    this.stalePacketCount = 0
+    this.phaseRealignmentCount = 0
     this.canvasFrameCount = 0
     this.resourcePressureFrames = 0
     this.generationActiveMs = 0

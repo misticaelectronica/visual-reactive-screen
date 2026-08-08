@@ -36,16 +36,9 @@ export type PsychedelScene = {
   raster?: Blob
 }
 
-export type BrainBufferFrame = {
-  frame: DreamFrame
-  scene: PsychedelScene
-  associationType: 'emotivo' | 'implicito'
-}
-
 export type BrainProduction = {
   story: DreamStory
   scenes: PsychedelScene[]
-  bufferFrame?: BrainBufferFrame
 }
 
 export type BrainAiTask =

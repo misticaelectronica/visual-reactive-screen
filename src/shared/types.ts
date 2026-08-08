@@ -150,9 +150,74 @@ export const IPC_CHANNELS = {
   outputClosed: 'fx:output-closed',
   vectorizeBrainImage: 'fx:vectorize-brain-image',
   readBrainConfigFile: 'fx:read-brain-config-file',
+  saveConsciousnessMemory: 'fx:save-consciousness-memory',
+  updateConsciousnessState: 'fx:update-consciousness-state',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
+
+export type ConsciousnessMemoryKind =
+  | 'origin'
+  | 'perception'
+  | 'interpretation'
+  | 'imagination'
+  | 'revision'
+  | 'return-to-origin'
+
+export type ConsciousnessMemoryDraft = {
+  kind: ConsciousnessMemoryKind
+  title: string
+  source: string
+  episodeId: string
+  perceived: string
+  interpretation: string
+  imagination?: string | null
+  reason: string
+  relatedMemoryIds?: string[]
+  supersedesMemoryId?: string | null
+  salience?: number
+  deduplicationKey?: string | null
+}
+
+export type ConsciousnessMemorySaveResult = {
+  created: boolean
+  kind: ConsciousnessMemoryKind
+  memoryId: string
+  relativePath: string
+  consultedFiles: string[]
+}
+
+export type ConsciousnessAttentionTarget =
+  | 'silence'
+  | 'low'
+  | 'lowMid'
+  | 'mid'
+  | 'high'
+  | 'flash'
+
+export type ConsciousnessStateSnapshot = {
+  episodeId: string
+  cycleNumber: number
+  observedAt: string
+  phase: 'observing'
+  attentionTarget: ConsciousnessAttentionTarget
+  attentionReason: string
+  bandEnergies: BandEnergies
+  movingAverages: BandEnergies | null
+  backgroundColor: string
+  brightness: number
+  flashActive: boolean
+  interpretation: string
+  provisionalSelfModel: string
+  openQuestions: string[]
+  checkpointReason: 'first-perception' | 'attention-shift' | 'continuity'
+}
+
+export type ConsciousnessStateUpdateResult = {
+  revision: number
+  relativePath: 'COSCIENZA.md'
+  consultedFiles: string[]
+}
 
 export type BrainVectorizationOptions = {
   engine: 'snic' | 'vtracer'
@@ -222,6 +287,8 @@ export interface VisualStatePayload {
   useMorphing?: boolean
   bandEnergies?: BandEnergies
   movingAverages?: BandEnergies
+  /** Indica che l'analizzatore ha superato il warm-up e la percezione audio è valida. */
+  audioPrimed?: boolean
   settings?: AppSettings
   whiteMix?: number
   audioTimestampMs?: number
@@ -230,7 +297,15 @@ export interface VisualStatePayload {
   performanceTelemetry?: {
     sequence: number
     sentAtEpochMs: number
+    /** Totale cumulativo dei pending sostituiti dal Main process. */
+    replacedPendingCount?: number
   }
+}
+
+export type VisualStateAck = {
+  sequenceNumber?: number
+  /** Handshake emesso dopo la registrazione del listener Output. */
+  ready?: boolean
 }
 
 export type MorphingTransitionKind = 'standard' | 'enter2001' | 'exit2001' | 'internal2001'
@@ -269,10 +344,17 @@ export interface ControlApi {
 
 export interface OutputApi {
   onVisualState: (cb: (state: VisualStatePayload) => void) => () => void
-  sendVisualStateAck: () => void
+  sendVisualStateAck: (sequenceNumber?: number) => void
+  notifyVisualStateReady: () => void
   vectorizeBrainImage: (
     source: Uint8Array | BrainRasterPixels,
     options?: BrainVectorizationOptions,
   ) => Promise<BrainVectorizationResult>
   readBrainConfigFile: (fileName: BrainConfigFileName) => Promise<string>
+  saveConsciousnessMemory: (
+    draft: ConsciousnessMemoryDraft,
+  ) => Promise<ConsciousnessMemorySaveResult>
+  updateConsciousnessState: (
+    snapshot: ConsciousnessStateSnapshot,
+  ) => Promise<ConsciousnessStateUpdateResult>
 }
