@@ -1,7 +1,13 @@
 import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { isFlashMode, isMorphingAlgorithm, type AppSettings } from '@shared/types'
+import {
+  isBrainRendererId,
+  isBrainRendererMode,
+  isFlashMode,
+  isMorphingAlgorithm,
+  type AppSettings,
+} from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 
 const fileName = 'MEvrs-Origine-FX-settings.json'
@@ -30,6 +36,7 @@ export function saveSettingsToDisk(settings: AppSettings): void {
 
 function normalizeSettings(settings: AppSettings): AppSettings {
   const useBrain = settings.useBrain === true
+  const alternateBrainWithMorphing = settings.alternateBrainWithMorphing === true
   const colorPresetAliases: Record<string, string> = {
     'red-and-black-balzac': 'mistica-electronica-default',
     'festival-origine-aluminum-black': 'mistica-electronica-festival',
@@ -42,7 +49,19 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     useBrain,
-    useMorphing: useBrain ? false : settings.useMorphing === true,
+    useMorphing: useBrain && !alternateBrainWithMorphing ? false : settings.useMorphing === true,
+    alternateBrainWithMorphing,
+    brainRendererId: isBrainRendererId(settings.brainRendererId)
+      ? settings.brainRendererId
+      : 'print2d',
+    brainRendererMode: isBrainRendererMode(settings.brainRendererMode)
+      ? settings.brainRendererMode
+      : 'manual',
+    brainRendererRotationMs:
+      typeof settings.brainRendererRotationMs === 'number' &&
+      Number.isFinite(settings.brainRendererRotationMs)
+        ? Math.max(10_000, Math.min(120_000, settings.brainRendererRotationMs))
+        : 30_000,
     morphingAlgorithm: isMorphingAlgorithm(settings.morphingAlgorithm)
       ? settings.morphingAlgorithm
       : 'liquid',
@@ -51,6 +70,8 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,
-    dynamicMorphingRotationEnabled: useBrain ? false : settings.dynamicMorphingRotationEnabled !== false,
+    dynamicMorphingRotationEnabled: useBrain && !alternateBrainWithMorphing
+      ? false
+      : settings.dynamicMorphingRotationEnabled !== false,
   }
 }

@@ -31,3 +31,10 @@ export function shouldActivateProgressiveImageBuffer(
 ): boolean {
   return !hasCurrentCompleteBuffer
 }
+
+export function shouldRetainImageModelBetweenStories(
+  retentionEnabled: boolean,
+  lowPowerMode: boolean,
+): boolean {
+  return retentionEnabled && !lowPowerMode
+}

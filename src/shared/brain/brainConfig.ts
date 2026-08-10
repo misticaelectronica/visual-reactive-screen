@@ -39,7 +39,15 @@ export const BRAIN_CONFIG = {
   // buffer successivo mantenendo cooldown e backoff fra le inferenze.
   nextStoryTargetMs: 120_000,
   nextStoryRefillLeadMs: 90_000,
+  // Con tutti i renderer sulla stessa storia il primo attraversamento resta
+  // libero da generazione. Il refill ha poi due attraversamenti di margine.
+  storyCycleNextStoryTargetMs: 240_000,
+  storyCycleRefillLeadMs: 210_000,
+  storyCycleRefillTransitionGuardMs: 10_000,
   nextStoryHardDeadlineMs: 180_000,
+  // Esperimento MACRO-009: evita di ricreare text encoder, UNet e VAE a ogni
+  // storia. In low power il rilascio resta obbligatorio.
+  retainImageModelBetweenStories: true,
   // Breve assestamento dopo il rilascio delle sessioni immagini: impedisce
   // che il modello narrativo venga creato mentre WebGPU sta ancora liberando
   // gli allocator della storia precedente.
@@ -52,6 +60,19 @@ export const BRAIN_CONFIG = {
   imageInferenceSevereFrameThresholdMs: 1_000,
   imageInferenceLongFrameBackoffMs: 9_000,
   imageInferenceSevereFrameBackoffMs: 20_000,
+  // Esperimento MACRO-009: il modello dichiara batch dinamico. Il ramo
+  // condizionale singolo dimezza il batch UNet senza cambiare seed/step/shape.
+  imageGuidanceMode: 'single-conditional' as const,
+  // Esperimento PIANO-010: durante l'inferenza il Renderer Host rallenta il
+  // plugin e usa quattro soli campi cromatici a bassa risoluzione.
+  lightweightDenoisingRender: true,
+  denoisingPassthroughWidth: 320,
+  denoisingPassthroughHeight: 180,
+  denoisingPassthroughFps: 20,
+  lowPowerDenoisingPassthroughFps: 15,
+  denoisingPassthroughPluginFps: 5,
+  lowPowerDenoisingPassthroughPluginFps: 3,
+  denoisingPassthroughCrossfadeMs: 220,
   imageCapabilityTimeoutMs: 12_000,
   imageModelLoadTimeoutMs: 20 * 60_000,
   retryInitialDelayMs: 2_000,

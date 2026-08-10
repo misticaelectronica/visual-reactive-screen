@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   assertSd15BrowserCompatibility,
   createClassifierFreePromptBatch,
+  createSd15PromptBatch,
   ensureSd15NotAborted,
   fetchSd15ModelFile,
   resolveSd15ImageShape,
@@ -60,6 +61,12 @@ describe('runtime ONNX Explicit di Psichedel', () => {
     const batch = createClassifierFreePromptBatch(prompt)
     expect(batch).toEqual(['', prompt])
     expect(batch[1]).toBe(prompt)
+  })
+
+  it('usa soltanto il prompt reale nella modalità condizionale batch 1', () => {
+    const prompt = 'a visible subject crossing a harbour at night'
+    expect(createSd15PromptBatch(prompt, 'single-conditional')).toEqual([prompt])
+    expect(createSd15PromptBatch(prompt, 'cfg-batch')).toEqual(['', prompt])
   })
 
   it('rifiuta WebGPU assente con un errore comprensibile', () => {

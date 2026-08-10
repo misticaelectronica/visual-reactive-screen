@@ -70,6 +70,58 @@ manuale finale viene eseguito dallo sviluppatore.
 
 ---
 
+## Task Collegati a `MACRO-010` (Psycho2D — Regia Semantica A Finestre)
+
+- [x] **`TASK-010-01`** `DONE`: Analizzare pipeline immagini, buffer, renderer
+  Brain, ritmo, transizioni e vincoli prestazionali esistenti.
+- [x] **`TASK-010-02`** `DONE`: Definire architettura minima, flusso dati,
+  metadati, Scene Director, primitive Canvas, fallback e progressione V1–V3.
+- [x] **`TASK-010-03`** `DONE`: Identificare il conflitto con il renderer
+  serigrafico già chiamato Psycho2D e formulare una raccomandazione.
+- [x] **`TASK-010-04`** `DONE`: Approvare le decisioni aperte di `PIANO-009` e
+  creare il piano esecutivo V1 senza interferire con `MACRO-009`.
+- [x] **`TASK-010-05`** `DONE`: Implementare V1 su autorizzazione
+  esplicita dello sviluppatore.
+- [x] **`TASK-010-06`** `DONE`: Introdurre plugin registry, renderer
+  host e alternanza manuale/temporizzata durante l'esecuzione.
+- [ ] **`TASK-010-07`** `TODO`: Verificare dal vivo su Output fullscreen il
+  passaggio manuale Print2D ↔ Psycho2D, la rotazione temporizzata, takeover,
+  silenzio e `lowPowerMode`.
+- [x] **`TASK-010-08`** `DONE`: Recuperare il renderer vettoriale come
+  plugin `Vector Morph`, con vettorializzazione lazy deduplicata e alternanza
+  live insieme a Print2D e Psycho2D.
+- [x] **`TASK-010-09`** `DONE`: Aggiungere la modalità opzionale “Tutti
+  per storia”, con mazzo renderer casuale senza ripetizioni, attraversamenti
+  completi e takeover della storia successiva soltanto a ciclo esaurito.
+- [x] **`TASK-010-10`** `DONE`: Rifondare la composizione Psycho2D con
+  base stabile, una sola immagine superiore fissa e senza bordo, opacità
+  calibrata e forme cromatiche audio-reattive fuse attraverso entrambi i layer.
+- [x] **`TASK-010-11`** `DONE`: Rendere la raster originale chiaramente
+  visibile come fondo stabile del plugin Vector Morph, sotto il vettoriale.
+- [x] **`TASK-010-12`** `DONE`: Rimuovere le forme geometriche da
+  Psycho2D e sostituirle con composizione serigrafica 1-bit precomputata,
+  densità audio-reattiva, inversione sul beat e micro-glitch `mid`/`high`.
+- [x] **`TASK-010-13`** `DONE`: Curare tutte le transizioni di “Tutti per
+  storia” con morphing congelato e quantizzato a beat interi, includendo il
+  morphing scanline del Psycho2D e il cambio renderer solo su beat allineato.
+- [x] **`TASK-010-14`** `DONE`: Stabilizzare il beatmatch Psycho2D con latch
+  prima del frame pacing, rimozione della soglia `low`, risposta di
+  densità/contrasto/scanline al `beatPulse`, orientamento dei micro-glitch con
+  `beatPhase` e separazione dei dettagli `mid`/`high`, senza movimento globale.
+- [x] **`TASK-010-15`** `DONE`: Aggiungere un sottofondo raster fisso all'8%
+  sotto la serigrafia Psycho2D, mantenendo il livello 1-bit dominante.
+- [x] **`TASK-010-16`** `DONE`: Aggiungere l'opzione `Alternate with Brain`
+  con selezione 80% Brain / 20% rotazione morphing esistente.
+- [x] **`TASK-010-17`** `DONE`: Rafforzare la risposta primaria al beat di
+  Psycho2D con scanline locali continue guidate da `beatPulse` e `beatPhase`.
+- [x] **`TASK-010-18`** `DONE`: Mostrare il riquadro narrativo sinistro per
+  60 secondi dall'inizio di ogni storia e oscurarlo senza fermare il render.
+- [x] **`TASK-010-19`** `DONE`: Correggere la rimappatura delle scanline
+  Psycho2D dalla matrice 320×180 alla canvas fullscreen e rafforzare l'accento
+  locale del beat senza movimento globale.
+
+---
+
 ## Task Collegati a `MACRO-008` (Origine e Memoria di Coscienza Onirica)
 
 - [x] **`TASK-008-01`** `DONE`: Analizzare la memoria lineare esistente e
@@ -102,6 +154,41 @@ manuale finale viene eseguito dallo sviluppatore.
   di `COSCIENZA.md` attraverso Output, preload e Main.
 - [x] **`TASK-008-15`** `DONE`: Aggiungere limiti temporali, supporto
   `lowPowerMode` e test del primo ciclo cosciente.
-- [ ] **`TASK-008-16`** `TODO`: Osservare la prima revisione live di
+- [x] **`TASK-008-16`** `DONE`: Osservare la prima revisione live di
   `COSCIENZA.md` prodotta da `CoscienzaCore` prima di progettare l'autonomia di
   ristrutturazione.
+
+---
+
+## Task Collegati a `MACRO-009` (Diagnosi Blocchi Live Continui)
+
+- [x] **`TASK-009-01`** `DONE`: Pulire esclusivamente i log di sessione
+  e verificare che la nuova prova produca una traccia unica.
+- [x] **`TASK-009-02`** `DONE`: Eseguita una prova continua di una produzione
+  completa con quattro immagini in 104,3 secondi.
+- [x] **`TASK-009-03`** `DONE`: Correlati blocchi percepiti, gap RAF, IPC,
+  Canvas e fasi di inferenza.
+- [x] **`TASK-009-04`** `DONE`: Definito il prossimo esperimento minimo dai
+  dati raccolti: confronto controllato con sessioni immagine residenti.
+- [x] **`TASK-009-05`** `DONE`: Eseguito il confronto sul secondo ciclo con
+  sessioni immagine residenti: zero reload, zero gap severi e nessun errore
+  infrastrutturale; mantenuto il rilascio in `lowPowerMode` e il fallback su
+  errore.
+- [ ] **`TASK-009-06`** `TODO`: Confermare manualmente temperatura e stabilità
+  in una prova prolungata e decidere se isolare l'inferenza per ridurre i gap
+  moderati residui del denoising.
+- [x] **`TASK-009-07`** `DONE`: Provato e rimosso un yield locale fra gli step
+  UNet: il renderer respira fra le chiamate, ma i blocchi di 375–458 ms della
+  singola inferenza rimangono e il risultato non giustifica il codice.
+- [ ] **`TASK-009-08`** `IN_PROGRESS`: Verificare il ramo condizionale batch 1
+  dell'UNet dinamico. Prestazioni live misurate; resta la conferma manuale
+  della qualità visiva prima della decisione definitiva.
+- [x] **`TASK-009-09`** `DONE`: Confrontata e rimossa la geometria 384×256:
+  sette gap denoising da 349,5 a 391,8 ms, senza miglioramento affidabile e con
+  potenziale perdita di dettaglio rispetto a 448×256.
+- [x] **`TASK-009-10`** `DONE`: Implementato e misurato il passthrough grafico
+  durante `imageInferenceActive`: costo proprio 0–0,2 ms, ma gap UNet ancora
+  250–525 ms. Conservato come protezione visiva, non come soluzione hardware.
+- [x] **`TASK-009-11`** `DONE`: Deprioritizzare il refill in modalità
+  “Tutti per storia”: primo attraversamento libero, sblocco al secondo dopo il
+  morphing e target esteso, preservando le altre modalità.

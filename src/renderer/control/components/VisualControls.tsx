@@ -71,6 +71,18 @@ export function VisualControls({ settings, onChange }: Props) {
           />
           <strong>Brain</strong>
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={settings.alternateBrainWithMorphing}
+            onChange={(e) => onChange({
+              alternateBrainWithMorphing: e.target.checked,
+              useBrain: e.target.checked ? true : settings.useBrain,
+              useMorphing: e.target.checked ? false : settings.useMorphing,
+            })}
+          />
+          <strong>Alternate with Brain (80/20)</strong>
+        </label>
         <label>
           Algoritmo morphing
           <select
@@ -118,6 +130,47 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="techno">Techno - pulsante</option>
             <option value="ambient">Ambient - fluido</option>
           </select>
+        </label>
+        <label>
+          Renderer Brain
+          <select
+            value={settings.brainRendererId}
+            onChange={(e) => onChange({
+              brainRendererId: e.target.value as AppSettings['brainRendererId'],
+            })}
+            disabled={!settings.useBrain}
+          >
+            <option value="print2d">Print2D — serigrafico</option>
+            <option value="psycho2d">Psycho2D — finestre</option>
+            <option value="vector-morph">Vector Morph — vettoriale</option>
+          </select>
+        </label>
+        <label>
+          Alternanza renderer Brain
+          <select
+            value={settings.brainRendererMode}
+            onChange={(e) => onChange({
+              brainRendererMode: e.target.value as AppSettings['brainRendererMode'],
+            })}
+            disabled={!settings.useBrain}
+          >
+            <option value="manual">Manuale</option>
+            <option value="rotation">Automatica</option>
+            <option value="story-cycle">Tutti per storia — ordine casuale</option>
+          </select>
+        </label>
+        <label>
+          Intervallo renderer Brain
+          <input
+            type="range"
+            min={10_000}
+            max={120_000}
+            step={5_000}
+            value={settings.brainRendererRotationMs}
+            onChange={(e) => onChange({ brainRendererRotationMs: Number(e.target.value) })}
+            disabled={!settings.useBrain || settings.brainRendererMode !== 'rotation'}
+          />
+          <span className="mono">{Math.round(settings.brainRendererRotationMs / 1_000)} s</span>
         </label>
       </div>
 

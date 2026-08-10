@@ -91,10 +91,10 @@ describe('movimento dei fotogrammi Brain', () => {
     const lento = calculateBrainFrameTiming(1_000, 0, 'marea')
 
     expect(veloce.transitionMs).toBe(
-      DEFAULT_BRAIN_RENDERING_CONFIG.timing.transitionMinMs,
+      20 * 300,
     )
     expect(lento.transitionMs).toBe(
-      DEFAULT_BRAIN_RENDERING_CONFIG.timing.transitionMaxMs,
+      9 * 1_000,
     )
     expect(lento.holdMs).toBeGreaterThan(veloce.holdMs)
   })

@@ -305,8 +305,10 @@ function svgElement<K extends keyof SVGElementTagNameMap>(
   return element
 }
 
-export type BrainSvgController = {
-  element: SVGSVGElement | HTMLCanvasElement
+export type BrainSceneRendererController = {
+  element: HTMLElement | SVGSVGElement
+  isReady?: () => boolean
+  hasFailed?: () => boolean
   setOpacity: (opacity: number) => void
   getMorphShapes: () => BrainMorphShape[]
   setMorphPattern: (pattern: BrainFrameMorphPattern) => void
@@ -322,9 +324,18 @@ export type BrainSvgController = {
     time: number,
     rhythm?: BrainRhythmState,
     movingAverages?: BandEnergies,
+    flash?: BrainFlashState,
   ) => void
   destroy: () => void
 }
+
+export type BrainFlashState = {
+  active: boolean
+  intensity: number
+}
+
+/** Alias mantenuto durante la migrazione dei renderer Brain al plugin host. */
+export type BrainSvgController = BrainSceneRendererController
 
 export type BrainColorContext = {
   frameEnergy: number

@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import type { BrainRhythmState } from './brainRhythm'
 import {
-  BRAIN_PSYCHO2D_MODES,
-  buildPsycho2dModeSequence,
-  calculateBrainPsycho2dBandDrives,
-  calculateBrainPsycho2dFrameInterval,
-  calculateBrainPsycho2dLayerMorph,
-  calculateBrainPsycho2dMotion,
-  shouldRenderBrainPsycho2dFrame,
-} from './brainPsycho2dCanvas'
+  BRAIN_PRINT2D_MODES,
+  buildPrint2dModeSequence,
+  calculateBrainPrint2dBandDrives,
+  calculateBrainPrint2dFrameInterval,
+  calculateBrainPrint2dLayerMorph,
+  calculateBrainPrint2dMotion,
+  shouldRenderBrainPrint2dFrame,
+} from './brainPrint2dCanvas'
 
 const RHYTHM: BrainRhythmState = {
   beat: true,
@@ -21,16 +21,16 @@ const RHYTHM: BrainRhythmState = {
   bandTransients: { low: 0, lowMid: 0, mid: 0, high: 0 },
 }
 
-describe('Brain Psycho2D', () => {
+describe('Brain Print2D', () => {
   it('estrae quattro linguaggi differenti dai sette disponibili', () => {
-    const modes = buildPsycho2dModeSequence(4, () => 0.73)
-    expect(BRAIN_PSYCHO2D_MODES).toHaveLength(7)
+    const modes = buildPrint2dModeSequence(4, () => 0.73)
+    expect(BRAIN_PRINT2D_MODES).toHaveLength(7)
     expect(new Set(modes).size).toBe(4)
-    expect(modes.every((mode) => BRAIN_PSYCHO2D_MODES.includes(mode))).toBe(true)
+    expect(modes.every((mode) => BRAIN_PRINT2D_MODES.includes(mode))).toBe(true)
   })
 
   it('resta quasi immobile in silenzio', () => {
-    const motion = calculateBrainPsycho2dMotion(
+    const motion = calculateBrainPrint2dMotion(
       { low: 0, lowMid: 0, mid: 0, high: 0 },
       DEFAULT_SETTINGS,
       undefined,
@@ -44,43 +44,43 @@ describe('Brain Psycho2D', () => {
   })
 
   it('usa una cadenza stabile senza degradare la sola generazione testuale', () => {
-    expect(calculateBrainPsycho2dFrameInterval(false, false)).toBeCloseTo(
+    expect(calculateBrainPrint2dFrameInterval(false, false)).toBeCloseTo(
       1_000 / 24,
     )
-    expect(calculateBrainPsycho2dFrameInterval(false, true)).toBeCloseTo(
+    expect(calculateBrainPrint2dFrameInterval(false, true)).toBeCloseTo(
       1_000 / 20,
     )
-    expect(calculateBrainPsycho2dFrameInterval(true, false)).toBeCloseTo(
+    expect(calculateBrainPrint2dFrameInterval(true, false)).toBeCloseTo(
       1_000 / 18,
     )
   })
 
   it('non congela firme uguali durante la musica ma le salta in silenzio', () => {
-    expect(shouldRenderBrainPsycho2dFrame(true, 'same', 'same')).toBe(true)
-    expect(shouldRenderBrainPsycho2dFrame(false, 'same', 'same')).toBe(false)
-    expect(shouldRenderBrainPsycho2dFrame(false, 'next', 'same')).toBe(true)
+    expect(shouldRenderBrainPrint2dFrame(true, 'same', 'same')).toBe(true)
+    expect(shouldRenderBrainPrint2dFrame(false, 'same', 'same')).toBe(false)
+    expect(shouldRenderBrainPrint2dFrame(false, 'next', 'same')).toBe(true)
   })
 
   it('assegna un gesto distinto a ciascuna banda', () => {
-    const low = calculateBrainPsycho2dMotion(
+    const low = calculateBrainPrint2dMotion(
       { low: 0.8, lowMid: 0, mid: 0, high: 0 },
       DEFAULT_SETTINGS,
       RHYTHM,
       2,
     )
-    const lowMid = calculateBrainPsycho2dMotion(
+    const lowMid = calculateBrainPrint2dMotion(
       { low: 0, lowMid: 0.8, mid: 0, high: 0 },
       DEFAULT_SETTINGS,
       RHYTHM,
       2,
     )
-    const mid = calculateBrainPsycho2dMotion(
+    const mid = calculateBrainPrint2dMotion(
       { low: 0, lowMid: 0, mid: 0.8, high: 0 },
       DEFAULT_SETTINGS,
       RHYTHM,
       2,
     )
-    const high = calculateBrainPsycho2dMotion(
+    const high = calculateBrainPrint2dMotion(
       { low: 0, lowMid: 0, mid: 0, high: 0.8 },
       DEFAULT_SETTINGS,
       RHYTHM,
@@ -96,13 +96,13 @@ describe('Brain Psycho2D', () => {
   })
 
   it('fa avanzare il livello attivo con il beat marching', () => {
-    const first = calculateBrainPsycho2dMotion(
+    const first = calculateBrainPrint2dMotion(
       { low: 0.5, lowMid: 0.4, mid: 0.3, high: 0.2 },
       DEFAULT_SETTINGS,
       RHYTHM,
       1,
     )
-    const next = calculateBrainPsycho2dMotion(
+    const next = calculateBrainPrint2dMotion(
       { low: 0.5, lowMid: 0.4, mid: 0.3, high: 0.2 },
       DEFAULT_SETTINGS,
       RHYTHM,
@@ -114,7 +114,7 @@ describe('Brain Psycho2D', () => {
 
   it('mantiene un drive continuo anche quando la banda coincide con la media', () => {
     const bands = { low: 0.2, lowMid: 0.16, mid: 0.12, high: 0.08 }
-    const drives = calculateBrainPsycho2dBandDrives(bands, bands)
+    const drives = calculateBrainPrint2dBandDrives(bands, bands)
 
     expect(drives.low).toBeGreaterThan(0)
     expect(drives.lowMid).toBeGreaterThan(0)
@@ -125,7 +125,7 @@ describe('Brain Psycho2D', () => {
   it('muove una banda lungo la fase del beat senza cambiare la sua energia', () => {
     const bands = { low: 0.5, lowMid: 0, mid: 0, high: 0 }
     const averages = { low: 0.35, lowMid: 0, mid: 0, high: 0 }
-    const first = calculateBrainPsycho2dMotion(
+    const first = calculateBrainPrint2dMotion(
       bands,
       DEFAULT_SETTINGS,
       { ...RHYTHM, beat: false, beatPulse: 0, beatPhase: 0 },
@@ -133,7 +133,7 @@ describe('Brain Psycho2D', () => {
       6,
       averages,
     )
-    const opposite = calculateBrainPsycho2dMotion(
+    const opposite = calculateBrainPrint2dMotion(
       bands,
       DEFAULT_SETTINGS,
       { ...RHYTHM, beat: false, beatPulse: 0, beatPhase: 0.5 },
@@ -148,7 +148,7 @@ describe('Brain Psycho2D', () => {
   })
 
   it('deforma le masse in entrata e le ricompone a fine morph', () => {
-    const start = calculateBrainPsycho2dLayerMorph(
+    const start = calculateBrainPrint2dLayerMorph(
       0,
       'enter',
       0,
@@ -156,7 +156,7 @@ describe('Brain Psycho2D', () => {
       42,
       'corrente',
     )
-    const end = calculateBrainPsycho2dLayerMorph(
+    const end = calculateBrainPrint2dLayerMorph(
       1,
       'enter',
       0,

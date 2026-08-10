@@ -65,6 +65,51 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non simulare reattività musicale con oscillazioni temporali autonome: le curve devono usare fase riallineata al beat e transienti distinti per `low`, `lowMid`, `mid` e `high`. In silenzio il movimento geometrico deve essere quasi nullo.
 - Non rimuovere `lowPowerMode`: serve per ridurre carico CPU/FPS/layer durante live lunghi o su macchine calde.
 
+### Protocollo Obbligatorio Di Verifica Filosofia Visiva
+
+Prima di proporre qualsiasi modifica, diagnosi o soluzione visiva, l'agente DEVE verificare il rispetto di questi 3 vincoli fondamentali:
+
+1. 🛑 **Check Camera**: La proposta applica scala, rotazione, zoom, derive o pulsazioni all'intero quadro o alla camera? 
+   ➔ **SE SÌ, LA PROPOSTA È VIETATA.** La camera e il quadro devono rimanere rigorosamente stabili (zero mal di mare).
+   Sono invece ammesse deformazioni locali, scanline, maschere e micro-disallineamenti
+   applicati a porzioni della materia, purché il soggetto complessivo non trasli,
+   ruoti o venga scalato come un unico blocco.
+
+2. 🎨 **Check Materia**: La reattività avviene dentro la materia visiva, cioè
+   serigrafia, raster sottostante e maschere che li attraversano? Sono ammessi
+   retini, densità dither, inchiostri, soglie di contrasto, variazioni cromatiche,
+   opacità limitate e micro-segmenti con fasi differenziate.
+   ➔ **SE NO, LA PROPOSTA È ERRATA.** Il raster non deve però essere rimpiazzato:
+   durante il denoising il soggetto deve restare riconoscibile e il raster deve
+   rimanere un livello secondario, non un'immagine vagante o un taglio decorativo.
+
+3. 🤫 **Check Silenzio**: In assenza di audio, la materia non introduce movimento
+   geometrico o pulsazioni temporali autonome? L'immagine e i suoi livelli possono
+   restare visibili e stabili; non devono però fingere una reattività musicale.
+   ➔ **SE NO, CORREGGERE.**
+
+4. 🥁 **Check Beatmatch**: Ogni risposta ritmica deve distinguere impulso,
+   fase e banda. Il beat va catturato prima del frame pacing; `beatPulse` può
+   modulare densità, contrasto e ampiezza locale, mentre `beatPhase` orienta
+   soltanto micro-movimenti interni. `mid` e `high` restano dettagli secondari;
+   nessuna banda può muovere l'intero quadro.
+
+5. 🫧 **Check Transizione**: Un cambio di immagine, preset o renderer deve
+   essere una trasformazione continua e leggibile: morphing, maschere o
+   crossfade allineati al beat, mai un taglio o un salto di posizione. La
+   continuità visiva ha priorità sulla velocità del cambio.
+
+6. 🧭 **Check Alternanza**: L'opzione `Alternate with Brain (80/20)` è una
+   regola di programmazione, non un nuovo linguaggio visivo. L'80% indica la
+   prevalenza temporale di Brain; il 20% deve usare la rotazione morphing già
+   definita, con i suoi preset, profili, limiti di costo e transizioni.
+
+7. 🌡️ **Check Costo**: Ogni intensificazione deve avere un budget esplicito.
+   Prima si riusano buffer e immagini già preparati; poi si riducono layer,
+   frequenza o densità. Non si aggiungono effetti autonomi che competano con
+   il denoising o trasformino il risparmio energetico in un nuovo blocco.
+
+
 ## Punti Delicati
 
 ### Audio

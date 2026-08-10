@@ -1,6 +1,7 @@
 import { AutoTokenizer } from '@huggingface/transformers'
 import type { InferenceSession, Tensor } from 'onnxruntime-web'
 import type { ImageModelManifest } from '@shared/brain/imageModelManifest'
+import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import {
   classifierFreeGuidance,
   createSd15EulerSchedule,
@@ -44,9 +45,12 @@ export type Sd15GenerateOptions = {
   inferenceWidth?: number
   inferenceHeight?: number
   steps?: number
+  guidanceMode?: Sd15GuidanceMode
   signal?: AbortSignal
   onProgress?: (progress: Sd15BrowserProgress) => void
 }
+
+export type Sd15GuidanceMode = 'cfg-batch' | 'single-conditional'
 
 type LoadedSessions = {
   textEncoder: InferenceSession
@@ -56,6 +60,15 @@ type LoadedSessions = {
 
 export function createClassifierFreePromptBatch(prompt: string): ['', string] {
   return ['', prompt]
+}
+
+export function createSd15PromptBatch(
+  prompt: string,
+  mode: Sd15GuidanceMode,
+): string[] {
+  return mode === 'single-conditional'
+    ? [prompt]
+    : createClassifierFreePromptBatch(prompt)
 }
 
 export function resolveSd15ImageShape(
@@ -500,9 +513,12 @@ export class Sd15OnnxWebGpuRuntime {
     const sessions = this.sessions!
     const tokenizer = this.tokenizer!
 
-    // Il prompt viene inoltrato integralmente. La stringa vuota serve
-    // esclusivamente al ramo matematico unconditional del CFG.
-    const encoded = tokenizer(createClassifierFreePromptBatch(prompt), {
+    const guidanceMode = options.guidanceMode ?? BRAIN_CONFIG.imageGuidanceMode
+    const promptBatch = createSd15PromptBatch(prompt, guidanceMode)
+    const batchSize = promptBatch.length
+    // Il prompt viene inoltrato integralmente. La stringa vuota esiste soltanto
+    // nella modalità CFG a due rami; il test single-conditional usa batch 1.
+    const encoded = tokenizer(promptBatch, {
       padding: 'max_length',
       max_length: TOKEN_COUNT,
       truncation: true,
@@ -510,7 +526,7 @@ export class Sd15OnnxWebGpuRuntime {
     }) as { input_ids?: unknown }
     const nestedIds = encoded.input_ids
     if (!Array.isArray(nestedIds) || !Array.isArray(nestedIds[0])) {
-      throw new Error('Il tokenizer CLIP non ha restituito due sequenze')
+      throw new Error('Il tokenizer CLIP non ha restituito sequenze valide')
     }
     const ids = BigInt64Array.from(
       (nestedIds as number[][]).flat(),
@@ -519,7 +535,7 @@ export class Sd15OnnxWebGpuRuntime {
     const inputIdsTensor = new ort.Tensor(
       'int64',
       ids,
-      [2, TOKEN_COUNT],
+      [batchSize, TOKEN_COUNT],
     )
     let textOutput: Record<string, Tensor>
     try {
@@ -567,8 +583,17 @@ export class Sd15OnnxWebGpuRuntime {
       const schedule = createSd15EulerSchedule(steps)
       const latentCount = LATENT_CHANNELS * latentWidth * latentHeight
       let latents = seededNormal(latentCount, seed, schedule[0].sigma)
-      const scaled = new Float32Array(latentCount * 2)
+      const scaled = new Float32Array(latentCount * batchSize)
       const startedAt = performance.now()
+
+      onProgress?.({
+        phase: 'generazione',
+        message: guidanceMode === 'single-conditional'
+          ? 'UNet batch 1: ramo condizionale singolo'
+          : 'UNet batch 2: classifier-free guidance',
+        component: 'unet-guidance-mode',
+        pct: 0,
+      })
 
       for (let stepIndex = 0; stepIndex < schedule.length; stepIndex += 1) {
         ensureSd15NotAborted(signal)
@@ -576,13 +601,14 @@ export class Sd15OnnxWebGpuRuntime {
         const divisor = Math.sqrt(step.sigma ** 2 + 1)
         for (let index = 0; index < latentCount; index += 1) {
           const value = latents[index] / divisor
-          scaled[index] = value
-          scaled[latentCount + index] = value
+          for (let batchIndex = 0; batchIndex < batchSize; batchIndex += 1) {
+            scaled[batchIndex * latentCount + index] = value
+          }
         }
         const sampleTensor = new ort.Tensor(
           'float16',
           toFloat16Data(scaled),
-          [2, LATENT_CHANNELS, latentHeight, latentWidth],
+          [batchSize, LATENT_CHANNELS, latentHeight, latentWidth],
         )
         const timestepTensor = new ort.Tensor(
           'float16',
@@ -598,10 +624,13 @@ export class Sd15OnnxWebGpuRuntime {
           })
           const prediction = output.out_sample ?? Object.values(output)[0]
           if (!prediction) throw new Error('UNet non ha prodotto la predizione')
-          const guided = classifierFreeGuidance(
-            floatData(prediction),
-            this.manifest.guidanceScale,
-          )
+          const predictionData = floatData(prediction)
+          const guided = guidanceMode === 'single-conditional'
+            ? predictionData
+            : classifierFreeGuidance(
+              predictionData,
+              this.manifest.guidanceScale,
+            )
           latents = eulerStep(latents, guided, step.sigma, step.nextSigma)
         } finally {
           sampleTensor.dispose()

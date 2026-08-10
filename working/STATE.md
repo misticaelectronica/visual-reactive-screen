@@ -1,8 +1,8 @@
 # Stato Globale del Progetto (`STATE.md`)
 
-> **Ultimo Aggiornamento**: 08 Agosto 2026 (CEST)
+> **Ultimo Aggiornamento**: 10 Agosto 2026 (CEST)
 > **Stato Generale**: 🟢 In Sviluppo Attivo / Operativo  
-> **Ultima Sessione**: `SESSION-2026-08-08-10` — struttura presente della coscienza verificata
+> **Ultima Sessione**: `SESSION-2026-08-10-20` — Psycho2D beat response rimappata su Output reale
 
 ---
 
@@ -24,6 +24,8 @@
 | `MACRO-005` | Coalescenza IPC e Interpolazione Ritmica Locale (Fase 2) | 🟢 DONE | 05 Agosto 2026 | 05 Agosto 2026 |
 | `MACRO-006` | Ottimizzazione Performance Live & Low Power Tuning | 🟢 DONE | Agosto 2026 | 08 Agosto 2026 |
 | `MACRO-008` | Origine, Memoria e Grafo di Coscienza Onirica | 🟡 IN PROGRESS | 08 Agosto 2026 | - |
+| `MACRO-009` | Diagnosi Blocchi Live Continui | 🟡 IN PROGRESS | 09 Agosto 2026 | - |
+| `MACRO-010` | Psycho2D — Regia Semantica A Finestre | 🟡 IN PROGRESS | 10 Agosto 2026 | - |
 
 ---
 
@@ -44,9 +46,190 @@
 13. [x] Osservare i segnali reali e proporre il lessico minimo previsto dalla Fase 1 di `PIANO-005`.
 14. [x] Implementare l'archivio Markdown `.coscienza/`, la rilettura di `AGENT.md`, l'origine idempotente e i primi ricordi onirici.
 15. [x] Creare `COSCIENZA.md` e il primo ciclo percezione → attenzione → interpretazione provvisoria.
-16. [ ] Evolvere la Fase 3 di Coscienza Onirica soltanto dopo aver osservato la
-    prima revisione live di `COSCIENZA.md`; origine e primi ricordi reali sono
-    già stati osservati e preservati.
+16. [x] Osservare la prima revisione live di `COSCIENZA.md`; origine e primi
+    ricordi reali sono stati preservati.
+17. [ ] Studiare come la coscienza possa riconoscere continuità e formulare
+    nuove domande a partire dalle revisioni reali, prima della Fase 3 autonoma.
+18. [x] Riprendere la diagnosi dei blocchi su nuova richiesta con log pulito.
+19. [x] Completare una produzione live e correlare i blocchi percepiti con le metriche.
+20. [x] Eseguire un confronto controllato mantenendo residenti le sessioni immagine per il secondo ciclo.
+21. [x] Approvare le decisioni architetturali di `PIANO-009` e avviare
+    l'implementazione V1 di Psycho2D con alternanza live dei renderer.
+22. [ ] Confermare manualmente temperatura e stabilità in una prova prolungata;
+    poi decidere se isolare l'inferenza per ridurre anche i gap residui del
+    denoising.
+23. [ ] Verificare dal vivo il cambio fra Print2D, Psycho2D e Vector Morph, la
+    rotazione temporizzata e il takeover su Output fullscreen.
+24. [x] Confermare manualmente la qualità narrativa delle immagini batch 1.
+25. [ ] Implementare e misurare il passthrough grafico ultra-leggero di
+    `PIANO-010`; mantenerlo soltanto con gap denoising inferiori a 150 ms.
+26. [x] Implementare l'opzione Brain “Tutti per storia”: ogni renderer
+    attraversa i quattro fotogrammi, in ordine casuale senza ripetizioni,
+    prima del takeover della storia successiva.
+
+## Modalità Tutti i Renderer per Storia
+
+- Nuova opzione Control Window: `Tutti per storia — ordine casuale`.
+- Per ogni storia viene estratto un mazzo dei tre plugin registrati; ciascun
+  renderer attraversa l'intera sequenza di quattro fotogrammi una sola volta.
+- La storia successiva può essere preparata nel buffer ma non entra finché il
+  mazzo corrente non è esaurito.
+- Il ritorno dal quarto al primo fotogramma usa la transizione morphing lunga
+  esistente; non viene eseguito alcun taglio diretto del canvas.
+- La modalità manuale e la rotazione temporizzata precedente restano
+  disponibili e invariate.
+
+## Revisione Artistica Psycho2D
+
+- Una raster corrente occupa stabilmente il quadro; una seconda raster viene
+  collocata sopra in una posizione casuale determinata una sola volta per
+  scena.
+- Il livello superiore non ha contorno, non entra da fuori schermo, non vaga,
+  non pulsa e non effettua takeover.
+- La sua opacità è limitata fra 0,38 e 0,64 e considera contrasto e differenza
+  di luminanza tra le due immagini.
+- Tutte le forme geometriche attraversanti sono state eliminate.
+- Le due raster vengono fuse una volta, rispettando posizione e opacità del
+  layer superiore, e trasformate in tre matrici Bayer 1-bit a 320×180.
+- `lowMid` seleziona la densità d'inchiostro; beat/`low` inverte per 85 ms;
+  transienti `mid`/`high` producono al massimo tre micro-glitch orizzontali.
+- In silenzio resta la variante meno densa e non esiste movimento geometrico.
+- Durante `setTransition`, scanline serigrafiche deformate seguono un inviluppo
+  a campana; l'effetto è il morphing del raster, non una semplice dissolvenza.
+
+## Transizioni Beat-Matched In “Tutti per storia”
+
+- Il timing di ogni fotogramma viene congelato al momento del cambio e dura un
+  numero intero di beat; variazioni successive della stima BPM non deformano
+  la transizione in corso.
+- In `story-cycle` il cambio di fotogramma/renderer avviene su beat reale o
+  nella finestra di fase entro il 7% dal beat; non è più consentito il fallback
+  fuori beat durante il ciclo.
+- Print2D mantiene il morphing dei layer, Vector Morph quello delle forme SVG,
+  Psycho2D quello delle scanline 1-bit; tutti condividono pattern e durata.
+
+## Visibilità Raster In Vector Morph
+
+- Vector Morph contiene ora il raster originale come fondale reale a pieno
+  quadro, al 92% di opacità.
+- Il livello SVG vettoriale resta sopra al 70% e il suo fondo viene forzato a
+  trasparente, mantenendo leggibile il soggetto fotografico.
+- Le opacità non reagiscono all'audio: nessuna pulsazione globale o costo
+  grafico aggiuntivo nel ciclo di morphing.
+
+## Stato Passthrough Denoising
+
+- Implementazione reversibile attiva dietro
+  `BRAIN_CONFIG.lightweightDenoisingRender`.
+- Il Renderer Host riduce gli aggiornamenti del plugin a 5 FPS, o 3 FPS in low
+  power, dopo che il raster statico è pronto; il movimento originale resta
+  percepibile in trasparenza e riprende pienamente sul clock corrente.
+- Il raster corrente viene campionato una volta a 320×180 e convertito in tre
+  varianti 1-bit con gli inchiostri estremi della palette narrativa/preset.
+  Nessuna zona cromatica o forma geometrica viene calcolata nel RAF.
+- Il runtime usa un `drawImage`, fino a tre riscritture di fascia e una breve
+  inversione `difference`; il plugin originale continua attenuato sotto.
+- `[BrainMetrics].denoisingPassthrough` separa numero frame e costo CPU del
+  disegno dalla normale attività Canvas.
+- Validazione automatica: 34 file e 224 test verdi, typecheck, lint mirato,
+  build Vite e diff-check riusciti.
+- I log live successivi mostrano un costo proprio di 0–0,2 ms, ma RAF ancora
+  circa 250–525 ms durante le singole chiamate UNet. La soglia di 150 ms non è
+  raggiunta: il passthrough resta una protezione visiva, non elimina la contesa
+  hardware.
+
+## Refill Deprioritizzato Con “Tutti per storia”
+
+- Il primo attraversamento completo dei quattro fotogrammi è ora protetto:
+  nessuna generazione della storia successiva può iniziare.
+- Al passaggio verso il secondo renderer il gate si apre, ma una guardia di 10
+  secondi lascia terminare morphing e preparazione del nuovo plugin.
+- Il target del buffer successivo è 240 secondi invece di 120 soltanto in
+  `story-cycle`; le altre modalità conservano il contratto precedente.
+- Uscendo da `story-cycle`, un refill differito viene sbloccato subito.
+- L'ultima sessione precedente mostrava un freeze iniziale di 3,17 s durante
+  caricamento/creazione VAE e gap ricorrenti di 250–525 ms durante UNet. Questa
+  politica non accorcia tali operazioni, ma le rimuove interamente dal primo
+  atto visuale e riduce la percentuale temporale di performance contesa.
+
+## Esito Riduzione Del Lavoro Atomico UNet
+
+- I contratti ONNX letti senza caricare la GPU dichiarano batch dinamico sia
+  per Text Encoder sia per UNet.
+- Il ramo `single-conditional` batch 1 ha eliminato i gap rilevati nelle prime
+  due immagini prima dell'avvio Canvas; con Print2D attivo i picchi sono scesi
+  spesso a 249–276 ms, pur restando episodi termici da 383–450 ms.
+- Le immagini standard sono passate in genere da circa 10–11 s a 7–9 s. Il
+  candidato batch 1 resta attivo in attesa della conferma visiva dello
+  sviluppatore, perché rinuncia alla classifier-free guidance.
+- La successiva prova 384×256 è stata negativa: sette gap denoising da 349,5 a
+  391,8 ms e nessun guadagno affidabile. La geometria 448×256 è stata
+  ripristinata per non perdere dettaglio.
+- Log: `log/session-2026-08-10-12-09-20.txt` (batch 1 a 448×256) e
+  `log/session-2026-08-10-12-16-49.txt` (prova 384×256 rimossa).
+
+## Esito Test Locale Del Denoising
+
+- Un yield fra ogni step UNet ha concesso al renderer un frame prima dello
+  step successivo, senza cambiare seed, qualità, geometria o numero di step.
+- I gap ricorrenti sono rimasti fra circa 375 e 458 ms, contro circa 366–534 ms
+  della baseline residente: variazione insufficiente a eliminare lo scatto.
+- Il blocco appartiene alla singola `UNet.run()` e non alla concatenazione
+  JavaScript degli step.
+- Il codice sperimentale è stato rimosso; resta il log
+  `log/session-2026-08-10-11-56-22.txt` come evidenza.
+
+## Esito Implementazione Psycho2D V1
+
+- I renderer Brain sono plugin registrati dietro un Host persistente con
+  crossfade, readiness, timeout, fallback e cleanup.
+- `Print2D` conserva il renderer serigrafico precedente; `Psycho2D` usa analisi
+  raster locale, Scene Director, finestre semantiche e immagini
+  CURRENT/PREVIOUS/NEXT.
+- La Control Window permette selezione manuale o rotazione ogni 10–120 secondi;
+  il cambio non rigenera immagini e viene rinviato durante il passaggio fra
+  frame.
+- Suite completa: 31 file, 214 test. Typecheck, lint mirato e build Electron
+  verdi. Lint globale bloccato soltanto dal `prefer-const` preesistente.
+- Smoke test Electron riuscito con Print2D; resta la verifica visuale manuale
+  dei tre renderer e dell'alternanza.
+- `Vector Morph` recupera la vettorializzazione storica come terzo plugin:
+  vettorializza soltanto quando selezionato, deduplica le richieste per Blob,
+  invalida la cache se cambia l'immagine e conserva il renderer attivo se la
+  preparazione fallisce o supera il timeout.
+- Suite aggiornata: 33 file, 218 test. Typecheck, lint mirato, build
+  Electron/macOS e controllo whitespace verdi.
+
+## Esito Esperimento Sessioni Immagine Residenti
+
+- Baseline: RAF massimo 3,57 s, due gap severi e tre creazioni di sessione
+  immagine nella prima produzione (`log/session-2026-08-09-23-44-17.txt`).
+- Secondo ciclo residente: RAF massimo 0,53 s, zero gap severi e zero creazioni
+  di sessione (`log/session-2026-08-09-23-54-59.txt`).
+- La seconda produzione ha completato quattro immagini in 91,4 s, senza errori
+  GPU o di memoria; la nuova storia è entrata nel buffer 121,4 s dopo la fine
+  della prima produzione, incluso il refill iniziale di 30 s.
+- Restano gap moderati di circa 0,38–0,53 s durante il denoising WebGPU. La
+  residenza elimina il grande arresto fra storie ma non isola l'inferenza dal
+  renderer Output.
+- Decisione tecnica: mantenere le sessioni residenti in modalità normale;
+  `lowPowerMode` continua a liberarle. In caso di errore infrastrutturale la
+  pipeline le libera prima del retry.
+- Temperatura e memoria di lunga durata richiedono ancora conferma manuale:
+  l'assenza di errori nel log non equivale a una misura termica.
+
+## Esito Analisi Psycho2D
+
+- Il concept è realizzabile nella sola Output Window usando Blob raster,
+  Canvas 2D, buffer Brain e clock ritmico già presenti.
+- V1 non richiede nuovi processi, IPC, database, SVG, segmentazione o modello
+  vision: bastano analisi pixel locale, hint narrativi con provenienza, massimo
+  due finestre e takeover mediante clip crescente.
+- Il nome `brainPsycho2dCanvas.ts` è già usato da un renderer serigrafico privo
+  di regia a finestre. Prima di implementare va deciso se rinominarlo e
+  conservarlo come stile, scelta raccomandata, oppure sostituirlo.
+- L'implementazione non deve alterare la baseline `MACRO-009` prima del
+  confronto controllato del secondo ciclo.
 
 Il test manuale finale di `MACRO-006` è affidato allo sviluppatore e non resta
 registrato come task di implementazione aperto. Verificare soprattutto comparsa
@@ -110,6 +293,66 @@ della seconda storia entro circa 120–140 s, continuità e temperatura.
 - I 120 s sono ora la finestra complessiva di preparazione: il lavoro della
   storia successiva viene distribuito al suo interno, senza sommare altri
   60–120 s dopo l'attesa. Target atteso di comparsa: circa 120–140 s.
+
+## Beatmatch Psycho2D — SESSION-2026-08-10-14
+
+- Il beat viene catturato prima del frame interval e mantenuto per il frame
+  successivo, così un impulso breve non viene perso dal throttling.
+- La soglia rigida sulle basse frequenze è stata rimossa: l'inversione usa il
+  beat latched, non un valore assoluto `low`.
+- `beatPulse` controlla densità Bayer, contrasto e ampiezza delle scanline;
+  `beatPhase` orienta soltanto il micro-disallineamento delle fasce.
+- `mid` e `high` restano sorgenti dei glitch secondari; l'immagine principale
+  non viene traslata, ruotata o scalata.
+- Validazione: 37 file / 233 test, typecheck, lint mirato, build completa e
+  `git diff --check` riusciti. Resta il test visivo live.
+
+## Sottofondo raster Psycho2D — SESSION-2026-08-10-15
+
+Psycho2D mostra ora l'immagine base originale sotto la serigrafia 1-bit con
+opacità fissa all'8%. Il raster resta fermo e non modifica il costo del morph;
+la serigrafia rimane il livello visivo dominante.
+
+## Alternate with Brain — SESSION-2026-08-10-16
+
+È disponibile l'opzione UI `Alternate with Brain (80/20)`. Quando attiva,
+Brain resta la modalità prevalente con probabilità 80%; nel restante 20% viene
+scelto un renderer morphing tramite la rotazione già esistente, inclusi preset,
+profili e transizioni già ottimizzati. La rotazione morphing autonoma viene
+sospesa per evitare due timer concorrenti.
+
+## Psycho2D beat response — SESSION-2026-08-10-18
+
+La risposta al beat è stata resa più evidente senza muovere il quadro: oltre a
+densità, contrasto e inversione, Psycho2D disegna scanline locali agganciate a
+`beatPulse` e orientate da `beatPhase`. Il costo resta limitato a poche fasce,
+ridotte ulteriormente in `lowPowerMode` e sotto pressione.
+
+## Psycho2D beat response — SESSION-2026-08-10-20
+
+La risposta primaria al beat campiona ora correttamente la matrice 1-bit
+320×180 e la rimappa sulla canvas fullscreen, evitando fasce invisibili quando
+l'Output è più grande della sorgente precomputata. L'accento locale è più
+deciso: latch a 150 ms, contrasto più alto, sette scanline in modalità normale
+e piccoli colpi locali in `difference`, ridotti a tre fasce in `lowPowerMode` o
+sotto pressione. La camera resta stabile e in silenzio non viene introdotto
+movimento autonomo.
+
+## Pannello narrativo — SESSION-2026-08-10-19
+
+Il riquadro narrativo sinistro viene mostrato quando appare una nuova storia,
+resta visibile per 60 secondi e poi passa a opacità zero con dissolvenza. Il
+timer viene riavviato solo per una storia nuova e viene cancellato in `destroy`;
+il rendering Brain continua indipendentemente.
+
+## Protocollo filosofia visiva — SESSION-2026-08-10-17
+
+Precisato il protocollo obbligatorio in `agents.md`: la camera resta stabile,
+ma sono consentite deformazioni locali nella materia; il raster sottostante è
+riconosciuto come materia secondaria e deve restare leggibile; il silenzio
+blocca il moto autonomo ma non nasconde l'immagine. Aggiunti inoltre vincoli
+espliciti per beatmatch, transizioni continue, alternanza Brain 80/20 e budget
+termico/computazionale.
 
 ## Esito Live Fase 2
 

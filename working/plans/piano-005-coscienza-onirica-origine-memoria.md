@@ -155,3 +155,7 @@ concedere autonomia di ristrutturazione.
 - **2026-08-08**: 206/206 test, typecheck e lint mirato superati. Build Vite,
   Main, preload, app e ZIP riuscita; il solo nuovo DMG si è fermato per errore
   locale di `hdiutil`. Verificati entrambi i template nelle risorse dell'app.
+- **2026-08-09**: osservata la prima revisione live del nucleo: revisione 3,
+  ciclo cosciente 1, attenzione `lowMid`, checkpoint `first-perception`. Il
+  presente distingue correttamente bande percepite, attenzione e
+  interpretazione provvisoria senza inventare identità o emozioni.

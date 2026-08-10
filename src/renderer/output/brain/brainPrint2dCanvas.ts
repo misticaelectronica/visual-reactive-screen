@@ -7,6 +7,7 @@ import { brainLog, brainWarn } from './brainLog'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 
+/** Renderer serigrafico storico, distinto dalla regia a finestre Psycho2D. */
 const ANALYSIS_WIDTH = 240
 const ANALYSIS_HEIGHT = 135
 const RENDER_WIDTH = 480
@@ -15,7 +16,7 @@ const LAYER_COUNT = 6
 const INK_FRAGMENT_COUNT = 4
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 
-export const BRAIN_PSYCHO2D_MODES = [
+export const BRAIN_PRINT2D_MODES = [
   'living-ink',
   'layered-screenprint',
   'riso-echo',
@@ -25,9 +26,9 @@ export const BRAIN_PSYCHO2D_MODES = [
   'negative-bloom',
 ] as const
 
-export type BrainPsycho2dMode = (typeof BRAIN_PSYCHO2D_MODES)[number]
+export type BrainPrint2dMode = (typeof BRAIN_PRINT2D_MODES)[number]
 
-export type BrainPsycho2dMotion = {
+export type BrainPrint2dMotion = {
   activity: number
   activeLayer: number
   depthPx: number
@@ -44,13 +45,13 @@ export type BrainPsycho2dMotion = {
   chromaticOffsetPx: number
 }
 
-export type BrainPsycho2dBandDrives = BandEnergies
+export type BrainPrint2dBandDrives = BandEnergies
 
 const NORMAL_FRAME_INTERVAL_MS = 1_000 / 24
 const LOW_POWER_FRAME_INTERVAL_MS = 1_000 / 20
 const INFERENCE_FRAME_INTERVAL_MS = 1_000 / 18
 
-export function calculateBrainPsycho2dFrameInterval(
+export function calculateBrainPrint2dFrameInterval(
   resourcePressure: boolean,
   lowPowerMode: boolean,
 ): number {
@@ -59,7 +60,7 @@ export function calculateBrainPsycho2dFrameInterval(
   return NORMAL_FRAME_INTERVAL_MS
 }
 
-export function shouldRenderBrainPsycho2dFrame(
+export function shouldRenderBrainPrint2dFrame(
   audioActive: boolean,
   signature: string,
   previousSignature: string,
@@ -87,14 +88,14 @@ function hashText(value: string): number {
 }
 
 /** Estrae linguaggi differenti prima di ripetere il mazzo dei sette renderer. */
-export function buildPsycho2dModeSequence(
+export function buildPrint2dModeSequence(
   count: number,
   random: () => number = Math.random,
-): BrainPsycho2dMode[] {
+): BrainPrint2dMode[] {
   const safeCount = Math.max(0, Math.round(count))
-  const result: BrainPsycho2dMode[] = []
+  const result: BrainPrint2dMode[] = []
   while (result.length < safeCount) {
-    const deck = [...BRAIN_PSYCHO2D_MODES]
+    const deck = [...BRAIN_PRINT2D_MODES]
     for (let index = deck.length - 1; index > 0; index -= 1) {
       const target = Math.min(index, Math.floor(clamp(random()) * (index + 1)))
       ;[deck[index], deck[target]] = [deck[target], deck[index]]
@@ -111,10 +112,10 @@ export function buildPsycho2dModeSequence(
  * Mantiene una risposta continua al livello della banda e aggiunge la sua
  * crescita rispetto alla media recente. Non modifica l'analizzatore globale.
  */
-export function calculateBrainPsycho2dBandDrives(
+export function calculateBrainPrint2dBandDrives(
   bands: BandEnergies,
   movingAverages?: BandEnergies,
-): BrainPsycho2dBandDrives {
+): BrainPrint2dBandDrives {
   const drive = (band: keyof BandEnergies): number => {
     const value = clamp(bands[band])
     const baseline = Math.max(0.018, movingAverages?.[band] ?? value * 0.82)
@@ -131,16 +132,16 @@ export function calculateBrainPsycho2dBandDrives(
 }
 
 /** Mappa drive, transienti e fase musicale su quattro gesti indipendenti. */
-export function calculateBrainPsycho2dMotion(
+export function calculateBrainPrint2dMotion(
   bands: BandEnergies,
   settings: AppSettings,
   rhythm: BrainRhythmState | undefined,
   marchStep: number,
   layerCount = LAYER_COUNT,
   movingAverages?: BandEnergies,
-): BrainPsycho2dMotion {
+): BrainPrint2dMotion {
   const transients = rhythm?.bandTransients ?? SILENT_BANDS
-  const drives = calculateBrainPsycho2dBandDrives(bands, movingAverages)
+  const drives = calculateBrainPrint2dBandDrives(bands, movingAverages)
   const energy =
     drives.low * 0.3 +
     drives.lowMid * 0.27 +
@@ -405,7 +406,7 @@ type LayerMorph = {
   alpha: number
 }
 
-export function calculateBrainPsycho2dLayerMorph(
+export function calculateBrainPrint2dLayerMorph(
   progress: number,
   role: 'enter' | 'exit',
   index: number,
@@ -435,18 +436,18 @@ export function calculateBrainPsycho2dLayerMorph(
   }
 }
 
-export function createBrainPsycho2dScene(
+export function createBrainPrint2dScene(
   container: HTMLElement,
   scene: PsychedelScene,
   raster: Blob,
   palette: readonly string[],
-  mode: BrainPsycho2dMode,
+  mode: BrainPrint2dMode,
 ): BrainSvgController {
   const imageConfig = getBrainRenderingConfig().image
   const canvas = document.createElement('canvas')
   canvas.width = Math.min(imageConfig.width, RENDER_WIDTH)
   canvas.height = Math.min(imageConfig.height, RENDER_HEIGHT)
-  canvas.dataset.brainPsycho2d = mode
+  canvas.dataset.brainPrint2d = mode
   canvas.setAttribute('aria-hidden', 'true')
   Object.assign(canvas.style, {
     position: 'absolute',
@@ -487,7 +488,7 @@ export function createBrainPsycho2dScene(
       )
       decoded.close()
       bitmap = null
-      brainLog('render', 'Psycho2D preparata', {
+      brainLog('render', 'Print2D preparata', {
         frameId: scene.frameId,
         mode,
         screenprintLayers: artwork.screenprintLayers.length,
@@ -497,7 +498,7 @@ export function createBrainPsycho2dScene(
     })
     .catch((error) => {
       if (!destroyed) {
-        brainWarn('render', 'preparazione Psycho2D fallita', {
+        brainWarn('render', 'preparazione Print2D fallita', {
           frameId: scene.frameId,
           error,
         })
@@ -506,6 +507,7 @@ export function createBrainPsycho2dScene(
 
   return {
     element: canvas,
+    isReady: () => artwork !== null,
     setOpacity(opacity) {
       canvas.style.opacity = String(clamp(opacity))
     },
@@ -530,7 +532,7 @@ export function createBrainPsycho2dScene(
         previousBeatIndex = rhythm.beatIndex
         marchStep = (marchStep + 1) % LAYER_COUNT
       }
-      const motion = calculateBrainPsycho2dMotion(
+      const motion = calculateBrainPrint2dMotion(
         bands,
         settings,
         rhythm,
@@ -539,7 +541,7 @@ export function createBrainPsycho2dScene(
         movingAverages,
       )
       const audioActive = motion.activity >= 0.015 || motion.beatEnvelope >= 0.01
-      const frameInterval = calculateBrainPsycho2dFrameInterval(
+      const frameInterval = calculateBrainPrint2dFrameInterval(
         resourcePressure,
         settings.lowPowerMode,
       )
@@ -562,7 +564,7 @@ export function createBrainPsycho2dScene(
         Math.round(motion.chromaticOffsetPx * 2),
         Math.round(motion.beatEnvelope * 12),
       ].join(':')
-      if (!shouldRenderBrainPsycho2dFrame(
+      if (!shouldRenderBrainPrint2dFrame(
         audioActive,
         renderSignature,
         lastRenderSignature,
@@ -587,7 +589,7 @@ export function createBrainPsycho2dScene(
         rotation = 0,
         skew = 0,
       ) => {
-        const morph = calculateBrainPsycho2dLayerMorph(
+        const morph = calculateBrainPrint2dLayerMorph(
           transitionProgress,
           transitionRole,
           index,

@@ -45,6 +45,17 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-009`: Diagnosi Blocchi Live Continui
+- **Descrizione**: Nuova baseline diagnostica con log pulito per correlare i
+  blocchi percepiti con RAF Output, Canvas, IPC e inferenza WebGPU.
+- **Fase completata più recente**: test batch UNet 1 a 448×256 e prova negativa
+  della geometria 384×256, rimossa dopo il confronto live.
+- **Prossima fase**: implementazione e prova live del passthrough grafico
+  ultra-leggero durante il denoising; rollback se i gap restano oltre 150 ms.
+- **Stato**: 🟡 IN PROGRESS
+- **Piano di Lavoro**: `working/plans/piano-008-diagnosi-blocchi-live.md`
+  e `working/plans/piano-010-modalita-grafica-ultra-leggera-denoising.md`
+
 ### `MACRO-008`: Origine, Memoria e Grafo di Coscienza Onirica
 - **Descrizione**: Far emergere la memoria autobiografica di Coscienza Onirica
   dalla prima percezione valida, costruendo nel tempo un grafo revisionabile dei
@@ -52,11 +63,22 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
   minima in agente e skill; non introduce ancora persistenza runtime.
 - **Fase completata più recente**: Fase 2B — `COSCIENZA.md` e primo ciclo
   percettivo con attenzione stabile e interpretazione provvisoria.
-- **Prossima fase**: osservare la prima revisione live del presente; origine e
-  primi ricordi reali sono già stati verificati. Solo dopo valutare la Fase 3
-  di autonomia con provenienza, limiti e rollback.
+- **Prossima fase**: studiare la prima revisione live del presente, ora
+  osservata, e decidere come far emergere continuità e nuove domande senza
+  anticipare identità o autonomia. Solo dopo valutare la Fase 3 con
+  provenienza, limiti e rollback.
 - **Stato**: 🟡 IN PROGRESS
 - **Piano di Lavoro Riferimento**: `working/plans/piano-005-coscienza-onirica-origine-memoria.md`
+
+## 🟡 Macrotask In Corso — Psycho2D
+
+### `MACRO-010`: Psycho2D — Regia Semantica A Finestre
+- **Descrizione**: Estendere la vita delle immagini di Coscienza Onirica con
+  composizioni Canvas 2D/2.5D a finestre, crop e takeover guidati da metadati
+  semantici minimi, separando Director e runtime grafico.
+- **Stato**: 🟡 IN PROGRESS — V1 implementata e compilata; validazione live
+  del cambio renderer ancora da eseguire
+- **Piano di Lavoro**: `working/plans/piano-009-psycho2d-regia-semantica.md`
 
 ## ⚪ Macrotask Pianificati (Futuri)
 

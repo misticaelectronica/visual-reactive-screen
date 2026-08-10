@@ -19,6 +19,10 @@ export type BrainPerformanceSummary = {
     rendered: number
     resourcePressureRatio: number
   }
+  denoisingPassthrough: {
+    frames: number
+    renderMs: MetricSeriesSummary
+  }
   generationActiveRatio: number
   inferenceActiveRatio: number
   artworkPreparationMs: MetricSeriesSummary
@@ -81,6 +85,7 @@ export class BrainPerformanceMetrics {
   private lastTransportReplacedCount = 0
   private canvasFrameCount = 0
   private resourcePressureFrames = 0
+  private denoisingPassthroughFrameCount = 0
   private generationActive = false
   private inferenceActive = false
   private generationActiveSince = 0
@@ -92,6 +97,7 @@ export class BrainPerformanceMetrics {
   private readonly packetLatencies: number[] = []
   private readonly canvasFrameGaps: number[] = []
   private readonly artworkPreparationTimes: number[] = []
+  private readonly denoisingPassthroughRenderTimes: number[] = []
 
   constructor() {
     try {
@@ -152,6 +158,13 @@ export class BrainPerformanceMetrics {
     appendSample(this.artworkPreparationTimes, durationMs)
   }
 
+  recordDenoisingPassthroughFrame(now: number, durationMs: number): void {
+    if (!this.enabled) return
+    this.recordCanvasFrame(now, true)
+    this.denoisingPassthroughFrameCount += 1
+    appendSample(this.denoisingPassthroughRenderTimes, durationMs)
+  }
+
   recordStalePacketIgnored(): void {
     if (!this.enabled) return
     this.stalePacketCount += 1
@@ -204,6 +217,10 @@ export class BrainPerformanceMetrics {
             : 0,
         ),
       },
+      denoisingPassthrough: {
+        frames: this.denoisingPassthroughFrameCount,
+        renderMs: summarizeMetricSeries(this.denoisingPassthroughRenderTimes),
+      },
       generationActiveRatio: rounded(generationActiveMs / windowMs),
       inferenceActiveRatio: rounded(inferenceActiveMs / windowMs),
       artworkPreparationMs: summarizeMetricSeries(this.artworkPreparationTimes),
@@ -223,6 +240,7 @@ export class BrainPerformanceMetrics {
     this.phaseRealignmentCount = 0
     this.canvasFrameCount = 0
     this.resourcePressureFrames = 0
+    this.denoisingPassthroughFrameCount = 0
     this.generationActiveMs = 0
     this.inferenceActiveMs = 0
     if (this.generationActive) this.generationActiveSince = now
@@ -232,6 +250,7 @@ export class BrainPerformanceMetrics {
     this.packetLatencies.length = 0
     this.canvasFrameGaps.length = 0
     this.artworkPreparationTimes.length = 0
+    this.denoisingPassthroughRenderTimes.length = 0
   }
 }
 

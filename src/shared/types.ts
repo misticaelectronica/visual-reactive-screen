@@ -3,10 +3,22 @@ export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp' | '2001'
 export type FlashMode = 'high' | 'mid' | 'low' | 'off'
 export type MotionProfile = 'dub' | 'techno' | 'ambient'
+export type BrainRendererId = 'print2d' | 'psycho2d' | 'vector-morph'
+export type BrainRendererMode = 'manual' | 'rotation' | 'story-cycle'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
 export const FLASH_MODES: FlashMode[] = ['high', 'mid', 'low', 'off']
 export const MOTION_PROFILES: MotionProfile[] = ['dub', 'techno', 'ambient']
+export const BRAIN_RENDERER_IDS: BrainRendererId[] = [
+  'print2d',
+  'psycho2d',
+  'vector-morph',
+]
+export const BRAIN_RENDERER_MODES: BrainRendererMode[] = [
+  'manual',
+  'rotation',
+  'story-cycle',
+]
 
 export function isMorphingAlgorithm(value: unknown): value is MorphingAlgorithm {
   return typeof value === 'string' && MORPHING_ALGORITHMS.includes(value as MorphingAlgorithm)
@@ -14,6 +26,14 @@ export function isMorphingAlgorithm(value: unknown): value is MorphingAlgorithm 
 
 export function isFlashMode(value: unknown): value is FlashMode {
   return typeof value === 'string' && FLASH_MODES.includes(value as FlashMode)
+}
+
+export function isBrainRendererId(value: unknown): value is BrainRendererId {
+  return typeof value === 'string' && BRAIN_RENDERER_IDS.includes(value as BrainRendererId)
+}
+
+export function isBrainRendererMode(value: unknown): value is BrainRendererMode {
+  return typeof value === 'string' && BRAIN_RENDERER_MODES.includes(value as BrainRendererMode)
 }
 
 export interface BandEnergies {
@@ -45,6 +65,10 @@ export interface AppSettings {
   selectedAudioInputId: string | null
   useMorphing: boolean
   useBrain: boolean
+  alternateBrainWithMorphing: boolean
+  brainRendererId: BrainRendererId
+  brainRendererMode: BrainRendererMode
+  brainRendererRotationMs: number
   morphingAlgorithm: MorphingAlgorithm
   morphingPresetId: string
   motionProfile: MotionProfile

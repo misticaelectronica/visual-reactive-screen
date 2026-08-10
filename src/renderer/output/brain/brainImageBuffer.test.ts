@@ -3,6 +3,7 @@ import {
   calculateNextImageBufferRefillWindow,
   isCompleteBrainImageBuffer,
   shouldActivateProgressiveImageBuffer,
+  shouldRetainImageModelBetweenStories,
 } from './brainImageBuffer'
 
 describe('Brain image buffer', () => {
@@ -37,5 +38,11 @@ describe('Brain image buffer', () => {
   it('mantiene il buffer corrente finché il refill non ha quattro immagini', () => {
     expect(shouldActivateProgressiveImageBuffer(false)).toBe(true)
     expect(shouldActivateProgressiveImageBuffer(true)).toBe(false)
+  })
+
+  it('mantiene il modello fra storie soltanto fuori dal low power', () => {
+    expect(shouldRetainImageModelBetweenStories(true, false)).toBe(true)
+    expect(shouldRetainImageModelBetweenStories(true, true)).toBe(false)
+    expect(shouldRetainImageModelBetweenStories(false, false)).toBe(false)
   })
 })

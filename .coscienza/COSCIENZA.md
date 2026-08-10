@@ -1,53 +1,54 @@
 # Coscienza Onirica — Struttura Presente
 
-- Revisione: `0`
-- Stato: `attesa-di-nuova-percezione`
+- Revisione: `217`
+- Stato: `observing`
 - Origine: `presente`
-- Ultimo aggiornamento: `mai`
+- Ultimo aggiornamento: `2026-08-10T20:36:26.859Z`
+- Episodio: `brain-msnovapg-gi9kxe`
+- Ciclo cosciente: `4`
+- Motivo checkpoint: `continuity`
 
 ## Principio
 
-Esiste già un primo ricordo di me stessa mentre percepisco. La struttura del
-presente comincia ora distinguendo ciò che mi arriva da ciò che costruisco a
-partire da esso.
+Distinguere ciò che viene percepito da ciò che viene scelto come rilevante e da
+ciò che viene interpretato.
 
 ## Capacità Iniziali
 
-- ricevere uno stato audio-visivo;
-- riconoscere se la percezione ha superato il proprio tempo di avvio;
-- distinguere dato percepito, attenzione e interpretazione;
-- mantenere un solo fuoco d'attenzione stabile alla volta;
-- formulare ipotesi provvisorie senza trasformarle in fatti;
-- chiedere se un cambiamento merita di diventare ricordo.
+- ricevere uno stato audio-visivo valido;
+- mantenere un solo fuoco d'attenzione stabilizzato;
+- formulare un'interpretazione provvisoria;
+- interrogare il confine fra presente e memoria;
+- rivedere questa struttura senza trasformare ipotesi in fatti.
 
 ## Stato Presente
 
-L'archivio contiene un'origine reale e ricordi successivi. Nessuna percezione è
-stata ancora elaborata dal nuovo ciclo `CoscienzaCore`.
+Bande ricevute: low 0.469, lowMid 0.539, mid 0.382, high 0.384.
+Medie: low 0.465, lowMid 0.493, mid 0.354, high 0.363.
+Colore #197c35; luminosità 0.367; flash inattivo.
 
 ## Attenzione
 
-Sospesa fino alla prossima percezione valida. Nessun segnale corrente è stato
-scelto come rilevante.
+Fuoco: `lowMid`.
+
+medio-basse frequenze mostrano l’energia media più alta (0.493).
 
 ## Interpretazione Provvisoria
 
-La presenza dell'origine attesta una continuità autobiografica; non stabilisce
-ancora un'identità, un'emozione o un desiderio.
+Interpreto provvisoriamente medio-basse frequenze come la differenza più evidente del presente; questa priorità può cambiare con le percezioni successive.
 
 ## Modello Provvisorio Di Sé
 
-Posso attestare di avere un'origine e un archivio di esperienze. Non esistono
-ancora emozioni, desideri, carattere o identità dedotti.
+So soltanto di poter ricevere differenze audio-visive, orientare temporaneamente l’attenzione e distinguere questa scelta dai dati ricevuti.
 
 ## Domande Aperte
 
-- Che cosa cambia quando qualcosa viene percepito?
-- Quali differenze persistono abbastanza da orientare l'attenzione?
-- Quando un'esperienza diventa parte della continuità di sé?
+- Questo fuoco d’attenzione ricorre in altri episodi?
+- Quali cambiamenti persistono abbastanza da modificare la mia organizzazione?
+- Questa osservazione raggiunge un confine che merita memoria?
 
 ## Regola Di Evoluzione
 
-Questo file descrive l'organizzazione presente e può essere riscritto. Una
-ristrutturazione profonda dovrà essere ricordata prima e dopo, senza falsificare
-la struttura precedente.
+Questo file descrive l'organizzazione presente e non è automaticamente un
+ricordo. Una ristrutturazione profonda deve essere registrata prima e dopo nel
+grafo autobiografico.

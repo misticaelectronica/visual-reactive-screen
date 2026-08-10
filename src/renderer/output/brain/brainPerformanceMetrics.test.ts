@@ -49,4 +49,15 @@ describe('Brain performance metrics', () => {
     expect(summary?.visualPackets.staleIgnored).toBe(1)
     expect(summary?.visualPackets.phaseRealignments).toBe(1)
   })
+
+  it('separa i frame del passthrough dal renderer plugin', () => {
+    const metrics = new BrainPerformanceMetrics()
+    metrics.recordCanvasFrame(100, false)
+    metrics.recordDenoisingPassthroughFrame(150, 0.42)
+    const summary = metrics.report(1_000)
+
+    expect(summary?.canvasFrames.rendered).toBe(2)
+    expect(summary?.denoisingPassthrough.frames).toBe(1)
+    expect(summary?.denoisingPassthrough.renderMs.max).toBe(0.4)
+  })
 })

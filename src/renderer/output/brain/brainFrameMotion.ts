@@ -387,17 +387,26 @@ export function calculateBrainFrameTiming(
   // una dissolvenza inerte o un'oscillazione autonoma.
   const transitionBeats = 12 + (patternIndex % 3) * 2
   const holdBeats = 8 + ((patternIndex + 1) % 3) * 2
-  const transitionMs = Math.max(
+  const beatsInRange = (minimumMs: number, maximumMs: number, desired: number): number => {
+    const minimumBeats = Math.ceil(minimumMs / safeBeatDuration)
+    const maximumBeats = Math.max(
+      minimumBeats,
+      Math.floor(maximumMs / safeBeatDuration),
+    )
+    return Math.max(minimumBeats, Math.min(maximumBeats, desired))
+  }
+  const transitionBeatCount = beatsInRange(
     timing.transitionMinMs,
-    Math.min(
-      timing.transitionMaxMs,
-      safeBeatDuration * transitionBeats,
-    ),
+    timing.transitionMaxMs,
+    transitionBeats,
   )
-  const holdMs = Math.max(
+  const holdBeatCount = beatsInRange(
     timing.holdMinMs,
-    Math.min(timing.holdMaxMs, safeBeatDuration * holdBeats),
+    timing.holdMaxMs,
+    holdBeats,
   )
+  const transitionMs = safeBeatDuration * transitionBeatCount
+  const holdMs = safeBeatDuration * holdBeatCount
   return {
     transitionMs,
     holdMs,
