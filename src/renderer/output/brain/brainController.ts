@@ -1764,7 +1764,7 @@ export function createBrainController(container: HTMLElement) {
         latestPayload.movingAverages,
         {
           active: latestPayload.flashActive,
-          intensity: latestPayload.flashIntensity,
+          intensity: latestPayload.flashIntensity ?? 0,
         },
       )
       outgoingSvg?.update(
@@ -1775,7 +1775,7 @@ export function createBrainController(container: HTMLElement) {
         latestPayload.movingAverages,
         {
           active: latestPayload.flashActive,
-          intensity: latestPayload.flashIntensity,
+          intensity: latestPayload.flashIntensity ?? 0,
         },
       )
     }

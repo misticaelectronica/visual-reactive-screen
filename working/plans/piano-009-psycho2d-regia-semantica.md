@@ -713,3 +713,10 @@ finché il comportamento non viene validato artisticamente.
 La V1 è implementata, incluso il recupero del renderer vettoriale storico come
 terzo plugin. Resta la validazione artistica e prestazionale manuale dei tre
 renderer sull'Output fullscreen.
+
+### Aggiornamento 2026-08-10 — Flash globale nei pixel Psycho2D
+
+L'intensità già calcolata dal render globale attraversa il Brain e muove
+soltanto fasce locali della matrice 1-bit Psycho2D, con piccoli colpi
+`difference` e budget ridotto in low power. Un test del Renderer Host verifica
+che il segnale raggiunga sia il plugin attivo sia quello entrante nel crossfade.

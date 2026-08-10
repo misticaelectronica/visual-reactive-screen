@@ -99,6 +99,77 @@ describe('Brain renderer host', () => {
     expect(destroyed).toContain('psycho2d')
   })
 
+  it('propaga il flash globale ai renderer attivo ed entrante', () => {
+    const registry = new BrainRendererRegistry()
+    const receivedFlash = new Map<BrainRendererId, number[]>()
+    for (const id of ['print2d', 'psycho2d'] as const) {
+      receivedFlash.set(id, [])
+      registry.register({
+        id,
+        label: id,
+        capabilities: {
+          multipleImages: id === 'psycho2d',
+          semanticMetadata: id === 'psycho2d',
+          lowPowerMode: true,
+        },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update(_bands, _settings, _time, _rhythm, _movingAverages, flash) {
+              receivedFlash.get(id)?.push(flash?.intensity ?? 0)
+            },
+            destroy() {
+              element.remove()
+            },
+          }
+        },
+      })
+    }
+
+    let requested: BrainRendererId = 'print2d'
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => requested,
+      'print2d',
+    )
+    host.setTransition(1, 'enter')
+    requested = 'psycho2d'
+    host.update(
+      { low: 0, lowMid: 0, mid: 0, high: 0 },
+      DEFAULT_SETTINGS,
+      1_000,
+      undefined,
+      undefined,
+      { active: true, intensity: 0.68 },
+    )
+
+    expect(receivedFlash.get('print2d')).toEqual([0.68])
+    expect(receivedFlash.get('psycho2d')).toEqual([0.68])
+    host.destroy()
+  })
+
   it('rallenta il plugin durante il passthrough e lo riprende sul clock corrente', async () => {
     const drawImage = vi.fn()
     vi.stubGlobal('createImageBitmap', vi.fn(async () => ({

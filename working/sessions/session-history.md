@@ -703,3 +703,14 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Validazione**: typecheck, lint mirato, test Psycho2D/host e diff-check
   sui file modificati riusciti. Il diff-check globale resta bloccato da
   whitespace preesistente in `agents.md`.
+
+### `SESSION-2026-08-10-21`
+- **Data**: 10 Agosto 2026 (CEST)
+- **Obiettivo**: Usare il concetto di flash globale per rendere attivi i pixel
+  di Psycho2D.
+- **Implementazione**: propagato `flashActive`/`flashIntensity` al Brain;
+  l'inviluppo hold/decay del render globale guida disallineamenti locali e
+  colpi `difference` su fasce della matrice 1-bit, senza movimento globale.
+- **Validazione**: `pnpm typecheck`, build completa macOS, lint mirato e sei
+  test host/dither riusciti, incluso il passaggio del flash durante il cambio
+  renderer.

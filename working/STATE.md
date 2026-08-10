@@ -2,7 +2,7 @@
 
 > **Ultimo Aggiornamento**: 10 Agosto 2026 (CEST)
 > **Stato Generale**: 🟢 In Sviluppo Attivo / Operativo  
-> **Ultima Sessione**: `SESSION-2026-08-10-20` — Psycho2D beat response rimappata su Output reale
+> **Ultima Sessione**: `SESSION-2026-08-10-21` — Flash globale convertito in movimento locale dei pixel Psycho2D
 
 ---
 
@@ -337,6 +337,14 @@ deciso: latch a 150 ms, contrasto più alto, sette scanline in modalità normale
 e piccoli colpi locali in `difference`, ridotti a tre fasce in `lowPowerMode` o
 sotto pressione. La camera resta stabile e in silenzio non viene introdotto
 movimento autonomo.
+
+## Psycho2D flash locale — SESSION-2026-08-10-21
+
+Il segnale `flashIntensity` del render globale viene ora passato al Brain con
+lo stesso hold/decay già calcolato dal motore visuale. Psycho2D usa quell'inviluppo
+solo per disallineare brevi fasce di pixel e applicare piccoli colpi `difference`;
+il numero di fasce scende in `lowPowerMode` e sotto pressione. La camera resta
+stabile e il silenzio non genera movimento.
 
 ## Pannello narrativo — SESSION-2026-08-10-19
 

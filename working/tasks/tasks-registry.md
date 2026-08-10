@@ -119,6 +119,12 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-010-19`** `DONE`: Correggere la rimappatura delle scanline
   Psycho2D dalla matrice 320×180 alla canvas fullscreen e rafforzare l'accento
   locale del beat senza movimento globale.
+- [x] **`TASK-010-20`** `DONE`: Passare l'inviluppo del flash globale ai
+  renderer Brain e trasformarlo in spostamenti locali di pixel Psycho2D,
+  mantenendo camera stabile e budget ridotto in low power.
+- [x] **`TASK-010-21`** `DONE`: Verificare automaticamente che il Renderer Host
+  propaghi il flash globale sia al plugin attivo sia a quello entrante durante
+  il cambio renderer.
 
 ---
 
