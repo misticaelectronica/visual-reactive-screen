@@ -35,8 +35,8 @@ export function saveSettingsToDisk(settings: AppSettings): void {
 }
 
 function normalizeSettings(settings: AppSettings): AppSettings {
-  const useBrain = settings.useBrain === true
   const alternateBrainWithMorphing = settings.alternateBrainWithMorphing === true
+  const useBrain = alternateBrainWithMorphing || settings.useBrain === true
   const colorPresetAliases: Record<string, string> = {
     'red-and-black-balzac': 'mistica-electronica-default',
     'festival-origine-aluminum-black': 'mistica-electronica-festival',
@@ -49,14 +49,16 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     useBrain,
-    useMorphing: useBrain && !alternateBrainWithMorphing ? false : settings.useMorphing === true,
+    useMorphing: useBrain ? false : settings.useMorphing === true,
     alternateBrainWithMorphing,
     brainRendererId: isBrainRendererId(settings.brainRendererId)
       ? settings.brainRendererId
       : 'print2d',
-    brainRendererMode: isBrainRendererMode(settings.brainRendererMode)
-      ? settings.brainRendererMode
-      : 'manual',
+    brainRendererMode: alternateBrainWithMorphing
+      ? 'story-cycle'
+      : isBrainRendererMode(settings.brainRendererMode)
+        ? settings.brainRendererMode
+        : 'manual',
     brainRendererRotationMs:
       typeof settings.brainRendererRotationMs === 'number' &&
       Number.isFinite(settings.brainRendererRotationMs)
@@ -70,7 +72,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,
-    dynamicMorphingRotationEnabled: useBrain && !alternateBrainWithMorphing
+    dynamicMorphingRotationEnabled: useBrain
       ? false
       : settings.dynamicMorphingRotationEnabled !== false,
   }

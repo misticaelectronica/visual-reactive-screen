@@ -720,3 +720,12 @@ L'intensità già calcolata dal render globale attraversa il Brain e muove
 soltanto fasce locali della matrice 1-bit Psycho2D, con piccoli colpi
 `difference` e budget ridotto in low power. Un test del Renderer Host verifica
 che il segnale raggiunga sia il plugin attivo sia quello entrante nel crossfade.
+
+### Aggiornamento 2026-08-10 — Alternanza 80/20 per storia
+
+`Alternate with Brain` forza ora `Tutti per storia`: il mazzo completo dei
+renderer Brain attraversa tutti i fotogrammi prima di autorizzare un morphing
+esterno. La durata esterna è calcolata come il 25% del tempo Brain appena
+concluso, ottenendo 80% Brain e 20% morphing sul ciclo totale. Il controller
+Brain viene parcheggiato, non distrutto, così buffer e storia successiva restano
+disponibili al ritorno.

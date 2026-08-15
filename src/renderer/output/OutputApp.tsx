@@ -1,16 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   isMorphingAlgorithm,
+  type AppSettings,
   type MorphingAlgorithm,
   type MorphingTransitionState,
   type VisualStatePayload,
 } from '@shared/types'
+import {
+  morphingRotationCandidateFromSettings,
+  pickMorphingRotationCandidate,
+} from '@shared/morphingRotation'
 import { createVisualSurface } from './visualSurface'
 import { createMorphingCanvas } from './morphingCanvas'
 import { createOniricMorphingCanvas } from './oniricMorphingCanvas'
 import { createPsyHypMorphingCanvas } from './psyHypMorphingCanvas'
 import { create2001MorphingCanvas } from './slitScanCanvas'
-import { createBrainController } from './brain/brainController'
+import {
+  createBrainController,
+  type BrainStoryCycleCompletion,
+} from './brain/brainController'
+import {
+  calculateStoryMorphingInterludeMs,
+  createAlternateBrainStorySettings,
+  createAlternateMorphingSettings,
+} from './brain/brainStoryAlternation'
 
 type VisualFamily = MorphingAlgorithm | 'brain'
 
@@ -18,6 +31,7 @@ type MorphingController = {
   updateState: (state: VisualStatePayload) => void
   setOpacity?: (opacity: number) => void
   setTransitionState?: (transition: MorphingTransitionState | null) => void
+  resumeStoryCycleAfterInterlude?: () => void
   destroy: () => void
   __algo?: VisualFamily
   __key?: string
@@ -31,6 +45,7 @@ type MorphingTransition = {
   durationMs: number
   active: boolean
   kind: MorphingTransitionState['kind']
+  preserveFrom?: boolean
 }
 
 const MORPHING_TRANSITION_MIN_MS = 4_500
@@ -71,6 +86,22 @@ function visualModeActive(state: VisualStatePayload): boolean {
   return !!state.settings && (state.settings.useBrain === true || state.useMorphing === true)
 }
 
+function withVisualSettings(
+  state: VisualStatePayload,
+  settings: AppSettings,
+): VisualStatePayload {
+  return {
+    ...state,
+    useMorphing: settings.useMorphing,
+    settings,
+  }
+}
+
+function brainStoryState(state: VisualStatePayload): VisualStatePayload {
+  if (!state.settings) return state
+  return withVisualSettings(state, createAlternateBrainStorySettings(state.settings))
+}
+
 function transitionKind(fromKey: string, toKey: string): MorphingTransitionState['kind'] {
   const from = morphingFamilyFromKey(fromKey)
   const to = morphingFamilyFromKey(toKey)
@@ -80,10 +111,16 @@ function transitionKind(fromKey: string, toKey: string): MorphingTransitionState
   return 'standard'
 }
 
-function createMorphingController(container: HTMLElement, state: VisualStatePayload): MorphingController | null {
+function createMorphingController(
+  container: HTMLElement,
+  state: VisualStatePayload,
+  onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
+): MorphingController | null {
   if (!visualModeActive(state) || !state.settings) return null
   if (state.settings.useBrain) {
-    const controller: MorphingController = createBrainController(container)
+    const controller: MorphingController = createBrainController(container, {
+      onStoryCycleComplete: onBrainStoryCycleComplete,
+    })
     controller.__algo = 'brain'
     controller.__key = morphingKey(state)
     controller.__settings = state.settings
@@ -108,6 +145,8 @@ function beginMorphingTransition(
   container: HTMLElement,
   state: VisualStatePayload,
   from: MorphingController | null,
+  onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
+  preserveFrom = false,
 ): MorphingTransition {
   const fromKey = from?.__key ?? 'none'
   const toKey = morphingKey(state)
@@ -122,7 +161,32 @@ function beginMorphingTransition(
           : randomTransitionDuration()
   return {
     from,
-    to: createMorphingController(container, state),
+    to: createMorphingController(container, state, onBrainStoryCycleComplete),
+    startedAt: performance.now(),
+    durationMs,
+    active: true,
+    kind,
+    preserveFrom,
+  }
+}
+
+function beginMorphingTransitionTo(
+  state: VisualStatePayload,
+  from: MorphingController,
+  to: MorphingController,
+): MorphingTransition {
+  const kind = transitionKind(from.__key ?? 'none', to.__key ?? morphingKey(state))
+  const durationMs =
+    kind === 'enter2001'
+      ? ENTER_2001_TRANSITION_MS
+      : kind === 'exit2001'
+        ? EXIT_2001_TRANSITION_MS
+        : kind === 'internal2001'
+          ? INTERNAL_2001_PRESET_TRANSITION_MS
+          : randomTransitionDuration()
+  return {
+    from,
+    to,
     startedAt: performance.now(),
     durationMs,
     active: true,
@@ -152,7 +216,7 @@ function updateMorphingTransition(transition: MorphingTransition, state: VisualS
   if (progress >= 1) {
     transition.from?.setTransitionState?.(null)
     transition.to?.setTransitionState?.(null)
-    transition.from?.destroy()
+    if (!transition.preserveFrom) transition.from?.destroy()
     transition.to?.setOpacity?.(1)
     return transition.to
   }
@@ -174,9 +238,58 @@ export function OutputApp() {
 
     surfaceRef.current = createVisualSurface(rootRef.current)
 
-    const off = api.onVisualState((state: VisualStatePayload) => {
+    let latestInputState: VisualStatePayload | null = null
+    let alternationWasEnabled = false
+    let alternationPhase: 'brain' | 'morphing' = 'brain'
+    let morphingInterludeUntil = Number.NEGATIVE_INFINITY
+    let alternateMorphingSettings: AppSettings | null = null
+    let parkedBrainController: MorphingController | null = null
+
+    const onBrainStoryCycleComplete = (completion: BrainStoryCycleCompletion): void => {
+      const settings = latestInputState?.settings
+      if (!settings?.alternateBrainWithMorphing) return
+      const candidate = pickMorphingRotationCandidate(
+        morphingRotationCandidateFromSettings(settings),
+        false,
+      )
+      if (candidate.algorithm === 'none') return
+      alternateMorphingSettings = createAlternateMorphingSettings(
+        settings,
+        candidate.algorithm,
+        candidate.presetId ?? 'default',
+      )
+      alternationPhase = 'morphing'
+      morphingInterludeUntil = performance.now() +
+        calculateStoryMorphingInterludeMs(completion.brainDurationMs)
+    }
+
+    const off = api.onVisualState((inputState: VisualStatePayload) => {
       // Libera subito il canale: il Main può conservare un solo pending recente.
-      api.sendVisualStateAck(state.sequenceNumber)
+      api.sendVisualStateAck(inputState.sequenceNumber)
+      latestInputState = inputState
+      const alternationEnabled = inputState.settings?.alternateBrainWithMorphing === true
+      if (alternationEnabled && !alternationWasEnabled) {
+        alternationPhase = 'brain'
+        alternateMorphingSettings = null
+        morphingInterludeUntil = Number.NEGATIVE_INFINITY
+      } else if (!alternationEnabled && alternationWasEnabled) {
+        alternationPhase = 'brain'
+        alternateMorphingSettings = null
+      }
+      alternationWasEnabled = alternationEnabled
+      if (
+        alternationEnabled &&
+        alternationPhase === 'morphing' &&
+        performance.now() >= morphingInterludeUntil
+      ) {
+        alternationPhase = 'brain'
+        alternateMorphingSettings = null
+      }
+      const state = alternationEnabled
+        ? alternationPhase === 'morphing' && alternateMorphingSettings
+          ? withVisualSettings(inputState, alternateMorphingSettings)
+          : brainStoryState(inputState)
+        : inputState
       // Base flat color
       surfaceRef.current?.setColor(state.backgroundColor)
       
@@ -186,6 +299,8 @@ export function OutputApp() {
       const targetFamily = morphingFamilyFromKey(targetKey)
       const targetTransitionKind = transitionKind(currentKey, targetKey)
       const dynamicCrossfade =
+        alternationEnabled ||
+        parkedBrainController !== null ||
         state.settings?.dynamicPresetEnabled === true ||
         morphingTransitionRef.current?.active === true ||
         targetTransitionKind === 'enter2001' ||
@@ -244,7 +359,12 @@ export function OutputApp() {
 
           if (shouldSoftSwitchPsyHyp) {
             morphingTransitionRef.current?.from?.destroy()
-            morphingTransitionRef.current = beginMorphingTransition(rootRef.current!, state, morphingRef.current)
+            morphingTransitionRef.current = beginMorphingTransition(
+              rootRef.current!,
+              state,
+              morphingRef.current,
+              onBrainStoryCycleComplete,
+            )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
           }
@@ -261,7 +381,11 @@ export function OutputApp() {
           }
 
           if (!morphingRef.current) {
-            morphingRef.current = createMorphingController(rootRef.current!, state)
+            morphingRef.current = createMorphingController(
+              rootRef.current!,
+              state,
+              onBrainStoryCycleComplete,
+            )
             morphingRef.current?.setOpacity?.(1)
           }
           morphingRef.current?.updateState(state)
@@ -275,10 +399,52 @@ export function OutputApp() {
         }
       } else {
         if ((morphingRef.current?.__key ?? 'none') !== targetKey) {
-          morphingTransitionRef.current?.from?.destroy()
-          morphingTransitionRef.current = beginMorphingTransition(rootRef.current!, state, morphingRef.current)
-          morphingRef.current = morphingTransitionRef.current.to
-          morphingRef.current?.setOpacity?.(0)
+          const returningToParkedBrain =
+            targetFamily === 'brain' && parkedBrainController !== null
+          const currentController = morphingRef.current
+          const previousTransition = morphingTransitionRef.current
+          const retainedControllers = new Set<MorphingController | null>([
+            currentController,
+            parkedBrainController,
+          ])
+          for (const controller of [previousTransition?.from, previousTransition?.to]) {
+            if (controller && !retainedControllers.has(controller)) controller.destroy()
+          }
+          morphingTransitionRef.current = null
+
+          if (returningToParkedBrain && parkedBrainController) {
+            const brainController = parkedBrainController
+            brainController.resumeStoryCycleAfterInterlude?.()
+            if (currentController && currentController !== brainController) {
+              morphingTransitionRef.current = beginMorphingTransitionTo(
+                state,
+                currentController,
+                brainController,
+              )
+              morphingRef.current = brainController
+              brainController.setOpacity?.(0)
+            } else {
+              morphingRef.current = brainController
+              brainController.setOpacity?.(1)
+            }
+            parkedBrainController = null
+          } else {
+            const preserveBrain =
+              alternationEnabled &&
+              alternationPhase === 'morphing' &&
+              currentFamily === 'brain' &&
+              currentController !== null
+            if (preserveBrain) parkedBrainController = currentController
+            morphingTransitionRef.current = beginMorphingTransition(
+              rootRef.current!,
+              state,
+              currentController,
+              onBrainStoryCycleComplete,
+              preserveBrain,
+            )
+            morphingRef.current = morphingTransitionRef.current.to
+            morphingRef.current?.setOpacity?.(0)
+          }
         }
 
         const transition = morphingTransitionRef.current
@@ -307,11 +473,16 @@ export function OutputApp() {
       off()
       surfaceRef.current?.destroy()
       surfaceRef.current = null
-      morphingRef.current?.destroy()
+      const controllers = new Set([
+        morphingRef.current,
+        morphingTransitionRef.current?.from,
+        morphingTransitionRef.current?.to,
+        parkedBrainController,
+      ])
+      for (const controller of controllers) controller?.destroy()
       morphingRef.current = null
-      morphingTransitionRef.current?.from?.destroy()
-      morphingTransitionRef.current?.to?.destroy()
       morphingTransitionRef.current = null
+      parkedBrainController = null
     }
   }, [])
 

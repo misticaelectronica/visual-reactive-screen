@@ -191,7 +191,20 @@ function transitionPatternRandom(
   return () => value / 997
 }
 
-export function createBrainController(container: HTMLElement) {
+export type BrainStoryCycleCompletion = {
+  storyId: string
+  brainDurationMs: number
+  rendererPasses: number
+}
+
+export type BrainControllerOptions = {
+  onStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void
+}
+
+export function createBrainController(
+  container: HTMLElement,
+  options: BrainControllerOptions = {},
+) {
   brainLog('pipeline', 'inizializzazione Brain', {
     pipelineRevision: BRAIN_CONFIG.pipelineRevision,
   })
@@ -740,6 +753,9 @@ export function createBrainController(container: HTMLElement) {
   let nextGenerationTargetAt = 0
   let completedStoryRendererPasses = 0
   let nextStoryGenerationDeferred = false
+  let storyStartedAt = 0
+  let storyCycleCompletionReported = false
+  let storyCycleInterludeCompleted = false
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -1149,6 +1165,9 @@ export function createBrainController(container: HTMLElement) {
     currentProduction = production
     recyclingStoryFrames = false
     completedStoryRendererPasses = 0
+    storyStartedAt = performance.now()
+    storyCycleCompletionReported = false
+    storyCycleInterludeCompleted = false
     nextStoryGenerationDeferred = shouldDeferNextStoryGeneration(
       latestPayload?.settings?.brainRendererMode ?? 'manual',
       completedStoryRendererPasses,
@@ -1636,6 +1655,7 @@ export function createBrainController(container: HTMLElement) {
     beatIndex: number,
   ) => {
     if (!currentProduction) return
+    if (storyCycleCompletionReported) return
     const frame =
       currentProduction.story.frames[frameIndex]
     if (!frame) return
@@ -1700,6 +1720,22 @@ export function createBrainController(container: HTMLElement) {
       if (!nextStoryGenerationDeferred && !generating && !nextProduction) {
         window.setTimeout(() => void generateNext(), 0)
       }
+      return
+    }
+    if (
+      storyCycle &&
+      rendererSettings?.alternateBrainWithMorphing === true &&
+      options.onStoryCycleComplete &&
+      !storyCycleInterludeCompleted
+    ) {
+      storyCycleCompletionReported = true
+      const completion = {
+        storyId: currentProduction.story.id,
+        brainDurationMs: Math.max(0, now - storyStartedAt),
+        rendererPasses: completedStoryRendererPasses + 1,
+      }
+      brainLog('pipeline', 'storia Brain completa; interludio morphing autorizzato', completion)
+      options.onStoryCycleComplete(completion)
       return
     }
     if (nextProduction) {
@@ -1835,6 +1871,14 @@ export function createBrainController(container: HTMLElement) {
           receivedAt,
         )
       }
+    },
+    resumeStoryCycleAfterInterlude() {
+      if (!storyCycleCompletionReported) return
+      storyCycleCompletionReported = false
+      storyCycleInterludeCompleted = true
+      brainLog('pipeline', 'interludio morphing concluso; ripresa del flusso Brain', {
+        storyId: currentProduction?.story.id ?? null,
+      })
     },
     destroy() {
       brainLog('pipeline', 'arresto Brain')

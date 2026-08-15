@@ -125,6 +125,9 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-010-21`** `DONE`: Verificare automaticamente che il Renderer Host
   propaghi il flash globale sia al plugin attivo sia a quello entrante durante
   il cambio renderer.
+- [x] **`TASK-010-22`** `DONE`: Ridefinire `Alternate with Brain (80/20)` sul
+  ciclo completo della storia: tutti i renderer Brain prima dell'interludio
+  esterno, durata 80/20 reale e buffer Brain preservato durante il crossfade.
 
 ---
 

@@ -714,3 +714,16 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Validazione**: `pnpm typecheck`, build completa macOS, lint mirato e sei
   test host/dither riusciti, incluso il passaggio del flash durante il cambio
   renderer.
+
+### `SESSION-2026-08-10-22`
+- **Data**: 10 Agosto 2026 (CEST)
+- **Obiettivo**: Applicare il rapporto Brain/morphing 80/20 all'intera storia,
+  senza ingressi esterni durante il ciclo dei renderer Brain.
+- **Implementazione**: rimossa l'alternanza temporizzata dalla Control Window;
+  l'opzione forza `story-cycle`, il Brain segnala il completamento solo dopo
+  l'ultimo renderer e l'Output apre un interludio morphing pari al 25% del
+  tempo Brain. Il controller Brain resta parcheggiato con buffer intatto e
+  riprende dopo un crossfade continuo.
+- **Validazione**: typecheck, lint mirato e 13 test su alternanza, selector,
+  refill e Renderer Host riusciti; build Vite/Main/Preload completata e
+  packaging macOS avviato correttamente.

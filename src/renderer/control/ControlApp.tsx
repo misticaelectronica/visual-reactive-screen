@@ -89,15 +89,6 @@ export function ControlApp() {
   const testFlashUntilRef = useRef(0)
   const colorRotationTimerRef = useRef<number | null>(null)
   const morphingRotationTimerRef = useRef<number | null>(null)
-  const brainAlternationTimerRef = useRef<number | null>(null)
-  const morphingRotationStateRef = useRef({
-    useMorphing: settings.useMorphing,
-    morphingAlgorithm: settings.morphingAlgorithm,
-  })
-  morphingRotationStateRef.current = {
-    useMorphing: settings.useMorphing,
-    morphingAlgorithm: settings.morphingAlgorithm,
-  }
   const nextNoMorphingDueAtRef = useRef(0)
   const visStateRef = useRef(createInitialVisualEngineState())
   const telemetrySequenceRef = useRef(0)
@@ -346,50 +337,20 @@ export function ControlApp() {
   ])
 
   useEffect(() => {
-    if (brainAlternationTimerRef.current) {
-      window.clearTimeout(brainAlternationTimerRef.current)
-      brainAlternationTimerRef.current = null
-    }
     if (!settings.alternateBrainWithMorphing) return
-
-    const schedule = () => {
-      brainAlternationTimerRef.current = window.setTimeout(() => {
-        setSettings((current) => {
-          if (!current.alternateBrainWithMorphing) return current
-          if (Math.random() < 0.8) {
-            return { ...current, useBrain: true, useMorphing: false }
-          }
-          const candidate = pickMorphingRotationCandidate(
-            morphingRotationCandidateFromSettings(current),
-            false,
-          )
-          if (candidate.algorithm === 'none') {
-            return { ...current, useBrain: false, useMorphing: false }
-          }
-          return {
-            ...current,
-            ...visibilityPatchForMorphing(candidate),
-            useBrain: false,
-            useMorphing: true,
-            morphingAlgorithm: candidate.algorithm,
-            morphingPresetId: candidate.presetId ?? 'default',
-          }
-        })
-        schedule()
-      }, morphingRotationDelay(
-        morphingRotationStateRef.current.useMorphing,
-        morphingRotationStateRef.current.morphingAlgorithm,
-      ))
-    }
-
-    setSettings((current) => ({ ...current, useBrain: true, useMorphing: false }))
-    schedule()
-    return () => {
-      if (brainAlternationTimerRef.current) {
-        window.clearTimeout(brainAlternationTimerRef.current)
-        brainAlternationTimerRef.current = null
+    setSettings((current) => {
+      if (
+        current.useBrain &&
+        !current.useMorphing &&
+        current.brainRendererMode === 'story-cycle'
+      ) return current
+      return {
+        ...current,
+        useBrain: true,
+        useMorphing: false,
+        brainRendererMode: 'story-cycle',
       }
-    }
+    })
   }, [settings.alternateBrainWithMorphing])
 
   if (!api) {

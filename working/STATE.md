@@ -2,7 +2,7 @@
 
 > **Ultimo Aggiornamento**: 10 Agosto 2026 (CEST)
 > **Stato Generale**: 🟢 In Sviluppo Attivo / Operativo  
-> **Ultima Sessione**: `SESSION-2026-08-10-21` — Flash globale convertito in movimento locale dei pixel Psycho2D
+> **Ultima Sessione**: `SESSION-2026-08-10-22` — Alternanza Brain 80/20 calcolata per storia completa
 
 ---
 
@@ -316,10 +316,12 @@ la serigrafia rimane il livello visivo dominante.
 ## Alternate with Brain — SESSION-2026-08-10-16
 
 È disponibile l'opzione UI `Alternate with Brain (80/20)`. Quando attiva,
-Brain resta la modalità prevalente con probabilità 80%; nel restante 20% viene
-scelto un renderer morphing tramite la rotazione già esistente, inclusi preset,
-profili e transizioni già ottimizzati. La rotazione morphing autonoma viene
-sospesa per evitare due timer concorrenti.
+forza `Tutti per storia`: ogni storia attraversa l'intero mazzo dei renderer
+Brain prima che possa entrare un morphing esterno. Il tempo della storia Brain
+costituisce l'80% del ciclo; l'interludio esterno dura il 25% di quel tempo,
+quindi il 20% del ciclo totale. Durante l'interludio il controller Brain resta
+parcheggiato con buffer e produzione intatti, poi riprende dalla storia
+successiva con crossfade continuo.
 
 ## Psycho2D beat response — SESSION-2026-08-10-18
 

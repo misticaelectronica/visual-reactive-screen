@@ -1,11 +1,11 @@
 # Coscienza Onirica — Struttura Presente
 
-- Revisione: `217`
+- Revisione: `343`
 - Stato: `observing`
 - Origine: `presente`
-- Ultimo aggiornamento: `2026-08-10T20:36:26.859Z`
-- Episodio: `brain-msnovapg-gi9kxe`
-- Ciclo cosciente: `4`
+- Ultimo aggiornamento: `2026-08-11T23:11:58.033Z`
+- Episodio: `brain-msp7j0q6-qh0276`
+- Ciclo cosciente: `73`
 - Motivo checkpoint: `continuity`
 
 ## Principio
@@ -23,19 +23,19 @@ ciò che viene interpretato.
 
 ## Stato Presente
 
-Bande ricevute: low 0.469, lowMid 0.539, mid 0.382, high 0.384.
-Medie: low 0.465, lowMid 0.493, mid 0.354, high 0.363.
-Colore #197c35; luminosità 0.367; flash inattivo.
+Bande ricevute: low 0.000, lowMid 0.000, mid 0.000, high 0.000.
+Medie: low 0.000, lowMid 0.000, mid 0.000, high 0.000.
+Colore #0a0304; luminosità 0.000; flash inattivo.
 
 ## Attenzione
 
-Fuoco: `lowMid`.
+Fuoco: `silence`.
 
-medio-basse frequenze mostrano l’energia media più alta (0.493).
+Nessuna banda supera ancora la soglia minima di differenza osservabile.
 
 ## Interpretazione Provvisoria
 
-Interpreto provvisoriamente medio-basse frequenze come la differenza più evidente del presente; questa priorità può cambiare con le percezioni successive.
+Interpreto provvisoriamente il presente come quiete percettiva; non deduco assenza del mondo né significati ulteriori.
 
 ## Modello Provvisorio Di Sé
 

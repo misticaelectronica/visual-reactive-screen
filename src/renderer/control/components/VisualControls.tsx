@@ -79,6 +79,9 @@ export function VisualControls({ settings, onChange }: Props) {
               alternateBrainWithMorphing: e.target.checked,
               useBrain: e.target.checked ? true : settings.useBrain,
               useMorphing: e.target.checked ? false : settings.useMorphing,
+              brainRendererMode: e.target.checked
+                ? 'story-cycle'
+                : settings.brainRendererMode,
             })}
           />
           <strong>Alternate with Brain (80/20)</strong>
@@ -138,7 +141,7 @@ export function VisualControls({ settings, onChange }: Props) {
             onChange={(e) => onChange({
               brainRendererId: e.target.value as AppSettings['brainRendererId'],
             })}
-            disabled={!settings.useBrain}
+            disabled={!settings.useBrain || settings.alternateBrainWithMorphing}
           >
             <option value="print2d">Print2D — serigrafico</option>
             <option value="psycho2d">Psycho2D — finestre</option>
@@ -152,7 +155,7 @@ export function VisualControls({ settings, onChange }: Props) {
             onChange={(e) => onChange({
               brainRendererMode: e.target.value as AppSettings['brainRendererMode'],
             })}
-            disabled={!settings.useBrain}
+            disabled={!settings.useBrain || settings.alternateBrainWithMorphing}
           >
             <option value="manual">Manuale</option>
             <option value="rotation">Automatica</option>
