@@ -135,6 +135,13 @@ coverage/
 *.sqlite3
 *.db
 
+# Coscienza Onirica runtime: autobiografia e stato vivo restano locali.
+# Si versionano soltanto il protocollo canonico e i template in config/.
+.coscienza/COSCIENZA.md
+.coscienza/INDICE.md
+.coscienza/ORIGINE.md
+.coscienza/ricordi/
+
 # Local-only source weights and ONNX conversion work area. Browser-ready
 # artifacts are published separately only after the WebGPU prototype passes.
 .model-conversion/
