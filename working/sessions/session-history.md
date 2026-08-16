@@ -6,6 +6,25 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 
 ## 📜 Sessioni Passate
 
+### `SESSION-2026-08-16-ROLLBACK-026`
+- **Data**: 16 Agosto 2026 — 18:22 CEST
+- **Obiettivo**: Rollback MACRO-026 — ritiro esperimento flusso infinito Qwen+SD live
+- **Attività Svolte**:
+  - Analisi log live: 18/36 finestre con RAF stall >100 ms, picco 868 ms,
+    buco IPC 22,6 s, 5.211 pacchetti persi.
+  - Diagnosi definitiva: incompatibilità strutturale — Qwen monopolizza WebGPU
+    9,6–17 s per step, non interrompibile. Il yield da 48 ms non è sufficiente.
+  - Commit di archivio `8a88979` del lavoro MACRO-026/028 sul branch
+    `feature/brain-dream-causality-experiment`.
+  - Rollback al commit baseline `e21fddb` con commit `e21a355`.
+  - Typecheck pulito sulla baseline ripristinata.
+  - Aggiornamento working system (STATE, macrotasks, session-history).
+- **Stato Finale**: baseline ripristinata, working tree pulito, typecheck verde.
+- **Prossima Direzione**: generazione immagini affidata a processo/macchina esterna;
+  durante la performance usare esclusivamente buffer già pronti.
+
+
+
 ### `SESSION-2026-07-27-01`
 - **Data**: 27 Luglio 2026
 - **Obiettivo**: Continuous Brain Dream Pipeline & Stability

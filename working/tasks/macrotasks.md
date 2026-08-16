@@ -6,6 +6,19 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟢 Macrotask Completati (Passati)
 
+### `MACRO-026`: Flusso Infinito Qwen+SD Live
+- **Descrizione**: Esperimento di generazione continua immagini con Qwen+SD
+  condividendo la GPU Electron con il compositore live. Include MACRO-027
+  (FilterPsiche più presente) e MACRO-028 (flusso infinito + denoising
+  cooperativo).
+- **Moduli Coinvolti**: `brain/brainController.ts`, `brain/coscienzaOnirica.ts`,
+  `brain/sd15OnnxWebGpu.ts`, `brain/brainStoryCycleRefill.ts`
+- **Stato**: ⚪ ARCHIVED — rollback eseguito. Causa: Qwen monopolizza WebGPU
+  9,6–17 s/step; 868 ms RAF stall, 22,6 s buco IPC, 5.211 pacchetti persi.
+  Degenerazione semantica per loop autoreferenziale. Archivio: commit `8a88979`.
+- **Piano di Lavoro**: `working/plans/piano-026-esperimento-causalita-narrativa-brain.md`,
+  `working/plans/piano-028-flusso-infinito-e-denoising.md`
+
 ### `MACRO-023`: Rollback Prestazioni Renderer
 - **Descrizione**: Ripristino dei budget visuali normali, rimozione della
   modalità FPS ridotti e della pressione grafica adattiva, mantenendo i Worker.

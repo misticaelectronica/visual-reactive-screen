@@ -1,5 +1,31 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Rollback MACRO-026 — Ritiro esperimento flusso infinito Qwen+SD live — 2026-08-16
+
+- Esperimento ritirato dopo analisi dei log live: incompatibilità strutturale
+  tra generazione continua e rendering live sulla stessa GPU.
+- **Cause confermate**: Qwen monopolizza WebGPU per 9,6–17 s per step (non
+  interrompibile dentro `session.run()`); il yield da 48 ms agisce solo *tra*
+  gli step. Picco RAF 868 ms, buco IPC 22,6 s, 5.211 pacchetti persi, due
+  finestre da 10 s senza alcun pacchetto.
+- **Degenerazione semantica**: quattro osservazioni identiche amplificate da
+  Brain per loop autoreferenziale; il modello reinseriva le proprie frasi come
+  memoria recente.
+- **Conclusione**: nessuna taratura credibile è possibile dentro questa
+  architettura. Generazione locale infinita e output live sincronizzato non
+  possono condividere continuamente lo stesso processo GPU Electron.
+- **Azioni eseguite**:
+  1. Commit di archivio `8a88979` del lavoro sperimentale MACRO-026/028 sul
+     branch `feature/brain-dream-causality-experiment` (recuperabile).
+  2. Rollback a `e21fddb` (baseline sicura pre-esperimento) con commit `e21a355`.
+  3. Typecheck pulito sulla baseline ripristinata.
+- **Direzione futura**: demandare la generazione a un processo/macchina esterna;
+  durante la performance usare soltanto buffer già pronti.
+- **Branch**: `feature/brain-dream-causality-experiment`; `main` non è stato
+  toccato.
+
+
+
 ## Rollback prestazioni renderer — 2026-08-16
 
 - Ritirata integralmente l'opzione `reducedFpsMode`; i valori salvati da build
