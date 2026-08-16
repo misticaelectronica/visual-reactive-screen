@@ -2,13 +2,6 @@ import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainRendererMode } from '@shared/types'
 import { calculateNextImageBufferRefillWindow } from './brainImageBuffer'
 
-export function shouldDeferNextStoryGeneration(
-  mode: BrainRendererMode,
-  completedRendererPasses: number,
-): boolean {
-  return mode === 'story-cycle' && completedRendererPasses < 1
-}
-
 export function calculateNextStoryRefillWindowForMode(
   completedAt: number,
   mode: BrainRendererMode,

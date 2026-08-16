@@ -6,6 +6,30 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 
 ## 📜 Sessioni Passate
 
+### `SESSION-2026-08-16-30`
+- **Data**: 16 Agosto 2026 — CEST
+- **Obiettivo**: Eseguire fedelmente il piano Antigravity approvato per gli
+  stall del denoising.
+- **Implementazione**: finestra offline single-flight con hold del renderer e
+  della timeline; wrapper del device WebGPU con fence e micro-yield da 4 ms.
+- **Invarianti**: nessun cambio a step, seed, qualità, risoluzione, camera,
+  beatmatch o low power.
+- **Validazione**: 52 file / 305 test, typecheck, lint, diff-check e build
+  Electron arm64 completa con ZIP e DMG.
+- **Stato Finale**: implementazione conclusa; misurazione live RAF pendente.
+
+### `SESSION-2026-08-16-29`
+- **Data**: 16 Agosto 2026 — CEST
+- **Obiettivo**: Ripristinare esclusivamente sette comportamenti non performance
+  sopra la baseline sicura successiva al rollback MACRO-026.
+- **Implementazione**: concatenazione osservazione/stimolo/residuo, fallback
+  locale con una sola chiamata Qwen, refill continuo, permanenze casuali 2–4
+  immagini e FilterPsiche più presente senza slice centrale.
+- **Perimetro preservato**: backend, denoising, residenza modelli, qualità,
+  risoluzione, cooldown, frame pacing e low power invariati.
+- **Validazione**: 50 file / 299 test, typecheck, lint e diff-check verdi.
+- **Stato Finale**: completato; prova percettiva fullscreen raccomandata.
+
 ### `SESSION-2026-08-16-ROLLBACK-026`
 - **Data**: 16 Agosto 2026 — 18:22 CEST
 - **Obiettivo**: Rollback MACRO-026 — ritiro esperimento flusso infinito Qwen+SD live

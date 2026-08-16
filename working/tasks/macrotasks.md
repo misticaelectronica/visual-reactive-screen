@@ -6,6 +6,18 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟢 Macrotask Completati (Passati)
 
+### `MACRO-030`: Soluzioni Denoising Stall
+- **Descrizione**: Implementate la finestra di generazione offline e
+  l'iniezione del wrapper di yield GPU approvate nel piano Antigravity.
+- **Stato**: 🟢 COMPLETED — validazione automatica completa; prova live pendente
+- **Piano di Lavoro**: `working/plans/piano-030-soluzioni-denoising-stall.md`
+
+### `MACRO-029`: Ripristino Comportamenti Non Performance
+- **Descrizione**: Ripristinati i sette comportamenti visuali e di continuità
+  richiesti sul rollback sicuro, senza recuperare modifiche GPU o denoising.
+- **Stato**: 🟢 COMPLETED — 50 file / 299 test, typecheck, lint e diff-check verdi
+- **Piano di Lavoro**: `working/plans/piano-029-ripristino-comportamenti-non-performance.md`
+
 ### `MACRO-026`: Flusso Infinito Qwen+SD Live
 - **Descrizione**: Esperimento di generazione continua immagini con Qwen+SD
   condividendo la GPU Electron con il compositore live. Include MACRO-027

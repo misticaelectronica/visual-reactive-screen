@@ -39,6 +39,7 @@ import {
 } from './brainPrint2dCanvas'
 import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 import { createBrainRendererHost } from './brainRendererHost'
+import { BrainOfflineGenerationWindow } from './brainOfflineWindow'
 import { BrainRendererSelector } from './brainRendererSelector'
 import type { BrainRendererImageSource } from './brainRendererPlugin'
 import type { BrainRhythmState } from './brainRhythm'
@@ -72,7 +73,6 @@ import {
 } from './brainImageBuffer'
 import {
   calculateNextStoryRefillWindowForMode,
-  shouldDeferNextStoryGeneration,
 } from './brainStoryCycleRefill'
 import {
   createOriginMemoryDraft,
@@ -604,6 +604,26 @@ export function createBrainController(
   let previousFrameMorphPattern: BrainFrameMorphPattern | null = null
   let currentSvg: BrainSvgController | null = null
   let outgoingSvg: BrainSvgController | null = null
+  let offlineHoldStartedAt: number | null = null
+  const offlineWindow = new BrainOfflineGenerationWindow({
+    maxDurationMs: BRAIN_CONFIG.offlineWindowMaxMs,
+    onBeginOffline: () => {
+      offlineHoldStartedAt = performance.now()
+      currentSvg?.setOfflineHold?.(true)
+      brainLog('offline-gen', 'finestra generazione offline iniziata: GPU dedicata a UNet')
+    },
+    onEndOffline: () => {
+      if (offlineHoldStartedAt !== null) {
+        const pauseMs = Math.max(0, performance.now() - offlineHoldStartedAt)
+        frameStartedAt += pauseMs
+        transitionStartedAt += pauseMs
+        if (storyStartedAt > 0) storyStartedAt += pauseMs
+        offlineHoldStartedAt = null
+      }
+      currentSvg?.setOfflineHold?.(false)
+      brainLog('offline-gen', 'finestra generazione offline conclusa: Canvas 2D ripreso')
+    },
+  })
   const print2dModes = new Map<string, BrainPrint2dMode>()
   const brainRendererRegistry = createDefaultBrainRendererRegistry()
   const brainVectorSceneCache = new BrainVectorSceneCache(
@@ -634,7 +654,6 @@ export function createBrainController(
   let nextGenerationAllowedAt = 0
   let nextGenerationTargetAt = 0
   let completedStoryRendererPasses = 0
-  let nextStoryGenerationDeferred = false
   let storyStartedAt = 0
   let storyCycleCompletionReported = false
   let storyCycleInterludeCompleted = false
@@ -1085,18 +1104,6 @@ export function createBrainController(
     storyStartedAt = performance.now()
     storyCycleCompletionReported = false
     storyCycleInterludeCompleted = false
-    nextStoryGenerationDeferred = shouldDeferNextStoryGeneration(
-      latestPayload?.settings?.brainRendererMode ?? 'manual',
-      completedStoryRendererPasses,
-    )
-    if (nextStoryGenerationDeferred) {
-      window.clearTimeout(generationCooldownTimerId)
-      generationCooldownTimerId = 0
-      brainLog('pipeline', 'refill rinviato: primo attraversamento protetto', {
-        storyId: production.story.id,
-        rendererMode: 'story-cycle',
-      })
-    }
     brainRendererSelector.beginStory(
       production.story.id,
       latestPayload?.settings,
@@ -1335,7 +1342,6 @@ export function createBrainController(
 
   const generateNext = async () => {
     if (destroyed || generating || nextProduction) return
-    if (currentProduction && nextStoryGenerationDeferred) return
     const cooldownRemainingMs =
       nextGenerationAllowedAt - performance.now()
     if (cooldownRemainingMs > 0) {
@@ -1398,10 +1404,12 @@ export function createBrainController(
         })
       }
       await storyAi?.releaseAllModels()
-      const scenes = await psychedel.generate(
-        story,
-        productionDeadlineAt,
-        (scene, sceneIndex) => {
+      const generateScenes = (signal: AbortSignal) => {
+        void signal
+        return psychedel.generate(
+          story,
+          productionDeadlineAt,
+          (scene, sceneIndex) => {
           progressiveScenes.set(sceneIndex, scene)
           progressiveReadyFrames = progressiveScenes.size
           if (!progressiveProduction) {
@@ -1451,8 +1459,12 @@ export function createBrainController(
             completedFrames: progressiveReadyFrames,
             totalFrames: story.frames.length,
           })
-        },
-      )
+          },
+        )
+      }
+      const scenes = BRAIN_CONFIG.offlineGenerationEnabled
+        ? await offlineWindow.run(generateScenes) ?? []
+        : await generateScenes(new AbortController().signal)
       if (destroyed) return
       if (!isCompleteBrainImageBuffer(
         scenes.length,
@@ -1615,25 +1627,6 @@ export function createBrainController(
         )
       ) {
         completedStoryRendererPasses += 1
-        if (
-          nextStoryGenerationDeferred &&
-          !shouldDeferNextStoryGeneration(
-            rendererSettings.brainRendererMode,
-            completedStoryRendererPasses,
-          )
-        ) {
-          nextStoryGenerationDeferred = false
-          nextGenerationAllowedAt = Math.max(
-            nextGenerationAllowedAt,
-            now + BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
-          )
-          brainLog('pipeline', 'refill sbloccato dopo la prima variazione', {
-            storyId: currentProduction.story.id,
-            completedRendererVariations: completedStoryRendererPasses,
-            transitionGuardMs: BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
-            targetInMs: Math.max(0, Math.round(nextGenerationTargetAt - now)),
-          })
-        }
         brainLog('pipeline', 'renderer casuale assegnato al prossimo fotogramma', {
           storyId: currentProduction.story.id,
           nextFrameIndex: frameIndex + 1,
@@ -1642,7 +1635,7 @@ export function createBrainController(
         })
       }
       applyFrame(frameIndex + 1, beatDurationMs, beatIndex)
-      if (!nextStoryGenerationDeferred && !generating && !nextProduction) {
+      if (!generating && !nextProduction) {
         window.setTimeout(() => void generateNext(), 0)
       }
       return
@@ -1686,6 +1679,7 @@ export function createBrainController(
     if (destroyed) return
     thermalScheduler.recordFrame(now)
     brainPerformanceMetrics.recordOutputRaf(now)
+    if (offlineWindow.isActive) return
     const bands = latestPayload?.bandEnergies ?? SILENT_BANDS
     const rhythm = options.rhythmSource?.() ?? {
       active: false,
@@ -1794,20 +1788,8 @@ export function createBrainController(
         currentProduction &&
         previousRendererMode !== rendererMode
       ) {
-        if (rendererMode === 'story-cycle' && !nextProduction && !generating) {
-          completedStoryRendererPasses = 0
-          nextStoryGenerationDeferred = true
-          window.clearTimeout(generationCooldownTimerId)
-          generationCooldownTimerId = 0
-          brainLog('pipeline', 'refill sospeso dopo attivazione “Tutti per storia”', {
-            storyId: currentProduction.story.id,
-          })
-        } else if (nextStoryGenerationDeferred) {
-          nextStoryGenerationDeferred = false
-          brainLog('pipeline', 'refill sbloccato: modalità renderer cambiata', {
-            storyId: currentProduction.story.id,
-            rendererMode,
-          })
+        completedStoryRendererPasses = 0
+        if (!nextProduction && !generating) {
           window.setTimeout(() => void generateNext(), 0)
         }
       }
@@ -1843,6 +1825,7 @@ export function createBrainController(
       window.clearTimeout(retryTimerId)
       window.clearTimeout(generationCooldownTimerId)
       window.clearTimeout(storyPanelTimerId)
+      offlineWindow.abort()
       storyAi?.destroy()
       psychedel.destroy()
       consciousnessMotionLayer.destroy()

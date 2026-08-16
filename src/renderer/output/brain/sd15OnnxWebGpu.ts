@@ -7,6 +7,10 @@ import {
   createSd15EulerSchedule,
   eulerStep,
 } from './sd15Scheduler'
+import {
+  wrapGpuDeviceWithYield,
+  type YieldableGpuDevice,
+} from './sd15GpuYield'
 
 export const SD15_MODEL_CACHE = 'psychedel-sd15-onnx-v1'
 export const SD15_MIN_DEVICE_MEMORY_GIB = 8
@@ -450,6 +454,18 @@ export class Sd15OnnxWebGpuRuntime {
     const adapter = await gpu.requestAdapter()
     if (!adapter) throw new Error('Nessun adattatore WebGPU disponibile')
     this.ort = await import('onnxruntime-web/webgpu')
+    if (BRAIN_CONFIG.gpuYieldBetweenSubmits) {
+      const yieldAdapter = await gpu.requestAdapter() as {
+        requestDevice(): Promise<YieldableGpuDevice>
+      } | null
+      if (yieldAdapter) {
+        const nativeDevice = await yieldAdapter.requestDevice()
+        this.ort.env.webgpu.device = wrapGpuDeviceWithYield(
+          nativeDevice,
+          BRAIN_CONFIG.gpuYieldMs,
+        )
+      }
+    }
     const runtimeBase = new URL('.', globalThis.location.href)
     runtimeBase.pathname = `${runtimeBase.pathname.replace(/\/+$/, '')}/ort-wasm/`
     this.ort.env.wasm.wasmPaths = this.wasmBaseUrl ?? runtimeBase.href

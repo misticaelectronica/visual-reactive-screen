@@ -313,6 +313,7 @@ export type BrainSceneRendererController = {
   getMorphShapes: () => BrainMorphShape[]
   setMorphPattern: (pattern: BrainFrameMorphPattern) => void
   setResourcePressure: (active: boolean) => void
+  setOfflineHold?: (active: boolean) => void
   setTransition: (
     progress: number,
     role: 'enter' | 'exit',

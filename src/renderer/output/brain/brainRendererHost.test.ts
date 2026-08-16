@@ -170,6 +170,70 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
+  it('congela gli aggiornamenti del plugin durante la finestra offline', () => {
+    const registry = new BrainRendererRegistry()
+    let updates = 0
+    registry.register({
+      id: 'print2d',
+      label: 'Print2D',
+      capabilities: {
+        multipleImages: false,
+        semanticMetadata: false,
+        lowPowerMode: true,
+      },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element,
+          isReady: () => true,
+          setOpacity() {},
+          getMorphShapes: () => [],
+          setMorphPattern() {},
+          setResourcePressure() {},
+          setTransition() {},
+          update() {
+            updates += 1
+          },
+          destroy() {
+            element.remove()
+          },
+        }
+      },
+    })
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'print2d',
+      'print2d',
+    )
+
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    host.setOfflineHold?.(true)
+    host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 2_000)
+    expect(updates).toBe(1)
+    expect(host.element.dataset.brainOfflineHold).toBe('active')
+
+    host.setOfflineHold?.(false)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 3_000)
+    expect(updates).toBe(2)
+    expect(host.element.dataset.brainOfflineHold).toBe('idle')
+    host.destroy()
+  })
+
   it('rallenta il plugin durante il passthrough e lo riprende sul clock corrente', async () => {
     const drawImage = vi.fn()
     vi.stubGlobal('createImageBitmap', vi.fn(async () => ({

@@ -636,49 +636,61 @@ describe('CoscienzaOnirica', () => {
     expect(normalizeStory({ ...valid, frames: repeated }, PHRASES)).toBeNull()
   })
 
-  it('autocorregge una prima risposta con campi mancanti mantenendo le stesse frasi', async () => {
+  it('usa il fallback locale su una risposta incompleta senza richiamare Qwen', async () => {
     const malformed = [
       'TITOLO: Bozza incompleta',
       'STORIA: Una bozza troppo corta che non sviluppa ancora una storia completa.',
       'F1: titolo :: descrizione insufficiente :: intenzione visiva :: energia 0.2',
     ].join('\n')
-    const responses = [malformed, DEFAULT_NARRATIVE]
     const prompts: string[] = []
     const ai = {
       async generate(_task: BrainAiTask, prompt: string): Promise<string> {
         prompts.push(prompt)
-        return responses.shift() ?? ''
+        return malformed
       },
     }
 
     const story = await new CoscienzaOnirica(ai).generate(PHRASES)
-    expect(story.title).toBe('Il giardino di Elisa')
-    expect(prompts).toHaveLength(2)
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(story.sourcePhrases).toEqual(PHRASES)
+    expect(prompts).toHaveLength(1)
     expect(prompts[0]).not.toContain('Il custode del segnale')
-    expect(prompts[1]).not.toContain('Bozza incompleta')
-    expect(prompts[1]).toContain('START OVER')
-    expect(prompts[1]).toContain(PHRASES[0])
+    expect(prompts[0]).toContain(PHRASES[0])
   })
 
-  it('rifiuta e corregge un racconto che ripete la stessa frase narrativa', async () => {
-    const repeated = [
-      'TITOLO: La luce del sognatore',
-      "STORIA: Un gruppo attraversa il bosco per cercare una presenza non umana e scopre un segnale sotto le radici. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto.",
-    ].join('\n')
-    const validCore = DEFAULT_NARRATIVE.split('\n').slice(0, 3).join('\n')
-    const responses = [repeated, validCore]
+  it('usa il fallback visuale dopo un errore Qwen con una sola chiamata', async () => {
     let calls = 0
     const ai = {
       async generate(): Promise<string> {
         calls += 1
-        return responses.shift() ?? ''
+        throw new Error('Qwen unavailable')
       },
     }
 
     const story = await new CoscienzaOnirica(ai).generate(PHRASES)
 
-    expect(calls).toBe(2)
-    expect(story.title).toBe('Il giardino di Elisa')
+    expect(calls).toBe(1)
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(story.sourcePhrases).toEqual(PHRASES)
+  })
+
+  it('sostituisce localmente un racconto ripetitivo senza una seconda chiamata', async () => {
+    const repeated = [
+      'TITOLO: La luce del sognatore',
+      "STORIA: Un gruppo attraversa il bosco per cercare una presenza non umana e scopre un segnale sotto le radici. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto. Il segnale si divide in frammenti che costruiscono un nuovo alfabeto.",
+    ].join('\n')
+    let calls = 0
+    const ai = {
+      async generate(): Promise<string> {
+        calls += 1
+        return repeated
+      },
+    }
+
+    const story = await new CoscienzaOnirica(ai).generate(PHRASES)
+
+    expect(calls).toBe(1)
+    expect(story.sourcePhrases).toEqual(PHRASES)
     expect(new Set(story.frames.map((frame) => frame.description)).size).toBe(BRAIN_CONFIG.renderFrameCount)
   })
 
@@ -783,7 +795,7 @@ describe('CoscienzaOnirica', () => {
     expect(responses).toEqual([duplicatedFrames])
   })
 
-  it('continua a rifiutare un racconto realmente incompleto dopo la correzione', async () => {
+  it('produce quattro osservazioni locali quando il racconto è incompleto', async () => {
     const incompleteCore = 'TITOLO: Bozza\nSTORIA: Un racconto troppo corto.'
     const ai = {
       async generate(): Promise<string> {
@@ -791,9 +803,9 @@ describe('CoscienzaOnirica', () => {
       },
     }
 
-    await expect(new CoscienzaOnirica(ai).generate(PHRASES)).rejects.toThrow(
-      'nucleo narrativo valido',
-    )
+    const story = await new CoscienzaOnirica(ai).generate(PHRASES)
+    expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
+    expect(story.sourcePhrases).toEqual(PHRASES)
   })
 
   it('riconosce una storia recente ripetuta anche quando cambia qualche parola', () => {
@@ -806,7 +818,7 @@ describe('CoscienzaOnirica', () => {
     expect(resemblesRecentStory(repeated, [story])?.title).toBe(story.title)
   })
 
-  it('passa al modello la memoria narrativa e rifiuta una storia già generata', async () => {
+  it('passa al modello la memoria narrativa e ripiega localmente se la storia è duplicata', async () => {
     const prompts: string[] = []
     const ai = {
       async generate(_task: BrainAiTask, prompt: string): Promise<string> {
@@ -816,9 +828,8 @@ describe('CoscienzaOnirica', () => {
     }
     const recent = defaultStory()
 
-    await expect(new CoscienzaOnirica(ai).generate(PHRASES, [recent])).rejects.toThrow(
-      'ha ripetuto la storia recente',
-    )
+    const story = await new CoscienzaOnirica(ai).generate(PHRASES, [recent])
+    expect(story.sourcePhrases).toEqual(PHRASES)
     expect(prompts[0]).toContain(recent.title)
     expect(prompts[0]).not.toContain(recent.synopsis.slice(0, 100))
     expect(prompts[0]).toContain(
@@ -1028,14 +1039,36 @@ describe('Psichedel', () => {
     ])
   })
 
-  it('passa la descrizione del fotogramma senza aggiunte automatiche', () => {
+  it('concatena osservazione, stimolo differente e residuo precedente', () => {
     const story = defaultStory()
     const prompt = buildPsychedelImagePrompt(story, story.frames[1])
     expect(prompt).toContain(story.frames[1].description)
+    expect(prompt).toContain('Associated stimulus:')
+    expect(prompt).toContain(`Residual visual trace: ${story.frames[0].description}`)
     expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
     expect(prompt).not.toContain('Edward Hopper')
     expect(prompt).not.toContain('Style direction')
     expect(prompt).not.toContain(story.palette.join(', '))
+  })
+
+  it('salta lo stimolo uguale all’osservazione e concatena quello differente', () => {
+    const story = defaultStory()
+    const currentObservation = 'Una stanza rossa attraversata da una luce verticale.'
+    story.frames[0] = {
+      ...story.frames[0],
+      description: currentObservation,
+    }
+    story.sourcePhrases = [
+      currentObservation,
+      'Un suono metallico resta sospeso dietro una porta chiusa.',
+    ]
+
+    const prompt = buildPsychedelImagePrompt(story, story.frames[0])
+
+    expect(prompt).toContain(
+      'Associated stimulus: Un suono metallico resta sospeso dietro una porta chiusa.',
+    )
+    expect(prompt).not.toContain(`Associated stimulus: ${currentObservation}`)
   })
 
   it('non aggiunge soggetti, luoghi o stili a un fotogramma astratto', () => {
@@ -1131,9 +1164,7 @@ describe('Psichedel', () => {
     expect(new Set(generator.calls).size).toBe(4)
     expect(generator.releases).toBe(0)
     expect(captions).toEqual(
-      story.frames.map(
-        (frame) => `${frame.description}\n\nMain argument: ${story.mainArgument}`,
-      ),
+      story.frames.map((frame) => buildPsychedelImagePrompt(story, frame)),
     )
     psychedel.destroy()
     expect(generator.releases).toBe(1)

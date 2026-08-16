@@ -205,9 +205,34 @@ export function buildPsychedelImagePrompt(
   void _attempt
   void _mode
   const framePrompt = frame.imagePrompt?.trim() || frame.description.trim()
-  return story.mainArgument?.trim()
-    ? `${framePrompt}\n\nMain argument: ${story.mainArgument.trim()}`
-    : framePrompt
+  const frameIndex = Math.max(0, story.frames.findIndex((candidate) => candidate.id === frame.id))
+  const normalizedFrameWords = new Set(
+    framePrompt.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
+  )
+  const associatedStimulus = story.sourcePhrases
+    .map((phrase, index) => ({
+      phrase: phrase.trim(),
+      distance: (index - frameIndex + story.sourcePhrases.length) % Math.max(1, story.sourcePhrases.length),
+    }))
+    .filter(({ phrase }) => phrase.length > 0)
+    .sort((left, right) => left.distance - right.distance)
+    .find(({ phrase }) => {
+      const words = phrase.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+      if (words.length === 0) return false
+      const shared = words.filter((word) => normalizedFrameWords.has(word)).length
+      return shared / Math.max(words.length, normalizedFrameWords.size, 1) < 0.72
+    })?.phrase
+  const previousFrame = frameIndex > 0 ? story.frames[frameIndex - 1] : null
+  const previousResidual = previousFrame
+    ? previousFrame.imagePrompt?.trim() || previousFrame.description.trim()
+    : null
+  const promptParts = [framePrompt]
+  if (associatedStimulus) promptParts.push(`Associated stimulus: ${associatedStimulus}`)
+  if (previousResidual) promptParts.push(`Residual visual trace: ${previousResidual}`)
+  if (story.mainArgument?.trim()) {
+    promptParts.push(`Main argument: ${story.mainArgument.trim()}`)
+  }
+  return promptParts.join('\n\n')
 }
 
 export class Psichedel {

@@ -511,6 +511,11 @@ export function storyFromCore(core: StoryCore, phrases: string[]): DreamStory {
   }
 }
 
+export function buildFallbackDreamStory(phrases: readonly string[]): DreamStory {
+  const sourcePhrases = phrases.map((phrase) => phrase.trim()).filter(Boolean)
+  return storyFromCore(fallbackUiCore(sourcePhrases), sourcePhrases)
+}
+
 function similarity(left: string, right: string): number {
   const leftWords = new Set(words(left).filter((word) => word.length > 2))
   const rightWords = new Set(words(right).filter((word) => word.length > 2))
@@ -841,7 +846,6 @@ export class CoscienzaOnirica {
               .join('; '),
           ].join('\n')
         : 'Avoid generic plots and familiar formulas. Invent one specific event.'
-    const directPredecessor = recentStories.at(-1) ?? null
     const continuityConstraint = translatedContinuitySeed
       ? [
           'LIGHT CONTINUITY SEED FROM THE PREVIOUS STORY:',
@@ -922,41 +926,13 @@ export class CoscienzaOnirica {
         if (!englishSynopsis || !isRenderableNarrative(englishSynopsis)) {
           brainWarn(
             'coscienza',
-            'risposta inglese priva di una trama; avvio autocorrezione sulla stessa associazione',
+            'risposta inglese priva di una trama; uso il fallback locale senza richiamare Qwen',
             {
               response: coreText.slice(0, 2_000),
               normalizedStory: englishSynopsis,
             },
           )
-          const narrativeRepairPrompt = [
-            'REWRITE THE FAILED ANSWER AS ONE STORY. Do not explain the mistake.',
-            'Write 55-80 words in exactly 4-6 complete chronological sentences.',
-            'Include a named adult protagonist, one concrete place, an initiating event, conflict, transformation and conclusion.',
-            'Do not output numbered bridges, field descriptions, lists, notes or fragments.',
-            ...(explicitSource
-              ? [
-                  'Preserve the consensual explicit physical actions from the source prompts literally. Do not replace them with euphemisms or symbolism.',
-                ]
-              : [
-                  'Do not introduce sexual content absent from the source prompts.',
-                ]),
-            `ENGLISH INPUT PROMPTS:\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
-            `Return exactly four lines: TITLE:, STORY:, BRIDGE:, COLORS:.`,
-            'BRIDGE must be one short outgoing bridge only. COLORS must contain exactly five hexadecimal colors.',
-          ].join('\n')
-          brainLog(
-            'coscienza',
-            'autocorrezione narrativa inglese inviata',
-            { reason: 'trama assente o sostituita da metadati' },
-          )
-          coreText = await this.ai.generate('story', narrativeRepairPrompt, {
-            maxNewTokens: Math.min(160, BRAIN_CONFIG.storyMaxNewTokens + 20),
-            minNewTokens: 48,
-          })
-          normalizedEnglishStory = normalizeEnglishStoryEnvelope(coreText)
-          englishSynopsis = normalizedEnglishStory
-            ? labeledBlock(normalizedEnglishStory, 'STORY', ['BRIDGE'])
-            : null
+          throw new Error('CoscienzaOnirica non ha prodotto una storia inglese completa')
         }
         if (!normalizedEnglishStory || !englishSynopsis) {
           brainWarn('coscienza', 'autocorrezione inglese incompleta', {
@@ -1069,89 +1045,9 @@ export class CoscienzaOnirica {
         )
       }
       if (!core) {
-        brainWarn('coscienza', 'nucleo narrativo non valido; avvio autocorrezione', {
+        brainWarn('coscienza', 'nucleo narrativo non valido; uso il fallback locale senza richiamare Qwen', {
           response: coreText.slice(0, 3_000),
         })
-        const coreRepairPrompt = [
-          'START OVER. The previous answer copied instructions instead of writing a story.',
-          'Write a new concrete causal story of 70-100 words with a named protagonist, conflict, transformation and conclusion.',
-          'Inside STORY write exactly 4-6 complete chronological sentences and no labels, color lists, numbered fields or instructions.',
-          ...(this.translator
-            ? ['Write the complete intermediate story in natural English.']
-            : ['Think privately in English if useful; visible content must be natural Italian.']),
-          directPredecessor && translatedContinuitySeed
-            ? `Use this previous bridge only as a secondary detail: ${translatedContinuitySeed}`
-            : 'This is the first story.',
-          synthesisConstraint,
-          `${this.translator ? 'ENGLISH' : 'ITALIAN'} INPUT PROMPTS:\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
-          'Invent a new short outgoing bridge that is not a repetition of the incoming seed.',
-          `Return exactly four lines beginning ${this.translator ? 'TITLE:, STORY:, BRIDGE:, COLORS:' : 'TITOLO:, STORIA:, LEGAME:, COLORI:'}.`,
-          `After ${this.translator ? 'COLORS' : 'COLORI'}: write exactly five coherent hexadecimal colors.`,
-          'Do not explain the task and do not output placeholders, brackets, markdown, analysis or English notes.',
-        ].join('\n')
-        brainLog('coscienza', 'autocorrezione nucleo narrativo inviata')
-        coreText = await this.ai.generate('story', coreRepairPrompt, {
-          maxNewTokens: Math.min(160, BRAIN_CONFIG.storyMaxNewTokens + 20),
-          minNewTokens: 48,
-        })
-        if (this.translator) {
-          const normalizedRepair = normalizeEnglishStoryEnvelope(coreText)
-          if (!normalizedRepair) {
-            throw new Error(
-              'CoscienzaOnirica non ha prodotto una storia inglese completa durante la correzione',
-            )
-          }
-          const repairedEnglishSynopsis = labeledBlock(
-            normalizedRepair,
-            'STORY',
-            ['BRIDGE'],
-          )
-          if (
-            explicitSource &&
-            (!repairedEnglishSynopsis ||
-              !preservesExplicitAdultContent(
-                phrases.join(' '),
-                repairedEnglishSynopsis,
-              ))
-          ) {
-            throw new Error(
-              'CoscienzaOnirica ha eliminato il contenuto esplicito presente negli input',
-            )
-          }
-          if (explicitSource) explicitContentVerifiedFromEnglish = true
-          if (
-            !repairedEnglishSynopsis ||
-            !isRenderableNarrative(repairedEnglishSynopsis)
-          ) {
-            throw new Error(
-              'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
-            )
-          }
-          englishVisualMoments = repairedEnglishSynopsis
-            ? splitIntoFourMoments(repairedEnglishSynopsis)
-            : null
-          coreText = await this.translator.storyForUi(normalizedRepair)
-        }
-        const repairedCompleteStory = storyFromResponse(coreText, phrases)
-        if (repairedCompleteStory) prepareStory(repairedCompleteStory)
-        const repairedDuplicate = repairedCompleteStory
-          ? resemblesRecentStory(repairedCompleteStory, recentStoriesForValidation)
-          : null
-        if (repairedDuplicate) {
-          throw new Error(
-            `CoscienzaOnirica ha ripetuto la storia recente "${repairedDuplicate.title}"`,
-          )
-        }
-        if (repairedCompleteStory) {
-          brainLog('coscienza', 'storia completa ricevuta dalla riparazione', repairedCompleteStory)
-          return repairedCompleteStory
-        }
-        core = storyCoreFromResponse(coreText, phrases)
-        if (!core) {
-          brainWarn('coscienza', 'autocorrezione nucleo narrativo rifiutata', {
-            response: coreText.slice(0, 4_000),
-          })
-        }
       }
       if (!core) {
         throw new Error('CoscienzaOnirica non ha prodotto un nucleo narrativo valido')
@@ -1173,8 +1069,29 @@ export class CoscienzaOnirica {
       return story
     } catch (error) {
       if (error instanceof BrainAiCancelledError) throw error
-      brainWarn('coscienza', 'generazione AI fallita; nessuna storia simulata', error)
-      throw error
+      const fallback = buildFallbackDreamStory(phrases)
+      fallback.continuityPhrase = continuitySeed
+      if (sessionSynthesis) {
+        fallback.title = 'Questo sogno'
+        fallback.sessionSynthesis = true
+      }
+      if (consciousnessInfluence) {
+        fallback.palette = applyConsciousnessPalette(
+          fallback.palette,
+          consciousnessInfluence,
+        )
+        fallback.consciousnessInfluence = {
+          memoryId: consciousnessInfluence.memoryId,
+          kind: consciousnessInfluence.kind,
+          title: consciousnessInfluence.title,
+          relevanceReason: consciousnessInfluence.relevanceReason,
+        }
+      }
+      brainWarn('coscienza', 'generazione Qwen fallita; fallback visuale locale senza seconda chiamata', {
+        error,
+        fallbackStoryId: fallback.id,
+      })
+      return fallback
     }
   }
 

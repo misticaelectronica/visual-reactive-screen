@@ -53,6 +53,7 @@ export function createBrainRendererHost(
   let destroyed = false
   let morphPattern: BrainFrameMorphPattern = 'marea'
   let resourcePressure = false
+  let offlineHold = false
   let transitionProgress = 1
   let transitionRole: 'enter' | 'exit' = 'enter'
   let switchStartedAt: number | null = null
@@ -148,6 +149,11 @@ export function createBrainRendererHost(
       active.controller.setResourcePressure(activePressure)
       incoming?.controller.setResourcePressure(activePressure)
     },
+    setOfflineHold(activeHold) {
+      if (offlineHold === activeHold) return
+      offlineHold = activeHold
+      root.dataset.brainOfflineHold = activeHold ? 'active' : 'idle'
+    },
     setTransition(progress, role, counterpartShapes) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -168,6 +174,7 @@ export function createBrainRendererHost(
       flash?: BrainFlashState,
     ) {
       if (destroyed) return
+      if (offlineHold) return
       const passthroughReady =
         BRAIN_CONFIG.lightweightDenoisingRender &&
         denoisingPassthrough.isReady()

@@ -2,6 +2,26 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `MACRO-030` (Soluzioni Denoising Stall)
+
+- [x] **`TASK-030-01`** `DONE`: Leggere host renderer e verificare ONNX Runtime 1.24.1.
+- [x] **`TASK-030-02`** `DONE`: Finestra offline e hold renderer.
+- [x] **`TASK-030-03`** `DONE`: Yield cooperativo GPU.
+- [x] **`TASK-030-04`** `DONE`: Test e validazione completa.
+- [x] **`TASK-030-05`** `DONE`: Working system e commit.
+
+---
+
+## Task Collegati a `MACRO-029` (Ripristino Comportamenti)
+
+- [x] **`TASK-029-01`** `DONE`: FilterPsiche senza riga centrale e più dinamico.
+- [x] **`TASK-029-02`** `DONE`: Concatenazione prompt e fallback senza retry Qwen.
+- [x] **`TASK-029-03`** `DONE`: Refill infinito oltre quattro immagini.
+- [x] **`TASK-029-04`** `DONE`: Permanenza casuale renderer 2–4 immagini.
+- [x] **`TASK-029-05`** `DONE`: Test, typecheck, lint e diff-check.
+
+---
+
 ## Task Collegati a `MACRO-022` (Isolamento Vettorializzazione dal Main)
 
 - [x] **`TASK-022-01`** `DONE`: Correlare scatti e fuori ritmo con metriche

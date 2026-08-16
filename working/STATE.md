@@ -1,5 +1,34 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Soluzioni denoising stall — 2026-08-16
+
+- Implementato il piano Antigravity approvato: durante Psichedel il loop Brain
+  conserva l'ultimo quadro, sospende timeline e aggiornamenti dei plugin e
+  riprende senza salto temporale al termine della finestra.
+- La finestra è single-flight, annullabile e limitata a 120 secondi.
+- ONNX Runtime WebGPU riceve un device avvolto che attende la fence
+  `onSubmittedWorkDone()` e programma un micro-yield da 4 ms dopo ogni submit.
+- Entrambe le soluzioni sono controllate da configurazione; step, seed, forma,
+  qualità e risoluzione della pipeline restano invariati.
+- Validazione: 52 file / 305 test, typecheck, lint, diff-check e build completa
+  con ZIP/DMG arm64 verdi. Resta il confronto live dei gap RAF.
+
+## Ripristino comportamenti non performance — 2026-08-16
+
+- FilterPsiche non disegna slice nella fascia centrale ed è più presente e
+  incisivo su palette, contrasto e micro-slice, senza movimento di camera.
+- Ogni prompt immagine concatena osservazione corrente, stimolo distinto e
+  residuo visuale precedente.
+- Coscienza Onirica usa una sola chiamata Qwen per la storia; errore o risposta
+  invalida producono quattro osservazioni locali senza una chiamata di repair.
+- Il refill del gruppo successivo non è più bloccato dal primo attraversamento;
+  le immagini correnti vengono riciclate soltanto finché il nuovo gruppo arriva.
+- FilterPsiche, Materia Morph e Vector Morph persistono casualmente 2–4 immagini;
+  Psycho2D resta una comparsa casuale singola.
+- Nessuna modifica a backend, denoising, qualità, risoluzione, cooldown,
+  frame pacing o low power.
+- Validazione: 50 file / 299 test, typecheck, lint e diff-check verdi.
+
 ## Rollback MACRO-026 — Ritiro esperimento flusso infinito Qwen+SD live — 2026-08-16
 
 - Esperimento ritirato dopo analisi dei log live: incompatibilità strutturale

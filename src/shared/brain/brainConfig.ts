@@ -60,6 +60,10 @@ export const BRAIN_CONFIG = {
   imageInferenceSevereFrameThresholdMs: 1_000,
   imageInferenceLongFrameBackoffMs: 9_000,
   imageInferenceSevereFrameBackoffMs: 20_000,
+  offlineGenerationEnabled: true,
+  offlineWindowMaxMs: 120_000,
+  gpuYieldBetweenSubmits: true,
+  gpuYieldMs: 4,
   // Esperimento MACRO-009: il modello dichiara batch dinamico. Il ramo
   // condizionale singolo dimezza il batch UNet senza cambiare seed/step/shape.
   imageGuidanceMode: 'single-conditional' as const,

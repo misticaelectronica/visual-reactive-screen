@@ -5,6 +5,7 @@ import {
   applyFilterPsichePixels,
   calculateFilterPsicheMotion,
   FILTER_PSICHE_VARIANTS,
+  isFilterPsicheCentralSlice,
   selectFilterPsicheVariant,
   shouldRenderFilterPsicheFrame,
 } from './brainFilterPsicheCanvas'
@@ -57,6 +58,12 @@ describe('FilterPsiche', () => {
     expect(shouldRenderFilterPsicheFrame(motion, false, false)).toBe(false)
   })
 
+  it('elimina la slice orizzontale al centro del quadro', () => {
+    expect(isFilterPsicheCentralSlice(132, 6, 270)).toBe(true)
+    expect(isFilterPsicheCentralSlice(80, 6, 270)).toBe(false)
+    expect(isFilterPsicheCentralSlice(190, 6, 270)).toBe(false)
+  })
+
   it('separa kick, alte e flash nei rispettivi trattamenti', () => {
     const motion = calculateFilterPsicheMotion(
       { low: 0.7, lowMid: 0.24, mid: 0.32, high: 0.58 },
@@ -77,8 +84,10 @@ describe('FilterPsiche', () => {
 
     expect(motion.beat).toBeGreaterThan(0.5)
     expect(motion.inverseMix).toBeGreaterThan(0.8)
-    expect(motion.sliceAmount).toBeGreaterThan(0.5)
-    expect(motion.sliceAmount).toBeLessThan(0.7)
+    expect(motion.alternateMix).toBeGreaterThan(0.65)
+    expect(motion.contrast).toBeGreaterThan(0.75)
+    expect(motion.sliceAmount).toBeGreaterThan(0.65)
+    expect(motion.sliceAmount).toBeLessThan(0.8)
     expect(motion.flash).toBe(0.8)
     expect(motion.phaseDirection).toBeLessThan(0)
   })
