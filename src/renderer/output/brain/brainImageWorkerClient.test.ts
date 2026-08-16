@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import { DEFAULT_BRAIN_RENDERING_CONFIG } from './brainRenderingConfig'
 import { createBrainImageGenerateRequest } from './brainImageWorkerClient'
 
@@ -28,7 +27,6 @@ describe('protocollo worker immagini Brain', () => {
       inferenceWidth: 448,
       inferenceHeight: 256,
       steps: 8,
-      stepYieldMs: BRAIN_CONFIG.imageDenoisingStepYieldMs,
     })
     expect(request.artifactBaseUrl).toMatch(/^brain-model:/)
     expect(request.wasmBaseUrl).toBe('file:///Applications/Mistica/dist/ort-wasm/')

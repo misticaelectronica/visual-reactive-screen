@@ -183,12 +183,12 @@ export function calculateFilterPsicheMotion(
   const mid = bandDrive(bands.mid, movingAverages?.mid, transients.mid)
   const high = bandDrive(bands.high, movingAverages?.high, transients.high)
   const profile = settings.motionProfile === 'ambient'
-    ? 0.66
+    ? 0.58
     : settings.motionProfile === 'techno'
-      ? 1.08
-      : 0.88
-  const sensitivity = 0.78 + clamp(settings.sensitivity) * 0.46
-  const scale = profile * sensitivity * (settings.softMode ? 0.72 : 1)
+      ? 1
+      : 0.78
+  const sensitivity = 0.72 + clamp(settings.sensitivity) * 0.38
+  const scale = profile * sensitivity * (settings.softMode ? 0.7 : 1)
   const flashDrive = flash?.active ? clamp(flash.intensity) : 0
   const activity = clamp(
     (low * 0.3 + lowMid * 0.28 + mid * 0.23 + high * 0.19) * scale,
@@ -202,12 +202,12 @@ export function calculateFilterPsicheMotion(
     activity,
     beat,
     flash: flashDrive,
-    inverseMix: clamp(beat * 0.84 + flashDrive * 0.94 + low * 0.18),
-    alternateMix: clamp(lowMid * 0.46 + mid * 0.36 + beat * 0.26),
-    contrast: clamp(mid * 0.58 + beat * 0.32 + flashDrive * 0.4),
+    inverseMix: clamp(beat * 0.72 + flashDrive * 0.94 + low * 0.12),
+    alternateMix: clamp(lowMid * 0.34 + mid * 0.28 + beat * 0.18),
+    contrast: clamp(mid * 0.42 + beat * 0.22 + flashDrive * 0.35),
     // `high` include già il transiente: non sommarlo due volte, altrimenti gli
     // hat ravvicinati mantengono le slice quasi sempre aperte.
-    sliceAmount: clamp(high * 0.48 + flashDrive * 0.32),
+    sliceAmount: clamp(high * 0.38 + flashDrive * 0.28),
     phaseDirection,
   }
 }
@@ -219,16 +219,6 @@ export function shouldRenderFilterPsicheFrame(
 ): boolean {
   return motion.activity > 0.003 || motion.beat > 0.003 || motion.flash > 0.003 ||
     transitionChanged || signatureChanged
-}
-
-export function isFilterPsicheCentralSlice(
-  y: number,
-  sliceHeight: number,
-  canvasHeight: number,
-): boolean {
-  if (canvasHeight <= 0) return false
-  const centerRatio = (y + sliceHeight / 2) / canvasHeight
-  return Math.abs(centerRatio - 0.5) < 0.04
 }
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
@@ -437,9 +427,9 @@ export function createBrainFilterPsicheScene(
         // Attacco diretto e release smussato: il fronte non viene ritardato
         // dall'inviluppo musicale e sopravvive a un eventuale frame saltato.
         beat: Math.max(rawMotion.beat, smoothMotion.beat),
-        inverseMix: Math.max(smoothMotion.low, rawMotion.beat * 0.84),
+        inverseMix: Math.max(smoothMotion.low, rawMotion.beat * 0.72),
         alternateMix: smoothMotion.lowMid,
-        contrast: Math.max(smoothMotion.mid, rawMotion.beat * 0.36),
+        contrast: Math.max(smoothMotion.mid, rawMotion.beat * 0.26),
         sliceAmount: smoothMotion.high,
       }
       const transitionChanged =
@@ -479,18 +469,18 @@ export function createBrainFilterPsicheScene(
       const height = output.height
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
-      context.filter = `contrast(${1.12 + motion.contrast * 0.9}) saturate(${1.3 + motion.alternateMix * 1.4})`
+      context.filter = `contrast(${1.08 + motion.contrast * 0.72}) saturate(${1.18 + motion.alternateMix * 1.1})`
       context.drawImage(artwork.base, 0, 0, width, height)
       context.filter = 'none'
 
       if (motion.alternateMix > 0.002) {
         context.globalCompositeOperation = 'color-dodge'
-        context.globalAlpha = clamp(motion.alternateMix * 0.68, 0, 0.58)
+        context.globalAlpha = clamp(motion.alternateMix * 0.54, 0, 0.46)
         context.drawImage(artwork.alternate, 0, 0, width, height)
       }
       if (motion.inverseMix > 0.002) {
         context.globalCompositeOperation = motion.flash > 0.18 ? 'difference' : 'screen'
-        context.globalAlpha = clamp(motion.inverseMix * 0.96, 0, 0.94)
+        context.globalAlpha = clamp(motion.inverseMix * 0.86, 0, 0.88)
         context.drawImage(artwork.inverse, 0, 0, width, height)
       }
 
@@ -498,14 +488,13 @@ export function createBrainFilterPsicheScene(
       const sliceCount = Math.min(sliceBudget, Math.ceil(motion.sliceAmount * sliceBudget))
       if (sliceCount > 0) {
         context.globalCompositeOperation = 'difference'
-        context.globalAlpha = clamp(0.15 + motion.sliceAmount * 0.5, 0, 0.65)
+        context.globalAlpha = clamp(0.12 + motion.sliceAmount * 0.42, 0, 0.54)
         const direction = motion.phaseDirection >= 0 ? 1 : -1
         for (let index = 0; index < sliceCount; index += 1) {
           const unit = (index + 1) / (sliceCount + 1)
           const y = Math.floor(height * (0.12 + unit * 0.76))
-          const sliceHeight = Math.max(1, Math.round(height * (0.008 + motion.sliceAmount * 0.022)))
-          if (isFilterPsicheCentralSlice(y, sliceHeight, height)) continue
-          const offset = direction * Math.round((3 + index % 4) * motion.sliceAmount * 1.4)
+          const sliceHeight = Math.max(1, Math.round(height * (0.006 + motion.sliceAmount * 0.018)))
+          const offset = direction * Math.round((2 + index % 3) * motion.sliceAmount)
           context.drawImage(
             index % 2 === 0 ? artwork.inverse : artwork.alternate,
             0,

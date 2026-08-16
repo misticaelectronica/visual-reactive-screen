@@ -6,32 +6,6 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟢 Macrotask Completati (Passati)
 
-### `MACRO-026`: Flusso Infinito e Denoising Cooperativo
-- **Descrizione**: Refill continuo oltre quattro immagini, permanenza casuale
-  dei renderer e rimozione del churn WebGPU fra Qwen e SD.
-- **Moduli Coinvolti**: controller Brain, selettore renderer, Qwen Worker,
-  Psichedel e Worker immagini
-- **Stato**: 🟢 COMPLETED — ciclo infinito e concatenazione verificati live
-- **Piano di Lavoro**: `working/plans/piano-028-flusso-infinito-e-denoising.md`
-
-### `MACRO-025`: FilterPsiche — Presenza e Dinamica
-- **Descrizione**: Rendere FilterPsiche più frequente in “Tutti per storia” e
-  più incisivo sulle bande audio senza aumentare il costo o muovere il quadro.
-- **Moduli Coinvolti**: selettore renderer e FilterPsiche Canvas
-- **Stato**: 🟢 COMPLETED — maggiore presenza e dinamica implementate; verifica
-  percettiva fullscreen consigliata
-- **Piano di Lavoro**: `working/plans/piano-027-filter-psiche-presenza-dinamica.md`
-
-### `MACRO-024`: Separazione Causalità Narrativa Brain
-- **Descrizione**: Esperimento minimo per produrre quattro rappresentazioni
-  visuali senza una `DreamStory` narrativa preliminare, mantenendo invariata la
-  pipeline immagini.
-- **Moduli Coinvolti**: controller Brain e facoltà semantica esistente
-- **Stato**: 🟢 COMPLETED — separazione dimostrata; Qwen lasciato libero di
-  associare senza trama obbligatoria, moto di coscienza esplicito e nessuna
-  estensione autonoma introdotta
-- **Piano di Lavoro**: `working/plans/piano-026-esperimento-causalita-narrativa-brain.md`
-
 ### `MACRO-023`: Rollback Prestazioni Renderer
 - **Descrizione**: Ripristino dei budget visuali normali, rimozione della
   modalità FPS ridotti e della pressione grafica adattiva, mantenendo i Worker.

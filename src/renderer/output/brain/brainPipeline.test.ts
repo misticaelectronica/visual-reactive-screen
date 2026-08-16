@@ -3,9 +3,6 @@ import type { BrainAiTask, DreamStory } from '@shared/brain/brainTypes'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import {
-  adaptVisualPlanToLegacyStory,
-  buildFallbackVisualPlan,
-  buildChainedVisualPrompt,
   analyzeNarrativeFormat,
   appearsItalian,
   bridgeConnectsStories,
@@ -24,7 +21,6 @@ import {
   selectSessionSynthesisInterval,
   splitIntoFourMoments,
 } from './coscienzaOnirica'
-import { buildAvailableVisualMaterial } from './brainController'
 import {
   abstractPsychedelCue,
   buildPsychedelImagePrompt,
@@ -498,153 +494,6 @@ describe('CoscienzaOnirica', () => {
     expect(prompts[0].task).toBe('scene')
     expect(prompts[0].prompt).toContain(story.frames[0].description)
     expect(prompts[0].prompt).toContain('concrete visible scene')
-  })
-
-  it('produce osservazioni visuali dirette senza invocare la generazione narrativa', async () => {
-    const calls: Array<{ task: BrainAiTask; prompt: string }> = []
-    const repeated =
-      'A copper membrane remains suspended above black water while two dim reflections hold the same distance beneath it.'
-    const response = [
-      `VISUAL1: ${repeated}`,
-      `VISUAL2: ${repeated}`,
-      'VISUAL3: The copper membrane gains one narrow opening while the water and both reflections remain otherwise unchanged.',
-      'VISUAL4: Empty black water fills the coherent view; the membrane, reflections and every supplied figure are absent.',
-    ].join('\n')
-    const ai = {
-      async generate(task: BrainAiTask, prompt: string): Promise<string> {
-        calls.push({ task, prompt })
-        return response
-      },
-    }
-    const material = [
-      '[new stimulus] A lighthouse contains a sleeping animal.',
-      '[previous internal material] A copper membrane above black water.',
-      '[current perceptual state; values carry no predetermined meaning] low=0.710, high=0.180.',
-    ]
-
-    const plan = await new CoscienzaOnirica(ai).generateVisualObservations(material)
-
-    expect(calls.map((call) => call.task)).toEqual(['scene'])
-    expect(calls[0].prompt).toContain('a free semantic faculty within Brain')
-    expect(calls[0].prompt).toContain('No complete plot or chronological arc is required')
-    expect(calls[0].prompt).toContain('A spontaneous narrative connection may remain')
-    expect(calls[0].prompt).toContain('A consciousness motion, when present, is part of the material')
-    expect(calls[0].prompt).not.toContain('WRITE ONE STORY')
-    expect(plan[0]).toBe(plan[1])
-    expect(plan[3]).not.toContain('lighthouse')
-  })
-
-  it('adatta le osservazioni al contratto legacy soltanto dopo il piano visuale', () => {
-    const plan = [
-      'A pale stone rests inside a wet steel chamber under flat frontal light.',
-      'A pale stone rests inside a wet steel chamber under flat frontal light.',
-      'The same chamber remains empty except for a thin reflection crossing its floor.',
-      'A folded metallic surface fills the view without a central subject or visible action.',
-    ] as const
-
-    const adapter = adaptVisualPlanToLegacyStory(plan, ['stimolo A'], 0.4)
-
-    expect(adapter.id).toMatch(/^visual-observations-/)
-    expect(adapter.bridge).toBeNull()
-    expect(adapter.continuityPhrase).toBeNull()
-    expect(adapter.mainArgument).toBeUndefined()
-    expect(adapter.frames[0].imagePrompt).toContain(plan[0])
-    expect(adapter.frames[0].imagePrompt).toContain('Associated stimulus: stimolo A')
-    expect(adapter.frames[1].imagePrompt).toContain(`Residual visual trace: ${plan[0]}`)
-    expect(adapter.frames.every((frame) => frame.energy === 0.4)).toBe(true)
-  })
-
-  it('concatena osservazione, stimolo distinto e residuo precedente senza creare una storia', () => {
-    const plan = [
-      'A black vessel stands on wet stone.',
-      'A white membrane crosses a narrow room.',
-      'Three copper seeds rest inside glass.',
-      'An empty shoreline reflects one red line.',
-    ] as const
-    const prompt = buildChainedVisualPrompt(
-      plan[2],
-      2,
-      plan,
-      ['[new stimulus] first pressure', '[new stimulus] second pressure', '[new stimulus] third pressure'],
-    )
-
-    expect(prompt).toContain(plan[2])
-    expect(prompt).toContain('Associated stimulus: third pressure')
-    expect(prompt).toContain(`Residual visual trace: ${plan[1]}`)
-  })
-
-  it('salta lo stimolo copiato letteralmente da Qwen e concatena il successivo', () => {
-    const observation = 'The contact creates a third entity that belongs to both.'
-    const prompt = buildChainedVisualPrompt(
-      observation,
-      0,
-      [observation],
-      [
-        `[new stimulus] ${observation}`,
-        '[new stimulus] Matter records every failed attempt at communication.',
-      ],
-    )
-
-    expect(prompt).toContain(
-      'Associated stimulus: Matter records every failed attempt at communication.',
-    )
-    expect(prompt.match(/The contact creates a third entity/g)).toHaveLength(1)
-  })
-
-  it('prosegue senza seconda chiamata Qwen quando la facoltà semantica fallisce', async () => {
-    let calls = 0
-    const material = [
-      '[new stimulus] a mineral body under rain',
-      '[previous internal material] a suspended copper membrane',
-    ]
-    const ai = {
-      async generate(): Promise<string> {
-        calls += 1
-        throw new Error('Timeout scene')
-      },
-    }
-
-    const plan = await new CoscienzaOnirica(ai).generateVisualObservations(material)
-
-    expect(calls).toBe(1)
-    expect(plan).toEqual(buildFallbackVisualPlan(material))
-    expect(new Set(plan).size).toBeGreaterThan(1)
-  })
-
-  it('rende disponibili stimoli, continuità, moto di coscienza e stato senza assegnare priorità semantiche', () => {
-    const material = buildAvailableVisualMaterial(
-      ['Una porta dimentica la stanza che protegge.'],
-      ['A red surface remains almost unchanged.'],
-      {
-        memoryId: 'memory-1',
-        kind: 'imagination',
-        title: 'Superficie precedente',
-        source: 'test',
-        salience: 0.7,
-        perceived: 'dato ricevuto',
-        interpretation: 'lettura provvisoria',
-        imagination: 'superficie rossa',
-        relevanceReason: 'ricorrenza materica',
-        influenceText: 'Una superficie può perdere il proprio bordo.',
-        consultedFiles: ['ricordi/memory-1.md'],
-      },
-      {
-        backgroundColor: '#000000',
-        brightness: 0.35,
-        flashActive: false,
-        bandEnergies: { low: 0.7, lowMid: 0.4, mid: 0.2, high: 0.1 },
-        settings: DEFAULT_SETTINGS,
-      },
-    )
-
-    expect(material).toEqual(expect.arrayContaining([
-      expect.stringContaining('[new stimulus]'),
-      expect.stringContaining('[previous internal material]'),
-      expect.stringContaining(
-        '[consciousness motion; provenance=imagination; title=Superficie precedente]',
-      ),
-      expect.stringContaining('values carry no predetermined meaning'),
-    ]))
   })
 
   it('crea la sintesi periodica con il titolo fisso “Questo sogno”', async () => {
@@ -1402,7 +1251,9 @@ describe('Psichedel', () => {
     ).generate(story, performance.now() + 60_000)
 
     expect(modes).toHaveLength(4)
-    expect(modes.every((mode) => mode === 'standard')).toBe(true)
+    expect(modes[0]).toBe('enhanced')
+    expect(modes.filter((mode) => mode === 'standard')).toHaveLength(2)
+    expect(modes.filter((mode) => mode === 'enhanced')).toHaveLength(2)
     expect(modes).not.toContain('high-quality')
     expect(inferenceStates).toEqual([
       true, false,
@@ -1696,46 +1547,6 @@ describe('Psichedel', () => {
 })
 
 describe('Brain pipeline end-to-end', () => {
-  it('consegna quattro osservazioni a Psichedel senza una DreamStory causale', async () => {
-    const tasks: BrainAiTask[] = []
-    const response = [
-      'VISUAL1: A translucent shell encloses three dark seeds on a flat mineral surface beneath neutral frontal light.',
-      'VISUAL2: The translucent shell and three seeds persist in exactly the same positions beneath neutral frontal light.',
-      'VISUAL3: One seed is absent while the shell folds inward and the mineral surface remains continuous.',
-      'VISUAL4: A distant folded shell occupies the left edge; most of the mineral surface is empty and uninterrupted.',
-    ].join('\n')
-    const ai = {
-      async generate(task: BrainAiTask): Promise<string> {
-        tasks.push(task)
-        return response
-      },
-    }
-    const plan = await new CoscienzaOnirica(ai).generateVisualObservations([
-      '[new stimulus] Tre semi sotto una membrana.',
-      '[previous internal material] Una superficie minerale senza orizzonte.',
-    ])
-    const adapter = adaptVisualPlanToLegacyStory(plan, PHRASES)
-    const rasterCalls: string[] = []
-    const generator: PsychedelImageGenerator = {
-      async generate(prompt) {
-        rasterCalls.push(prompt)
-        return { blob: new Blob(['direct-raster']), durationMs: 10 }
-      },
-      async release() {},
-      destroy() {},
-    }
-
-    const scenes = await new Psichedel(generator).generate(adapter)
-
-    expect(tasks).toEqual(['scene'])
-    expect(rasterCalls).toEqual(
-      adapter.frames.map((frame) => frame.imagePrompt),
-    )
-    expect(rasterCalls[1]).toContain(`Residual visual trace: ${plan[0]}`)
-    expect(scenes).toHaveLength(4)
-    expect(adapter.synopsis).toContain('senza una storia preliminare')
-  })
-
   it('trasforma una storia di default in quattro immagini vettoriali', async () => {
     const calls: BrainAiTask[] = []
     const ai = {

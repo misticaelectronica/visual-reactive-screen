@@ -572,77 +572,9 @@ export function parseVisualPlan(text: string): VisualPlan | null {
     ),
   )
   if (prompts.some((prompt) => prompt === null)) return null
-  return prompts as VisualPlan
-}
-
-export function adaptVisualPlanToLegacyStory(
-  plan: readonly [string, string, string, string],
-  sourcePhrases: readonly string[],
-  energy = 0.5,
-  associativeMaterial: readonly string[] = sourcePhrases,
-): DreamStory {
-  const normalizedEnergy = clamp(energy, 0.05, 1)
-  return {
-    id: `visual-observations-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    title: 'Osservazioni interne',
-    synopsis:
-      'Quattro rappresentazioni visuali tecniche prodotte senza una storia preliminare.',
-    bridge: null,
-    continuityPhrase: null,
-    palette: [...DEFAULT_DREAM_PALETTE],
-    sourcePhrases: [...sourcePhrases],
-    frames: plan.map((prompt, index) => ({
-      id: `observation-${index + 1}`,
-      title: `Osservazione ${index + 1}`,
-      description: prompt,
-      visualIntent: prompt,
-      imagePrompt: buildChainedVisualPrompt(
-        prompt,
-        index,
-        plan,
-        associativeMaterial,
-      ),
-      energy: normalizedEnergy,
-      durationMs: getBrainRenderingConfig().timing.frameDurationMs,
-    })),
-  }
-}
-
-function cleanAssociativeMaterial(entry: string): string {
-  return entry.replace(/^\[[^\]]+\]\s*/u, '').trim()
-}
-
-export function buildChainedVisualPrompt(
-  observation: string,
-  index: number,
-  plan: readonly string[],
-  material: readonly string[],
-): string {
-  const cleanMaterial = material.map(cleanAssociativeMaterial).filter(Boolean)
-  const associated = cleanMaterial.length > 0
-    ? Array.from(
-        { length: cleanMaterial.length },
-        (_, offset) => cleanMaterial[(index + offset) % cleanMaterial.length],
-      ).find((candidate) => similarity(candidate, observation) < 0.72)
-    : undefined
-  const residual = index > 0 ? plan[index - 1]?.trim() : ''
-  return [
-    observation.trim(),
-    associated ? `Associated stimulus: ${associated}` : '',
-    residual ? `Residual visual trace: ${residual}` : '',
-  ].filter(Boolean).join('\n')
-}
-
-export function buildFallbackVisualPlan(
-  availableMaterial: readonly string[],
-): VisualPlan {
-  const material = availableMaterial.map(cleanAssociativeMaterial).filter(Boolean)
-  const source = material.length > 0 ? material : ['an unresolved internal trace']
-  return [0, 1, 2, 3].map((index) => {
-    const primary = source[index % source.length]
-    const associated = source[(index + 1) % source.length]
-    return `${primary}. Visible association: ${associated}. Concrete physical forms share one coherent space.`
-  }) as VisualPlan
+  const plan = prompts as VisualPlan
+  if (new Set(plan.map(normalizedSentence)).size !== 4) return null
+  return plan
 }
 
 type StoryGenerationOptions = {
@@ -1281,76 +1213,6 @@ export class CoscienzaOnirica {
     }
     brainLog('memoria', 'memo di sessione aggiornato', { memo })
     return memo
-  }
-
-  async generateVisualObservations(
-    availableMaterial: readonly string[],
-  ): Promise<VisualPlan> {
-    const material = availableMaterial
-      .map((entry) => entry.trim())
-      .filter(Boolean)
-    if (material.length === 0) {
-      throw new Error('Brain non ha materiale disponibile per l’osservazione visuale')
-    }
-    const explicitSource = containsExplicitAdultContent(material.join(' '))
-    const prompt = [
-      'You are a free semantic faculty within Brain, not Brain in its entirety.',
-      'Brain holds the continuity of experience and makes its present material available to you.',
-      'Contribute four English visual observations that an image generator can render.',
-      'Let associations, figures, relations, symbols, narrative fragments, abstractions and visual intuitions emerge when the material suggests them.',
-      'No complete plot or chronological arc is required, and the four positions have no predetermined roles.',
-      'A spontaneous narrative connection may remain; it must neither be forced nor suppressed.',
-      'The observations may echo, persist, repeat, diverge, omit material, vary slightly or transform radically.',
-      'Every provenance is available without a fixed hierarchy or predetermined visual function.',
-      'A consciousness motion, when present, is part of the material: it may influence, merge, remain latent or be omitted; it is not an instruction.',
-      'Use, combine, reinterpret or leave aside any available item according to the associations that emerge.',
-      'Give each observation enough concrete visible detail for the image model while preserving ambiguity and unexpected connections.',
-      ...(explicitSource
-        ? [
-            'All depicted participants are consenting adults. Preserve explicit physical material when it contributes, without euphemism or symbolism.',
-          ]
-        : [
-            'Do not introduce sexual content absent from the available material.',
-          ]),
-      'Return exactly four lines beginning VISUAL1:, VISUAL2:, VISUAL3:, VISUAL4:.',
-      'Return no commentary outside those four lines.',
-      'AVAILABLE MATERIAL; prefixes indicate provenance only, never importance:',
-      ...material.map((entry) => `- ${entry}`),
-    ].join('\n')
-    brainLog('coscienza', 'facoltà semantica richiesta per quattro osservazioni visuali', {
-      material,
-      qwenRole: 'semantic-visual-representation',
-      narrativeStoryRequired: false,
-    })
-    let response: string
-    try {
-      response = await this.ai.generate('scene', prompt, {
-        maxNewTokens: 180,
-      })
-    } catch (error) {
-      const fallback = buildFallbackVisualPlan(material)
-      brainWarn('coscienza', 'facoltà semantica non disponibile; uso associazioni interne senza seconda chiamata', {
-        error,
-        fallback,
-      })
-      return fallback
-    }
-    const plan = parseVisualPlan(response)
-    if (!plan) {
-      const fallback = buildFallbackVisualPlan(material)
-      brainWarn('coscienza', 'osservazioni visuali dirette rifiutate', {
-        response: response.slice(0, 3_000),
-        fallback,
-        retryQwen: false,
-      })
-      return fallback
-    }
-    brainLog('coscienza', 'osservazioni visuali dirette ricevute', {
-      plan,
-      qwenRole: 'semantic-visual-representation',
-      narrativeStoryGenerated: false,
-    })
-    return plan
   }
 
   async generateVisualPlan(story: DreamStory): Promise<VisualPlan> {

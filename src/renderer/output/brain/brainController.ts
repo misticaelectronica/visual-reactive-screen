@@ -13,8 +13,10 @@ import {
   BrainAiInfrastructureError,
 } from './brainAiClient'
 import {
-  adaptVisualPlanToLegacyStory,
   CoscienzaOnirica,
+  selectSessionSynthesisInterval,
+  type DreamStoryMemory,
+  type SessionMemo,
 } from './coscienzaOnirica'
 import {
   Psichedel,
@@ -53,6 +55,7 @@ import {
   type BrainFrameMorphPattern,
 } from './brainFrameMotion'
 import { reconcileBrainModelCache } from './brainModelCache'
+import { BrainTranslator } from './brainTranslator'
 import {
   getBrainRenderingConfig,
   loadBrainRenderingConfig,
@@ -69,8 +72,12 @@ import {
 } from './brainImageBuffer'
 import {
   calculateNextStoryRefillWindowForMode,
+  shouldDeferNextStoryGeneration,
 } from './brainStoryCycleRefill'
-import { createOriginMemoryDraft } from './brainConsciousnessMemory'
+import {
+  createOriginMemoryDraft,
+  createStoryMemoryDraft,
+} from './brainConsciousnessMemory'
 import { CoscienzaCore } from './coscienzaCore'
 import { createBrainConsciousnessMotionLayer } from './brainConsciousnessMotion'
 import { BrainVectorizer } from './brainVectorQuality'
@@ -91,8 +98,6 @@ const PROCESS_DATA_KEYS = [
   'intent',
   'prompt',
   'effectivePrompts',
-  'availableMaterial',
-  'visualPlan',
   'imagePrompt',
   'translatedStory',
   'response',
@@ -102,38 +107,24 @@ const PROCESS_DATA_KEYS = [
   'steps',
   'attempt',
   'pct',
-  'qwenRole',
-  'narrativeStoryGenerated',
 ] as const
 
-export function buildAvailableVisualMaterial(
-  stimuli: readonly string[],
-  recentObservations: readonly string[],
-  consciousnessMotion: ConsciousnessMotionCandidate | null,
-  payload: VisualStatePayload | null,
-): string[] {
-  const material = [
-    ...stimuli.map((stimulus) => `[new stimulus] ${stimulus}`),
-    ...recentObservations
-      .slice(-4)
-      .map((observation) => `[previous internal material] ${observation}`),
+function updateSessionMemoLocally(
+  previousMemo: SessionMemo | null,
+  story: BrainProduction['story'],
+): SessionMemo {
+  const latest = `${story.title}: ${story.synopsis}`.slice(0, 420)
+  if (previousMemo) {
+    return [previousMemo[1], previousMemo[2], latest]
+  }
+  const moments = story.frames
+    .slice(0, 3)
+    .map((frame) => `${story.title}: ${frame.description}`.slice(0, 420))
+  return [
+    moments[0] ?? latest,
+    moments[1] ?? latest,
+    moments[2] ?? latest,
   ]
-  if (consciousnessMotion) {
-    material.push(
-      `[consciousness motion; provenance=${consciousnessMotion.kind}; title=${consciousnessMotion.title}] ${consciousnessMotion.influenceText}`,
-    )
-  }
-  if (payload?.bandEnergies) {
-    const bands = payload.bandEnergies
-    material.push(
-      '[current perceptual state; values carry no predetermined meaning] ' +
-      `low=${bands.low.toFixed(3)}, lowMid=${bands.lowMid.toFixed(3)}, ` +
-      `mid=${bands.mid.toFixed(3)}, high=${bands.high.toFixed(3)}, ` +
-      `flash=${payload.flashActive ? 'active' : 'inactive'}, ` +
-      `brightness=${payload.brightness.toFixed(3)}`,
-    )
-  }
-  return material
 }
 
 function compactProcessValue(value: unknown, depth = 0): string {
@@ -590,6 +581,7 @@ export function createBrainController(
     thermalScheduler,
   )
   let storyAi: BrainAiClient | null = null
+  let brainTranslator: BrainTranslator | null = null
   let status: BrainStatus | null = null
   let currentProduction: BrainProduction | null = null
   let nextProduction: BrainProduction | null = null
@@ -624,7 +616,12 @@ export function createBrainController(
   let transitionCounterpartShapes: BrainMorphShape[] = []
   let latestPayload: VisualStatePayload | null = null
   let recentPhrases: string[] = []
-  let recentVisualObservations: string[] = []
+  let recentStories: DreamStoryMemory[] = []
+  let nextContinuityPhrase: string | null = null
+  let recentBridges: string[] = []
+  let sessionMemo: SessionMemo | null = null
+  let ordinaryStoriesSinceSynthesis = 0
+  let nextSessionSynthesisAt = selectSessionSynthesisInterval()
   const consciousnessEpisodeId = `brain-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   const consciousnessCore = new CoscienzaCore(consciousnessEpisodeId)
   let consciousnessBeginningState: 'idle' | 'saving' | 'done' = 'idle'
@@ -637,6 +634,7 @@ export function createBrainController(
   let nextGenerationAllowedAt = 0
   let nextGenerationTargetAt = 0
   let completedStoryRendererPasses = 0
+  let nextStoryGenerationDeferred = false
   let storyStartedAt = 0
   let storyCycleCompletionReported = false
   let storyCycleInterludeCompleted = false
@@ -679,6 +677,34 @@ export function createBrainController(
     })
   }
 
+  const rememberStory = (
+    story: BrainProduction['story'],
+    memo: readonly string[],
+  ): void => {
+    const draft = createStoryMemoryDraft(
+      story,
+      consciousnessEpisodeId,
+      memo,
+    )
+    const outputApi = window.fxOutput
+    if (!outputApi) return
+    void outputApi.saveConsciousnessMemory(draft).then((result) => {
+      brainLog('memoria', 'ricordo onirico salvato in Markdown', {
+        created: result.created,
+        kind: result.kind,
+        memoryId: result.memoryId,
+        relativePath: result.relativePath,
+        consultedFiles: result.consultedFiles,
+      })
+    }).catch((error) => {
+      brainWarn(
+        'memoria',
+        'ricordo onirico non salvato: origine assente o archivio non disponibile',
+        error,
+      )
+    })
+  }
+
   const updatePresentConsciousness = (payload: VisualStatePayload): void => {
     const observedAt = payload.audioTimestampMs ?? (
       performance.timeOrigin + performance.now()
@@ -704,7 +730,7 @@ export function createBrainController(
     })
   }
 
-  const requestConsciousnessMotion = async (
+  const requestConsciousnessInfluence = async (
     story: BrainProduction['story'] | null,
   ): Promise<ConsciousnessMotionCandidate | null> => {
     const outputApi = window.fxOutput
@@ -1059,6 +1085,18 @@ export function createBrainController(
     storyStartedAt = performance.now()
     storyCycleCompletionReported = false
     storyCycleInterludeCompleted = false
+    nextStoryGenerationDeferred = shouldDeferNextStoryGeneration(
+      latestPayload?.settings?.brainRendererMode ?? 'manual',
+      completedStoryRendererPasses,
+    )
+    if (nextStoryGenerationDeferred) {
+      window.clearTimeout(generationCooldownTimerId)
+      generationCooldownTimerId = 0
+      brainLog('pipeline', 'refill rinviato: primo attraversamento protetto', {
+        storyId: production.story.id,
+        rendererMode: 'story-cycle',
+      })
+    }
     brainRendererSelector.beginStory(
       production.story.id,
       latestPayload?.settings,
@@ -1084,7 +1122,7 @@ export function createBrainController(
         brainLog('pipeline', 'sessioni immagini mantenute residenti fra storie', {
           currentStoryId: currentProduction.story.id,
           imageModelRetainedDuringDisplay: true,
-          lowPowerMode: latestPayload?.settings?.lowPowerMode === true,
+          lowPowerMode: false,
           experiment: 'retain-image-model-between-stories',
         })
       } else {
@@ -1112,12 +1150,15 @@ export function createBrainController(
     }
     const maximumAttempts = Math.max(2, missingCount * 2)
     let attempts = 0
-    brainLog('pipeline', 'esperimento osservazioni visuali dirette avviato', {
-      requestedObservationSets: missingCount,
+    brainLog('pipeline', 'ciclo associazioni narrative avviato', {
+      requestedStories: missingCount,
       queuedStories: storyQueue.length,
-      narrativeStoryRequired: false,
     })
     storyAi ??= new BrainAiClient()
+    brainTranslator ??= new BrainTranslator(storyAi, {
+      translateInputs: true,
+      translateUi: false,
+    })
     try {
       while (
         !destroyed &&
@@ -1126,67 +1167,148 @@ export function createBrainController(
       ) {
         attempts += 1
         await loadBrainPhrases()
-        const requestedPhraseCount = selectBrainPhraseCount()
-        const stimuli = sampleBrainPhrases(requestedPhraseCount, recentPhrases)
-        recentPhrases = [...recentPhrases, ...stimuli].slice(
+        const previousStory = recentStories.at(-1) ?? null
+        const continuityPhrase = nextContinuityPhrase
+        const sessionSynthesis =
+          sessionMemo !== null &&
+          ordinaryStoriesSinceSynthesis >= nextSessionSynthesisAt
+        const requestedPhraseCount = sessionSynthesis
+          ? BRAIN_CONFIG.phraseSampleMaxCount
+          : selectBrainPhraseCount()
+        const memoPhrases: readonly string[] =
+          sessionSynthesis && sessionMemo ? sessionMemo : []
+        const randomPhraseCount = Math.max(
+          1,
+          requestedPhraseCount -
+            memoPhrases.length,
+        )
+        const randomPhrases = sampleBrainPhrases(randomPhraseCount, recentPhrases)
+        const phrases = [...randomPhrases, ...memoPhrases]
+        recentPhrases = [...recentPhrases, ...randomPhrases].slice(
           -BRAIN_CONFIG.phraseMemoryCount,
         )
+        brainLog('pipeline', 'nuova associazione casuale inviata a CoscienzaOnirica', {
+          batchAttempt: attempts,
+          requested: requestedPhraseCount,
+          randomPhrases,
+          continuityPhrase,
+          previousStoryId: previousStory?.title ?? null,
+          sessionMemo,
+          sessionSynthesis,
+          ordinaryStoriesSinceSynthesis,
+          nextSessionSynthesisAt,
+          phrases,
+        })
         try {
-          const consciousnessMotion = await requestConsciousnessMotion(
+          const coscienza = new CoscienzaOnirica(
+            storyAi,
+            brainTranslator,
+          )
+          const consciousnessInfluence = await requestConsciousnessInfluence(
             currentProduction?.story ?? null,
           )
-          const availableMaterial = buildAvailableVisualMaterial(
-            stimuli,
-            recentVisualObservations,
-            consciousnessMotion,
-            latestPayload,
-          )
-          brainLog('pipeline', 'materiale reso disponibile alla facoltà semantica', {
-            batchAttempt: attempts,
-            stimuli,
-            recentVisualObservations: recentVisualObservations.slice(-4),
-            consciousnessMotion: consciousnessMotion
-              ? {
-                  memoryId: consciousnessMotion.memoryId,
-                  kind: consciousnessMotion.kind,
-                  relevance: consciousnessMotion.relevanceReason,
-                }
-              : null,
-            perceptualStateAvailable: Boolean(latestPayload?.bandEnergies),
-            availableMaterial,
+          const story = await coscienza.generate(phrases, recentStories, {
+            sessionMemo: sessionMemo ?? undefined,
+            sessionSynthesis,
+            continuitySeed: continuityPhrase,
+            recentBridges,
+            consciousnessInfluence,
           })
-          const visualPlan = await new CoscienzaOnirica(
-            storyAi,
-          ).generateVisualObservations(availableMaterial)
-          const story = adaptVisualPlanToLegacyStory(
-            visualPlan,
-            stimuli,
-            0.5,
-            availableMaterial,
+          nextContinuityPhrase = story.bridge
+          recentBridges = story.bridge
+            ? [...recentBridges, story.bridge].slice(
+                -BRAIN_CONFIG.storyMemoryCount,
+              )
+            : recentBridges
+          try {
+            const promptsFromOriginalStory = story.frames.map(
+              (frame) => frame.imagePrompt?.trim() || null,
+            )
+            if (promptsFromOriginalStory.every(
+              (prompt): prompt is string => prompt !== null,
+            )) {
+              brainLog(
+                'psichedel',
+                'uso diretto dei fotogrammi inglesi originali della storia AI',
+                {
+                  storyId: story.id,
+                  effectivePrompts: promptsFromOriginalStory,
+                  roundTripTranslation: false,
+                  manipulation: false,
+                },
+              )
+            } else {
+              story.frames.forEach((frame) => {
+                frame.imagePrompt = frame.description
+              })
+              brainLog(
+                'psichedel',
+                'descrizioni inglesi riusate senza una seconda traduzione',
+                {
+                  storyId: story.id,
+                  effectivePrompts: story.frames.map(
+                    (frame) => frame.imagePrompt,
+                  ),
+                  roundTripTranslation: false,
+                  manipulation: false,
+                },
+              )
+            }
+          } catch (visualPlanError) {
+            if (destroyed) throw visualPlanError
+            brainWarn(
+              'psichedel',
+              'traduzione letterale non disponibile; passo la descrizione originale senza modificarla',
+              {
+                storyId: story.id,
+                error: visualPlanError,
+              },
+            )
+          }
+          sessionMemo = updateSessionMemoLocally(sessionMemo, story)
+          story.sessionMemo = sessionMemo
+          brainLog(
+            'memoria',
+            'memo aggiornato localmente senza occupare il modello narrativo',
+            { storyId: story.id, sessionMemo },
           )
+          rememberStory(story, sessionMemo)
+          if (sessionSynthesis) {
+            ordinaryStoriesSinceSynthesis = 0
+            nextSessionSynthesisAt = selectSessionSynthesisInterval()
+            brainLog('memoria', 'storia periodica “Questo sogno” completata', {
+              storyId: story.id,
+              nextSessionSynthesisAt,
+              sessionMemo,
+            })
+          } else {
+            ordinaryStoriesSinceSynthesis += 1
+          }
           storyQueue.push(story)
-          recentVisualObservations = [
-            ...recentVisualObservations,
-            ...visualPlan,
-          ].slice(-BRAIN_CONFIG.renderFrameCount * 2)
-          brainLog('pipeline', 'osservazioni adattate al buffer legacy', {
+          recentStories = [
+            ...recentStories,
+            {
+              title: story.title,
+              synopsis: story.synopsis,
+            },
+          ].slice(-BRAIN_CONFIG.storyMemoryCount)
+          brainLog('pipeline', 'nuova storia inserita nel buffer narrativo', {
             id: story.id,
-            stimuli,
-            visualPlan,
+            title: story.title,
+            synopsis: story.synopsis,
+            incomingBridge: story.continuityPhrase,
+            outgoingBridge: story.bridge,
+            sourcePhrases: story.sourcePhrases,
             queueLength: storyQueue.length,
             targetCount,
-            qwenCalls: ['scene'],
-            qwenRole: 'semantic-visual-representation',
-            narrativeStoryGenerated: false,
-            autobiographicalMemoryWritten: false,
           })
           if (!currentProduction && storyQueue.length === 1) {
-            setDreamMonitor(story, undefined, undefined, 'IMMAGINI > IN CODA')
+            setDreamMonitor(story, undefined, undefined, 'SINTESI IMMAGINI > IN CODA')
           }
         } catch (error) {
           if (destroyed) throw error
           if (error instanceof BrainAiInfrastructureError) throw error
-          brainWarn('pipeline', 'osservazioni visuali rifiutate; provo nuovi stimoli', {
+          brainWarn('pipeline', 'associazione narrativa rifiutata; provo nuove frasi', {
             batchAttempt: attempts,
             error,
           })
@@ -1196,23 +1318,24 @@ export function createBrainController(
       if (destroyed) {
         storyAi?.destroy()
         storyAi = null
+        brainTranslator = null
       }
-      brainLog('pipeline', 'esperimento osservazioni visuali dirette completato', {
-        generatedObservationSets: storyQueue.length,
+      brainLog('pipeline', 'ciclo associazioni narrative completato', {
+        generatedStories: storyQueue.length,
         targetCount,
         attempts,
         textModelSessionRetained: !destroyed,
-        narrativeStoryGenerated: false,
       })
       await new Promise<void>((resolve) => window.setTimeout(resolve, 100))
     }
     if (storyQueue.length === 0) {
-      throw new Error('Brain non ha inserito osservazioni visuali nel buffer')
+      throw new Error('CoscienzaOnirica non ha inserito storie nel buffer narrativo')
     }
   }
 
   const generateNext = async () => {
     if (destroyed || generating || nextProduction) return
+    if (currentProduction && nextStoryGenerationDeferred) return
     const cooldownRemainingMs =
       nextGenerationAllowedAt - performance.now()
     if (cooldownRemainingMs > 0) {
@@ -1274,9 +1397,6 @@ export function createBrainController(
           title: story.title,
         })
       }
-      // Qwen usa WebGPU soltanto per la facoltà semantica. Prima del denoising
-      // la sua sessione viene rimossa: nessuna inferenza testuale aggiuntiva e
-      // nessuna contesa simultanea con SD.
       await storyAi?.releaseAllModels()
       const scenes = await psychedel.generate(
         story,
@@ -1495,6 +1615,25 @@ export function createBrainController(
         )
       ) {
         completedStoryRendererPasses += 1
+        if (
+          nextStoryGenerationDeferred &&
+          !shouldDeferNextStoryGeneration(
+            rendererSettings.brainRendererMode,
+            completedStoryRendererPasses,
+          )
+        ) {
+          nextStoryGenerationDeferred = false
+          nextGenerationAllowedAt = Math.max(
+            nextGenerationAllowedAt,
+            now + BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
+          )
+          brainLog('pipeline', 'refill sbloccato dopo la prima variazione', {
+            storyId: currentProduction.story.id,
+            completedRendererVariations: completedStoryRendererPasses,
+            transitionGuardMs: BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
+            targetInMs: Math.max(0, Math.round(nextGenerationTargetAt - now)),
+          })
+        }
         brainLog('pipeline', 'renderer casuale assegnato al prossimo fotogramma', {
           storyId: currentProduction.story.id,
           nextFrameIndex: frameIndex + 1,
@@ -1503,7 +1642,7 @@ export function createBrainController(
         })
       }
       applyFrame(frameIndex + 1, beatDurationMs, beatIndex)
-      if (!generating && !nextProduction) {
+      if (!nextStoryGenerationDeferred && !generating && !nextProduction) {
         window.setTimeout(() => void generateNext(), 0)
       }
       return
@@ -1651,9 +1790,24 @@ export function createBrainController(
       const previousRendererMode = latestPayload?.settings?.brainRendererMode
       latestPayload = payload
       const rendererMode = payload.settings?.brainRendererMode ?? 'manual'
-      if (currentProduction && previousRendererMode !== rendererMode) {
-        completedStoryRendererPasses = 0
-        if (!nextProduction && !generating) {
+      if (
+        currentProduction &&
+        previousRendererMode !== rendererMode
+      ) {
+        if (rendererMode === 'story-cycle' && !nextProduction && !generating) {
+          completedStoryRendererPasses = 0
+          nextStoryGenerationDeferred = true
+          window.clearTimeout(generationCooldownTimerId)
+          generationCooldownTimerId = 0
+          brainLog('pipeline', 'refill sospeso dopo attivazione “Tutti per storia”', {
+            storyId: currentProduction.story.id,
+          })
+        } else if (nextStoryGenerationDeferred) {
+          nextStoryGenerationDeferred = false
+          brainLog('pipeline', 'refill sbloccato: modalità renderer cambiata', {
+            storyId: currentProduction.story.id,
+            rendererMode,
+          })
           window.setTimeout(() => void generateNext(), 0)
         }
       }

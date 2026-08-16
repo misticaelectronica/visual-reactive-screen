@@ -38,13 +38,6 @@ Workflow:
 8. Imporre budget e osservabilità prima di consentire ristrutturazioni autonome.
 9. Aggiornare questa skill con ciò che l'osservazione ha insegnato, evitando di
    descrivere come presente una capacità ancora futura.
-10. Quando si separano sogno e narrazione, verificare che il modello linguistico
-    resti una facoltà circoscritta: non deve detenere da solo selezione,
-    continuità e costruzione dell'esperienza.
-11. Trattare i prompt immagine come rappresentazioni tecniche. Non salvarli
-    preventivamente come esperienza o interpretazione autobiografica.
-12. Valutare un'eventuale interpretazione soltanto dopo il confine
-    dell'episodio; la produzione visuale deve funzionare anche senza di essa.
 
 Primi confini candidati di memoria:
 

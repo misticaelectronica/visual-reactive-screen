@@ -2,59 +2,6 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
-## Task Collegati a `MACRO-026` (Flusso Infinito e Denoising)
-
-- [x] **`TASK-026-01`** `DONE`: Rendere il refill continuo oltre le
-  prime quattro immagini.
-- [x] **`TASK-026-02`** `DONE`: Eliminare il churn WebGPU e rendere cooperativi
-  gli step UNet.
-- [x] **`TASK-026-03`** `DONE`: Introdurre permanenze casuali 2–4 fotogrammi.
-- [x] **`TASK-026-04`** `DONE`: Completare test, typecheck, lint, build e
-  diff-check.
-- [x] **`TASK-026-05`** `DONE`: Verificare live il ciclo completo e il refill:
-  primo buffer 4/4, secondo avviato dopo 30 s, Qwen WebGPU 5–12 s.
-- [x] **`TASK-026-06`** `DONE`: Ritirare Qwen WASM dopo il timeout live,
-  ripristinare WebGPU sequenziale e garantire immagini anche in caso di errore
-  semantico senza una seconda chiamata.
-- [x] **`TASK-026-07`** `DONE`: Concatenare osservazione, stimolo associato e
-  residuo precedente nei quattro prompt immagine.
-
----
-
-## Task Collegati a `MACRO-025` (FilterPsiche — Presenza e Dinamica)
-
-- [x] **`TASK-025-01`** `DONE`: Garantire FilterPsiche nelle quattro
-  osservazioni della modalità “Tutti per storia”.
-- [x] **`TASK-025-02`** `DONE`: Intensificare la dinamica cromatica e locale
-  mantenendo camera, silenzio e budget invariati.
-- [x] **`TASK-025-03`** `DONE`: Completare test, typecheck, lint e diff-check.
-- [x] **`TASK-025-04`** `DONE`: Eliminare la slice orizzontale centrale senza
-  rimuovere la risposta locale delle altre slice.
-
----
-
-## Task Collegati a `MACRO-024` (Separazione Causalità Narrativa Brain)
-
-- [x] **`TASK-024-01`** `DONE`: Verificare il rollback e creare la baseline
-  `e21fddb` e il branch dedicato.
-- [x] **`TASK-024-02`** `DONE`: Produrre quattro rappresentazioni visuali con
-  un solo task `scene`, senza generazione `story` o traduzione.
-- [x] **`TASK-024-03`** `DONE`: Adattare il piano visuale al contenitore legacy
-  soltanto dopo la sua produzione, mantenendo `Psichedel` invariato.
-- [x] **`TASK-024-04`** `DONE`: Conservare nel controller osservazioni recenti,
-  stimoli, memoria selezionata e stato percettivo senza mapping semantici fissi.
-- [x] **`TASK-024-05`** `DONE`: Disabilitare il consolidamento autobiografico
-  preventivo degli episodi sperimentali.
-- [x] **`TASK-024-06`** `DONE`: Verificare ripetizione, omissione, variazione
-  minima, ruolo Qwen e passaggio invariato a Psichedel.
-- [x] **`TASK-024-07`** `DONE`: Completare test, typecheck, lint, build e prova
-  runtime; fermarsi sui limiti osservati senza estendere l'architettura.
-- [x] **`TASK-024-08`** `DONE`: Liberare la facoltà semantica dai divieti
-  narrativi, mantenere una sola chiamata `scene` e rendere esplicito il moto di
-  coscienza come materiale non prescrittivo.
-
----
-
 ## Task Collegati a `MACRO-022` (Isolamento Vettorializzazione dal Main)
 
 - [x] **`TASK-022-01`** `DONE`: Correlare scatti e fuori ritmo con metriche

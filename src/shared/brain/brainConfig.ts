@@ -1,5 +1,5 @@
 export const BRAIN_CONFIG = {
-  pipelineRevision: 'direct-visual-observations-v90',
+  pipelineRevision: 'qwen25-snic-contours-v89',
   phraseSampleMinCount: 4,
   phraseSampleMaxCount: 5,
   phraseMemoryCount: 12,
@@ -39,14 +39,14 @@ export const BRAIN_CONFIG = {
   // buffer successivo mantenendo cooldown e backoff fra le inferenze.
   nextStoryTargetMs: 120_000,
   nextStoryRefillLeadMs: 90_000,
-  // Anche in story-cycle il refill riparte dopo il riposo termico: il cambio
-  // renderer non può più sospendere la produzione del buffer successivo.
-  storyCycleNextStoryTargetMs: 120_000,
-  storyCycleRefillLeadMs: 90_000,
+  // Con tutti i renderer sulla stessa storia il primo attraversamento resta
+  // libero da generazione. Il refill ha poi due attraversamenti di margine.
+  storyCycleNextStoryTargetMs: 240_000,
+  storyCycleRefillLeadMs: 210_000,
+  storyCycleRefillTransitionGuardMs: 10_000,
   nextStoryHardDeadlineMs: 180_000,
-  // Evita di ricreare text encoder, UNet e VAE a ogni storia. Vale anche in
-  // low power: release/reload frammentava l'allocator e aggiungeva circa 2 GiB
-  // di letture per episodio.
+  // Esperimento MACRO-009: evita di ricreare text encoder, UNet e VAE a ogni
+  // storia. In low power il rilascio resta obbligatorio.
   retainImageModelBetweenStories: true,
   // Breve assestamento dopo il rilascio delle sessioni immagini: impedisce
   // che il modello narrativo venga creato mentre WebGPU sta ancora liberando
@@ -63,9 +63,6 @@ export const BRAIN_CONFIG = {
   // Esperimento MACRO-009: il modello dichiara batch dinamico. Il ramo
   // condizionale singolo dimezza il batch UNet senza cambiare seed/step/shape.
   imageGuidanceMode: 'single-conditional' as const,
-  // Cede brevemente il controllo fra gli step UNet. Non riduce gli step e non
-  // altera il risultato, ma evita una sequenza monolitica sul processo GPU.
-  imageDenoisingStepYieldMs: 48,
   // Fallback PIANO-010: dopo un gap RAF reale il Renderer Host rallenta
   // brevemente il plugin. La sola inferenza nel Worker non lo attiva più.
   lightweightDenoisingRender: true,

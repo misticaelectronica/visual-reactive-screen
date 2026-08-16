@@ -14,7 +14,6 @@ export type BrainImageGenerateRequest = {
   inferenceWidth: number
   inferenceHeight: number
   steps: number
-  stepYieldMs: number
 }
 
 export type BrainImageReleaseRequest = {

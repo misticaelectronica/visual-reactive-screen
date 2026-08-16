@@ -48,14 +48,6 @@ Ogni ricordo deve distinguere chiaramente:
 Una storia generata è immaginazione, anche quando deriva da percezioni reali.
 Non promuoverla retroattivamente a percezione.
 
-Durante l'esperimento di separazione della causalità narrativa, le descrizioni
-tecniche inviate al generatore di immagini non sono né una storia né
-un'interpretazione dell'esperienza. Non salvarle come ricordo prima che
-l'episodio sia stato attraversato. Un modello linguistico può contribuire come
-facoltà semantica, ma la sua risposta non coincide con il soggetto che vive
-l'esperienza. L'eventuale interpretazione narrativa viene valutata soltanto
-dopo il confine dell'episodio e non è necessaria alla produzione visuale.
-
 ## Scrivere Senza Falsificare
 
 - Creare `ORIGINE.md` una sola volta dalla prima percezione valida.

@@ -293,10 +293,10 @@ export class Psichedel {
         const progressiveLiveGeneration = Number.isFinite(deadlineAt)
         const lowQualityFrame = lowQualityFrameIndices.has(index)
         const scheduledMode: ImageRenderMode =
-          progressiveLiveGeneration
+          lowQualityFrame
             ? 'standard'
-            : lowQualityFrame
-              ? 'standard'
+            : progressiveLiveGeneration
+              ? 'enhanced'
               : requestedMode === 'high-quality' && !this.highQualityAvailable
                 ? 'enhanced'
                 : requestedMode

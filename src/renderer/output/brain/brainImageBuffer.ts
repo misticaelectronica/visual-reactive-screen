@@ -36,6 +36,5 @@ export function shouldRetainImageModelBetweenStories(
   retentionEnabled: boolean,
   lowPowerMode: boolean,
 ): boolean {
-  void lowPowerMode
-  return retentionEnabled
+  return retentionEnabled && !lowPowerMode
 }
