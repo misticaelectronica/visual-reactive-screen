@@ -80,3 +80,17 @@ Esito: il bundle Output non include più il plugin Psycho2D e passa da circa
 288,55 kB a 274,72 kB. Una vecchia preferenza `psycho2d` ricade sul primo
 renderer registrato. Suite: 52 file / 307 test; typecheck, lint, bundle
 Vite/Electron e diff-check verdi.
+
+## Correzione renderer identificato visivamente 2026-08-16
+
+- [x] Escludere Print2D, non Psycho2D, da “Tutti per storia” e dalle rotazioni.
+- [x] Ripristinare Psycho2D nel registry runtime e nella UI.
+- [x] Sostituire Print2D con FilterPsiche come visuale leggera del denoising.
+- [x] Conservare pressione risorse, audio, beat e crossfade continuo.
+- [x] Aggiornare test e validazione automatica.
+
+Esito live: prima della correzione il log assegnava `rendererId: print2d` e
+attivava `denoising-print2d`; dopo HMR assegna `material-morph` nel ciclo e
+attiva `denoising-filter-psiche`. Nessuna nuova assegnazione automatica
+Print2D. Suite: 52 file / 307 test; typecheck, lint, bundle Vite/Electron e
+diff-check verdi.

@@ -5,7 +5,7 @@ import {
 } from '@shared/types'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
-const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['psycho2d'])
+const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['print2d'])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'filter-psiche',

@@ -144,6 +144,7 @@ export function VisualControls({ settings, onChange }: Props) {
             disabled={!settings.useBrain || settings.alternateBrainWithMorphing}
           >
             <option value="print2d">Print2D — serigrafico</option>
+            <option value="psycho2d">Psycho2D — finestre</option>
             <option value="vector-morph">Vector Morph — vettoriale</option>
             <option value="material-morph">Materia Morph — sedimentale</option>
             <option value="filter-psiche">FilterPsiche — cromatico</option>

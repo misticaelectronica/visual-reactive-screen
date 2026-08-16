@@ -170,7 +170,7 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
-  it('usa il vero Print2D serigrafico durante il denoising e poi riprende il renderer pieno', () => {
+  it('usa FilterPsiche durante il denoising e poi riprende il renderer pieno', () => {
     const registry = new BrainRendererRegistry()
     const updates: number[] = []
     const pressureCalls: boolean[][] = []
@@ -231,28 +231,28 @@ describe('Brain renderer host', () => {
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
     expect(updates).toEqual([1, 0])
     expect(pressureCalls[1]).toContain(true)
-    expect(container.querySelector('[data-brain-denoising-print2d="true"]')).not.toBeNull()
+    expect(container.querySelector('[data-brain-denoising-filter-psiche="true"]')).not.toBeNull()
 
     host.setOfflineHold?.(true)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 2_000)
     expect(updates).toEqual([2, 1])
     expect(host.element.dataset.brainOfflineHold).toBe('active')
-    expect(host.element.dataset.brainDenoisingPrint2d).toBe('entering')
+    expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('entering')
 
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_000)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_100)
     expect(updates).toEqual([3, 3])
-    expect(host.element.dataset.brainDenoisingPrint2d).toBe('active')
+    expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('active')
 
     host.setOfflineHold?.(false)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 11_000)
     expect(updates).toEqual([4, 4])
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
-    expect(host.element.dataset.brainDenoisingPrint2d).toBe('exiting')
+    expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('exiting')
     host.destroy()
   })
 
-  it('inoltra audio e flash al Print2D leggero senza aggiornare continuamente il renderer pieno', () => {
+  it('inoltra audio e flash alla visuale leggera senza aggiornare continuamente il renderer pieno', () => {
     const registry = new BrainRendererRegistry()
     const received: Array<Array<{ low: number; flash: number }>> = []
     registry.register({

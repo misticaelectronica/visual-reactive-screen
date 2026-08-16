@@ -80,3 +80,10 @@ Esito: Print2D resta a 480×270, acquisisce beat e bande prima del proprio
 frame pacing a 18 FPS sotto pressione, riceve flash e transizioni e sostituisce
 il renderer pieno con crossfade da 220 ms. Suite completa: 52 file / 306 test;
 typecheck, lint, bundle Vite/Electron e diff-check verdi. Verifica live pendente.
+
+## 8. Sostituzione visuale leggera 2026-08-16
+
+- [x] Ritirare Print2D dopo identificazione visiva del retino indesiderato.
+- [x] Usare FilterPsiche a 320×180 e 12 FPS sotto pressione.
+- [x] Conservare audio, beat, flash, transizioni e crossfade da 220 ms.
+- [x] Confermare live `denoising-filter-psiche: active`.

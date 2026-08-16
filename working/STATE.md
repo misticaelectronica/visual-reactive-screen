@@ -3,9 +3,9 @@
 ## Soluzioni denoising stall — 2026-08-16
 
 - Correzione dinamica: la generazione non interrompe più il RAF Brain. Timeline,
-  beat e transizioni continuano; il coordinatore usa il vero renderer
-  `Print2D — serigrafico` a 18 FPS sotto pressione e limita il renderer pieno
-  a 5 FPS durante il breve crossfade, per poi sospenderlo fino all'uscita.
+  beat e transizioni continuano; il coordinatore usa FilterPsiche a 320×180 e
+  12 FPS sotto pressione, limitando il renderer pieno a 5 FPS durante il breve
+  crossfade per poi sospenderlo fino all'uscita.
 - Implementato il piano Antigravity approvato: durante Psichedel il loop Brain
   coordina ora una modalità visuale leggera durante l'inferenza, senza fermare
   il quadro o simulare movimento autonomo.
@@ -14,8 +14,8 @@
   `onSubmittedWorkDone()` e programma un micro-yield da 4 ms dopo ogni submit.
 - Entrambe le soluzioni sono controllate da configurazione; step, seed, forma,
   qualità e risoluzione della pipeline restano invariati.
-- Validazione corrente: 52 file / 306 test, typecheck, lint, diff-check e bundle
-  Vite/Electron verdi. Resta il confronto live dei gap RAF e della resa Print2D.
+- Validazione corrente: 52 file / 307 test, typecheck, lint, diff-check e bundle
+  Vite/Electron verdi. Il log live conferma `denoising-filter-psiche: active`.
 
 ## Ripristino comportamenti non performance — 2026-08-16
 
@@ -31,9 +31,9 @@
 - Il refill del gruppo successivo non è più bloccato dal primo attraversamento;
   le immagini correnti vengono riciclate soltanto finché il nuovo gruppo arriva.
 - FilterPsiche, Materia Morph e Vector Morph persistono casualmente 2–4 immagini.
-  Psycho2D è temporaneamente disabilitato nel registry runtime e rimosso dalla
-  UI: non può apparire né automaticamente né manualmente; i sorgenti restano
-  conservati per un eventuale ripristino.
+  Print2D è escluso da rotazione, ciclo per storia e attesa; resta registrato
+  soltanto per compatibilità/manuale. Psycho2D è nuovamente disponibile nel
+  registry, nella UI e nei cicli automatici.
 - Nessuna modifica a backend, denoising, qualità, risoluzione, cooldown,
   frame pacing o low power.
 - Validazione: 50 file / 299 test, typecheck, lint e diff-check verdi.

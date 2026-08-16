@@ -1224,3 +1224,16 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Impatto**: bundle Output ridotto da circa 288,55 kB a 274,72 kB.
 - **Validazione**: 52 file / 307 test, typecheck, lint, bundle Vite/Electron e
   diff-check verdi.
+
+### `SESSION-2026-08-16-27`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Correggere il renderer rimosso dopo identificazione visiva.
+- **Evidenza**: la schermata retinata era Print2D `chromatic-cutout`; il log
+  precedente confermava `rendererId: print2d` e `denoising-print2d: active`.
+- **Correzione**: Print2D escluso da tutti i cicli automatici; Psycho2D
+  ripristinato nel registry e nella UI. FilterPsiche sostituisce Print2D nella
+  visuale leggera del denoising a 320×180/12 FPS sotto pressione.
+- **Verifica live**: nuovo log con `rendererId: material-morph` e
+  `denoising-filter-psiche: active`; nessuna nuova assegnazione Print2D.
+- **Validazione**: 52 file / 307 test, typecheck, lint, bundle Vite/Electron e
+  diff-check verdi.
