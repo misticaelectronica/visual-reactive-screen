@@ -31,8 +31,9 @@
 - Il refill del gruppo successivo non è più bloccato dal primo attraversamento;
   le immagini correnti vengono riciclate soltanto finché il nuovo gruppo arriva.
 - FilterPsiche, Materia Morph e Vector Morph persistono casualmente 2–4 immagini.
-  Psycho2D è temporaneamente escluso da rotazione, ciclo per storia e attesa;
-  resta disponibile soltanto tramite selezione manuale.
+  Psycho2D è temporaneamente disabilitato nel registry runtime e rimosso dalla
+  UI: non può apparire né automaticamente né manualmente; i sorgenti restano
+  conservati per un eventuale ripristino.
 - Nessuna modifica a backend, denoising, qualità, risoluzione, cooldown,
   frame pacing o low power.
 - Validazione: 50 file / 299 test, typecheck, lint e diff-check verdi.

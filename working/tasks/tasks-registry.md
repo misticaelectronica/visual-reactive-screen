@@ -24,6 +24,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-029-06`** `DONE`: Garantire FilterPsiche entro le prime due immagini reali.
 - [x] **`TASK-029-07`** `DONE`: Eliminare tutte le righe orizzontali da FilterPsiche mantenendo la dinamica cromatica.
 - [x] **`TASK-029-08`** `DONE`: Escludere temporaneamente Psycho2D da tutte le rotazioni automatiche.
+- [x] **`TASK-029-09`** `DONE`: Disabilitare Psycho2D nel registry runtime e nella UI per impedirne ogni comparsa.
 
 ---
 

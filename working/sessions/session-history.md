@@ -1213,3 +1213,14 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   disponibili e invariati.
 - **Validazione**: 52 file / 307 test, typecheck, lint, bundle Vite/Electron e
   diff-check verdi.
+
+### `SESSION-2026-08-16-26`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Impedire definitivamente la presenza runtime di Psycho2D.
+- **Causa residua**: l'esclusione dal mazzo automatico lasciava il plugin nel
+  registry e nella selezione UI, permettendo richieste e istanze già attive.
+- **Correzione**: rimossa la registrazione runtime e l'opzione UI; una vecchia
+  preferenza persistita ricade su Print2D. Sorgenti e tipo restano conservati.
+- **Impatto**: bundle Output ridotto da circa 288,55 kB a 274,72 kB.
+- **Validazione**: 52 file / 307 test, typecheck, lint, bundle Vite/Electron e
+  diff-check verdi.

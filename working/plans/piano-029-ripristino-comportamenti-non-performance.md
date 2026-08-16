@@ -68,3 +68,15 @@ Esito: Psycho2D resta registrato e selezionabile manualmente, ma non entra in
 alcun mazzo automatico. Il passaggio da Psycho2D a una modalità automatica
 seleziona immediatamente il primo renderer ammesso. Suite: 52 file / 307 test;
 typecheck, lint, bundle Vite/Electron e diff-check verdi.
+
+## Disabilitazione runtime Psycho2D 2026-08-16
+
+- [x] Rimuovere Psycho2D dal registry runtime dei renderer Brain.
+- [x] Rimuoverlo dalla selezione UI per impedire richieste residue.
+- [x] Conservare sorgenti e tipo persistito per un eventuale ripristino futuro.
+- [x] Aggiornare test e validazione automatica.
+
+Esito: il bundle Output non include più il plugin Psycho2D e passa da circa
+288,55 kB a 274,72 kB. Una vecchia preferenza `psycho2d` ricade sul primo
+renderer registrato. Suite: 52 file / 307 test; typecheck, lint, bundle
+Vite/Electron e diff-check verdi.

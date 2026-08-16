@@ -1,7 +1,6 @@
 import type { BrainRendererPluginContext } from './brainRendererPlugin'
 import { BrainRendererRegistry } from './brainRendererPlugin'
 import { createBrainPrint2dScene } from './brainPrint2dCanvas'
-import { createBrainPsycho2dWindowScene } from './brainPsycho2dWindowCanvas'
 import { createBrainVectorMorphScene } from './brainVectorMorphScene'
 import { createBrainMaterialMorphScene } from './brainMaterialMorphCanvas'
 import { createBrainFilterPsicheScene } from './brainFilterPsicheCanvas'
@@ -26,16 +25,6 @@ export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
         context.printMode,
       )
     },
-  })
-  registry.register({
-    id: 'psycho2d',
-    label: 'Psycho2D — finestre',
-    capabilities: {
-      multipleImages: true,
-      semanticMetadata: true,
-      lowPowerMode: true,
-    },
-    create: createBrainPsycho2dWindowScene,
   })
   registry.register({
     id: 'vector-morph',
