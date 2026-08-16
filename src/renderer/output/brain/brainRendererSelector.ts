@@ -5,6 +5,7 @@ import {
 } from '@shared/types'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
+const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['psycho2d'])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'filter-psiche',
@@ -58,14 +59,25 @@ export class BrainRendererSelector {
     return result
   }
 
+  private automaticIds(): BrainRendererId[] {
+    const enabled = this.availableIds.filter(
+      (id) => !AUTOMATICALLY_EXCLUDED_RENDERERS.has(id),
+    )
+    return enabled.length > 0 ? enabled : [...this.availableIds]
+  }
+
   private beginDeckWith(activeId: BrainRendererId): void {
-    const remaining = this.availableIds.filter((id) => id !== activeId)
-    this.storyDeck = [activeId, ...this.shuffled(remaining)]
+    const automaticIds = this.automaticIds()
+    const first = automaticIds.includes(activeId)
+      ? activeId
+      : automaticIds[0] ?? activeId
+    const remaining = automaticIds.filter((id) => id !== first)
+    this.storyDeck = [first, ...this.shuffled(remaining)]
     this.storyDeckIndex = 0
   }
 
   private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {
-    const randomized = this.shuffled(this.availableIds)
+    const randomized = this.shuffled(this.automaticIds())
     const deck = randomized.sort((left, right) =>
       (this.storyAppearances.get(left) ?? 0) -
       (this.storyAppearances.get(right) ?? 0),
@@ -116,7 +128,7 @@ export class BrainRendererSelector {
 
   private nextRotationId(): BrainRendererId {
     if (this.rotationDeck.length === 0) {
-      const candidates = this.availableIds.filter((id) => id !== this.activeId)
+      const candidates = this.automaticIds().filter((id) => id !== this.activeId)
       this.rotationDeck = this.shuffled(candidates)
     }
     return this.rotationDeck.shift() ?? this.activeId
@@ -162,14 +174,15 @@ export class BrainRendererSelector {
 
   advanceWaitingRenderer(settings: AppSettings, now: number): boolean {
     if (settings.brainRendererMode !== 'story-cycle') return false
-    if (this.availableIds.length <= 1) return false
+    const automaticIds = this.automaticIds()
+    if (automaticIds.length <= 1) return false
     if (this.waitingHoldRemaining > 0) {
       this.waitingHoldRemaining -= 1
       return false
     }
     if (this.waitingDeck.length === 0) {
       this.waitingDeck = this.shuffled(
-        this.availableIds.filter((id) => id !== this.activeId),
+        automaticIds.filter((id) => id !== this.activeId),
       )
     }
     const nextId = this.waitingDeck.shift()
@@ -199,6 +212,9 @@ export class BrainRendererSelector {
     if (this.mode === 'story-cycle') {
       if (this.storyDeck.length === 0) {
         this.beginDeckWith(this.activeId)
+        if (AUTOMATICALLY_EXCLUDED_RENDERERS.has(this.activeId)) {
+          this.activeId = this.storyDeck[0] ?? this.activeId
+        }
       } else if (modeChanged) {
         this.activeId = this.storyDeck[this.storyDeckIndex] ?? this.activeId
       }
@@ -207,13 +223,16 @@ export class BrainRendererSelector {
     }
 
     if (modeChanged || !Number.isFinite(this.switchedAt)) {
-      this.activeId = requested
+      const automaticIds = this.automaticIds()
+      this.activeId = automaticIds.includes(requested)
+        ? requested
+        : automaticIds[0] ?? requested
       this.switchedAt = now
       this.rotationDeck = []
       return this.activeId
     }
     const interval = Math.max(10_000, Math.min(120_000, settings.brainRendererRotationMs))
-    if (this.availableIds.length > 1) {
+    if (this.automaticIds().length > 1) {
       let elapsed = now - this.switchedAt
       while (elapsed >= this.rotationDuration(interval)) {
         const duration = this.rotationDuration(interval)

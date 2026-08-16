@@ -30,8 +30,9 @@
   invalida producono quattro osservazioni locali senza una chiamata di repair.
 - Il refill del gruppo successivo non è più bloccato dal primo attraversamento;
   le immagini correnti vengono riciclate soltanto finché il nuovo gruppo arriva.
-- FilterPsiche, Materia Morph e Vector Morph persistono casualmente 2–4 immagini;
-  Psycho2D resta una comparsa casuale singola.
+- FilterPsiche, Materia Morph e Vector Morph persistono casualmente 2–4 immagini.
+  Psycho2D è temporaneamente escluso da rotazione, ciclo per storia e attesa;
+  resta disponibile soltanto tramite selezione manuale.
 - Nessuna modifica a backend, denoising, qualità, risoluzione, cooldown,
   frame pacing o low power.
 - Validazione: 50 file / 299 test, typecheck, lint e diff-check verdi.

@@ -1201,3 +1201,15 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   silenzio e nessun aumento del costo.
 - **Validazione**: aggiunto test anti-regressione sui `drawImage` a striscia;
   52 file / 306 test, typecheck, lint, bundle Vite/Electron e diff-check verdi.
+
+### `SESSION-2026-08-16-25`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Ridurre il carico della rotazione automatica escludendo
+  temporaneamente Psycho2D.
+- **Correzione**: Psycho2D non entra più nella rotazione temporale, nel ciclo
+  per storia o nella rotazione durante l'attesa. Se è attivo al passaggio in
+  automatico, viene sostituito immediatamente da un renderer ammesso.
+- **Compatibilità**: plugin, registry e selezione manuale Psycho2D restano
+  disponibili e invariati.
+- **Validazione**: 52 file / 307 test, typecheck, lint, bundle Vite/Electron e
+  diff-check verdi.

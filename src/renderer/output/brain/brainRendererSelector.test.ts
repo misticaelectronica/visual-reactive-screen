@@ -14,8 +14,8 @@ describe('Brain renderer selector', () => {
     }, 1_000)).toBe('psycho2d')
   })
 
-  it('alterna i renderer senza ricreare la storia', () => {
-    const selector = new BrainRendererSelector(['print2d', 'psycho2d'])
+  it('alterna i renderer ammessi senza ricreare la storia', () => {
+    const selector = new BrainRendererSelector(['print2d', 'psycho2d', 'vector-morph'])
     const settings = {
       ...DEFAULT_SETTINGS,
       brainRendererMode: 'rotation' as const,
@@ -24,11 +24,11 @@ describe('Brain renderer selector', () => {
     }
     expect(selector.resolve(settings, 1_000)).toBe('print2d')
     expect(selector.resolve(settings, 10_999)).toBe('print2d')
-    expect(selector.resolve(settings, 11_000)).toBe('psycho2d')
+    expect(selector.resolve(settings, 11_000)).toBe('vector-morph')
     expect(selector.resolve(settings, 21_000)).toBe('print2d')
   })
 
-  it('usa un mazzo casuale nella rotazione automatica e non l’ordine del registry', () => {
+  it('esclude Psycho2D dalla rotazione automatica', () => {
     const randomValues = [0, 0.99, 0]
     const selector = new BrainRendererSelector(
       ['print2d', 'psycho2d', 'vector-morph', 'material-morph'],
@@ -42,10 +42,12 @@ describe('Brain renderer selector', () => {
       brainRendererRotationMs: 10_000,
     }
 
-    expect(selector.resolve(settings, 0)).toBe('print2d')
-    expect(selector.resolve(settings, 10_000)).toBe('material-morph')
-    expect(selector.resolve(settings, 20_000)).toBe('vector-morph')
-    expect(selector.resolve(settings, 30_000)).toBe('psycho2d')
+    const visited = [selector.resolve(settings, 0)]
+    for (let step = 1; step <= 8; step += 1) {
+      visited.push(selector.resolve(settings, step * 10_000))
+    }
+    expect(visited).not.toContain('psycho2d')
+    expect(new Set(visited).size).toBeGreaterThan(1)
   })
 
   it('mantiene FilterPsiche, Materia Morph e Vector Morph per 2-4 immagini', () => {
@@ -62,7 +64,7 @@ describe('Brain renderer selector', () => {
     expect(selectBrainRendererHoldFrames('bauhaus-morph', () => 0.999)).toBe(1)
   })
 
-  it('può persistere sul renderer materico invece di imporre quattro ruoli diversi', () => {
+  it('non introduce Psycho2D nel ciclo per storia', () => {
     const selector = new BrainRendererSelector(
       ['filter-psiche', 'psycho2d'],
       'psycho2d',
@@ -77,8 +79,8 @@ describe('Brain renderer selector', () => {
     expect(selector.resolve(settings, 1_000)).toBe('filter-psiche')
     expect(selector.advanceStoryRenderer('story-1', settings, 2_000)).toBe(false)
     expect(selector.resolve(settings, 2_000)).toBe('filter-psiche')
-    expect(selector.advanceStoryRenderer('story-1', settings, 3_000)).toBe(true)
-    expect(selector.resolve(settings, 3_000)).toBe('psycho2d')
+    expect(selector.advanceStoryRenderer('story-1', settings, 3_000)).toBe(false)
+    expect(selector.resolve(settings, 3_000)).toBe('filter-psiche')
   })
 
   it('con cinque renderer mantiene FilterPsiche nel ciclo visibile', () => {
@@ -220,6 +222,22 @@ describe('Brain renderer selector', () => {
     }
 
     expect(new Set(visited).size).toBeGreaterThan(1)
+    expect(visited).not.toContain('psycho2d')
+  })
+
+  it('esce subito da Psycho2D quando passa alla rotazione automatica', () => {
+    const selector = new BrainRendererSelector(
+      ['print2d', 'psycho2d', 'vector-morph'],
+      'psycho2d',
+      () => 0,
+    )
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'rotation' as const,
+      brainRendererId: 'psycho2d' as const,
+    }
+
+    expect(selector.resolve(settings, 1_000)).toBe('print2d')
   })
 
   it('non altera la selezione manuale durante l’attesa', () => {

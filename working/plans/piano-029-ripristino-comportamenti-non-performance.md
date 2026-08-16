@@ -56,3 +56,15 @@ Esito: rimosso integralmente il ritaglio orizzontale `drawImage`; le alte
 modulano saturazione e fusione cromatica. Un test impedisce la reintroduzione
 di disegni canvas a striscia. Suite: 52 file / 306 test; typecheck, lint,
 bundle Vite/Electron e diff-check verdi.
+
+## Esclusione temporanea Psycho2D 2026-08-16
+
+- [x] Escludere Psycho2D dalla rotazione temporale automatica.
+- [x] Escluderlo dal ciclo per storia e dalla rotazione durante l'attesa.
+- [x] Mantenerlo disponibile in selezione manuale.
+- [x] Aggiornare test e validazione automatica.
+
+Esito: Psycho2D resta registrato e selezionabile manualmente, ma non entra in
+alcun mazzo automatico. Il passaggio da Psycho2D a una modalità automatica
+seleziona immediatamente il primo renderer ammesso. Suite: 52 file / 307 test;
+typecheck, lint, bundle Vite/Electron e diff-check verdi.
