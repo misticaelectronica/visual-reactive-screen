@@ -1,5 +1,69 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Flusso infinito e denoising cooperativo — 2026-08-16
+
+- Rimosso il blocco del refill legato al primo cambio renderer: dopo ogni
+  buffer di quattro immagini, il successivo parte dopo 30 secondi di riposo e
+  continua senza un limite di episodi.
+- Tutte le immagini live usano il profilo standard 448×256/8 step; fra gli
+  step UNet viene lasciata una finestra di 48 ms al compositore.
+- Le sessioni SD restano residenti anche in low power. Il tentativo Qwen WASM
+  è stato ritirato perché produceva timeout oltre 60 s: Qwen usa WebGPU e viene
+  rilasciato prima di SD, con una sola chiamata per episodio.
+- Ogni prompt concatena osservazione, stimolo associato distinto e residuo
+  precedente. Se Qwen fallisce, Brain produce quattro associazioni dal
+  materiale disponibile senza effettuare una seconda chiamata.
+- FilterPsiche, Materia Morph e Vector Morph restano casualmente 2–4 immagini
+  consecutive; Psycho2D resta una possibilità casuale singola.
+- Camera, materia, silenzio, transizioni e numero di chiamate restano coerenti
+  con i vincoli visuali. Nessun layer, effetto o inferenza è stato aggiunto.
+- Validazione: 50 file / 305 test, typecheck, lint, diff-check e build runtime
+  Electron verdi. ZIP creato; il solo DMG finale ha fallito in `hdiutil`.
+- Prova live: un buffer 4/4 completato, refill successivo partito dopo 30 s e
+  nuova produzione già a 3/4; Qwen WebGPU completa in 5–12 s.
+
+## FilterPsiche più presente e dinamico — 2026-08-16
+
+- Rimossa la riga orizzontale centrale: la micro-slice che cade nella fascia
+  46–54% dell'altezza viene esclusa; le slice periferiche restano reattive.
+- In “Tutti per storia”, FilterPsiche viene favorito dal mazzo bilanciato e ora,
+  quando estratto, resta casualmente da due a quattro immagini consecutive.
+- In rotazione automatica resta visibile il 50% più a lungo rispetto agli altri
+  renderer, senza ripetizioni forzate o istanze simultanee.
+- Aumentate risposta di inversione sul kick/low, alternanza cromatica su
+  `lowMid`, contrasto su `mid` e micro-slice su `high`.
+- Camera, quadro e transizioni restano stabili; nel silenzio la dinamica resta
+  nulla. FPS, risoluzione, buffer, massimo di sette slice e `lowPowerMode` sono
+  invariati.
+- Validazione originaria: 50 file / 301 test, typecheck, lint e diff-check verdi; verifica
+  percettiva fullscreen consigliata.
+
+## Esperimento separazione causalità narrativa Brain — 2026-08-16
+
+- Baseline sicura nel commit `e21fddb`; lavoro isolato sul branch
+  `feature/brain-dream-causality-experiment`.
+- Il controller non invoca più `CoscienzaOnirica.generate()` nel percorso
+  runtime: rende disponibili stimoli, osservazioni recenti, memoria selezionata
+  e stato percettivo a un solo task Qwen `scene`.
+- Qwen non viene vincolato a sopprimere il narrativo: può produrre associazioni,
+  simboli, figure e frammenti di relazione spontanei. Non gli viene richiesta
+  una trama completa e non esistono ruoli obbligatori per le quattro posizioni.
+- Il moto di coscienza già selezionato dal processo interno entra esplicitamente
+  nel materiale disponibile: può agire, fondersi, restare latente o essere
+  omesso, senza diventare un comando e senza aggiungere chiamate Qwen.
+- Le quattro rappresentazioni visuali nascono prima del contenitore
+  `DreamStory`, creato dopo come adattatore tecnico per buffer e renderer.
+- Nessuna storia, traduzione, memo o interpretazione viene generata prima delle
+  immagini; nessun ricordo onirico viene salvato dall'esperimento.
+- Tre prove reali: 3 chiamate `scene`, 0 `story`, 0 traduzioni, 0 `memo` e 3
+  messaggi di rilascio modello. Qwen ha però copiato frasi astratte,
+  reintrodotto un protagonista e amplificato ripetizioni provenienti dalle
+  osservazioni recenti.
+- Esito: dipendenza causale eliminata, qualità semantico-visuale insufficiente;
+  architettura fermata qui in attesa della valutazione del modello successivo.
+- Validazione: 50 file / 299 test, typecheck, lint, diff-check e build Electron
+  arm64 completi; prova runtime reale completata.
+
 ## Rollback prestazioni renderer — 2026-08-16
 
 - Ritirata integralmente l'opzione `reducedFpsMode`; i valori salvati da build
@@ -173,13 +237,13 @@
 
 > **Ultimo Aggiornamento**: 16 Agosto 2026 (CEST)
 > **Stato Generale**: 🟢 In Sviluppo Attivo / Operativo  
-> **Ultima Sessione**: `SESSION-2026-08-16-22` — Rollback prestazioni renderer
+> **Ultima Sessione**: `SESSION-2026-08-16-23` — Esperimento causalità narrativa Brain
 
 ---
 
 ## 🎯 Macrotask Completato Più Recente
 
-- **Macrotask**: `MACRO-023` - Rollback Prestazioni Renderer
+- **Macrotask**: `MACRO-024` - Separazione Causalità Narrativa Brain
 - **Stato**: 🟢 DONE
 
 ---
@@ -210,6 +274,7 @@
 | `MACRO-021` | FPS Ridotti con Stessi Layer | ⚪ ARCHIVED | 16 Agosto 2026 | 16 Agosto 2026 |
 | `MACRO-022` | Isolamento Vettorializzazione dal Main | 🟢 DONE | 16 Agosto 2026 | 16 Agosto 2026 |
 | `MACRO-023` | Rollback Prestazioni Renderer | 🟢 DONE | 16 Agosto 2026 | 16 Agosto 2026 |
+| `MACRO-024` | Separazione Causalità Narrativa Brain | 🟢 DONE | 16 Agosto 2026 | 16 Agosto 2026 |
 
 ---
 

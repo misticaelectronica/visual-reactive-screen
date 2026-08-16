@@ -315,6 +315,7 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
         inferenceWidth: inferenceGeometry.width,
         inferenceHeight: inferenceGeometry.height,
         steps,
+        stepYieldMs: BRAIN_CONFIG.imageDenoisingStepYieldMs,
         signal: controller.signal,
         onProgress: (progress) => {
           const rounded = progress.pct === undefined

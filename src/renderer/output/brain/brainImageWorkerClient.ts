@@ -59,6 +59,7 @@ export function createBrainImageGenerateRequest(
     inferenceWidth: inferenceGeometry.width,
     inferenceHeight: inferenceGeometry.height,
     steps,
+    stepYieldMs: BRAIN_CONFIG.imageDenoisingStepYieldMs,
   }
 }
 
@@ -102,6 +103,7 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
       id,
       mode,
       steps: request.steps,
+      stepYieldMs: request.stepYieldMs,
       inference: `${request.inferenceWidth}x${request.inferenceHeight}`,
     })
     return new Promise<GenerationResult>((resolve, reject) => {

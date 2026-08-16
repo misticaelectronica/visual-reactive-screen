@@ -4,6 +4,23 @@ import {
   type BrainRendererId,
 } from '@shared/types'
 
+const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
+const STORY_VISIBLE_RENDERER_COUNT = 4
+const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
+const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
+  'filter-psiche',
+  'material-morph',
+  'vector-morph',
+])
+
+export function selectBrainRendererHoldFrames(
+  rendererId: BrainRendererId,
+  random: () => number = Math.random,
+): number {
+  if (!PERSISTENT_STORY_RENDERERS.has(rendererId)) return 1
+  return 2 + Math.floor(Math.min(0.999_999, Math.max(0, random())) * 3)
+}
+
 export class BrainRendererSelector {
   private activeId: BrainRendererId
   private mode: AppSettings['brainRendererMode'] = 'manual'
@@ -13,6 +30,8 @@ export class BrainRendererSelector {
   private storyDeckIndex = 0
   private rotationDeck: BrainRendererId[] = []
   private waitingDeck: BrainRendererId[] = []
+  private storyHoldRemaining = 0
+  private waitingHoldRemaining = 0
   private currentStoryVisited = new Set<BrainRendererId>()
   private readonly storyAppearances = new Map<BrainRendererId, number>()
 
@@ -56,7 +75,22 @@ export class BrainRendererSelector {
         ;[deck[0], deck[replacementIndex]] = [deck[replacementIndex], deck[0]]
       }
     }
+    const visibleCount = Math.min(STORY_VISIBLE_RENDERER_COUNT, deck.length)
+    const filterIndex = deck.indexOf(FILTER_PSICHE_ID)
+    if (filterIndex >= visibleCount && visibleCount > 0) {
+      const visibleTarget = visibleCount - 1
+      ;[deck[visibleTarget], deck[filterIndex]] = [
+        deck[filterIndex],
+        deck[visibleTarget],
+      ]
+    }
     return deck
+  }
+
+  private rotationDuration(baseInterval: number): number {
+    return this.activeId === FILTER_PSICHE_ID
+      ? baseInterval * FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER
+      : baseInterval
   }
 
   private closeStoryUsage(): void {
@@ -64,6 +98,10 @@ export class BrainRendererSelector {
       this.storyAppearances.set(id, (this.storyAppearances.get(id) ?? 0) + 1)
     }
     this.currentStoryVisited.clear()
+  }
+
+  private storyHoldForActive(): number {
+    return selectBrainRendererHoldFrames(this.activeId, this.random) - 1
   }
 
   private nextRotationId(): BrainRendererId {
@@ -79,11 +117,13 @@ export class BrainRendererSelector {
     this.closeStoryUsage()
     this.storyId = storyId
     this.waitingDeck = []
+    this.waitingHoldRemaining = 0
     this.storyDeckIndex = 0
     this.storyDeck = this.balancedStoryDeck(this.activeId)
     if (settings?.brainRendererMode === 'story-cycle') {
       this.activeId = this.storyDeck[0] ?? this.activeId
       this.currentStoryVisited.add(this.activeId)
+      this.storyHoldRemaining = this.storyHoldForActive()
       this.mode = 'story-cycle'
       this.switchedAt = Number.NEGATIVE_INFINITY
     }
@@ -97,10 +137,15 @@ export class BrainRendererSelector {
     if (settings.brainRendererMode !== 'story-cycle') return false
     if (this.storyId !== storyId) this.beginStory(storyId, settings)
     if (this.storyDeck.length === 0) this.beginDeckWith(this.activeId)
+    if (this.storyHoldRemaining > 0) {
+      this.storyHoldRemaining -= 1
+      return false
+    }
     if (this.storyDeckIndex >= this.storyDeck.length - 1) return false
     this.storyDeckIndex += 1
     this.activeId = this.storyDeck[this.storyDeckIndex]
     this.currentStoryVisited.add(this.activeId)
+    this.storyHoldRemaining = this.storyHoldForActive()
     this.switchedAt = now
     return true
   }
@@ -108,6 +153,10 @@ export class BrainRendererSelector {
   advanceWaitingRenderer(settings: AppSettings, now: number): boolean {
     if (settings.brainRendererMode !== 'story-cycle') return false
     if (this.availableIds.length <= 1) return false
+    if (this.waitingHoldRemaining > 0) {
+      this.waitingHoldRemaining -= 1
+      return false
+    }
     if (this.waitingDeck.length === 0) {
       this.waitingDeck = this.shuffled(
         this.availableIds.filter((id) => id !== this.activeId),
@@ -116,6 +165,7 @@ export class BrainRendererSelector {
     const nextId = this.waitingDeck.shift()
     if (!nextId || nextId === this.activeId) return false
     this.activeId = nextId
+    this.waitingHoldRemaining = this.storyHoldForActive()
     this.switchedAt = now
     return true
   }
@@ -153,12 +203,14 @@ export class BrainRendererSelector {
       return this.activeId
     }
     const interval = Math.max(10_000, Math.min(120_000, settings.brainRendererRotationMs))
-    if (this.availableIds.length > 1 && now - this.switchedAt >= interval) {
-      const steps = Math.max(1, Math.floor((now - this.switchedAt) / interval))
-      for (let step = 0; step < steps; step += 1) {
+    if (this.availableIds.length > 1) {
+      let elapsed = now - this.switchedAt
+      while (elapsed >= this.rotationDuration(interval)) {
+        const duration = this.rotationDuration(interval)
         this.activeId = this.nextRotationId()
+        this.switchedAt += duration
+        elapsed -= duration
       }
-      this.switchedAt += steps * interval
     }
     return this.activeId
   }

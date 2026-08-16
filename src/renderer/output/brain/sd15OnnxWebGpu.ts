@@ -45,6 +45,7 @@ export type Sd15GenerateOptions = {
   inferenceWidth?: number
   inferenceHeight?: number
   steps?: number
+  stepYieldMs?: number
   guidanceMode?: Sd15GuidanceMode
   signal?: AbortSignal
   onProgress?: (progress: Sd15BrowserProgress) => void
@@ -646,6 +647,13 @@ export class Sd15OnnxWebGpuRuntime {
           message: `Denoising ${stepIndex + 1}/${schedule.length}`,
           pct: Math.round(((stepIndex + 1) / schedule.length) * 90),
         })
+        if (stepIndex < schedule.length - 1 && (options.stepYieldMs ?? 0) > 0) {
+          await new Promise<void>((resolve) => setTimeout(
+            resolve,
+            Math.min(250, Math.max(0, options.stepYieldMs ?? 0)),
+          ))
+          ensureSd15NotAborted(signal)
+        }
       }
       ensureSd15NotAborted(signal)
       const scaledLatents = Float32Array.from(

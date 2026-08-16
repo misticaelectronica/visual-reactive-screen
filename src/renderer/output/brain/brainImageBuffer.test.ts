@@ -40,9 +40,10 @@ describe('Brain image buffer', () => {
     expect(shouldActivateProgressiveImageBuffer(true)).toBe(false)
   })
 
-  it('mantiene il modello fra storie soltanto fuori dal low power', () => {
+  it('mantiene il modello fra storie anche in low power per evitare reload e frammentazione', () => {
     expect(shouldRetainImageModelBetweenStories(true, false)).toBe(true)
-    expect(shouldRetainImageModelBetweenStories(true, true)).toBe(false)
+    expect(shouldRetainImageModelBetweenStories(true, true)).toBe(true)
     expect(shouldRetainImageModelBetweenStories(false, false)).toBe(false)
+    expect(shouldRetainImageModelBetweenStories(false, true)).toBe(false)
   })
 })
