@@ -1237,3 +1237,18 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   `denoising-filter-psiche: active`; nessuna nuova assegnazione Print2D.
 - **Validazione**: 52 file / 307 test, typecheck, lint, bundle Vite/Electron e
   diff-check verdi.
+
+### `SESSION-2026-08-16-28`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Ripristinare la dinamica musicale visibile di FilterPsiche
+  dopo la rimozione completa delle slice orizzontali.
+- **Causa**: il canvas continuava a renderizzare, ma i blend a pieno quadro,
+  molto saturi e quasi invarianti, rendevano la risposta percettivamente
+  statica.
+- **Correzione**: beat/kick modulano luminosità e inversione breve, `lowMid`
+  orienta la palette, `mid` il contrasto e `high` saturazione/separazione. La
+  fase ritmica cambia soltanto la direzione cromatica.
+- **Vincoli**: nessuna traslazione, scala o rotazione; nessuna riga; nel
+  silenzio i valori tornano neutri; invariati FPS, risoluzione e buffer.
+- **Validazione**: 52 file / 309 test, typecheck, lint, bundle Vite/Electron e
+  diff-check verdi; conferma percettiva fullscreen ancora richiesta.

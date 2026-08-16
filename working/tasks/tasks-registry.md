@@ -372,6 +372,9 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-014-03`** `DONE`: Integrare plugin, tipi, settings, UI e rotazioni.
 - [x] **`TASK-014-04`** `DONE`: Aggiungere test e completare la validazione.
 - [ ] **`TASK-014-05`** `IN_PROGRESS`: Verificare artisticamente FilterPsiche live.
+- [x] **`TASK-014-06`** `DONE`: Ripristinate variazioni cromatiche visibili e
+  beatmatched senza righe o moto di camera; verifica percettiva inclusa nel
+  task artistico `TASK-014-05` ancora aperto.
 
 ---
 

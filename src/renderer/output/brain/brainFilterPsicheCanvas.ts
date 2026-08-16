@@ -41,8 +41,17 @@ export type FilterPsicheMotion = {
   inverseMix: number
   alternateMix: number
   contrast: number
-  sliceAmount: number
+  highColorMix: number
   phaseDirection: number
+}
+
+export type FilterPsicheColorDynamics = {
+  hueDegrees: number
+  contrast: number
+  saturation: number
+  brightness: number
+  alternateAlpha: number
+  inverseAlpha: number
 }
 
 type RGB = { r: number; g: number; b: number }
@@ -205,10 +214,33 @@ export function calculateFilterPsicheMotion(
     inverseMix: clamp(beat * 0.84 + flashDrive * 0.94 + low * 0.18),
     alternateMix: clamp(lowMid * 0.46 + mid * 0.36 + beat * 0.26),
     contrast: clamp(mid * 0.58 + beat * 0.32 + flashDrive * 0.4),
-    // `high` include già il transiente: non sommarlo due volte, altrimenti gli
-    // hat ravvicinati mantengono le slice quasi sempre aperte.
-    sliceAmount: clamp(high * 0.48 + flashDrive * 0.32),
+    highColorMix: clamp(high * 0.58 + flashDrive * 0.24),
     phaseDirection,
+  }
+}
+
+export function calculateFilterPsicheColorDynamics(
+  motion: FilterPsicheMotion,
+): FilterPsicheColorDynamics {
+  const phaseEnergy = clamp(motion.activity * 1.8 + motion.beat * 0.65)
+  return {
+    hueDegrees: motion.phaseDirection * phaseEnergy * (
+      motion.alternateMix * 34 + motion.highColorMix * 42 + motion.beat * 20
+    ),
+    contrast: 1.06 + motion.contrast * 0.72 + motion.beat * 0.16,
+    saturation: 1.15 + motion.alternateMix * 0.92 +
+      motion.highColorMix * 0.88 + motion.beat * 0.24,
+    brightness: 1 + motion.beat * 0.14 + motion.inverseMix * 0.035,
+    alternateAlpha: clamp(
+      motion.alternateMix * 0.5 + motion.highColorMix * 0.24,
+      0,
+      0.62,
+    ),
+    inverseAlpha: clamp(
+      motion.inverseMix * 0.68 + motion.beat * 0.08,
+      0,
+      0.76,
+    ),
   }
 }
 
@@ -412,7 +444,7 @@ export function createBrainFilterPsicheScene(
           low: rawMotion.inverseMix,
           lowMid: rawMotion.alternateMix,
           mid: rawMotion.contrast,
-          high: rawMotion.sliceAmount,
+          high: rawMotion.highColorMix,
           activity: rawMotion.activity,
           beat: rawMotion.beat,
         },
@@ -430,7 +462,7 @@ export function createBrainFilterPsicheScene(
         inverseMix: Math.max(smoothMotion.low, rawMotion.beat * 0.84),
         alternateMix: smoothMotion.lowMid,
         contrast: Math.max(smoothMotion.mid, rawMotion.beat * 0.36),
-        sliceAmount: smoothMotion.high,
+        highColorMix: smoothMotion.high,
       }
       const transitionChanged =
         !Number.isFinite(previousTransitionProgress) ||
@@ -442,7 +474,7 @@ export function createBrainFilterPsicheScene(
         Math.round(motion.inverseMix * 32),
         Math.round(motion.alternateMix * 32),
         Math.round(motion.contrast * 32),
-        Math.round(motion.sliceAmount * 24),
+        Math.round(motion.highColorMix * 24),
         rhythm?.beatIndex ?? 0,
         settings.lowPowerMode ? 1 : 0,
         resourcePressure ? 1 : 0,
@@ -467,25 +499,32 @@ export function createBrainFilterPsicheScene(
 
       const width = output.width
       const height = output.height
+      const colorDynamics = calculateFilterPsicheColorDynamics(motion)
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
-      context.filter = `contrast(${1.12 + motion.contrast * 0.9}) saturate(${1.3 + motion.alternateMix * 1.4 + motion.sliceAmount * 0.42})`
+      context.filter = [
+        `hue-rotate(${colorDynamics.hueDegrees.toFixed(2)}deg)`,
+        `contrast(${colorDynamics.contrast.toFixed(3)})`,
+        `saturate(${colorDynamics.saturation.toFixed(3)})`,
+        `brightness(${colorDynamics.brightness.toFixed(3)})`,
+      ].join(' ')
       context.drawImage(artwork.base, 0, 0, width, height)
       context.filter = 'none'
 
-      if (motion.alternateMix > 0.002) {
+      if (colorDynamics.alternateAlpha > 0.002) {
         context.globalCompositeOperation = 'color-dodge'
-        context.globalAlpha = clamp(
-          motion.alternateMix * 0.68 + motion.sliceAmount * 0.12,
-          0,
-          0.58,
-        )
+        context.globalAlpha = colorDynamics.alternateAlpha
+        context.filter = `hue-rotate(${(-colorDynamics.hueDegrees * 0.72).toFixed(2)}deg)`
         context.drawImage(artwork.alternate, 0, 0, width, height)
+        context.filter = 'none'
       }
-      if (motion.inverseMix > 0.002) {
-        context.globalCompositeOperation = motion.flash > 0.18 ? 'difference' : 'screen'
-        context.globalAlpha = clamp(motion.inverseMix * 0.96, 0, 0.94)
+      if (colorDynamics.inverseAlpha > 0.002) {
+        context.globalCompositeOperation =
+          motion.flash > 0.18 || motion.beat > 0.52 ? 'difference' : 'screen'
+        context.globalAlpha = colorDynamics.inverseAlpha
+        context.filter = `hue-rotate(${(colorDynamics.hueDegrees * 0.38).toFixed(2)}deg)`
         context.drawImage(artwork.inverse, 0, 0, width, height)
+        context.filter = 'none'
       }
 
       if (motion.flash > 0.002) {
@@ -501,6 +540,8 @@ export function createBrainFilterPsicheScene(
       output.dataset.filterPsicheActivity = motion.activity.toFixed(3)
       output.dataset.filterPsicheBeat = motion.beat.toFixed(3)
       output.dataset.filterPsicheFlash = motion.flash.toFixed(3)
+      output.dataset.filterPsicheHue = colorDynamics.hueDegrees.toFixed(2)
+      output.dataset.filterPsicheSaturation = colorDynamics.saturation.toFixed(3)
       output.dataset.filterPsicheTransition =
         `${transitionRole}-${transitionProgress.toFixed(3)}`
       brainPerformanceMetrics.recordCanvasFrame(

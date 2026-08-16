@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from '@shared/defaults'
 import type { DreamStory } from '@shared/brain/brainTypes'
 import {
   applyFilterPsichePixels,
+  calculateFilterPsicheColorDynamics,
   calculateFilterPsicheMotion,
   createBrainFilterPsicheScene,
   FILTER_PSICHE_VARIANTS,
@@ -57,7 +58,7 @@ describe('FilterPsiche', () => {
       inverseMix: 0,
       alternateMix: 0,
       contrast: 0,
-      sliceAmount: 0,
+      highColorMix: 0,
       phaseDirection: 0,
     })
     expect(shouldRenderFilterPsicheFrame(motion, false, false)).toBe(false)
@@ -85,8 +86,8 @@ describe('FilterPsiche', () => {
     expect(motion.inverseMix).toBeGreaterThan(0.8)
     expect(motion.alternateMix).toBeGreaterThan(0.65)
     expect(motion.contrast).toBeGreaterThan(0.75)
-    expect(motion.sliceAmount).toBeGreaterThan(0.65)
-    expect(motion.sliceAmount).toBeLessThan(0.8)
+    expect(motion.highColorMix).toBeGreaterThan(0.65)
+    expect(motion.highColorMix).toBeLessThan(0.8)
     expect(motion.flash).toBe(0.8)
     expect(motion.phaseDirection).toBeLessThan(0)
   })
@@ -111,6 +112,49 @@ describe('FilterPsiche', () => {
 
     expect(motion.beat).toBeGreaterThanOrEqual(0.3)
     expect(motion.inverseMix).toBeGreaterThan(0.2)
+  })
+
+  it('inverte la direzione cromatica con la fase senza muovere il quadro', () => {
+    const motion = {
+      activity: 0.72,
+      beat: 0.64,
+      flash: 0,
+      inverseMix: 0.7,
+      alternateMix: 0.58,
+      contrast: 0.52,
+      highColorMix: 0.66,
+      phaseDirection: 1,
+    }
+    const forward = calculateFilterPsicheColorDynamics(motion)
+    const backward = calculateFilterPsicheColorDynamics({
+      ...motion,
+      phaseDirection: -1,
+    })
+
+    expect(forward.hueDegrees).toBeGreaterThan(30)
+    expect(backward.hueDegrees).toBeCloseTo(-forward.hueDegrees)
+    expect(forward.saturation).toBeGreaterThan(2)
+    expect(forward.brightness).toBeGreaterThan(1)
+  })
+
+  it('resta cromaticamente stabile nel silenzio', () => {
+    expect(calculateFilterPsicheColorDynamics({
+      activity: 0,
+      beat: 0,
+      flash: 0,
+      inverseMix: 0,
+      alternateMix: 0,
+      contrast: 0,
+      highColorMix: 0,
+      phaseDirection: 0,
+    })).toEqual({
+      hueDegrees: 0,
+      contrast: 1.06,
+      saturation: 1.15,
+      brightness: 1,
+      alternateAlpha: 0,
+      inverseAlpha: 0,
+    })
   })
 
   it('non disegna alcuna striscia orizzontale', async () => {

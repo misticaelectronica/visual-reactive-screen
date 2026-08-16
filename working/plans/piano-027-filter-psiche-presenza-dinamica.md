@@ -23,13 +23,13 @@ alterare camera, quadro, silenzio o continuità delle transizioni.
 ## 3. Verifica dei vincoli visuali
 
 - [x] **Camera**: nessuna scala, rotazione, zoom o traslazione del quadro.
-- [x] **Materia**: dinamica applicata a cromia, contrasto e micro-slice interne
-  del raster, che resta riconoscibile.
+- [x] **Materia**: dinamica applicata a cromia, contrasto e fusioni interne del
+  raster, che resta riconoscibile; nessuna slice orizzontale.
 - [x] **Silenzio**: tutti i contributi dinamici restano nulli senza attività.
 - [x] **Beatmatch**: kick, `lowMid`, `mid` e `high` mantengono funzioni distinte.
 - [x] **Transizione**: contratto di ingresso/uscita invariato.
-- [x] **Costo**: invariati risoluzione, FPS, buffer e massimo di sette slice;
-  `lowPowerMode` e pressione risorse restano invariati.
+- [x] **Costo**: invariati risoluzione, FPS e buffer; `lowPowerMode` e pressione
+  risorse restano invariati.
 
 ## 4. Implementazione
 
@@ -56,3 +56,18 @@ alterare camera, quadro, silenzio o continuità delle transizioni.
   Validazione completa: 50 file / 301 test, typecheck, lint e diff-check verdi.
 - **2026-08-16**: rimossa la micro-slice esattamente centrale che appariva come
   una riga orizzontale fissa; mantenute le slice superiori e inferiori.
+
+## 7. Ripristino dinamica cromatica beatmatch 2026-08-16
+
+- [x] Eliminare la saturazione percettivamente statica dei blend a pieno quadro.
+- [x] Mappare beat/low, low-mid, mid e high su proprietà cromatiche distinte.
+- [x] Usare la fase ritmica soltanto per la direzione del cambio colore.
+- [x] Conservare camera stabile, silenzio immobile e assenza totale di righe.
+- [x] Aggiungere test mirati e completare la validazione automatica.
+
+- **2026-08-16**: ripristinata la dinamica cromatica continua: kick/beat
+  accentuano luminosità e inversione breve, `lowMid` orienta la palette, `mid`
+  governa il contrasto e `high` la separazione cromatica. La fase ritmica
+  orienta soltanto la variazione di tinta. Nessuna trasformazione geometrica,
+  nessuna riga e valori neutri nel silenzio. Validazione: 52 file / 309 test,
+  typecheck, lint, bundle Vite/Electron e diff-check verdi.

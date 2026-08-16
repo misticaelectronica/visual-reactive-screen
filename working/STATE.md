@@ -2,6 +2,12 @@
 
 ## Soluzioni denoising stall — 2026-08-16
 
+- FilterPsiche ha nuovamente una dinamica cromatica leggibile: kick/beat
+  accentuano luminosità e inversione breve, `lowMid` orienta la palette, `mid`
+  modula il contrasto e `high` la separazione cromatica. La fase decide solo la
+  direzione del colore; camera e geometria restano ferme e il silenzio è
+  neutro. Nessuna riga orizzontale è stata reintrodotta.
+
 - Correzione dinamica: la generazione non interrompe più il RAF Brain. Timeline,
   beat e transizioni continuano; il coordinatore usa FilterPsiche a 320×180 e
   12 FPS sotto pressione, limitando il renderer pieno a 5 FPS durante il breve
@@ -14,7 +20,7 @@
   `onSubmittedWorkDone()` e programma un micro-yield da 4 ms dopo ogni submit.
 - Entrambe le soluzioni sono controllate da configurazione; step, seed, forma,
   qualità e risoluzione della pipeline restano invariati.
-- Validazione corrente: 52 file / 307 test, typecheck, lint, diff-check e bundle
+- Validazione corrente: 52 file / 309 test, typecheck, lint, diff-check e bundle
   Vite/Electron verdi. Il log live conferma `denoising-filter-psiche: active`.
 
 ## Ripristino comportamenti non performance — 2026-08-16
