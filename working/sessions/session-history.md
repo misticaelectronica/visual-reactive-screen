@@ -6,6 +6,17 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 
 ## 📜 Sessioni Passate
 
+### `SESSION-2026-08-16-31`
+- **Data**: 16 Agosto 2026 — CEST
+- **Obiettivo**: Correggere la mancata visibilità dei comportamenti MACRO-029.
+- **Causa**: FilterPsiche era garantito fra i primi quattro renderer del mazzo,
+  ma le permanenze 2–4 di Materia/Vector potevano consumare tutte le quattro
+  immagini prima di raggiungerlo.
+- **Correzione**: FilterPsiche compare nella prima immagine, oppure nella
+  seconda dopo una chiusura precedente su FilterPsiche; Psycho2D resta singolo.
+- **Validazione**: 52 file / 306 test, typecheck, lint, diff-check e bundle
+  Vite/Electron verdi.
+
 ### `SESSION-2026-08-16-30`
 - **Data**: 16 Agosto 2026 — CEST
 - **Obiettivo**: Eseguire fedelmente il piano Antigravity approvato per gli

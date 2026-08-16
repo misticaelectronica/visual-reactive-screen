@@ -5,12 +5,16 @@ import {
 } from '@shared/types'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
-const STORY_VISIBLE_RENDERER_COUNT = 4
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'filter-psiche',
   'material-morph',
   'vector-morph',
+])
+const SINGLE_FRAME_STORY_RENDERERS = new Set<BrainRendererId>([
+  'print2d',
+  'psycho2d',
+  'bauhaus-morph',
 ])
 
 export function selectBrainRendererHoldFrames(
@@ -75,14 +79,20 @@ export class BrainRendererSelector {
         ;[deck[0], deck[replacementIndex]] = [deck[replacementIndex], deck[0]]
       }
     }
-    const visibleCount = Math.min(STORY_VISIBLE_RENDERER_COUNT, deck.length)
     const filterIndex = deck.indexOf(FILTER_PSICHE_ID)
-    if (filterIndex >= visibleCount && visibleCount > 0) {
-      const visibleTarget = visibleCount - 1
-      ;[deck[visibleTarget], deck[filterIndex]] = [
-        deck[filterIndex],
-        deck[visibleTarget],
-      ]
+    if (filterIndex >= 0) {
+      const filterTarget = avoidedId === FILTER_PSICHE_ID && deck.length > 1
+        ? 1
+        : 0
+      ;[deck[filterTarget], deck[filterIndex]] = [deck[filterIndex], deck[filterTarget]]
+      if (filterTarget === 1 && !SINGLE_FRAME_STORY_RENDERERS.has(deck[0])) {
+        const singleFrameIndex = deck.findIndex(
+          (id, index) => index > 1 && SINGLE_FRAME_STORY_RENDERERS.has(id),
+        )
+        if (singleFrameIndex > 1) {
+          ;[deck[0], deck[singleFrameIndex]] = [deck[singleFrameIndex], deck[0]]
+        }
+      }
     }
     return deck
   }

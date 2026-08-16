@@ -107,6 +107,26 @@ describe('Brain renderer selector', () => {
     expect(visited.some((id) => id === 'filter-psiche')).toBe(true)
   })
 
+  it('rende FilterPsiche visibile entro la seconda immagine anche se chiudeva la storia precedente', () => {
+    const selector = new BrainRendererSelector(
+      ['print2d', 'psycho2d', 'vector-morph', 'material-morph', 'filter-psiche'],
+      'filter-psiche',
+      () => 0.99,
+    )
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+
+    selector.beginStory('story-after-filter', settings)
+    const first = selector.resolve(settings, 0)
+    selector.advanceStoryRenderer('story-after-filter', settings, 1_000)
+    const second = selector.resolve(settings, 1_000)
+
+    expect(first).not.toBe('filter-psiche')
+    expect(second).toBe('filter-psiche')
+  })
+
   it('crea un nuovo ordine quando inizia la storia successiva', () => {
     const randomValues = [0, 0, 0.99, 0.99]
     const selector = new BrainRendererSelector(

@@ -38,3 +38,10 @@ prompt, refill infinito e permanenza casuale dei renderer materici.
 - `git diff --check`
 
 Esito: 50 file / 299 test, typecheck, lint e diff-check verdi.
+
+## Correzione percettiva 2026-08-16
+
+- [x] Corretto il mazzo: FilterPsiche è ora visibile nella prima immagine del
+  gruppo, oppure nella seconda quando aveva chiuso il gruppo precedente.
+- [x] Validazione automatica aggiornata: 52 file / 306 test, typecheck, lint,
+  diff-check e bundle Vite/Electron verdi.
