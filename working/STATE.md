@@ -2,6 +2,11 @@
 
 ## Soluzioni denoising stall — 2026-08-16
 
+- Il riquadro del moto di coscienza non contiene più sfere sintetiche: riusa
+  un'altra delle quattro immagini attive, sempre diversa da quella corrente.
+  Bauhaus Morph è escluso dalla sola modalità “Tutti per storia”, ma resta
+  disponibile manualmente e nella rotazione temporale generale.
+
 - FilterPsiche ha nuovamente una dinamica cromatica leggibile: kick/beat
   accentuano luminosità e inversione breve, `lowMid` orienta la palette, `mid`
   modula il contrasto e `high` la separazione cromatica. La fase decide solo la
@@ -20,7 +25,7 @@
   `onSubmittedWorkDone()` e programma un micro-yield da 4 ms dopo ogni submit.
 - Entrambe le soluzioni sono controllate da configurazione; step, seed, forma,
   qualità e risoluzione della pipeline restano invariati.
-- Validazione corrente: 52 file / 309 test, typecheck, lint, diff-check e bundle
+- Validazione corrente: 52 file / 310 test, typecheck, lint, diff-check e bundle
   Vite/Electron verdi. Il log live conferma `denoising-filter-psiche: active`.
 
 ## Ripristino comportamenti non performance — 2026-08-16

@@ -14,14 +14,9 @@ function hash(value: string): number {
   return result >>> 0
 }
 
-function motionColors(candidate: ConsciousnessMotionCandidate): [string, string, string] {
-  const seed = hash(`${candidate.memoryId}:${candidate.influenceText}`)
-  const hue = seed % 360
-  return [
-    `hsl(${hue} 88% 56%)`,
-    `hsl(${(hue + 74) % 360} 84% 62%)`,
-    `hsl(${(hue + 191) % 360} 92% 48%)`,
-  ]
+export type BrainConsciousnessMotionImageSource = {
+  id: string
+  raster: Blob
 }
 
 export type BrainConsciousnessMotionLayer = {
@@ -31,6 +26,10 @@ export type BrainConsciousnessMotionLayer = {
     now: number,
     lowPowerMode: boolean,
   ) => { active: boolean; completedPauseMs: number }
+  setImageSources: (
+    sources: readonly BrainConsciousnessMotionImageSource[],
+    currentImageId: string,
+  ) => void
   pendingInfluence: () => ConsciousnessMotionCandidate | null
   destroy: () => void
 }
@@ -59,26 +58,23 @@ export function createBrainConsciousnessMotionLayer(
     overflow: 'hidden',
     border: '1px solid rgba(255, 36, 55, 0.42)',
     background: 'rgba(10, 0, 4, 0.08)',
-    mixBlendMode: 'screen',
+    mixBlendMode: 'normal',
     contain: 'layout style paint',
   })
-  const shapes = Array.from({ length: 3 }, (_, index) => {
-    const shape = document.createElement('div')
-    Object.assign(shape.style, {
-      position: 'absolute',
-      left: `${12 + index * 24}%`,
-      top: `${14 + (index % 2) * 28}%`,
-      width: `${32 - index * 4}%`,
-      aspectRatio: '1',
-      borderRadius: index === 1 ? '46% 54% 62% 38%' : '58% 42% 52% 48%',
-      filter: 'blur(0.6px) saturate(1.4)',
-      mixBlendMode: index === 2 ? 'difference' : 'screen',
-      opacity: '0.42',
-      willChange: 'transform, opacity',
-    })
-    region.appendChild(shape)
-    return shape
+  const embeddedImage = document.createElement('img')
+  embeddedImage.dataset.brainConsciousnessImage = 'true'
+  embeddedImage.alt = ''
+  Object.assign(embeddedImage.style, {
+    position: 'absolute',
+    inset: '0',
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    opacity: '0.82',
+    filter: 'contrast(1.08) saturate(1.12)',
+    willChange: 'filter, opacity',
   })
+  region.appendChild(embeddedImage)
   const caption = document.createElement('div')
   caption.setAttribute('aria-live', 'polite')
   Object.assign(caption.style, {
@@ -107,6 +103,33 @@ export function createBrainConsciousnessMotionLayer(
   let startedBeat = 0
   let lastFinishedAt = Number.NEGATIVE_INFINITY
   const usedPairs = new Set<string>()
+  let imageSources: BrainConsciousnessMotionImageSource[] = []
+  let currentImageId = ''
+  let activeImageUrl: string | null = null
+
+  const revokeActiveImage = () => {
+    if (activeImageUrl) URL.revokeObjectURL(activeImageUrl)
+    activeImageUrl = null
+    embeddedImage.removeAttribute('src')
+    delete embeddedImage.dataset.sourceId
+  }
+
+  const showAlternateImage = (entry: MotionEntry) => {
+    const alternatives = imageSources.filter((source) => source.id !== currentImageId)
+    if (alternatives.length === 0) {
+      revokeActiveImage()
+      region.style.display = 'none'
+      return
+    }
+    const selected = alternatives[
+      hash(`${entry.storyId}:${entry.candidate.memoryId}`) % alternatives.length
+    ]
+    revokeActiveImage()
+    activeImageUrl = URL.createObjectURL(selected.raster)
+    embeddedImage.src = activeImageUrl
+    embeddedImage.dataset.sourceId = selected.id
+    region.style.display = 'block'
+  }
 
   const hide = () => {
     layer.style.opacity = '0'
@@ -114,6 +137,10 @@ export function createBrainConsciousnessMotionLayer(
   }
 
   return {
+    setImageSources(sources, activeImageId) {
+      imageSources = [...sources]
+      currentImageId = activeImageId
+    },
     offer(candidate, storyId, now) {
       const key = `${storyId}:${candidate.memoryId}`
       if (queued || active || usedPairs.has(key) || now - lastFinishedAt < MOTION_COOLDOWN_MS) {
@@ -130,15 +157,12 @@ export function createBrainConsciousnessMotionLayer(
         queued = null
         startedAt = now
         startedBeat = rhythm.beatIndex
-        const colors = motionColors(active.candidate)
-        shapes.forEach((shape, index) => {
-          shape.style.display = lowPowerMode && index === 2 ? 'none' : 'block'
-          shape.style.background = `radial-gradient(circle at 38% 42%, ${colors[index]}, transparent 68%)`
-        })
+        showAlternateImage(active)
         caption.textContent =
           `moto di coscienza: cosa ha cambiato Brain nelle storie, nelle forme e nei colori — ` +
           `storia: ${active.candidate.influenceText.slice(0, 170)}; ` +
-          `forme: tre nuclei locali raccolti; colori: nuovi accenti dal ricordo ` +
+          `forme: un'altra immagine attiva riaffiora nel riquadro; ` +
+          `colori: nuovi accenti dal ricordo ` +
           `«${active.candidate.title}» (${active.candidate.kind}).`
         layer.dataset.state = 'active'
         layer.style.opacity = '1'
@@ -146,15 +170,15 @@ export function createBrainConsciousnessMotionLayer(
       if (!active) return { active: false, completedPauseMs }
       if (rhythm.active) {
         const pulse = Math.max(rhythm.beatPulse, rhythm.kickEnvelope)
-        const localPhase = rhythm.beatPhase - 0.5
-        shapes.forEach((shape, index) => {
-          if (lowPowerMode && index === 2) return
-          const direction = index % 2 === 0 ? 1 : -1
-          const offset = direction * localPhase * (3 + pulse * 5)
-          const scale = 1 + pulse * (0.025 + index * 0.008)
-          shape.style.transform = `translate3d(${offset.toFixed(2)}px, ${(offset * 0.45).toFixed(2)}px, 0) scale(${scale.toFixed(3)})`
-          shape.style.opacity = String(0.3 + pulse * 0.28)
-        })
+        const high = rhythm.bandTransients.high
+        const mid = rhythm.bandTransients.mid
+        embeddedImage.style.filter = [
+          `contrast(${(1.08 + mid * 0.28 + pulse * 0.1).toFixed(3)})`,
+          `saturate(${(1.12 + high * 0.42 + pulse * 0.16).toFixed(3)})`,
+        ].join(' ')
+        embeddedImage.style.opacity = String(
+          lowPowerMode ? 0.74 + pulse * 0.08 : 0.78 + pulse * 0.14,
+        )
       }
       if (
         rhythm.active && rhythm.beat &&
@@ -174,6 +198,7 @@ export function createBrainConsciousnessMotionLayer(
     destroy() {
       queued = null
       active = null
+      revokeActiveImage()
       layer.remove()
     },
   }

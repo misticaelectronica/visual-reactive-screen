@@ -71,3 +71,23 @@ basso a destra spiega il cambiamento; al termine riprende la normale rotazione.
 - **2026-08-16**: dopo la prova di leggibilità, la permanenza è stata estesa a
   un minimo di 12 secondi e almeno 16 beat. L'uscita resta quantizzata sul beat
   e il tempo di lettura non avanza durante il silenzio.
+
+## 7. Correzione contenuto incastonato
+
+- [x] Sostituire i tre nuclei sintetici con un'altra immagine del gruppo attivo.
+- [x] Escludere sempre dal riquadro l'immagine corrente a pieno schermo.
+- [x] Non generare nuove immagini e riusare esclusivamente i quattro raster.
+- [x] Conservare camera stabile, risposta locale al beat e freeze nel silenzio.
+- [x] Aggiungere test mirati e completare la validazione automatica.
+
+## 8. Riduzione geometrica in “Tutti per storia”
+
+- [x] Escludere Bauhaus Morph, fondato prevalentemente su piani geometrici,
+  dal mazzo della modalità “Tutti per storia”.
+- [x] Mantenere Bauhaus selezionabile manualmente e disponibile nella rotazione
+  temporale generale.
+
+- **2026-08-16**: il moto di coscienza incastona ora un raster alternativo del
+  gruppo attivo, diverso da quello a pieno schermo; sfere eliminate. La sola
+  modalità “Tutti per storia” non seleziona più Bauhaus Morph. Validazione:
+  52 file / 310 test, typecheck, lint, bundle Vite/Electron e diff-check verdi.

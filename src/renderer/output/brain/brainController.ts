@@ -968,6 +968,25 @@ export function createBrainController(
       }
       return sources
     }
+    consciousnessMotionLayer.setImageSources(
+      productionForRenderer.scenes.flatMap((sourceScene, sourceIndex) => {
+        const sourceFrame = productionForRenderer.story.frames[sourceIndex]
+        const raster = sourceScene.raster ?? (
+          sourceFrame
+            ? rasterPreviewBlobs.get(
+                `${productionForRenderer.story.id}:${sourceFrame.id}`,
+              )
+            : undefined
+        )
+        return sourceFrame && raster
+          ? [{
+              id: `${productionForRenderer.story.id}:${sourceFrame.id}`,
+              raster,
+            }]
+          : []
+      }),
+      `${productionForRenderer.story.id}:${frame.id}`,
+    )
     currentSvg = synchronizedRaster
       ? createBrainRendererHost(
           svgHost,

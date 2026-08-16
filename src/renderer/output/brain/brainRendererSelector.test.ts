@@ -84,6 +84,35 @@ describe('Brain renderer selector', () => {
     expect(selector.resolve(settings, 3_000)).toBe('psycho2d')
   })
 
+  it('esclude Bauhaus geometrico solo dal ciclo per storia', () => {
+    const ids = ['filter-psiche', 'material-morph', 'bauhaus-morph'] as const
+    const storySelector = new BrainRendererSelector(ids, 'bauhaus-morph', () => 0)
+    const storySettings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+      brainRendererId: 'bauhaus-morph' as const,
+    }
+
+    storySelector.beginStory('story-without-geometry', storySettings)
+    const visited = [storySelector.resolve(storySettings, 0)]
+    for (let frame = 1; frame < 8; frame += 1) {
+      storySelector.advanceStoryRenderer(
+        'story-without-geometry',
+        storySettings,
+        frame * 1_000,
+      )
+      visited.push(storySelector.resolve(storySettings, frame * 1_000))
+    }
+    expect(visited).not.toContain('bauhaus-morph')
+
+    const manualSelector = new BrainRendererSelector(ids, 'bauhaus-morph', () => 0)
+    expect(manualSelector.resolve({
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'manual',
+      brainRendererId: 'bauhaus-morph',
+    }, 1_000)).toBe('bauhaus-morph')
+  })
+
   it('con cinque renderer mantiene FilterPsiche nel ciclo visibile', () => {
     const selector = new BrainRendererSelector(
       ['print2d', 'psycho2d', 'vector-morph', 'material-morph', 'filter-psiche'],

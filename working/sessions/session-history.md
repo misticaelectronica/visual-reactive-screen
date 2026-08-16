@@ -1252,3 +1252,18 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   silenzio i valori tornano neutri; invariati FPS, risoluzione e buffer.
 - **Validazione**: 52 file / 309 test, typecheck, lint, bundle Vite/Electron e
   diff-check verdi; conferma percettiva fullscreen ancora richiesta.
+
+### `SESSION-2026-08-16-29`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Correggere il contenuto del riquadro del moto di coscienza e
+  ridurre i renderer geometrici nella modalità “Tutti per storia”.
+- **Riquadro**: rimossi i tre nuclei radiali sintetici; viene scelto un raster
+  diverso da quello corrente fra le quattro immagini del gruppo attivo.
+- **Dinamica**: il raster incastonato resta fermo e riceve soltanto variazioni
+  locali di contrasto, saturazione e opacità sul beat; nel silenzio non avanza.
+- **Regia**: Bauhaus Morph è escluso dal mazzo “Tutti per storia”, senza essere
+  rimosso dalla selezione manuale o dalla rotazione temporale generale.
+- **Costo**: nessuna generazione o copia raster aggiuntiva; usato un object URL
+  del Blob già presente nel buffer e revocato al cleanup.
+- **Validazione**: 52 file / 310 test, typecheck, lint, bundle Vite/Electron e
+  diff-check verdi; prova percettiva fullscreen pendente.

@@ -410,6 +410,10 @@ manuale finale viene eseguito dallo sviluppatore.
   pertinenza, leggibilità della didascalia e ripresa naturale della rotazione.
 - [x] **`TASK-016-07`** `DONE`: Estendere la leggibilità del moto a un minimo
   di 12 secondi e 16 beat, mantenendo uscita quantizzata e freeze nel silenzio.
+- [x] **`TASK-016-08`** `DONE`: Usare nel riquadro del moto un'altra
+  immagine delle quattro attive, eliminando i nuclei sintetici.
+- [x] **`TASK-016-09`** `DONE`: Escludere Bauhaus Morph, il renderer
+  prevalentemente geometrico, dalla sola modalità “Tutti per storia”.
 
 ---
 

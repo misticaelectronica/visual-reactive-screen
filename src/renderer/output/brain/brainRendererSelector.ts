@@ -6,6 +6,10 @@ import {
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
 const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['print2d'])
+const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
+  'print2d',
+  'bauhaus-morph',
+])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'filter-psiche',
@@ -66,8 +70,15 @@ export class BrainRendererSelector {
     return enabled.length > 0 ? enabled : [...this.availableIds]
   }
 
+  private storyCycleIds(): BrainRendererId[] {
+    const enabled = this.availableIds.filter(
+      (id) => !STORY_CYCLE_EXCLUDED_RENDERERS.has(id),
+    )
+    return enabled.length > 0 ? enabled : this.automaticIds()
+  }
+
   private beginDeckWith(activeId: BrainRendererId): void {
-    const automaticIds = this.automaticIds()
+    const automaticIds = this.storyCycleIds()
     const first = automaticIds.includes(activeId)
       ? activeId
       : automaticIds[0] ?? activeId
@@ -77,7 +88,7 @@ export class BrainRendererSelector {
   }
 
   private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {
-    const randomized = this.shuffled(this.automaticIds())
+    const randomized = this.shuffled(this.storyCycleIds())
     const deck = randomized.sort((left, right) =>
       (this.storyAppearances.get(left) ?? 0) -
       (this.storyAppearances.get(right) ?? 0),
@@ -174,7 +185,7 @@ export class BrainRendererSelector {
 
   advanceWaitingRenderer(settings: AppSettings, now: number): boolean {
     if (settings.brainRendererMode !== 'story-cycle') return false
-    const automaticIds = this.automaticIds()
+    const automaticIds = this.storyCycleIds()
     if (automaticIds.length <= 1) return false
     if (this.waitingHoldRemaining > 0) {
       this.waitingHoldRemaining -= 1
