@@ -22,6 +22,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-029-04`** `DONE`: Permanenza casuale renderer 2–4 immagini.
 - [x] **`TASK-029-05`** `DONE`: Test, typecheck, lint e diff-check.
 - [x] **`TASK-029-06`** `DONE`: Garantire FilterPsiche entro le prime due immagini reali.
+- [x] **`TASK-029-07`** `DONE`: Eliminare tutte le righe orizzontali da FilterPsiche mantenendo la dinamica cromatica.
 
 ---
 

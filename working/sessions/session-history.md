@@ -1189,3 +1189,15 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   assenza di moto geometrico autonomo nel silenzio e transizione continua.
 - **Validazione**: 52 file / 306 test, typecheck, lint, diff-check e bundle
   Vite/Electron verdi; verifica percettiva live pendente.
+
+### `SESSION-2026-08-16-24`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Eliminare definitivamente le righe orizzontali da FilterPsiche.
+- **Causa**: la correzione precedente saltava soltanto la slice centrale, ma
+  lasciava attive fino a sette strisce distribuite nel resto del quadro.
+- **Correzione**: rimosso tutto il blocco di ritaglio orizzontale; la banda
+  `high` modula ora soltanto saturazione e fusione cromatica globale.
+- **Vincoli**: camera stabile, raster riconoscibile, zero moto geometrico nel
+  silenzio e nessun aumento del costo.
+- **Validazione**: aggiunto test anti-regressione sui `drawImage` a striscia;
+  52 file / 306 test, typecheck, lint, bundle Vite/Electron e diff-check verdi.

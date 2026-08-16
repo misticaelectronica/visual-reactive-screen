@@ -22,8 +22,8 @@
 - Correzione percettiva: FilterPsiche è ora collocato nella prima osservazione,
   oppure nella seconda se aveva chiuso il gruppo precedente; le permanenze
   2–4 non possono più impedirne del tutto la comparsa nelle quattro immagini.
-- FilterPsiche non disegna slice nella fascia centrale ed è più presente e
-  incisivo su palette, contrasto e micro-slice, senza movimento di camera.
+- FilterPsiche non disegna più alcuna slice orizzontale; la risposta alle alte
+  agisce su saturazione e fusione cromatica, senza movimento di camera.
 - Ogni prompt immagine concatena osservazione corrente, stimolo distinto e
   residuo visuale precedente.
 - Coscienza Onirica usa una sola chiamata Qwen per la storia; errore o risposta

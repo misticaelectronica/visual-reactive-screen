@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import type { DreamStory } from '@shared/brain/brainTypes'
 import {
   applyFilterPsichePixels,
   calculateFilterPsicheMotion,
+  createBrainFilterPsicheScene,
   FILTER_PSICHE_VARIANTS,
-  isFilterPsicheCentralSlice,
   selectFilterPsicheVariant,
   shouldRenderFilterPsicheFrame,
 } from './brainFilterPsicheCanvas'
@@ -19,6 +19,11 @@ const PALETTE: DreamStory['palette'] = [
 ]
 
 describe('FilterPsiche', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
   it('produce una trasformazione cromatica distinta per ogni variante', () => {
     const source = new Uint8ClampedArray([
       12, 42, 96, 255,
@@ -56,12 +61,6 @@ describe('FilterPsiche', () => {
       phaseDirection: 0,
     })
     expect(shouldRenderFilterPsicheFrame(motion, false, false)).toBe(false)
-  })
-
-  it('elimina la slice orizzontale al centro del quadro', () => {
-    expect(isFilterPsicheCentralSlice(132, 6, 270)).toBe(true)
-    expect(isFilterPsicheCentralSlice(80, 6, 270)).toBe(false)
-    expect(isFilterPsicheCentralSlice(190, 6, 270)).toBe(false)
   })
 
   it('separa kick, alte e flash nei rispettivi trattamenti', () => {
@@ -112,5 +111,63 @@ describe('FilterPsiche', () => {
 
     expect(motion.beat).toBeGreaterThanOrEqual(0.3)
     expect(motion.inverseMix).toBeGreaterThan(0.2)
+  })
+
+  it('non disegna alcuna striscia orizzontale', async () => {
+    const drawImage = vi.fn()
+    const canvasContext = {
+      drawImage,
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      getImageData: () => ({ data: new Uint8ClampedArray(480 * 270 * 4) }),
+      createImageData: (width: number, height: number) => ({
+        data: new Uint8ClampedArray(width * height * 4),
+      }),
+      putImageData: vi.fn(),
+      set globalCompositeOperation(_value: GlobalCompositeOperation) {},
+      set globalAlpha(_value: number) {},
+      set filter(_value: string) {},
+      set fillStyle(_value: string) {},
+    } as unknown as CanvasRenderingContext2D
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(canvasContext)
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({
+      width: 640,
+      height: 360,
+      close: vi.fn(),
+    })))
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:filter-psiche-test')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const controller = createBrainFilterPsicheScene({
+      container,
+      scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+      raster,
+      palette: PALETTE,
+      printMode: 'living-ink',
+      getImageSources: () => [],
+      getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+      frameEnergy: 0.5,
+      frameIndex: 0,
+      frameCount: 4,
+    })
+
+    controller.update(
+      { low: 0.5, lowMid: 0.6, mid: 0.7, high: 1 },
+      DEFAULT_SETTINGS,
+      1_000,
+    )
+    await Promise.resolve()
+    await Promise.resolve()
+    controller.update(
+      { low: 0.5, lowMid: 0.6, mid: 0.7, high: 1 },
+      DEFAULT_SETTINGS,
+      2_000,
+    )
+
+    expect(drawImage).toHaveBeenCalled()
+    expect(drawImage.mock.calls.every((call) => call.length <= 5)).toBe(true)
+    controller.destroy()
   })
 })

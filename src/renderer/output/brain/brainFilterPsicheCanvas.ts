@@ -221,16 +221,6 @@ export function shouldRenderFilterPsicheFrame(
     transitionChanged || signatureChanged
 }
 
-export function isFilterPsicheCentralSlice(
-  y: number,
-  sliceHeight: number,
-  canvasHeight: number,
-): boolean {
-  if (canvasHeight <= 0) return false
-  const centerRatio = (y + sliceHeight / 2) / canvasHeight
-  return Math.abs(centerRatio - 0.5) < 0.04
-}
-
 function createCanvas(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -479,45 +469,23 @@ export function createBrainFilterPsicheScene(
       const height = output.height
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
-      context.filter = `contrast(${1.12 + motion.contrast * 0.9}) saturate(${1.3 + motion.alternateMix * 1.4})`
+      context.filter = `contrast(${1.12 + motion.contrast * 0.9}) saturate(${1.3 + motion.alternateMix * 1.4 + motion.sliceAmount * 0.42})`
       context.drawImage(artwork.base, 0, 0, width, height)
       context.filter = 'none'
 
       if (motion.alternateMix > 0.002) {
         context.globalCompositeOperation = 'color-dodge'
-        context.globalAlpha = clamp(motion.alternateMix * 0.68, 0, 0.58)
+        context.globalAlpha = clamp(
+          motion.alternateMix * 0.68 + motion.sliceAmount * 0.12,
+          0,
+          0.58,
+        )
         context.drawImage(artwork.alternate, 0, 0, width, height)
       }
       if (motion.inverseMix > 0.002) {
         context.globalCompositeOperation = motion.flash > 0.18 ? 'difference' : 'screen'
         context.globalAlpha = clamp(motion.inverseMix * 0.96, 0, 0.94)
         context.drawImage(artwork.inverse, 0, 0, width, height)
-      }
-
-      const sliceBudget = resourcePressure || settings.lowPowerMode ? 3 : 7
-      const sliceCount = Math.min(sliceBudget, Math.ceil(motion.sliceAmount * sliceBudget))
-      if (sliceCount > 0) {
-        context.globalCompositeOperation = 'difference'
-        context.globalAlpha = clamp(0.15 + motion.sliceAmount * 0.5, 0, 0.65)
-        const direction = motion.phaseDirection >= 0 ? 1 : -1
-        for (let index = 0; index < sliceCount; index += 1) {
-          const unit = (index + 1) / (sliceCount + 1)
-          const y = Math.floor(height * (0.12 + unit * 0.76))
-          const sliceHeight = Math.max(1, Math.round(height * (0.008 + motion.sliceAmount * 0.022)))
-          if (isFilterPsicheCentralSlice(y, sliceHeight, height)) continue
-          const offset = direction * Math.round((3 + index % 4) * motion.sliceAmount * 1.4)
-          context.drawImage(
-            index % 2 === 0 ? artwork.inverse : artwork.alternate,
-            0,
-            y,
-            width,
-            sliceHeight,
-            offset,
-            y,
-            width,
-            sliceHeight,
-          )
-        }
       }
 
       if (motion.flash > 0.002) {

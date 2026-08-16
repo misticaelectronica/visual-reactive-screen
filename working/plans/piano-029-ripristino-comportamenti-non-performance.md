@@ -45,3 +45,14 @@ Esito: 50 file / 299 test, typecheck, lint e diff-check verdi.
   gruppo, oppure nella seconda quando aveva chiuso il gruppo precedente.
 - [x] Validazione automatica aggiornata: 52 file / 306 test, typecheck, lint,
   diff-check e bundle Vite/Electron verdi.
+
+## Rimozione completa righe FilterPsiche 2026-08-16
+
+- [x] Eliminare tutte le slice orizzontali, non soltanto quella centrale.
+- [x] Conservare la risposta alle alte come modulazione cromatica senza tagli.
+- [x] Aggiornare test e validazione automatica.
+
+Esito: rimosso integralmente il ritaglio orizzontale `drawImage`; le alte
+modulano saturazione e fusione cromatica. Un test impedisce la reintroduzione
+di disegni canvas a striscia. Suite: 52 file / 306 test; typecheck, lint,
+bundle Vite/Electron e diff-check verdi.
