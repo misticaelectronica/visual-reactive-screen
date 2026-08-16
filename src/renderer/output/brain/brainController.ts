@@ -604,24 +604,15 @@ export function createBrainController(
   let previousFrameMorphPattern: BrainFrameMorphPattern | null = null
   let currentSvg: BrainSvgController | null = null
   let outgoingSvg: BrainSvgController | null = null
-  let offlineHoldStartedAt: number | null = null
   const offlineWindow = new BrainOfflineGenerationWindow({
     maxDurationMs: BRAIN_CONFIG.offlineWindowMaxMs,
     onBeginOffline: () => {
-      offlineHoldStartedAt = performance.now()
       currentSvg?.setOfflineHold?.(true)
-      brainLog('offline-gen', 'finestra generazione offline iniziata: GPU dedicata a UNet')
+      brainLog('offline-gen', 'generazione concorrente iniziata: visuale dinamica alleggerita')
     },
     onEndOffline: () => {
-      if (offlineHoldStartedAt !== null) {
-        const pauseMs = Math.max(0, performance.now() - offlineHoldStartedAt)
-        frameStartedAt += pauseMs
-        transitionStartedAt += pauseMs
-        if (storyStartedAt > 0) storyStartedAt += pauseMs
-        offlineHoldStartedAt = null
-      }
       currentSvg?.setOfflineHold?.(false)
-      brainLog('offline-gen', 'finestra generazione offline conclusa: Canvas 2D ripreso')
+      brainLog('offline-gen', 'generazione concorrente conclusa: renderer pieno ripristinato')
     },
   })
   const print2dModes = new Map<string, BrainPrint2dMode>()
@@ -1019,6 +1010,7 @@ export function createBrainController(
           },
         )
     currentSvg.element.style.zIndex = '3'
+    currentSvg.setOfflineHold?.(offlineWindow.isActive)
     currentSvg.setMorphPattern(currentFrameMorphPattern)
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
@@ -1679,7 +1671,6 @@ export function createBrainController(
     if (destroyed) return
     thermalScheduler.recordFrame(now)
     brainPerformanceMetrics.recordOutputRaf(now)
-    if (offlineWindow.isActive) return
     const bands = latestPayload?.bandEnergies ?? SILENT_BANDS
     const rhythm = options.rhythmSource?.() ?? {
       active: false,

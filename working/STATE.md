@@ -2,9 +2,12 @@
 
 ## Soluzioni denoising stall — 2026-08-16
 
+- Correzione dinamica: la generazione non interrompe più il RAF Brain. Timeline,
+  beat, transizioni e alternanza renderer continuano; il coordinatore attiva
+  invece il passthrough one-bit reattivo e limita il plugin pieno a 5 FPS.
 - Implementato il piano Antigravity approvato: durante Psichedel il loop Brain
-  conserva l'ultimo quadro, sospende timeline e aggiornamenti dei plugin e
-  riprende senza salto temporale al termine della finestra.
+  coordina ora una modalità visuale leggera durante l'inferenza, senza fermare
+  il quadro o simulare movimento autonomo.
 - La finestra è single-flight, annullabile e limitata a 120 secondi.
 - ONNX Runtime WebGPU riceve un device avvolto che attende la fence
   `onSubmittedWorkDone()` e programma un micro-yield da 4 ms dopo ogni submit.

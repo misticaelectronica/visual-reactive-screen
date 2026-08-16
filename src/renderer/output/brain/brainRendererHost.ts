@@ -159,7 +159,7 @@ export function createBrainRendererHost(
       transitionRole = role
       if (
         BRAIN_CONFIG.lightweightDenoisingRender &&
-        resourcePressure &&
+        (resourcePressure || offlineHold) &&
         denoisingPassthrough.isReady()
       ) return
       active.controller.setTransition(progress, role, counterpartShapes)
@@ -174,11 +174,10 @@ export function createBrainRendererHost(
       flash?: BrainFlashState,
     ) {
       if (destroyed) return
-      if (offlineHold) return
       const passthroughReady =
         BRAIN_CONFIG.lightweightDenoisingRender &&
         denoisingPassthrough.isReady()
-      const shouldSuspendPlugin = resourcePressure && passthroughReady
+      const shouldSuspendPlugin = (resourcePressure || offlineHold) && passthroughReady
       if (shouldSuspendPlugin) {
         if (passthroughState === 'idle' || passthroughState === 'exiting') {
           passthroughState = 'entering'
@@ -273,7 +272,7 @@ export function createBrainRendererHost(
         return
       }
       if (switchStartedAt === null) switchStartedAt = time
-      const duration = settings.lowPowerMode || resourcePressure
+      const duration = settings.lowPowerMode || resourcePressure || offlineHold
         ? SWITCH_DURATION_MS * 0.6
         : SWITCH_DURATION_MS
       const progress = smootherstep((time - switchStartedAt) / duration)

@@ -59,3 +59,12 @@ cooperativo tra submit GPU.
 - Typecheck e lint superati.
 - Build Vite, Electron, ZIP e DMG arm64 completata.
 - Primo tentativo DMG fallito nel sandbox; stessa build riuscita fuori sandbox.
+
+## 6. Correzione dinamica 2026-08-16
+
+- [x] Eliminare l'arresto globale del RAF durante la generazione.
+- [x] Conservare timeline, transizioni e risposta audio attive.
+- [x] Usare la finestra come coordinatore del passthrough dinamico leggero.
+- [x] Applicare la modalità leggera anche ai renderer creati durante la generazione.
+- [x] Validare suite, typecheck, lint e bundle: 52 file / 306 test verdi.
+- [ ] Confermare percettivamente il comportamento live durante un ciclo completo.

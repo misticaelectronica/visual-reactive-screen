@@ -6,6 +6,19 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 
 ## 📜 Sessioni Passate
 
+### `SESSION-2026-08-16-32`
+- **Data**: 16 Agosto 2026 — CEST
+- **Obiettivo**: Ripristinare la dinamicità durante il denoising senza eliminare
+  il coordinatore di generazione.
+- **Causa**: ritorno anticipato nel RAF durante l'intera finestra; timeline,
+  beat, transizioni e plugin venivano fermati. Il nero iniziale non aveva ancora
+  un fotogramma da mantenere.
+- **Correzione**: RAF sempre attivo; passthrough one-bit audio-reattivo a 20 FPS,
+  plugin pieno campionato a 5 FPS, renderer nuovi sincronizzati allo stato della
+  generazione e ritorno continuo alla qualità piena.
+- **Validazione**: 52 file / 306 test, typecheck, lint, diff-check e bundle
+  Vite/Electron verdi. Conferma percettiva live pendente.
+
 ### `SESSION-2026-08-16-31`
 - **Data**: 16 Agosto 2026 — CEST
 - **Obiettivo**: Correggere la mancata visibilità dei comportamenti MACRO-029.

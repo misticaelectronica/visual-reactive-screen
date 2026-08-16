@@ -9,6 +9,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-030-03`** `DONE`: Yield cooperativo GPU.
 - [x] **`TASK-030-04`** `DONE`: Test e validazione completa.
 - [x] **`TASK-030-05`** `DONE`: Working system e commit.
+- [x] **`TASK-030-06`** `DONE`: Rendere dinamica la finestra di generazione senza bloccare RAF e timeline.
 
 ---
 

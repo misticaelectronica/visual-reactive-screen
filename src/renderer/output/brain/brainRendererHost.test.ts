@@ -170,7 +170,7 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
-  it('congela gli aggiornamenti del plugin durante la finestra offline', () => {
+  it('mantiene dinamico il plugin durante la generazione se il passthrough non è pronto', () => {
     const registry = new BrainRendererRegistry()
     let updates = 0
     registry.register({
@@ -224,12 +224,12 @@ describe('Brain renderer host', () => {
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
     host.setOfflineHold?.(true)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 2_000)
-    expect(updates).toBe(1)
+    expect(updates).toBe(2)
     expect(host.element.dataset.brainOfflineHold).toBe('active')
 
     host.setOfflineHold?.(false)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 3_000)
-    expect(updates).toBe(2)
+    expect(updates).toBe(3)
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
     host.destroy()
   })
@@ -321,6 +321,14 @@ describe('Brain renderer host', () => {
     host.setResourcePressure(false)
     host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_300)
     expect(pluginUpdates).toBe(3)
+
+    host.setOfflineHold?.(true)
+    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_500)
+    expect(pluginUpdates).toBe(4)
+    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_600)
+    expect(pluginUpdates).toBe(4)
+    expect(host.element.dataset.brainOfflineHold).toBe('active')
+    host.setOfflineHold?.(false)
     host.destroy()
   })
 })
