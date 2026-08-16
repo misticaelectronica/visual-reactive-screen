@@ -68,3 +68,15 @@ cooperativo tra submit GPU.
 - [x] Applicare la modalità leggera anche ai renderer creati durante la generazione.
 - [x] Validare suite, typecheck, lint e bundle: 52 file / 306 test verdi.
 - [ ] Confermare percettivamente il comportamento live durante un ciclo completo.
+
+## 7. Correzione Print2D 2026-08-16
+
+- [x] Sostituire il passthrough one-bit con il renderer reale `Print2D — serigrafico`.
+- [x] Mantenerlo reattivo all'audio e sotto pressione risorse durante il denoising.
+- [x] Conservare il crossfade continuo di ingresso e ritorno al renderer pieno.
+- [x] Aggiungere test mirati e completare la validazione automatica.
+
+Esito: Print2D resta a 480×270, acquisisce beat e bande prima del proprio
+frame pacing a 18 FPS sotto pressione, riceve flash e transizioni e sostituisce
+il renderer pieno con crossfade da 220 ms. Suite completa: 52 file / 306 test;
+typecheck, lint, bundle Vite/Electron e diff-check verdi. Verifica live pendente.

@@ -1175,3 +1175,17 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   presenti nella build; nessun ritorno di SNIC/VTracer nel main.
 - **Validazione**: 50 file / 295 test, typecheck, lint, diff-check e build
   Electron arm64 completa verdi; prova fullscreen del rollback pendente.
+
+### `SESSION-2026-08-16-23`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Ripristinare il ruolo previsto di Print2D durante il denoising.
+- **Correzione**: il passthrough one-bit non viene più usato dal Renderer Host;
+  una vera istanza `Print2D — serigrafico`, preparata in anticipo, riceve audio,
+  beat, flash e transizioni durante la pressione GPU.
+- **Costo e continuità**: Print2D usa il proprio pacing a 18 FPS; il renderer
+  pieno scende a 5 FPS soltanto nel crossfade da 220 ms, poi si sospende e
+  riprende sul clock corrente durante il crossfade di uscita.
+- **Vincoli visivi**: camera stabile, deformazioni locali nella materia,
+  assenza di moto geometrico autonomo nel silenzio e transizione continua.
+- **Validazione**: 52 file / 306 test, typecheck, lint, diff-check e bundle
+  Vite/Electron verdi; verifica percettiva live pendente.

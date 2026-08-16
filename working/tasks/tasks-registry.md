@@ -10,6 +10,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-030-04`** `DONE`: Test e validazione completa.
 - [x] **`TASK-030-05`** `DONE`: Working system e commit.
 - [x] **`TASK-030-06`** `DONE`: Rendere dinamica la finestra di generazione senza bloccare RAF e timeline.
+- [x] **`TASK-030-07`** `DONE`: Usare il vero Print2D serigrafico come modalità leggera dinamica durante il denoising.
 
 ---
 

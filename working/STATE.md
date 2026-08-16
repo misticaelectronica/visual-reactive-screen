@@ -3,8 +3,9 @@
 ## Soluzioni denoising stall — 2026-08-16
 
 - Correzione dinamica: la generazione non interrompe più il RAF Brain. Timeline,
-  beat, transizioni e alternanza renderer continuano; il coordinatore attiva
-  invece il passthrough one-bit reattivo e limita il plugin pieno a 5 FPS.
+  beat e transizioni continuano; il coordinatore usa il vero renderer
+  `Print2D — serigrafico` a 18 FPS sotto pressione e limita il renderer pieno
+  a 5 FPS durante il breve crossfade, per poi sospenderlo fino all'uscita.
 - Implementato il piano Antigravity approvato: durante Psichedel il loop Brain
   coordina ora una modalità visuale leggera durante l'inferenza, senza fermare
   il quadro o simulare movimento autonomo.
@@ -13,8 +14,8 @@
   `onSubmittedWorkDone()` e programma un micro-yield da 4 ms dopo ogni submit.
 - Entrambe le soluzioni sono controllate da configurazione; step, seed, forma,
   qualità e risoluzione della pipeline restano invariati.
-- Validazione: 52 file / 305 test, typecheck, lint, diff-check e build completa
-  con ZIP/DMG arm64 verdi. Resta il confronto live dei gap RAF.
+- Validazione corrente: 52 file / 306 test, typecheck, lint, diff-check e bundle
+  Vite/Electron verdi. Resta il confronto live dei gap RAF e della resa Print2D.
 
 ## Ripristino comportamenti non performance — 2026-08-16
 

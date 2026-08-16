@@ -12,7 +12,6 @@ import type {
   BrainRendererRegistry,
 } from './brainRendererPlugin'
 import { brainLog, brainWarn } from './brainLog'
-import { createBrainDenoisingPassthrough } from './brainDenoisingPassthrough'
 
 const SWITCH_DURATION_MS = 1_800
 const SWITCH_TIMEOUT_MS = 15_000
@@ -81,11 +80,11 @@ export function createBrainRendererHost(
 
   let active = createLayer(initialRendererId, performance.now())
   let incoming: RendererLayer | null = null
-  const denoisingPassthrough = createBrainDenoisingPassthrough(
-    root,
-    pluginContext.raster,
-    pluginContext.palette,
-  )
+  const denoisingPrint2d = createLayer('print2d', performance.now())
+  denoisingPrint2d.root.dataset.brainDenoisingPrint2d = 'true'
+  denoisingPrint2d.root.style.opacity = '0'
+  denoisingPrint2d.root.style.zIndex = '2'
+  denoisingPrint2d.controller.setResourcePressure(true)
   let passthroughState: 'idle' | 'entering' | 'active' | 'exiting' = 'idle'
   let passthroughStartedAt = 0
   let passthroughStartOpacity = 0
@@ -142,6 +141,7 @@ export function createBrainRendererHost(
       morphPattern = pattern
       active.controller.setMorphPattern(pattern)
       incoming?.controller.setMorphPattern(pattern)
+      denoisingPrint2d.controller.setMorphPattern(pattern)
     },
     setResourcePressure(activePressure) {
       if (resourcePressure === activePressure) return
@@ -157,11 +157,7 @@ export function createBrainRendererHost(
     setTransition(progress, role, counterpartShapes) {
       transitionProgress = clamp(progress)
       transitionRole = role
-      if (
-        BRAIN_CONFIG.lightweightDenoisingRender &&
-        (resourcePressure || offlineHold) &&
-        denoisingPassthrough.isReady()
-      ) return
+      denoisingPrint2d.controller.setTransition(progress, role, counterpartShapes)
       active.controller.setTransition(progress, role, counterpartShapes)
       incoming?.controller.setTransition(progress, role, counterpartShapes)
     },
@@ -176,15 +172,15 @@ export function createBrainRendererHost(
       if (destroyed) return
       const passthroughReady =
         BRAIN_CONFIG.lightweightDenoisingRender &&
-        denoisingPassthrough.isReady()
+        denoisingPrint2d.controller.isReady?.() !== false
       const shouldSuspendPlugin = (resourcePressure || offlineHold) && passthroughReady
       if (shouldSuspendPlugin) {
         if (passthroughState === 'idle' || passthroughState === 'exiting') {
           passthroughState = 'entering'
           passthroughStartedAt = time
           passthroughStartOpacity = passthroughOpacity
-          root.dataset.brainDenoisingPassthrough = 'entering'
-          brainLog('render', 'denoising-passthrough: active', {
+          root.dataset.brainDenoisingPrint2d = 'entering'
+          brainLog('render', 'denoising-print2d: active', {
             renderer: active.id,
           })
         }
@@ -194,8 +190,15 @@ export function createBrainRendererHost(
         )
         passthroughOpacity = passthroughStartOpacity +
           (1 - passthroughStartOpacity) * progress
-        denoisingPassthrough.setOpacity(passthroughOpacity)
-        denoisingPassthrough.update(bands, settings, time, rhythm)
+        denoisingPrint2d.root.style.opacity = String(passthroughOpacity)
+        denoisingPrint2d.controller.update(
+          bands,
+          settings,
+          time,
+          rhythm,
+          movingAverages,
+          flash,
+        )
         const pluginFrameInterval = settings.lowPowerMode
           ? 1_000 / BRAIN_CONFIG.lowPowerDenoisingPassthroughPluginFps
           : 1_000 / BRAIN_CONFIG.denoisingPassthroughPluginFps
@@ -208,7 +211,7 @@ export function createBrainRendererHost(
         }
         if (progress >= 1) {
           passthroughState = 'active'
-          root.dataset.brainDenoisingPassthrough = 'active'
+          root.dataset.brainDenoisingPrint2d = 'active'
         }
         return
       }
@@ -217,7 +220,7 @@ export function createBrainRendererHost(
         passthroughState = 'exiting'
         passthroughStartedAt = time
         passthroughStartOpacity = passthroughOpacity
-        root.dataset.brainDenoisingPassthrough = 'exiting'
+        root.dataset.brainDenoisingPrint2d = 'exiting'
       }
       if (passthroughState === 'exiting') {
         const progress = smootherstep(
@@ -225,14 +228,21 @@ export function createBrainRendererHost(
             BRAIN_CONFIG.denoisingPassthroughCrossfadeMs,
         )
         passthroughOpacity = passthroughStartOpacity * (1 - progress)
-        denoisingPassthrough.setOpacity(passthroughOpacity)
-        denoisingPassthrough.update(bands, settings, time, rhythm)
+        denoisingPrint2d.root.style.opacity = String(passthroughOpacity)
+        denoisingPrint2d.controller.update(
+          bands,
+          settings,
+          time,
+          rhythm,
+          movingAverages,
+          flash,
+        )
         if (progress >= 1) {
           passthroughState = 'idle'
           passthroughOpacity = 0
-          denoisingPassthrough.setOpacity(0)
-          root.dataset.brainDenoisingPassthrough = 'idle'
-          brainLog('render', 'denoising-passthrough: idle', {
+          denoisingPrint2d.root.style.opacity = '0'
+          root.dataset.brainDenoisingPrint2d = 'idle'
+          brainLog('render', 'denoising-print2d: idle', {
             renderer: active.id,
           })
         }
@@ -294,7 +304,7 @@ export function createBrainRendererHost(
       destroyed = true
       destroyLayer(incoming)
       destroyLayer(active)
-      denoisingPassthrough.destroy()
+      destroyLayer(denoisingPrint2d)
       incoming = null
       root.remove()
     },

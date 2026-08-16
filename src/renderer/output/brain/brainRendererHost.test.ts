@@ -170,9 +170,10 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
-  it('mantiene dinamico il plugin durante la generazione se il passthrough non è pronto', () => {
+  it('usa il vero Print2D serigrafico durante il denoising e poi riprende il renderer pieno', () => {
     const registry = new BrainRendererRegistry()
-    let updates = 0
+    const updates: number[] = []
+    const pressureCalls: boolean[][] = []
     registry.register({
       id: 'print2d',
       label: 'Print2D',
@@ -182,7 +183,11 @@ describe('Brain renderer host', () => {
         lowPowerMode: true,
       },
       create(context) {
+        const instance = updates.length
+        updates.push(0)
+        pressureCalls.push([])
         const element = document.createElement('div')
+        element.dataset.print2dInstance = String(instance)
         context.container.appendChild(element)
         return {
           element,
@@ -190,10 +195,12 @@ describe('Brain renderer host', () => {
           setOpacity() {},
           getMorphShapes: () => [],
           setMorphPattern() {},
-          setResourcePressure() {},
+          setResourcePressure(active) {
+            pressureCalls[instance].push(active)
+          },
           setTransition() {},
           update() {
-            updates += 1
+            updates[instance] += 1
           },
           destroy() {
             element.remove()
@@ -222,43 +229,32 @@ describe('Brain renderer host', () => {
     )
 
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(updates).toEqual([1, 0])
+    expect(pressureCalls[1]).toContain(true)
+    expect(container.querySelector('[data-brain-denoising-print2d="true"]')).not.toBeNull()
+
     host.setOfflineHold?.(true)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 2_000)
-    expect(updates).toBe(2)
+    expect(updates).toEqual([2, 1])
     expect(host.element.dataset.brainOfflineHold).toBe('active')
+    expect(host.element.dataset.brainDenoisingPrint2d).toBe('entering')
+
+    host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_000)
+    host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_100)
+    expect(updates).toEqual([3, 3])
+    expect(host.element.dataset.brainDenoisingPrint2d).toBe('active')
 
     host.setOfflineHold?.(false)
-    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 3_000)
-    expect(updates).toBe(3)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 11_000)
+    expect(updates).toEqual([4, 4])
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
+    expect(host.element.dataset.brainDenoisingPrint2d).toBe('exiting')
     host.destroy()
   })
 
-  it('rallenta il plugin durante il passthrough e lo riprende sul clock corrente', async () => {
-    const drawImage = vi.fn()
-    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({
-      width: 640,
-      height: 360,
-      close: vi.fn(),
-    })))
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-      drawImage,
-      fillRect: vi.fn(),
-      clearRect: vi.fn(),
-      getImageData: () => ({
-        data: new Uint8ClampedArray(320 * 180 * 4),
-      }),
-      createImageData: (width: number, height: number) => ({
-        data: new Uint8ClampedArray(width * height * 4),
-      }),
-      putImageData: vi.fn(),
-      set fillStyle(_value: string) {},
-      set globalAlpha(_value: number) {},
-      set globalCompositeOperation(_value: GlobalCompositeOperation) {},
-    } as unknown as CanvasRenderingContext2D)
-
+  it('inoltra audio e flash al Print2D leggero senza aggiornare continuamente il renderer pieno', () => {
     const registry = new BrainRendererRegistry()
-    let pluginUpdates = 0
+    const received: Array<Array<{ low: number; flash: number }>> = []
     registry.register({
       id: 'print2d',
       label: 'Print2D',
@@ -268,6 +264,8 @@ describe('Brain renderer host', () => {
         lowPowerMode: true,
       },
       create(context) {
+        const instance = received.length
+        received.push([])
         const element = document.createElement('div')
         context.container.appendChild(element)
         return {
@@ -278,8 +276,11 @@ describe('Brain renderer host', () => {
           setMorphPattern() {},
           setResourcePressure() {},
           setTransition() {},
-          update() {
-            pluginUpdates += 1
+          update(bands, _settings, _time, _rhythm, _movingAverages, flash) {
+            received[instance].push({
+              low: bands.low,
+              flash: flash?.intensity ?? 0,
+            })
           },
           destroy() {
             element.remove()
@@ -306,29 +307,35 @@ describe('Brain renderer host', () => {
       () => 'print2d',
       'print2d',
     )
-    await Promise.resolve()
-    await Promise.resolve()
-    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
-    expect(pluginUpdates).toBe(1)
-    host.setResourcePressure(true)
-    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_000)
-    expect(pluginUpdates).toBe(2)
-    expect(drawImage).toHaveBeenCalled()
-    expect(container.querySelector('[data-brain-denoising-passthrough="true"]')).not.toBeNull()
-    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_100)
-    expect(pluginUpdates).toBe(2)
-
-    host.setResourcePressure(false)
-    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_300)
-    expect(pluginUpdates).toBe(3)
-
     host.setOfflineHold?.(true)
-    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_500)
-    expect(pluginUpdates).toBe(4)
-    host.update({ low: 0.5, lowMid: 0.3, mid: 0.2, high: 0.1 }, DEFAULT_SETTINGS, 2_600)
-    expect(pluginUpdates).toBe(4)
-    expect(host.element.dataset.brainOfflineHold).toBe('active')
-    host.setOfflineHold?.(false)
+    host.update(
+      { low: 0.72, lowMid: 0.3, mid: 0.2, high: 0.1 },
+      DEFAULT_SETTINGS,
+      2_000,
+      undefined,
+      undefined,
+      { active: true, intensity: 0.64 },
+    )
+    host.update(
+      { low: 0.38, lowMid: 0.2, mid: 0.1, high: 0.05 },
+      DEFAULT_SETTINGS,
+      10_000,
+      undefined,
+      undefined,
+      { active: false, intensity: 0.12 },
+    )
+    host.update(
+      { low: 0.24, lowMid: 0.1, mid: 0.05, high: 0.02 },
+      DEFAULT_SETTINGS,
+      10_100,
+    )
+
+    expect(received[1]).toEqual([
+      { low: 0.72, flash: 0.64 },
+      { low: 0.38, flash: 0.12 },
+      { low: 0.24, flash: 0 },
+    ])
+    expect(received[0]).toHaveLength(2)
     host.destroy()
   })
 })
