@@ -729,3 +729,19 @@ esterno. La durata esterna è calcolata come il 25% del tempo Brain appena
 concluso, ottenendo 80% Brain e 20% morphing sul ciclo totale. Il controller
 Brain viene parcheggiato, non distrutto, così buffer e storia successiva restano
 disponibili al ritorno.
+
+### Aggiornamento 2026-08-16 — Regia per fotogramma
+
+`PIANO-015` supera la regia per blocchi: il mazzo dei renderer viene ora
+distribuito sui quattro fotogrammi della storia, uno per immagine e senza
+ripetizioni. Il 20% esterno rimane pieno e riceve 12 secondi separati per le
+dissolvenze; un mazzo di famiglie impedisce che gli interludi ripetano sempre
+lo stesso algoritmo o preset.
+
+### Aggiornamento 2026-08-15 — Kick condiviso Brain
+
+Il clock ritmico produce un inviluppo kick comune da `beatPulse`, transiente
+`low` e contributo secondario `lowMid`. Il guadagno aggiuntivo resta moderato e
+viene distribuito nella materia dei tre renderer: profondità locale Print2D,
+scanline Psycho2D e segmenti Vector Morph. Camera stabile, silenzio a zero e
+nessun aumento del numero di elementi in low power.

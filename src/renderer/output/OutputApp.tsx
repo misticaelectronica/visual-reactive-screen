@@ -7,8 +7,9 @@ import {
   type VisualStatePayload,
 } from '@shared/types'
 import {
+  buildMorphingInterludeDeck,
   morphingRotationCandidateFromSettings,
-  pickMorphingRotationCandidate,
+  type MorphingRotationCandidate,
 } from '@shared/morphingRotation'
 import { createVisualSurface } from './visualSurface'
 import { createMorphingCanvas } from './morphingCanvas'
@@ -19,6 +20,7 @@ import {
   createBrainController,
   type BrainStoryCycleCompletion,
 } from './brain/brainController'
+import { OutputRhythmClock, type BrainRhythmState } from './brain/brainRhythm'
 import {
   calculateStoryMorphingInterludeMs,
   createAlternateBrainStorySettings,
@@ -41,11 +43,22 @@ type MorphingController = {
 type MorphingTransition = {
   from: MorphingController | null
   to: MorphingController | null
-  startedAt: number
   durationMs: number
   active: boolean
   kind: MorphingTransitionState['kind']
   preserveFrom?: boolean
+  visualElapsedMs: number
+  lastVisualUpdateAt: number
+}
+
+export function shouldApplyVisualChangeOnRhythm(
+  currentKey: string,
+  targetKey: string,
+  rhythm: BrainRhythmState,
+): boolean {
+  if (currentKey === targetKey) return true
+  if (rhythm.active !== true) return true
+  return rhythm.beat || rhythm.beatPhase <= 0.07 || rhythm.beatPhase >= 0.93
 }
 
 const MORPHING_TRANSITION_MIN_MS = 4_500
@@ -61,6 +74,21 @@ function clamp01(value: number): number {
 function smootherstep(x: number): number {
   const k = clamp01(x)
   return k * k * k * (k * (k * 6 - 15) + 10)
+}
+
+export function advanceVisualTransitionClock(
+  elapsedMs: number,
+  lastUpdateAt: number,
+  now: number,
+  durationMs: number,
+): { elapsedMs: number; lastUpdateAt: number; progress: number } {
+  const delta = Math.max(0, Math.min(50, now - lastUpdateAt))
+  const nextElapsed = elapsedMs + delta
+  return {
+    elapsedMs: nextElapsed,
+    lastUpdateAt: now,
+    progress: smootherstep(nextElapsed / Math.max(1, durationMs)),
+  }
 }
 
 function randomTransitionDuration(): number {
@@ -115,11 +143,13 @@ function createMorphingController(
   container: HTMLElement,
   state: VisualStatePayload,
   onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
+  rhythmSource?: () => BrainRhythmState,
 ): MorphingController | null {
   if (!visualModeActive(state) || !state.settings) return null
   if (state.settings.useBrain) {
     const controller: MorphingController = createBrainController(container, {
       onStoryCycleComplete: onBrainStoryCycleComplete,
+      rhythmSource,
     })
     controller.__algo = 'brain'
     controller.__key = morphingKey(state)
@@ -129,12 +159,12 @@ function createMorphingController(
   const algo = isMorphingAlgorithm(state.settings.morphingAlgorithm) ? state.settings.morphingAlgorithm : 'liquid'
   const controller: MorphingController =
     algo === 'oniric'
-      ? createOniricMorphingCanvas(container)
+      ? createOniricMorphingCanvas(container, rhythmSource)
       : algo === 'psy-hyp'
-        ? createPsyHypMorphingCanvas(container)
+        ? createPsyHypMorphingCanvas(container, rhythmSource)
         : algo === '2001'
-          ? create2001MorphingCanvas(container)
-          : createMorphingCanvas(container)
+          ? create2001MorphingCanvas(container, rhythmSource)
+          : createMorphingCanvas(container, rhythmSource)
   controller.__algo = algo
   controller.__key = morphingKey(state)
   controller.__settings = state.settings
@@ -147,6 +177,7 @@ function beginMorphingTransition(
   from: MorphingController | null,
   onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
   preserveFrom = false,
+  rhythmSource?: () => BrainRhythmState,
 ): MorphingTransition {
   const fromKey = from?.__key ?? 'none'
   const toKey = morphingKey(state)
@@ -161,12 +192,18 @@ function beginMorphingTransition(
           : randomTransitionDuration()
   return {
     from,
-    to: createMorphingController(container, state, onBrainStoryCycleComplete),
-    startedAt: performance.now(),
+    to: createMorphingController(
+      container,
+      state,
+      onBrainStoryCycleComplete,
+      rhythmSource,
+    ),
     durationMs,
     active: true,
     kind,
     preserveFrom,
+    visualElapsedMs: 0,
+    lastVisualUpdateAt: performance.now(),
   }
 }
 
@@ -187,15 +224,28 @@ function beginMorphingTransitionTo(
   return {
     from,
     to,
-    startedAt: performance.now(),
     durationMs,
     active: true,
     kind,
+    visualElapsedMs: 0,
+    lastVisualUpdateAt: performance.now(),
   }
 }
 
-function updateMorphingTransition(transition: MorphingTransition, state: VisualStatePayload): MorphingController | null {
-  const progress = smootherstep((performance.now() - transition.startedAt) / transition.durationMs)
+function updateMorphingTransition(
+  transition: MorphingTransition,
+  state: VisualStatePayload,
+  now = performance.now(),
+): MorphingController | null {
+  const clock = advanceVisualTransitionClock(
+    transition.visualElapsedMs,
+    transition.lastVisualUpdateAt,
+    now,
+    transition.durationMs,
+  )
+  transition.visualElapsedMs = clock.elapsedMs
+  transition.lastVisualUpdateAt = clock.lastUpdateAt
+  const progress = clock.progress
   if (transition.kind === 'enter2001') {
     transition.from?.setOpacity?.(1 - progress * 0.85)
     transition.to?.setOpacity?.(1)
@@ -239,20 +289,53 @@ export function OutputApp() {
     surfaceRef.current = createVisualSurface(rootRef.current)
 
     let latestInputState: VisualStatePayload | null = null
+    let latestRenderedState: VisualStatePayload | null = null
     let alternationWasEnabled = false
     let alternationPhase: 'brain' | 'morphing' = 'brain'
     let morphingInterludeUntil = Number.NEGATIVE_INFINITY
     let alternateMorphingSettings: AppSettings | null = null
+    let alternateMorphingDeck: MorphingRotationCandidate[] = []
+    let previousAlternateMorphing: MorphingRotationCandidate | null = null
     let parkedBrainController: MorphingController | null = null
+    const rhythmClock = new OutputRhythmClock()
+    let rhythmState = rhythmClock.projectState(
+      performance.timeOrigin + performance.now(),
+    )
+    const rhythmSource = () => rhythmState
+    let rhythmRafId = 0
+    const projectRhythm = (now: number) => {
+      rhythmState = rhythmClock.projectState(performance.timeOrigin + now)
+      const transition = morphingTransitionRef.current
+      if (transition?.active && latestRenderedState) {
+        const completed = updateMorphingTransition(
+          transition,
+          latestRenderedState,
+          now,
+        )
+        if (completed) {
+          morphingTransitionRef.current = null
+          morphingRef.current = completed
+          completed.__settings = latestRenderedState.settings
+          completed.__key = morphingKey(latestRenderedState)
+          completed.setOpacity?.(1)
+        }
+      }
+      rhythmRafId = requestAnimationFrame(projectRhythm)
+    }
+    rhythmRafId = requestAnimationFrame(projectRhythm)
 
     const onBrainStoryCycleComplete = (completion: BrainStoryCycleCompletion): void => {
       const settings = latestInputState?.settings
       if (!settings?.alternateBrainWithMorphing) return
-      const candidate = pickMorphingRotationCandidate(
-        morphingRotationCandidateFromSettings(settings),
-        false,
-      )
+      const previous = previousAlternateMorphing ??
+        morphingRotationCandidateFromSettings(settings)
+      if (alternateMorphingDeck.length === 0) {
+        alternateMorphingDeck = buildMorphingInterludeDeck(previous)
+      }
+      const candidate = alternateMorphingDeck.shift()
+      if (!candidate) return
       if (candidate.algorithm === 'none') return
+      previousAlternateMorphing = candidate
       alternateMorphingSettings = createAlternateMorphingSettings(
         settings,
         candidate.algorithm,
@@ -266,15 +349,33 @@ export function OutputApp() {
     const off = api.onVisualState((inputState: VisualStatePayload) => {
       // Libera subito il canale: il Main può conservare un solo pending recente.
       api.sendVisualStateAck(inputState.sequenceNumber)
+      if (inputState.bandEnergies) {
+        const receivedAt = performance.timeOrigin + performance.now()
+        rhythmClock.ingestSample(
+          inputState.bandEnergies,
+          inputState.audioTimestampMs,
+          inputState.movingAverages,
+          inputState.sequenceNumber,
+          receivedAt,
+        )
+        // Il gate di regia vede lo stesso campione prima del pacing Canvas.
+        rhythmState = rhythmClock.projectState(receivedAt)
+      }
       latestInputState = inputState
       const alternationEnabled = inputState.settings?.alternateBrainWithMorphing === true
       if (alternationEnabled && !alternationWasEnabled) {
         alternationPhase = 'brain'
         alternateMorphingSettings = null
+        alternateMorphingDeck = []
+        previousAlternateMorphing = morphingRotationCandidateFromSettings(
+          inputState.settings!,
+        )
         morphingInterludeUntil = Number.NEGATIVE_INFINITY
       } else if (!alternationEnabled && alternationWasEnabled) {
         alternationPhase = 'brain'
         alternateMorphingSettings = null
+        alternateMorphingDeck = []
+        previousAlternateMorphing = null
       }
       alternationWasEnabled = alternationEnabled
       if (
@@ -298,6 +399,19 @@ export function OutputApp() {
       const currentFamily = morphingFamilyFromKey(currentKey)
       const targetFamily = morphingFamilyFromKey(targetKey)
       const targetTransitionKind = transitionKind(currentKey, targetKey)
+      if (!shouldApplyVisualChangeOnRhythm(currentKey, targetKey, rhythmState)) {
+        if (morphingRef.current?.__settings) {
+          morphingRef.current.updateState({
+            ...state,
+            useMorphing: true,
+            settings: morphingRef.current.__settings,
+          })
+        }
+        setMsgCount((n) => n + 1)
+        setLastColor(state.backgroundColor)
+        return
+      }
+      latestRenderedState = state
       const dynamicCrossfade =
         alternationEnabled ||
         parkedBrainController !== null ||
@@ -364,6 +478,8 @@ export function OutputApp() {
               state,
               morphingRef.current,
               onBrainStoryCycleComplete,
+              false,
+              rhythmSource,
             )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
@@ -385,6 +501,7 @@ export function OutputApp() {
               rootRef.current!,
               state,
               onBrainStoryCycleComplete,
+              rhythmSource,
             )
             morphingRef.current?.setOpacity?.(1)
           }
@@ -441,6 +558,7 @@ export function OutputApp() {
               currentController,
               onBrainStoryCycleComplete,
               preserveBrain,
+              rhythmSource,
             )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
@@ -471,6 +589,7 @@ export function OutputApp() {
 
     return () => {
       off()
+      cancelAnimationFrame(rhythmRafId)
       surfaceRef.current?.destroy()
       surfaceRef.current = null
       const controllers = new Set([

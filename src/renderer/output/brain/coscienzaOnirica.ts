@@ -1,5 +1,6 @@
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { DreamFrame, DreamStory } from '@shared/brain/brainTypes'
+import type { ConsciousnessMotionCandidate } from '@shared/types'
 import { BrainAiCancelledError, type BrainAiClient } from './brainAiClient'
 import { brainLog, brainWarn } from './brainLog'
 import {
@@ -150,6 +151,30 @@ function paletteFromUnknown(value: unknown): DreamStory['palette'] {
   return uniqueColors.length === 5
     ? (uniqueColors as DreamStory['palette'])
     : [...DEFAULT_DREAM_PALETTE]
+}
+
+function consciousnessAccent(seedText: string, offset: number): string {
+  let seed = 2166136261
+  for (const character of seedText) {
+    seed ^= character.charCodeAt(0)
+    seed = Math.imul(seed, 16777619)
+  }
+  const value = (seed + offset * 0x45d9f3b) >>> 0
+  const channel = (shift: number) => 48 + ((value >>> shift) % 176)
+  return `#${channel(0).toString(16).padStart(2, '0')}${channel(8).toString(16).padStart(2, '0')}${channel(16).toString(16).padStart(2, '0')}`
+}
+
+function applyConsciousnessPalette(
+  palette: DreamStory['palette'],
+  influence: ConsciousnessMotionCandidate,
+): DreamStory['palette'] {
+  return [
+    palette[0],
+    palette[1],
+    consciousnessAccent(influence.memoryId, 1),
+    consciousnessAccent(influence.memoryId, 2),
+    palette[4],
+  ]
 }
 
 export function analyzeNarrativeFormat(text: string): NarrativeParseResult {
@@ -557,6 +582,7 @@ type StoryGenerationOptions = {
   sessionSynthesis?: boolean
   continuitySeed?: string | null
   recentBridges?: readonly string[]
+  consciousnessInfluence?: ConsciousnessMotionCandidate | null
 }
 
 export function bridgeIsNew(
@@ -674,6 +700,7 @@ export class CoscienzaOnirica {
     const sessionSynthesis = options.sessionSynthesis === true
     const continuitySeed = options.continuitySeed?.trim() || null
     const recentBridges = options.recentBridges ?? []
+    const consciousnessInfluence = options.consciousnessInfluence ?? null
     const explicitSource = containsExplicitAdultContent(phrases.join(' '))
     let englishVisualMoments: string[] | null = null
     let englishDisplay: Pick<
@@ -750,6 +777,18 @@ export class CoscienzaOnirica {
         story.title = 'Questo sogno'
         story.sessionSynthesis = true
       }
+      if (consciousnessInfluence) {
+        story.palette = applyConsciousnessPalette(
+          story.palette,
+          consciousnessInfluence,
+        )
+        story.consciousnessInfluence = {
+          memoryId: consciousnessInfluence.memoryId,
+          kind: consciousnessInfluence.kind,
+          title: consciousnessInfluence.title,
+          relevanceReason: consciousnessInfluence.relevanceReason,
+        }
+      }
       return story
     }
     brainLog('coscienza', 'generazione storia avviata', {
@@ -760,6 +799,13 @@ export class CoscienzaOnirica {
       continuitySeed,
       recentBridges,
       explicitSource,
+      consciousnessInfluence: consciousnessInfluence
+        ? {
+            memoryId: consciousnessInfluence.memoryId,
+            kind: consciousnessInfluence.kind,
+            relevance: consciousnessInfluence.relevanceReason,
+          }
+        : null,
     })
     const translatedInputs = this.translator
       ? await this.translator.inputsToEnglish(
@@ -811,6 +857,16 @@ export class CoscienzaOnirica {
           `SESSION MEMO:\n${(options.sessionMemo ?? []).map((sentence) => `- ${sentence}`).join('\n')}`,
         ].join('\n')
       : 'This is an ordinary new dream in the session.'
+    const consciousnessConstraint = consciousnessInfluence
+      ? [
+          'LIMITED CONSCIOUSNESS MOTION:',
+          `Provenance: ${consciousnessInfluence.kind}. Source memory: ${consciousnessInfluence.title}.`,
+          `Influence: ${consciousnessInfluence.influenceText}`,
+          `Reason: ${consciousnessInfluence.relevanceReason}.`,
+          'Let it change one concrete story element, one local visual form and the five-color palette.',
+          'Keep it secondary and traceable. If provenance is imagination, never present it as an external fact.',
+        ].join('\n')
+      : 'No consciousness motion is active for this story.'
     const storyPrompt = [
       'WRITE ONE STORY NOW. Output only the four requested lines.',
       ...(this.translator
@@ -829,6 +885,7 @@ export class CoscienzaOnirica {
       recentStoryConstraint,
       continuityConstraint,
       synthesisConstraint,
+      consciousnessConstraint,
       'BRIDGE must be one new concrete open-ended sentence of 8-16 words. COLORS must be exactly five hexadecimal colors.',
       ...(recentBridges.length > 0
         ? [

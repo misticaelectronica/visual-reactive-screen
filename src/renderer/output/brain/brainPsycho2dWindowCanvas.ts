@@ -399,11 +399,20 @@ export function createBrainPsycho2dWindowScene(
           : NORMAL_FRAME_INTERVAL_MS
       if (time - lastRenderedAt < frameInterval) return
       lastRenderedAt = time
+      const renderStartedAt = performance.now()
       const latchedBeatPulse = time < latchedBeatUntil
         ? 1 - Math.max(0, time - (latchedBeatUntil - BEAT_LATCH_HOLD_MS)) / BEAT_LATCH_HOLD_MS
         : 0
       const beatPulse = Math.max(latchedBeatPulse, clamp(rhythm?.beatPulse ?? 0))
       const beatPhase = rhythm?.beatPhase ?? lastBeatPhase
+      const kickProfileScale = settings.motionProfile === 'ambient'
+        ? 0.5
+        : settings.motionProfile === 'techno'
+          ? 1
+          : 0.8
+      const kickEnvelope = clamp(
+        (rhythm?.kickEnvelope ?? beatPulse) * kickProfileScale,
+      )
       const flashDrive = clamp(flash?.intensity ?? 0)
       const flashActive = flash?.active === true && flashDrive > 0.04
       if (flashActive && !flashWasActive) flashGestureIndex += 1
@@ -411,7 +420,7 @@ export function createBrainPsycho2dWindowScene(
       const densityVariant = selectPsycho2dDensityVariant(
         bands.lowMid,
         rhythm?.bandTransients.lowMid ?? 0,
-        beatPulse,
+        Math.max(beatPulse, kickEnvelope),
       )
       const activeArtwork = artwork.variants[densityVariant]
       context.save()
@@ -431,7 +440,7 @@ export function createBrainPsycho2dWindowScene(
         )
       }
       context.globalAlpha = 1
-      context.filter = `contrast(${(1 + beatPulse * 0.52).toFixed(2)})`
+      context.filter = `contrast(${(1 + beatPulse * 0.52 + kickEnvelope * 0.08).toFixed(2)})`
       context.imageSmoothingEnabled = false
       context.drawImage(activeArtwork, 0, 0, canvas.width, canvas.height)
       context.filter = 'none'
@@ -440,7 +449,7 @@ export function createBrainPsycho2dWindowScene(
       // Risposta primaria al beat: la matrice resta ferma, ma alcune scanline
       // interne respirano e si riallineano alla fase. È un movimento locale,
       // quindi non trascina mai il quadro intero.
-      const beatScanDrive = clamp(beatPulse * 1.35)
+      const beatScanDrive = clamp(beatPulse * 1.35 + kickEnvelope * 0.18)
       if (beatScanDrive > 0.025) {
         const beatSliceCount = resourcePressure || settings.lowPowerMode ? 3 : 7
         context.save()
@@ -606,7 +615,11 @@ export function createBrainPsycho2dWindowScene(
         context.restore()
       }
       context.filter = 'none'
-      brainPerformanceMetrics.recordCanvasFrame(time, resourcePressure)
+      brainPerformanceMetrics.recordCanvasFrame(
+        time,
+        resourcePressure,
+        performance.now() - renderStartedAt,
+      )
       canvas.dataset.brainPsycho2dPlan = plan.id
       canvas.dataset.brainPsycho2dProgress = `one-bit-${densityVariant}`
       canvas.dataset.brainPsycho2dMorph = `${transitionRole}-${transitionProgress.toFixed(3)}`

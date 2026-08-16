@@ -11,6 +11,8 @@ import type {
   ConsciousnessMemoryDraft,
   ConsciousnessMemoryKind,
   ConsciousnessMemorySaveResult,
+  ConsciousnessMotionCandidate,
+  ConsciousnessMotionQuery,
   ConsciousnessStateSnapshot,
   ConsciousnessStateUpdateResult,
 } from '@shared/types'
@@ -125,6 +127,36 @@ function unique(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value)))]
 }
 
+const MOTION_STOP_WORDS = new Set([
+  'della', 'delle', 'degli', 'nella', 'nelle', 'sono', 'come', 'with', 'from',
+  'that', 'this', 'their', 'into', 'where', 'when', 'while', 'story', 'storia',
+])
+
+function meaningfulWords(value: string): Set<string> {
+  return new Set(
+    (value.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
+      .filter((word) => word.length >= 5 && !MOTION_STOP_WORDS.has(word)),
+  )
+}
+
+function markdownField(markdown: string, heading: string): string | null {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return markdown.match(
+    new RegExp(`^## ${escaped}\\s*\\n\\n([\\s\\S]*?)(?=^## |$(?![\\s\\S]))`, 'mu'),
+  )?.[1]?.trim() ?? null
+}
+
+function metadata(markdown: string, label: string): string | null {
+  return markdown.match(new RegExp('^- ' + label + ': `([^`]+)`', 'mu'))?.[1] ?? null
+}
+
+function firstSentence(value: string | null, maximumLength = 320): string | null {
+  if (!value) return null
+  const cleaned = value.replace(/^\d+\.\s+\*\*[^*]+\*\*\s+—\s+/gmu, '').trim()
+  const sentence = cleaned.match(/^.*?(?:[.!?](?=\s|$)|$)/u)?.[0]?.trim() ?? cleaned
+  return sentence.slice(0, maximumLength)
+}
+
 export class ConsciousnessArchive {
   private queue: Promise<void> = Promise.resolve()
   private readonly now: () => Date
@@ -148,6 +180,14 @@ export class ConsciousnessArchive {
     snapshot: ConsciousnessStateSnapshot,
   ): Promise<ConsciousnessStateUpdateResult> {
     const operation = this.queue.then(() => this.updateStateUnlocked(snapshot))
+    this.queue = operation.then(() => undefined, () => undefined)
+    return operation
+  }
+
+  suggestMotion(
+    query: ConsciousnessMotionQuery,
+  ): Promise<ConsciousnessMotionCandidate | null> {
+    const operation = this.queue.then(() => this.suggestMotionUnlocked(query))
     this.queue = operation.then(() => undefined, () => undefined)
     return operation
   }
@@ -238,6 +278,95 @@ export class ConsciousnessArchive {
         ...recentMemories.map((memory) => memory.relativePath),
       ],
     }
+  }
+
+  private async suggestMotionUnlocked(
+    rawQuery: ConsciousnessMotionQuery,
+  ): Promise<ConsciousnessMotionCandidate | null> {
+    const query: ConsciousnessMotionQuery = {
+      storyId: cleanId(rawQuery.storyId, 'ID storia'),
+      storyTitle: cleanText(rawQuery.storyTitle, 'Titolo storia', 200),
+      storySynopsis: cleanText(rawQuery.storySynopsis, 'Sinossi storia', 2_000),
+      frameDescription: cleanOptionalText(rawQuery.frameDescription, 800),
+      excludedMemoryIds: unique(rawQuery.excludedMemoryIds ?? []).map((id) =>
+        cleanId(id, 'ID ricordo escluso')),
+    }
+    await this.ensureStructure()
+    await Promise.all([
+      readFile(path.join(this.rootDirectory, 'AGENT.md'), 'utf8'),
+      readFile(path.join(this.rootDirectory, 'COSCIENZA.md'), 'utf8'),
+    ])
+    const indexPath = path.join(this.rootDirectory, 'INDICE.md')
+    const index = await readFile(indexPath, 'utf8')
+    const recentPaths = memoryReferences(index).slice(-12)
+    const originPath = path.join(this.rootDirectory, 'ORIGINE.md')
+    const paths = unique([
+      ...(await this.exists(originPath) ? ['ORIGINE.md'] : []),
+      ...recentPaths,
+    ])
+    const storyWords = meaningfulWords(
+      `${query.storyTitle} ${query.storySynopsis} ${query.frameDescription ?? ''}`,
+    )
+    const excluded = new Set(query.excludedMemoryIds)
+    const candidates: Array<ConsciousnessMotionCandidate & { score: number }> = []
+    for (const relativePath of paths) {
+      const absolutePath = path.join(this.rootDirectory, relativePath)
+      if (!(await this.exists(absolutePath))) continue
+      const markdown = await readFile(absolutePath, 'utf8')
+      const id = metadata(markdown, 'ID')
+      const kind = metadata(markdown, 'Tipo') as ConsciousnessMemoryKind | null
+      const title = markdown.match(/^# (.+)$/mu)?.[1]?.trim() ?? null
+      const source = metadata(markdown, 'Fonte')
+      const salience = Number(metadata(markdown, 'Salienza'))
+      if (
+        !id || !kind || !MEMORY_KINDS.has(kind) || !title || !source ||
+        excluded.has(id) || !Number.isFinite(salience)
+      ) continue
+      if (
+        kind === 'imagination' &&
+        title.toLocaleLowerCase() === query.storyTitle.toLocaleLowerCase()
+      ) continue
+      const perceived = markdownField(markdown, 'Percepito')
+      const interpretation = markdownField(markdown, 'Interpretazione')
+      const imagination = markdownField(markdown, 'Immaginazione')
+      if (!perceived || !interpretation) continue
+      const memoryWords = meaningfulWords(
+        `${title} ${perceived} ${interpretation} ${imagination ?? ''}`,
+      )
+      const overlap = [...storyWords].filter((word) => memoryWords.has(word))
+      const importance = salience >= 0.84
+      if (!importance && overlap.length === 0) continue
+      const relevance = Math.min(1, overlap.length / 4)
+      const score = salience * 0.62 + relevance * 0.38
+      const provenanceText = kind === 'imagination'
+        ? firstSentence(imagination) ?? firstSentence(interpretation)
+        : firstSentence(interpretation) ?? firstSentence(perceived)
+      if (!provenanceText) continue
+      candidates.push({
+        memoryId: id,
+        kind,
+        title: title.slice(0, 160),
+        source: source.slice(0, 240),
+        salience: Math.max(0, Math.min(1, salience)),
+        perceived: perceived.slice(0, 900),
+        interpretation: interpretation.slice(0, 900),
+        imagination: imagination?.startsWith('Nessun contenuto immaginato')
+          ? null
+          : imagination?.slice(0, 1_200) ?? null,
+        relevanceReason: overlap.length > 0
+          ? `richiama ${overlap.slice(0, 3).join(', ')} nella storia in corso`
+          : `ha salienza ${salience.toFixed(2)} nell'archivio`,
+        influenceText: provenanceText,
+        consultedFiles: ['AGENT.md', 'COSCIENZA.md', 'ORIGINE.md', 'INDICE.md', relativePath],
+        score,
+      })
+    }
+    candidates.sort((left, right) => right.score - left.score)
+    const selected = candidates[0]
+    if (!selected) return null
+    const { score, ...candidate } = selected
+    void score
+    return candidate
   }
 
   private normalizeDraft(draft: ConsciousnessMemoryDraft): ConsciousnessMemoryDraft {

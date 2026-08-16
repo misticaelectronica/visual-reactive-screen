@@ -45,6 +45,28 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-017`: Bauhaus Morph — Renderer Brain Pittorico
+- **Descrizione**: Tradurre progressivamente il raster di Coscienza Onirica in
+  una composizione Bauhaus derivata da masse, piani, bordi, assi, spazio
+  negativo e palette della sorgente.
+- **Stato**: 🟡 IN PROGRESS — V1 implementata e validata automaticamente;
+  prova artistica fullscreen pendente
+- **Piano di Lavoro**: `working/plans/piano-019-bauhaus-morph-brain.md`
+
+### `MACRO-016`: Moti Di Coscienza Brain
+- **Descrizione**: Trasformare ricordi salienti e pertinenti in brevi influenze
+  dichiarate su storia, forme e colori, mostrate localmente e concluse sul beat
+  prima della normale ripresa Brain.
+- **Stato**: 🟡 IN PROGRESS — implementazione automatica completata; prova
+  artistica fullscreen pendente
+- **Piano di Lavoro**: `working/plans/piano-018-moti-di-coscienza.md`
+
+### `MACRO-015`: Clock Ritmico Globale Output
+- **Descrizione**: Unificare fase, pulse, kick e transienti nell'Output,
+  quantizzare la regia e arrestare l'avanzamento geometrico in silenzio.
+- **Stato**: 🟡 IN PROGRESS — implementazione automatica completata; resta prova live
+- **Piano di Lavoro**: `working/plans/piano-017-clock-ritmico-globale-output.md`
+
 ### `MACRO-009`: Diagnosi Blocchi Live Continui
 - **Descrizione**: Nuova baseline diagnostica con log pulito per correlare i
   blocchi percepiti con RAF Output, Canvas, IPC e inferenza WebGPU.
@@ -79,6 +101,37 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Stato**: 🟡 IN PROGRESS — V1 implementata e compilata; validazione live
   del cambio renderer ancora da eseguire
 - **Piano di Lavoro**: `working/plans/piano-009-psycho2d-regia-semantica.md`
+
+### `MACRO-011`: Materia Morph — Renderer Brain Materico
+- **Descrizione**: Nuovo plugin Brain Canvas 2D che trasforma i raster di
+  Coscienza Onirica mediante regioni, pigmento, densità, bordi, membrane,
+  erosione e sedimentazione, preservando soggetto e camera stabile.
+- **Stato**: 🟡 IN PROGRESS — V1 implementata e compilata; validazione live e
+  prova prolungata ancora da eseguire
+- **Piano di Lavoro**: `working/plans/piano-013-materia-morph-brain.md`
+
+### `MACRO-012`: Vector Morph — Contorni Morbidi
+- **Descrizione**: Correggere l'eccesso di spigoli del renderer vettoriale con
+  una finitura geometrica comune a SNIC e VTracer, metriche di densità degli
+  angoli e budget una tantum prima della cache.
+- **Stato**: 🟡 IN PROGRESS — implementazione e validazione automatica
+  completate; confronto artistico fullscreen pendente
+- **Piano di Lavoro**: `working/plans/piano-014-vector-morph-contorni-morbidi.md`
+
+### `MACRO-013`: Regia Casuale Brain e Morphing
+- **Descrizione**: Distribuire casualmente i renderer sui fotogrammi di “Tutti
+  per storia”, randomizzare la rotazione automatica e impedire che gli
+  interludi esterni ripetano sempre famiglia o preset.
+- **Stato**: 🟡 IN PROGRESS — implementazione automatica completata;
+  validazione live pendente
+- **Piano di Lavoro**: `working/plans/piano-015-regia-casuale-brain-morphing.md`
+
+### `MACRO-014`: FilterPsiche — Renderer Brain Cromatico
+- **Descrizione**: Nuovo plugin raster con inversioni, solarizzazioni, duotoni,
+  flash e filtri psichedelici beat-matched, integrato nelle rotazioni Brain.
+- **Stato**: 🟡 IN PROGRESS — implementazione e test completati;
+  validazione live pendente
+- **Piano di Lavoro**: `working/plans/piano-016-filter-psiche-brain.md`
 
 ## ⚪ Macrotask Pianificati (Futuri)
 

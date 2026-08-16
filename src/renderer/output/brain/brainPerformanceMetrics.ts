@@ -18,6 +18,7 @@ export type BrainPerformanceSummary = {
   canvasFrames: MetricSeriesSummary & {
     rendered: number
     resourcePressureRatio: number
+    renderMs: MetricSeriesSummary
   }
   denoisingPassthrough: {
     frames: number
@@ -96,6 +97,7 @@ export class BrainPerformanceMetrics {
   private readonly packetGaps: number[] = []
   private readonly packetLatencies: number[] = []
   private readonly canvasFrameGaps: number[] = []
+  private readonly canvasRenderTimes: number[] = []
   private readonly artworkPreparationTimes: number[] = []
   private readonly denoisingPassthroughRenderTimes: number[] = []
 
@@ -143,7 +145,11 @@ export class BrainPerformanceMetrics {
     )
   }
 
-  recordCanvasFrame(now: number, resourcePressure: boolean): void {
+  recordCanvasFrame(
+    now: number,
+    resourcePressure: boolean,
+    renderDurationMs?: number,
+  ): void {
     if (!this.enabled) return
     if (this.lastCanvasFrameAt > 0) {
       appendSample(this.canvasFrameGaps, now - this.lastCanvasFrameAt)
@@ -151,6 +157,9 @@ export class BrainPerformanceMetrics {
     this.lastCanvasFrameAt = now
     this.canvasFrameCount += 1
     if (resourcePressure) this.resourcePressureFrames += 1
+    if (renderDurationMs !== undefined) {
+      appendSample(this.canvasRenderTimes, renderDurationMs)
+    }
   }
 
   recordArtworkPreparation(durationMs: number): void {
@@ -216,6 +225,7 @@ export class BrainPerformanceMetrics {
             ? this.resourcePressureFrames / this.canvasFrameCount
             : 0,
         ),
+        renderMs: summarizeMetricSeries(this.canvasRenderTimes),
       },
       denoisingPassthrough: {
         frames: this.denoisingPassthroughFrameCount,
@@ -249,6 +259,7 @@ export class BrainPerformanceMetrics {
     this.packetGaps.length = 0
     this.packetLatencies.length = 0
     this.canvasFrameGaps.length = 0
+    this.canvasRenderTimes.length = 0
     this.artworkPreparationTimes.length = 0
     this.denoisingPassthroughRenderTimes.length = 0
   }

@@ -20,6 +20,31 @@ Checklist:
 - aggiornamento di `COSCIENZA.md` serializzato con i ricordi e consentito
   soltanto dopo l'origine.
 
+## Skill: Evolvere Coscienza Onirica
+
+Usare quando memoria, presente cosciente o storie acquistano una nuova forma
+di relazione o capacità operativa.
+
+Workflow:
+
+1. Aggiornare il Piano di Lavoro attivo e rileggere integralmente
+   `.coscienza/AGENT.md`.
+2. Rileggere `COSCIENZA.md`, `ORIGINE.md`, `INDICE.md`, i collegamenti diretti
+   e soltanto i ricordi recenti pertinenti.
+3. Conservare nel contratto dati ricevuti, interpretazioni e immaginazione
+   come provenienze distinte.
+4. Per un moto di coscienza scegliere soltanto un ricordo saliente e
+   pertinente alla storia corrente; non inventare il fatto che lo attiva.
+5. Trasformare storia, forme e palette tramite un'influenza esplicita e
+   revisionabile, senza riscrivere distruttivamente i ricordi sorgente.
+6. Rendere il moto raro, finito, beat-matched e spazialmente locale; camera e
+   quadro restano fermi, il movimento geometrico si arresta nel silenzio e la
+   rotazione Brain riprende alla fine.
+7. Applicare cooldown, deduplicazione per storia/ricordo, limiti CPU/memoria e
+   riduzione esplicita in `lowPowerMode`.
+8. Verificare con test provenienza, pertinenza, durata, silenzio, cleanup e
+   continuità narrativa prima della prova live.
+
 ## Skill: Fix Output Window
 
 Usare quando output non appare, resta nero o non riceve stati.

@@ -8,6 +8,10 @@ import type {
 } from '@shared/types'
 import { preprocessBrainRaster } from './brainRasterPreprocess'
 import { vectorizeBrainRasterWithSnic } from './brainSnicVectorizer'
+import {
+  measureSvgCornerDensity,
+  smoothBrainVectorGeometry,
+} from './brainVectorGeometry'
 
 const DEFAULT_VECTORIZATION_OPTIONS: BrainVectorizationOptions = {
   engine: 'snic',
@@ -112,6 +116,7 @@ type VectorCandidate = {
   colorCount: number
   detectedSpikes: number
   contourRoughness: number
+  cornerDensity: number
 }
 
 type VectorPoint = { x: number; y: number }
@@ -513,6 +518,7 @@ function inspectCandidate(
     colorCount: colors.size,
     detectedSpikes: detectSvgSpikeCount(svg, options),
     contourRoughness: measureSvgContourRoughness(svg),
+    cornerDensity: measureSvgCornerDensity(svg),
   }
 }
 
@@ -533,6 +539,7 @@ type VectorCandidateSummary = {
   colorCount: number
   detectedSpikes: number
   contourRoughness: number
+  cornerDensity?: number
 }
 
 function structurallyUsableSummary(candidate: VectorCandidateSummary): boolean {
@@ -553,6 +560,7 @@ function candidateSummary(candidate: VectorCandidate): VectorCandidateSummary {
     colorCount: candidate.colorCount,
     detectedSpikes: candidate.detectedSpikes,
     contourRoughness: candidate.contourRoughness,
+    cornerDensity: candidate.cornerDensity,
   }
 }
 
@@ -565,7 +573,13 @@ export function shouldTryAlternativeVectorProfiles(
     candidate.detectedSpikes > options.maximumAcceptedSpikes
   const contourIsTooRough =
     candidate.contourRoughness > options.maximumContourRoughness
-  return !structurallyUsableSummary(candidate) || hasTooManySpikes || contourIsTooRough
+  const contourHasTooManyCorners = (candidate.cornerDensity ?? 0) > 0.2
+  return (
+    !structurallyUsableSummary(candidate) ||
+    hasTooManySpikes ||
+    contourIsTooRough ||
+    contourHasTooManyCorners
+  )
 }
 
 export function shouldTryDetailedVectorProfile(
@@ -590,7 +604,24 @@ function candidatePenalty(
   if (candidate.colorCount < 3) penalty += (3 - candidate.colorCount) * 5_000
   penalty += candidate.detectedSpikes * options.spikePenalty
   penalty += candidate.contourRoughness * options.contourRoughnessPenalty
+  penalty += candidate.cornerDensity * 1_600
   return penalty
+}
+
+function finishCandidate(
+  candidate: VectorCandidate,
+  options: BrainVectorizationOptions,
+) {
+  const geometry = smoothBrainVectorGeometry(candidate.svg)
+  return {
+    svg: applyRoundedFinish(geometry.svg, options),
+    detectedSpikes: detectSvgSpikeCount(geometry.svg, options),
+    contourRoughness: measureSvgContourRoughness(geometry.svg),
+    cornerDensityBefore: geometry.cornerDensityBefore,
+    cornerDensity: geometry.cornerDensityAfter,
+    smoothedPathCount: geometry.smoothedPathCount,
+    maximumSmoothingDeviation: geometry.maximumDeviation,
+  }
 }
 
 function rasterPixels(input: unknown): BrainRasterPixels | null {
@@ -698,14 +729,13 @@ export function vectorizeBrainImage(
         !shouldTryAlternativeVectorProfiles(candidateSummary(snicCandidate), options) &&
         snic.strongEdgeRecall >= options.minimumStrongEdgeRecall
       if (snicAccepted || !options.fallbackToVTracer) {
+        const finished = finishCandidate(snicCandidate, options)
         return {
           ok: true,
-          svg: applyRoundedFinish(snicCandidate.svg, options),
+          ...finished,
           profile: snicCandidate.profile,
           durationMs: Math.round(performance.now() - startedAt),
           sourceBytes,
-          detectedSpikes: snicCandidate.detectedSpikes,
-          contourRoughness: snicCandidate.contourRoughness,
           strongEdgeRecall: snic.strongEdgeRecall,
           regionCount: snic.regionCount,
           pointCount: snic.pointCount,
@@ -736,14 +766,13 @@ export function vectorizeBrainImage(
       candidateSummary(balancedCandidate),
       options,
     )) {
+      const finished = finishCandidate(balancedCandidate, options)
       return {
         ok: true,
-        svg: applyRoundedFinish(balancedCandidate.svg, options),
+        ...finished,
         profile: balancedCandidate.profile,
         durationMs: Math.round(performance.now() - startedAt),
         sourceBytes,
-        detectedSpikes: balancedCandidate.detectedSpikes,
-        contourRoughness: balancedCandidate.contourRoughness,
       }
     }
     const simplifiedProfile = VECTOR_PROFILES[2]
@@ -757,14 +786,13 @@ export function vectorizeBrainImage(
       candidateSummary(simplifiedCandidate),
       options,
     )) {
+      const finished = finishCandidate(simplifiedCandidate, options)
       return {
         ok: true,
-        svg: applyRoundedFinish(simplifiedCandidate.svg, options),
+        ...finished,
         profile: simplifiedCandidate.profile,
         durationMs: Math.round(performance.now() - startedAt),
         sourceBytes,
-        detectedSpikes: simplifiedCandidate.detectedSpikes,
-        contourRoughness: simplifiedCandidate.contourRoughness,
       }
     }
     if (shouldTryDetailedVectorProfile(
@@ -785,14 +813,13 @@ export function vectorizeBrainImage(
       (left, right) =>
         candidatePenalty(left, options) - candidatePenalty(right, options),
     )[0]
+    const finished = finishCandidate(candidate, options)
     return {
       ok: true,
-      svg: applyRoundedFinish(candidate.svg, options),
+      ...finished,
       profile: candidate.profile,
       durationMs: Math.round(performance.now() - startedAt),
       sourceBytes,
-      detectedSpikes: candidate.detectedSpikes,
-      contourRoughness: candidate.contourRoughness,
     }
   } catch (error) {
     return {

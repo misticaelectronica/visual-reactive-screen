@@ -16,6 +16,7 @@ function rhythm(
     beatPhase: musicalPosition % 1,
     musicalPosition,
     beatPulse: beat ? 1 : 0,
+    kickEnvelope: beat ? 1 : 0,
     beatDurationMs: 500,
     bandTransients: beat
       ? { low: 1, lowMid: 0.25, mid: 0.1, high: 0.05 }

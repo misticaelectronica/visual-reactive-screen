@@ -40,6 +40,7 @@ describe('memoria percettiva audiovisiva di Brain', () => {
         beatPhase: 0,
         musicalPosition: 1,
         beatPulse: 1,
+        kickEnvelope: 1,
         beatDurationMs: 500,
         bandTransients: { low: 1, lowMid: 0, mid: 0, high: 0 },
       },

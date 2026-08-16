@@ -719,6 +719,7 @@ export function createBrainSvgScene(
         perceptual.metamorphosis.toFixed(3),
       )
       const beatPulse = rhythm?.beatPulse ?? 0
+      const kickEnvelope = rhythm?.kickEnvelope ?? beatPulse
       const bandTransients = rhythm?.bandTransients ?? SILENT_BANDS
       const subAmount = clamp(settings.subMovement / 0.5, 0, 2)
       const pressure = clamp(
@@ -726,7 +727,7 @@ export function createBrainSvgScene(
           smoothedBands.lowMid * 0.28 +
           bandTransients.low * 0.62 +
           bandTransients.lowMid * 0.18 +
-          beatPulse * presetTuning.kickScale * 0.42,
+          kickEnvelope * presetTuning.kickScale * 0.48,
       )
       const articulation = clamp(
         (smoothedBands.mid * 0.42 +
@@ -759,7 +760,7 @@ export function createBrainSvgScene(
       const lowDrive = clamp(
         smoothedBands.low * 0.48 +
           bandTransients.low * 0.72 +
-          beatPulse * 0.46,
+          kickEnvelope * 0.52,
       )
       const lowMidDrive = clamp(
         smoothedBands.lowMid * 0.56 + bandTransients.lowMid * 0.78,
@@ -785,7 +786,7 @@ export function createBrainSvgScene(
         ? calculateBrainKickDisplacement(
             sceneDiagonal,
             globalMotion.kickDeformationPercent,
-            beatPulse,
+            kickEnvelope,
             lowDrive,
             presetTuning.kickScale * globalMotion.intensity,
             constrainedRendering ? globalMotion.resourcePressureBoost : 1,

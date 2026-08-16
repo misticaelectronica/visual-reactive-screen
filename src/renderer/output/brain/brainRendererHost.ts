@@ -193,7 +193,10 @@ export function createBrainRendererHost(
         const pluginFrameInterval = settings.lowPowerMode
           ? 1_000 / BRAIN_CONFIG.lowPowerDenoisingPassthroughPluginFps
           : 1_000 / BRAIN_CONFIG.denoisingPassthroughPluginFps
-        if (time - lastPassthroughPluginUpdateAt >= pluginFrameInterval) {
+        if (
+          passthroughState === 'entering' &&
+          time - lastPassthroughPluginUpdateAt >= pluginFrameInterval
+        ) {
           lastPassthroughPluginUpdateAt = time
           active.controller.update(bands, settings, time, rhythm, movingAverages, flash)
         }

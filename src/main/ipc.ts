@@ -4,6 +4,7 @@ import type {
   BrainConfigFileName,
   BrainVectorizationOptions,
   ConsciousnessMemoryDraft,
+  ConsciousnessMotionQuery,
   ConsciousnessStateSnapshot,
   VisualStateAck,
   VisualStatePayload,
@@ -22,6 +23,7 @@ import { vectorizeBrainImage } from './brainVectorizer'
 import { readBrainConfigFile } from './brainConfigFiles'
 import {
   saveConsciousnessMemory,
+  suggestConsciousnessMotion,
   updateConsciousnessState,
 } from './consciousnessStorage'
 
@@ -74,5 +76,11 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.updateConsciousnessState,
     (_event, snapshot: ConsciousnessStateSnapshot) =>
       updateConsciousnessState(snapshot),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.suggestConsciousnessMotion,
+    (_event, query: ConsciousnessMotionQuery) =>
+      suggestConsciousnessMotion(query),
   )
 }

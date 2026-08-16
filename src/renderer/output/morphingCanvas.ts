@@ -1,6 +1,7 @@
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { getThemeProfileForPreset } from '@shared/morphingThemeProfiles'
 import type { BandEnergies, AppSettings, VisualStatePayload } from '@shared/types'
+import type { BrainRhythmState } from './brain/brainRhythm'
 
 // High-aesthetic Canvas 2D organic visibility boundaries
 const ORGANIC_MIN_ALPHA = 0.22
@@ -31,6 +32,21 @@ function hexToRgb(hex: string): RGBColor {
 
 function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val))
+}
+
+export function calculateMorphingTimeStep(
+  musicalPosition: number,
+  previousMusicalPosition: number,
+  effectiveSpeed: number,
+  active: boolean,
+): number {
+  if (!active) return 0
+  const deltaBeats = clamp(
+    musicalPosition - previousMusicalPosition,
+    0,
+    0.16,
+  )
+  return deltaBeats * effectiveSpeed * 1.5
 }
 
 function seededUnit(seed: number, index: number): number {
@@ -113,7 +129,10 @@ function motionTuning(profile: AppSettings['motionProfile'] | undefined) {
   }
 }
 
-export function createMorphingCanvas(container: HTMLElement) {
+export function createMorphingCanvas(
+  container: HTMLElement,
+  rhythmSource?: () => BrainRhythmState,
+) {
   const canvas = document.createElement('canvas')
   canvas.className = 'morphing-layer'
   canvas.style.position = 'absolute'
@@ -134,6 +153,7 @@ export function createMorphingCanvas(container: HTMLElement) {
   let currentWhiteMix = 0
   let currentBgColor = '#000000'
   let time = 0
+  let lastMusicalPosition = rhythmSource?.().musicalPosition ?? 0
   
   let smoothedMorphingFlash = 0
   let smoothedKickPulse = 0
@@ -175,20 +195,34 @@ export function createMorphingCanvas(container: HTMLElement) {
     canvas.style.mixBlendMode = preset.blendMode || 'screen'
 
     const tuning = motionTuning(currentSettings.motionProfile)
+    const rhythm = rhythmSource?.()
 
     // Smoothing band energies for fluid motion
-    smoothedBands.low += (currentBands.low - smoothedBands.low) * tuning.smoothing.low
-    smoothedBands.lowMid += (currentBands.lowMid - smoothedBands.lowMid) * tuning.smoothing.lowMid
-    smoothedBands.mid += (currentBands.mid - smoothedBands.mid) * tuning.smoothing.mid
-    smoothedBands.high += (currentBands.high - smoothedBands.high) * tuning.smoothing.high
+    if (rhythm?.active === true) {
+      smoothedBands.low += (currentBands.low - smoothedBands.low) * tuning.smoothing.low
+      smoothedBands.lowMid += (currentBands.lowMid - smoothedBands.lowMid) * tuning.smoothing.lowMid
+      smoothedBands.mid += (currentBands.mid - smoothedBands.mid) * tuning.smoothing.mid
+      smoothedBands.high += (currentBands.high - smoothedBands.high) * tuning.smoothing.high
+    }
 
     // Modulazione tramite subMovement e kickMovement del preset audio attivo
     const rawKickPulse = Math.max(0, currentBands.low - smoothedBands.low)
     smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * tuning.kickAttack
     const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * tuning.kickGain, 0, 0.42)
     const subPressure = clamp(smoothedBands.low * (currentSettings.subMovement ?? 0.26) * tuning.subGain, 0, 0.72)
-    const beatDrive = clamp(kickPulse * tuning.beatGain + Math.max(0, currentBands.lowMid - smoothedBands.lowMid) * tuning.beatGain, 0, 0.55)
-    const rhythmicDetail = clamp(currentBands.high * preset.highNoiseAmount * tuning.detailGain, 0, 0.32)
+    const beatDrive = clamp(
+      Math.max(kickPulse, rhythm?.beatPulse ?? 0, rhythm?.kickEnvelope ?? 0) * tuning.beatGain +
+        Math.max(0, currentBands.lowMid - smoothedBands.lowMid) * tuning.beatGain +
+        (rhythm?.bandTransients.lowMid ?? 0) * 0.18,
+      0,
+      0.55,
+    )
+    const rhythmicDetail = clamp(
+      currentBands.high * preset.highNoiseAmount * tuning.detailGain +
+        (rhythm?.bandTransients.high ?? 0) * 0.14,
+      0,
+      0.32,
+    )
 
     // Correzione 5: Smoothing del flash nel morphing
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
@@ -201,7 +235,13 @@ export function createMorphingCanvas(container: HTMLElement) {
     const effectiveSpeed = clamp(preset.speed * (1.75 + beatDrive * tuning.speedGain + rhythmicDetail * 0.45), ONIRIC_MIN_SPEED, ONIRIC_MAX_SPEED)
 
     // Advance time
-    time += effectiveSpeed * 0.05 * (1 + rhythmicDetail * 0.75) * (1 + subPressure * 0.46 + beatDrive * 0.42)
+    time += calculateMorphingTimeStep(
+      rhythm?.musicalPosition ?? lastMusicalPosition,
+      lastMusicalPosition,
+      effectiveSpeed,
+      rhythm?.active === true,
+    )
+    lastMusicalPosition = rhythm?.musicalPosition ?? lastMusicalPosition
 
     const w = canvas.width
     const h = canvas.height

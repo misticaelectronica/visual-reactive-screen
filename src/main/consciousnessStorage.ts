@@ -3,6 +3,8 @@ import path from 'node:path'
 import type {
   ConsciousnessMemoryDraft,
   ConsciousnessMemorySaveResult,
+  ConsciousnessMotionCandidate,
+  ConsciousnessMotionQuery,
   ConsciousnessStateSnapshot,
   ConsciousnessStateUpdateResult,
 } from '@shared/types'
@@ -48,4 +50,10 @@ export function saveConsciousnessMemory(
   draft: ConsciousnessMemoryDraft,
 ): Promise<ConsciousnessMemorySaveResult> {
   return getArchive().save(draft)
+}
+
+export function suggestConsciousnessMotion(
+  query: ConsciousnessMotionQuery,
+): Promise<ConsciousnessMotionCandidate | null> {
+  return getArchive().suggestMotion(query)
 }

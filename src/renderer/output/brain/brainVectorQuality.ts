@@ -95,6 +95,10 @@ export interface PsychedelVectorizer {
     profile?: string
     detectedSpikes?: number
     contourRoughness?: number
+    cornerDensityBefore?: number
+    cornerDensity?: number
+    smoothedPathCount?: number
+    maximumSmoothingDeviation?: number
   }>
 }
 
@@ -152,6 +156,10 @@ export class BrainVectorizer implements PsychedelVectorizer {
       profile: result.profile,
       detectedSpikes: result.detectedSpikes,
       contourRoughness: result.contourRoughness,
+      cornerDensityBefore: result.cornerDensityBefore,
+      cornerDensity: result.cornerDensity,
+      smoothedPathCount: result.smoothedPathCount,
+      maximumSmoothingDeviation: result.maximumSmoothingDeviation,
     }
   }
 }

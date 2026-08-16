@@ -901,6 +901,41 @@ describe('CoscienzaOnirica', () => {
     expect(prompts[0]).toContain('only one secondary detail')
     expect(story.frames).toHaveLength(BRAIN_CONFIG.renderFrameCount)
   })
+
+  it('rende tracciabile il moto di coscienza e innesta due colori deterministici', async () => {
+    const baselinePalette = defaultStory().palette
+    const prompts: string[] = []
+    const ai = {
+      async generate(_task: BrainAiTask, prompt: string): Promise<string> {
+        prompts.push(prompt)
+        return DEFAULT_NARRATIVE
+      },
+    }
+    const story = await new CoscienzaOnirica(ai).generate(PHRASES, [], {
+      consciousnessInfluence: {
+        memoryId: 'memory-ponte-1',
+        kind: 'imagination',
+        title: 'Il ponte lunare',
+        source: 'test/story-model',
+        salience: 0.8,
+        perceived: 'Il processo narrativo ha concluso un sogno.',
+        interpretation: 'È un contenuto immaginato.',
+        imagination: 'Una tribù attraversa un ponte lunare.',
+        relevanceReason: 'richiama il ponte nella storia in corso',
+        influenceText: 'Una tribù attraversa un ponte lunare.',
+        consultedFiles: ['AGENT.md', 'ricordi/ponte.md'],
+      },
+    })
+
+    expect(prompts[0]).toContain('LIMITED CONSCIOUSNESS MOTION')
+    expect(prompts[0]).toContain('never present it as an external fact')
+    expect(story.consciousnessInfluence).toMatchObject({
+      memoryId: 'memory-ponte-1',
+      kind: 'imagination',
+    })
+    expect(story.palette[2]).not.toBe(baselinePalette[2])
+    expect(story.palette[3]).not.toBe(baselinePalette[3])
+  })
 })
 
 describe('Psichedel', () => {

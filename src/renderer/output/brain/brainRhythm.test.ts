@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
-import { BrainRhythmClock } from './brainRhythm'
+import { BrainRhythmClock, calculateBrainKickEnvelope } from './brainRhythm'
 
 describe('BrainRhythmClock', () => {
+  it('rinforza leggermente il beat con i transienti bassi senza superare il clamp', () => {
+    expect(calculateBrainKickEnvelope(0.5, 0.5, 0)).toBeCloseTo(0.54, 2)
+    expect(calculateBrainKickEnvelope(1, 1, 1)).toBe(1)
+    expect(calculateBrainKickEnvelope(0, 0, 0)).toBe(0)
+  })
+
   it('rileva transienti bassi e stima il tempo senza duplicare lo stesso picco', () => {
     const clock = new BrainRhythmClock()
     const quiet = { low: 0.05, lowMid: 0.04, mid: 0.03, high: 0.02 }
@@ -18,11 +24,12 @@ describe('BrainRhythmClock', () => {
     expect(secondBeat.beatDurationMs).toBeCloseTo(500, 0)
     expect(secondBeat.beatPhase).toBe(0)
     expect(secondBeat.musicalPosition % 1).toBe(0)
+    expect(secondBeat.kickEnvelope).toBeGreaterThan(0)
   })
 
   it('mantiene una fase musicale continua anche senza transienti', () => {
     const clock = new BrainRhythmClock()
-    const quiet = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
 
     const first = clock.update(quiet, 250)
     const second = clock.update(quiet, 375)
@@ -34,7 +41,7 @@ describe('BrainRhythmClock', () => {
 
   it('non riporta indietro il movimento quando la fase attraversa una battuta virtuale', () => {
     const clock = new BrainRhythmClock()
-    const quiet = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    const quiet = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
     const positions: number[] = []
 
     for (let now = 100; now <= 1_600; now += 100) {
@@ -47,6 +54,34 @@ describe('BrainRhythmClock', () => {
       ),
     ).toBe(true)
     expect(positions.at(-1)).toBeGreaterThan(2)
+  })
+
+  it('congela fase e posizione musicale nel silenzio reale', () => {
+    const clock = new BrainRhythmClock()
+    const silence = { low: 0, lowMid: 0, mid: 0, high: 0 }
+
+    const first = clock.update(silence, 100)
+    const second = clock.update(silence, 1_100)
+
+    expect(first.active).toBe(false)
+    expect(second.active).toBe(false)
+    expect(second.beatPhase).toBe(first.beatPhase)
+    expect(second.musicalPosition).toBe(first.musicalPosition)
+  })
+
+  it('non scambia la pausa fra due kick per silenzio', () => {
+    const clock = new BrainRhythmClock()
+    const signal = { low: 0.12, lowMid: 0.04, mid: 0.02, high: 0.01 }
+    const silence = { low: 0, lowMid: 0, mid: 0, high: 0 }
+
+    const audible = clock.update(signal, 100)
+    const betweenKicks = clock.update(silence, 650)
+    const confirmedSilence = clock.update(silence, 1_050)
+
+    expect(audible.active).toBe(true)
+    expect(betweenKicks.active).toBe(true)
+    expect(betweenKicks.musicalPosition).toBeGreaterThan(audible.musicalPosition)
+    expect(confirmedSilence.active).toBe(false)
   })
 
   it('riallinea la fase quando rileva un nuovo transiente', () => {

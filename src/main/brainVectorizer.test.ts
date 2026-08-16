@@ -59,6 +59,10 @@ describe('Brain vectorizer IPC core', () => {
       expect(result.svg).toContain('stroke-linejoin="round"')
       expect(result.detectedSpikes).toBeGreaterThanOrEqual(0)
       expect(result.contourRoughness).toBeGreaterThanOrEqual(0)
+      expect(result.cornerDensityBefore).toBeGreaterThanOrEqual(0)
+      expect(result.cornerDensity).toBeGreaterThanOrEqual(0)
+      expect(result.smoothedPathCount).toBeGreaterThanOrEqual(0)
+      expect(result.maximumSmoothingDeviation).toBeLessThanOrEqual(1.4)
     }
   })
 
@@ -96,6 +100,18 @@ describe('Brain vectorizer IPC core', () => {
       colorCount: 7,
       detectedSpikes: 2,
       contourRoughness: 0.08,
+    }, VECTOR_OPTIONS)).toBe(true)
+  })
+
+  it('richiede un profilo alternativo quando la densità degli angoli è eccessiva', () => {
+    expect(shouldTryAlternativeVectorProfiles({
+      svgLength: 12_000,
+      pathCount: 42,
+      pathCommands: 180,
+      colorCount: 7,
+      detectedSpikes: 0,
+      contourRoughness: 0.08,
+      cornerDensity: 0.24,
     }, VECTOR_OPTIONS)).toBe(true)
   })
 

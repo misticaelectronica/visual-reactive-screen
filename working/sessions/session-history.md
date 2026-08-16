@@ -727,3 +727,274 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Validazione**: typecheck, lint mirato e 13 test su alternanza, selector,
   refill e Renderer Host riusciti; build Vite/Main/Preload completata e
   packaging macOS avviato correttamente.
+
+### `SESSION-2026-08-15-01`
+- **Data**: 15 Agosto 2026 (CEST)
+- **Obiettivo**: Rendere Brain leggermente più reattivo al kick senza rendere
+  nervosi i renderer o muovere il quadro.
+- **Implementazione**: aggiunto `kickEnvelope` condiviso nel clock ritmico;
+  Print2D riceve fino a pochi pixel di profondità locale, Psycho2D un piccolo
+  rinforzo di contrasto/scanline e Vector Morph una deformazione più leggibile
+  dei segmenti interni. Profili e clamp esistenti restano attivi.
+- **Validazione**: typecheck, lint mirato e 43 test Brain riusciti; il test
+  Print2D limita l'incremento di profondità a meno di 4 px e il clock verifica
+  contributo nullo in silenzio. Build completa Vite/Electron/macOS riuscita.
+
+### `SESSION-2026-08-15-02`
+- **Data**: 15 Agosto 2026 (CEST)
+- **Obiettivo**: Analizzare e progettare un nuovo renderer Brain materico prima
+  di scriverne il codice completo.
+- **Analisi**: verificati plugin host/registry/selector, sorgenti raster
+  corrente-precedente-successiva, preset, clock ritmico, transienti, transizioni,
+  passthrough, low power e telemetria. Proposta una V1 Canvas 2D basata su
+  campi raster, regioni connesse, maschere locali e matching fra immagini.
+- **Vincoli verificati**: camera stabile, materia interna, silenzio immobile,
+  beatmatch per impulso/fase/banda, transizione continua e budget esplicito.
+- **Esito**: creato `PIANO-013`; nessun codice runtime implementato. La fase
+  esecutiva resta in attesa di approvazione dell'analisi.
+
+### `SESSION-2026-08-15-03`
+- **Data**: 15 Agosto 2026 (CEST)
+- **Obiettivo**: Implementare Materia Morph e integrarlo come gli altri
+  renderer Brain in manuale, rotazione e “Tutti per storia”, comprese le
+  reazioni a resource pressure/background e flash.
+- **Implementazione**: aggiunti analisi raster materica, region matching,
+  cache debole per Blob/risoluzione e renderer Canvas 2D con pigmento, bordi,
+  grana, trasformazioni locali e morph continuo fra immagini. Registrato
+  `material-morph` come quarto plugin e aggiunto alla Control Window.
+- **Filosofia visiva**: camera stabile, raster riconoscibile, bande e beat con
+  funzioni distinte, flash locale, immobilità in silenzio, transizioni continue
+  e budget esplicito normale/low power.
+- **Validazione**: 40 file e 247 test verdi; typecheck, lint mirato,
+  `git diff --check` e build completa Vite/Electron/macOS riusciti. Il lint
+  globale resta bloccato soltanto dal `prefer-const` preesistente in
+  `slitScanCanvas.ts:639`.
+- **Stato Finale**: V1 pronta per verifica artistica Output fullscreen e prova
+  prolungata durante denoising/low power.
+
+### `SESSION-2026-08-16-01`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Ridurre l'eccesso di spigoli nel renderer Brain Vector Morph.
+- **Implementazione**: introdotta una finitura geometrica condivisa dai
+  risultati SNIC e VTracer. I path chiusi vengono ricampionati con budget
+  adattivo, smussati entro 1,4 px e ricostruiti con curve cubiche a tangente
+  continua; fori, attributi e winding restano preservati.
+- **Qualità e osservabilità**: aggiunta densità degli angoli alla selezione dei
+  profili; punte e roughness sono ricalcolate sull'SVG finale. La cache registra
+  densità prima/dopo, numero di path trattati e deviazione massima.
+- **Filosofia visiva**: camera e raster stabili, nessun movimento nel silenzio,
+  beat/flash/transizioni invariati e costo una tantum prima della cache con
+  limiti di punti e dimensione.
+- **Validazione**: 41 file e 251 test verdi, typecheck, lint mirato,
+  `git diff --check` e build completa Vite/Electron/macOS riusciti.
+- **Stato Finale**: implementazione pronta; resta la verifica artistica su
+  Output fullscreen con immagini reali.
+
+### `SESSION-2026-08-16-02`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Allungare la presenza percepita dei morphing esterni e rendere
+  casuali le rotazioni Brain e le loro varianti in “Tutti per storia”.
+- **Implementazione**: i quattro renderer Brain sono ora mescolati e assegnati
+  uno per fotogramma; anche `rotation` usa un mazzo casuale senza ripetizioni
+  consecutive. Gli interludi esterni consumano un preset casuale per ciascuna
+  famiglia prima di ricreare il mazzo.
+- **Durata**: il 20% pieno resta invariato e riceve 12 secondi separati per le
+  dissolvenze di ingresso/uscita, così il morphing non perde tempo visibile.
+- **Vincoli**: transizioni ancora beat-matched, camera stabile, nessuna modifica
+  a reattività audio, flash, background o low power.
+- **Validazione**: 42 file e 255 test verdi; typecheck, lint mirato,
+  `git diff --check` e build completa Electron/macOS riusciti.
+- **Stato Finale**: implementazione pronta; resta la verifica live fullscreen.
+
+### `SESSION-2026-08-16-03`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Sostituire la fase percepita come immagine senza effetto con
+  un nuovo renderer cromatico psichedelico integrato nelle rotazioni Brain.
+- **Implementazione**: creato `FilterPsiche` con cinque varianti casuali senza
+  ripetizione immediata: inverted, duotone acido, solarizzato, negativo
+  cromatico e termico onirico. Tre raster prefiltrati vengono preparati una
+  volta e ricomposti con budget limitato.
+- **Reattività**: kick/beat controllano inversione e contrasto, `lowMid`/`mid`
+  la fusione cromatica, `high` micro-fasce locali e il flash un accento inverted
+  ad alta intensità. In silenzio non esiste movimento autonomo.
+- **Regia**: plugin aggiunto a manuale, rotazione automatica e story-cycle. Con
+  cinque renderer e quattro fotogrammi, ogni storia ne usa quattro unici.
+- **Rimozione**: eliminata l'anteprima raster fullscreen grezza al 20%; sono
+  preservati archivio raster e monitor diagnostico.
+- **Validazione**: 43 file e 260 test verdi, typecheck, lint mirato,
+  `git diff --check` e build completa Electron/macOS riusciti.
+- **Stato Finale**: renderer pronto; resta la verifica artistica live.
+
+### `SESSION-2026-08-16-04`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Sincronizzare Brain e tutti i morphing a un solo clock
+  ritmico posseduto dall'Output.
+- **Implementazione**: rimosso il clock privato Brain; distribuiti fase,
+  pulse, kick e transienti per banda a Liquid, Oniric, PsyHyp e 2001. I cambi
+  di ingresso, uscita, famiglia e preset sono quantizzati entro il 7% del
+  confine di beat.
+- **Silenzio**: sotto soglia posizione musicale, timeline Brain, tempi interni,
+  ribbon e smoothing geometrico restano congelati. Flash e filtri cromatici
+  possono ancora reagire senza muovere camera o quadro.
+- **Validazione**: 44 file e 264 test verdi; typecheck, lint mirato e
+  `git diff --check` riusciti. Build renderer/Electron e ZIP macOS riusciti;
+  il target DMG ha incontrato un errore esterno `hdiutil` dopo il packaging.
+- **Stato Finale**: implementazione pronta; resta il controllo artistico live
+  con segnale reale, silenzio e tutti i profili musicali.
+
+### `SESSION-2026-08-16-05`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Eliminare gli scatti percepiti su renderer Brain e morphing
+  dopo l'introduzione del clock globale.
+- **Diagnosi**: la soglia istantanea spegneva il trasporto nei vuoti fra kick;
+  Liquid applicava inoltre la velocità variabile alla posizione assoluta.
+- **Correzione**: doppia soglia 0,018/0,008 con hold di silenzio di 900 ms e
+  accumulo Liquid basato su delta di beat limitati a 0,16.
+- **Vincoli**: nessun moto della camera, nessun timer musicale autonomo e
+  arresto ancora garantito nel silenzio confermato.
+- **Validazione**: 45 file e 267 test verdi; typecheck, lint mirato,
+  `git diff --check` e build Vite/Electron riusciti.
+- **Stato Finale**: correzione pronta per riconferma live fullscreen.
+
+### `SESSION-2026-08-16-06`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Far emergere moti di coscienza capaci di influenzare storie,
+  forme e colori senza interrompere definitivamente la normale rotazione Brain.
+- **Protocollo**: aggiornati prima del runtime `.coscienza/AGENT.md`, skill e
+  Piano 018. Percezione, interpretazione e immaginazione restano distinte; il
+  moto non viene automaticamente trasformato in ricordo.
+- **Implementazione**: aggiunti selettore archivio tipizzato, IPC, deduplica,
+  cooldown di 75 secondi e influenza narrativa. La storia successiva conserva
+  origine e motivazione del ricordo e riceve due accenti cromatici reali.
+- **Visuale**: episodio locale di otto beat, ingresso/uscita sul beat, forme
+  contenute e didascalia rossa in basso a destra. La timeline viene parcheggiata
+  e ripresa senza salto; in silenzio la geometria resta ferma; low power riduce
+  gli elementi.
+- **Validazione**: 46 file / 270 test verdi, typecheck, lint mirato e
+  `git diff --check` riusciti. Build Vite/Electron e ZIP macOS riusciti; il DMG
+  incontra il noto errore esterno `hdiutil` dopo il packaging.
+- **Stato Finale**: implementazione pronta; resta il controllo artistico live
+  fullscreen su pertinenza e leggibilità.
+
+### `SESSION-2026-08-16-07`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Analizzare e progettare un renderer Brain che traduca il
+  raster di Coscienza Onirica in pittura Bauhaus senza avviare prematuramente
+  il codice runtime.
+- **Architettura**: scelto un plugin Canvas 2D `bauhaus-morph` che riusa masse,
+  regioni, fuoco, palette, cache Blob, sorgenti `previous/current/next`, clock
+  globale, Renderer Host e metriche esistenti.
+- **Morph**: ogni geometria mantiene un legame con una regione sorgente; raster
+  residuo, ordine di astrazione e focal protection conservano il soggetto.
+  Piani e linee cambiano localmente, mentre camera e quadro restano immobili.
+- **Audio e silenzio**: bande, pulse e fase hanno ruoli distinti; il progresso
+  astrattivo usa soltanto attività audio/posizione musicale e si arresta nel
+  silenzio.
+- **Costo**: V1 senza shader/WebGPU, buffer 400×225 e massimo 12 piani/18 linee;
+  riduzione esplicita in low power e sospensione/passthrough sotto pressione.
+- **Stato Finale**: analisi funzionale e tecnica completata nel `PIANO-019`;
+  V1, V2 e V3 separate. Implementazione non avviata.
+
+### `SESSION-2026-08-16-08`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Implementare la V1 di Bauhaus Morph dopo l'analisi approvata.
+- **Analisi raster**: introdotti piani legati a regioni reali, asse dominante,
+  linee, spazi negativi, palette e protezione del piano focale, con matching
+  continuo fra immagini.
+- **Renderer**: Canvas 2D a buffer ridotto con raster residuo, forme costruite,
+  trasparenze, grana pittorica, flash locale e morph `previous/current/next`.
+  Un fallback mantiene visibile il raster durante la preparazione asincrona.
+- **Reattività**: low, lowMid, mid e high controllano rispettivamente masse,
+  superficie, linee e dettaglio; beat e fase restano locali. Il progresso
+  astrattivo si arresta quando il clock è inattivo.
+- **Integrazione**: aggiunto `bauhaus-morph` a tipi, Control Window e registry;
+  entra come sesto renderer in manuale, automatica e story-cycle.
+- **Validazione**: 48 file / 277 test verdi, typecheck, lint mirato e diff
+  check riusciti. Build Vite/Electron e ZIP macOS riusciti; il DMG incontra il
+  noto errore esterno `hdiutil`.
+- **Stato Finale**: V1 pronta; resta validazione artistica e prestazionale live.
+
+### `SESSION-2026-08-16-09`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Diagnosticare peggioramento prestazioni, rischio termico,
+  beatmatch impreciso e risposta delle quattro bande.
+- **Log**: fuori dall'inferenza Output stabile a 120 Hz e Bauhaus circa 20 fps;
+  con UNet attivo RAF p95 fino a 99,5 ms e massimo 558,4 ms. Il passthrough
+  Canvas resta economico a 0,1–0,2 ms.
+- **Ritmo**: nessun riallineamento di fase osservato. I nuovi Canvas leggono
+  ampiezze quasi istantanee e quantizzano le firme dei frame, producendo gesti
+  a gradini nonostante il clock condiviso.
+- **Bande**: `low` massa, `lowMid` deformazione, `mid` tratto, `high` grana;
+  queste ultime due non producono ancora un moto locale sinuoso ben leggibile.
+- **Termica**: il sensore macOS non è accessibile e i log non contengono gradi;
+  documentato il rischio da duty-cycle sostenuto, non un surriscaldamento
+  misurato.
+- **Stato Finale**: diagnosi completata senza modifiche al comportamento.
+
+### `SESSION-2026-08-16-10`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Correggere scatti ritmici e ridurre il costo sostenuto emerso
+  nella diagnosi live.
+- **Ritmo**: introdotto uno smoother comune in tempo musicale con attacco e
+  release distinti per tutte le bande, attività e kick; ambient più largo,
+  techno più pronto e silenzio con reset immediato.
+- **Renderer**: integrati Print2D, Materia Morph, FilterPsiche e Bauhaus Morph.
+  In Bauhaus `mid` curva linee locali e `high` disallinea micro-fasce di grana;
+  rimosso il gate quantizzato delle ampiezze.
+- **Costo**: cache del matching Bauhaus, underlay nullo saltato e plugin
+  invisibile sospeso del tutto durante il passthrough stabilizzato.
+- **Telemetria**: aggiunto `canvasFrames.renderMs` per separare il vero tempo di
+  disegno dalla distanza fra frame causata dagli stalli UNet.
+- **Validazione**: 49 file / 280 test verdi, typecheck, lint mirato, build Vite,
+  Electron main e preload riusciti.
+- **Stato Finale**: correzione pronta; resta confronto live prolungato.
+
+### `SESSION-2026-08-16-11`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Rendere leggibile più a lungo la didascalia del moto di
+  coscienza.
+- **Correzione**: durata minima portata a 12 secondi e almeno 16 beat; l'uscita
+  avviene sul primo beat che soddisfa entrambi i limiti.
+- **Silenzio**: il tempo ritmico resta congelato, quindi la pausa non consuma
+  il tempo disponibile per leggere.
+
+### `SESSION-2026-08-16-12`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Eliminare le forme Bauhaus percepite come decorative e
+  scollegate dall'immagine.
+- **Causa**: soltanto centro e bounding box provenivano dalla regione; forma,
+  colore e rotazione venivano scelti con regole generiche.
+- **Correzione**: sagoma a dieci punti campionata dalla regione, colore medio
+  reale, asse principale locale e texture raster ritagliata nei piani salienti.
+  Il morph interpola i punti senza sostituzioni a metà transizione.
+- **Vincoli**: camera stabile, materia sorgente preservata, nessun moto
+  autonomo nel silenzio e budget texture 4/2 normale/low power.
+- **Validazione**: 49 file / 281 test, typecheck, lint mirato, diff-check e
+  build Vite/Electron riusciti.
+
+### `SESSION-2026-08-16-13`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Ridurre la ricorrenza di Bauhaus e rimuovere gli scatti
+  durante l'ingresso dei morphing.
+- **Rotazione**: introdotto bilanciamento storico delle presenze; nei pareggi
+  resta il mescolamento casuale e dentro la storia non ci sono duplicati.
+- **Transizione**: crossfade aggiornato dal RAF Output con tempo visivo
+  accumulato e recupero massimo di 50 ms dopo uno stallo.
+- **Osservabilità**: il log registra il `rendererId` assegnato al fotogramma.
+- **Vincoli**: nessun movimento di camera, regia ancora quantizzata al beat e
+  continuità visiva prioritaria rispetto alla durata assoluta.
+- **Validazione**: 49 file / 283 test, typecheck, lint mirato, diff-check e
+  build Vite/Electron riusciti.
+
+### `SESSION-2026-08-16-14`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Diagnosticare il blocco apparente su Vector Morph.
+- **Causa**: la generazione testuale della storia successiva andava
+  ripetutamente in timeout. I fotogrammi venivano riciclati, ma il selettore
+  “Tutti per storia” restava sull'ultimo renderer assegnato.
+- **Correzione**: aggiunto un mazzo casuale d'attesa, senza ripetizioni
+  consecutive e separato dalle statistiche delle storie reali.
+- **Vincoli**: cambio sul gate beat già esistente, camera stabile, nessuna
+  attività autonoma nel silenzio e costo limitato a pochi identificatori.
+- **Validazione**: 49 file / 285 test, typecheck e lint mirato verdi; build in
+  verifica.

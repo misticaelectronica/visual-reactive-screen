@@ -10,6 +10,17 @@ export type MorphingRotationCandidate = {
   presetId?: string
 }
 
+const MORPHING_FAMILIES: MorphingAlgorithm[] = [
+  'liquid',
+  'oniric',
+  'psy-hyp',
+  '2001',
+]
+
+function randomIndex(length: number, random: () => number): number {
+  return Math.min(length - 1, Math.max(0, Math.floor(random() * length)))
+}
+
 export function buildMorphingRotationCandidates(): MorphingRotationCandidate[] {
   return [
     { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' },
@@ -118,4 +129,36 @@ export function pickMorphingRotationCandidate(
         ? pools.liquid
         : pools.oniric
   return pool[Math.floor(random() * pool.length) % pool.length]
+}
+
+/**
+ * Estrae un preset per famiglia e mescola le famiglie senza permettere che il
+ * primo interludio ripeta quella appena mostrata. Il mazzo viene consumato
+ * prima di essere ricreato, così l'alternanza esterna non converge sempre
+ * sullo stesso algoritmo.
+ */
+export function buildMorphingInterludeDeck(
+  previous: MorphingRotationCandidate,
+  random: () => number = Math.random,
+): MorphingRotationCandidate[] {
+  const candidates = buildMorphingRotationCandidates()
+  const deck = MORPHING_FAMILIES.flatMap((algorithm) => {
+    const family = candidates.filter(
+      (candidate) =>
+        candidate.algorithm === algorithm && candidate.id !== previous.id,
+    )
+    if (family.length === 0) return []
+    return [family[randomIndex(family.length, random)]]
+  })
+  for (let index = deck.length - 1; index > 0; index -= 1) {
+    const target = randomIndex(index + 1, random)
+    ;[deck[index], deck[target]] = [deck[target], deck[index]]
+  }
+  if (deck.length > 1 && deck[0].algorithm === previous.algorithm) {
+    const replacement = deck.findIndex(
+      (candidate) => candidate.algorithm !== previous.algorithm,
+    )
+    ;[deck[0], deck[replacement]] = [deck[replacement], deck[0]]
+  }
+  return deck
 }

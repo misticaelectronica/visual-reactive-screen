@@ -59,6 +59,10 @@ const outputApi: OutputApi = {
     ipcRenderer.invoke(IPC_CHANNELS.updateConsciousnessState, snapshot) as ReturnType<
       OutputApi['updateConsciousnessState']
     >,
+  suggestConsciousnessMotion: (query) =>
+    ipcRenderer.invoke(IPC_CHANNELS.suggestConsciousnessMotion, query) as ReturnType<
+      OutputApi['suggestConsciousnessMotion']
+    >,
 }
 
 function isOutputEntry(): boolean {

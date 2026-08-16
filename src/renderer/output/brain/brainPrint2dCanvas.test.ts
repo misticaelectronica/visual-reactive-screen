@@ -17,6 +17,7 @@ const RHYTHM: BrainRhythmState = {
   beatPhase: 0,
   musicalPosition: 4,
   beatPulse: 1,
+  kickEnvelope: 1,
   beatDurationMs: 500,
   bandTransients: { low: 0, lowMid: 0, mid: 0, high: 0 },
 }
@@ -110,6 +111,30 @@ describe('Brain Print2D', () => {
     )
     expect(first.activeLayer).toBe(1)
     expect(next.activeLayer).toBe(2)
+  })
+
+  it('aggiunge un accento moderato di profondità quando arriva il kick condiviso', () => {
+    const bands = { low: 0.42, lowMid: 0, mid: 0, high: 0 }
+    const averages = { low: 0.3, lowMid: 0, mid: 0, high: 0 }
+    const withoutKick = calculateBrainPrint2dMotion(
+      bands,
+      DEFAULT_SETTINGS,
+      { ...RHYTHM, beat: false, beatPulse: 0, kickEnvelope: 0 },
+      1,
+      6,
+      averages,
+    )
+    const withKick = calculateBrainPrint2dMotion(
+      bands,
+      DEFAULT_SETTINGS,
+      { ...RHYTHM, beat: true, beatPulse: 0.72, kickEnvelope: 0.86 },
+      1,
+      6,
+      averages,
+    )
+
+    expect(withKick.depthPx).toBeGreaterThan(withoutKick.depthPx)
+    expect(withKick.depthPx - withoutKick.depthPx).toBeLessThan(4)
   })
 
   it('mantiene un drive continuo anche quando la banda coincide con la media', () => {

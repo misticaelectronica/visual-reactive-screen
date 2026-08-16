@@ -26,6 +26,12 @@ export type DreamStory = {
   englishBridge?: string | null
   sessionMemo?: [string, string, string]
   sessionSynthesis?: boolean
+  consciousnessInfluence?: {
+    memoryId: string
+    kind: string
+    title: string
+    relevanceReason: string
+  }
 }
 
 export type PsychedelScene = {

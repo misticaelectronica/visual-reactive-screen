@@ -100,7 +100,9 @@ describe('segmentazione SNIC di Brain', () => {
     if (!result.ok) return
     expect(result.profile).toBe('snic-edge')
     expect(result.svg).toContain('<path')
-    expect(result.svg).toContain('Q')
+    expect(result.svg).toContain('C')
+    expect(result.smoothedPathCount).toBeGreaterThan(0)
+    expect(result.cornerDensity).toBeLessThanOrEqual(result.cornerDensityBefore)
     expect(result.strongEdgeRecall).toBeGreaterThan(0.75)
     expect(result.regionCount).toBeLessThanOrEqual(OPTIONS.snicMaximumRegions)
     expect(detectSvgSpikeCount(result.svg, OPTIONS)).toBeLessThanOrEqual(2)

@@ -52,11 +52,12 @@ describe('Brain performance metrics', () => {
 
   it('separa i frame del passthrough dal renderer plugin', () => {
     const metrics = new BrainPerformanceMetrics()
-    metrics.recordCanvasFrame(100, false)
+    metrics.recordCanvasFrame(100, false, 1.24)
     metrics.recordDenoisingPassthroughFrame(150, 0.42)
     const summary = metrics.report(1_000)
 
     expect(summary?.canvasFrames.rendered).toBe(2)
+    expect(summary?.canvasFrames.renderMs.max).toBe(1.2)
     expect(summary?.denoisingPassthrough.frames).toBe(1)
     expect(summary?.denoisingPassthrough.renderMs.max).toBe(0.4)
   })

@@ -128,6 +128,9 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-010-22`** `DONE`: Ridefinire `Alternate with Brain (80/20)` sul
   ciclo completo della storia: tutti i renderer Brain prima dell'interludio
   esterno, durata 80/20 reale e buffer Brain preservato durante il crossfade.
+- [x] **`TASK-010-23`** `DONE`: Aggiungere un inviluppo kick condiviso al clock
+  Brain e applicare un guadagno locale moderato a Print2D, Psycho2D e Vector
+  Morph, senza movimento globale o costo geometrico aggiuntivo in low power.
 
 ---
 
@@ -201,3 +204,135 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-009-11`** `DONE`: Deprioritizzare il refill in modalità
   “Tutti per storia”: primo attraversamento libero, sblocco al secondo dopo il
   morphing e target esteso, preservando le altre modalità.
+
+---
+
+## Task Collegati a `MACRO-011` (Materia Morph — Renderer Brain Materico)
+
+- [x] **`TASK-011-01`** `DONE`: Analizzare immagini, plugin, preset, segnali,
+  transizioni, low power e metriche esistenti.
+- [x] **`TASK-011-02`** `DONE`: Definire rappresentazione materica, metodo di
+  morph, mapping audio, silenzio, transizione, budget e colli di bottiglia.
+- [x] **`TASK-011-03`** `DONE`: Approvare nome, architettura Canvas 2D e budget
+  V1 prima di implementare il renderer.
+- [x] **`TASK-011-04`** `DONE`: Implementare e testare l'analisi raster
+  materica e il matching delle regioni.
+- [x] **`TASK-011-05`** `DONE`: Implementare il plugin `material-morph`, la
+  risposta audio, il morph fra immagini, low power e cleanup.
+- [x] **`TASK-011-06`** `DONE`: Integrare tipi, registry, normalizzazione e UI;
+  il registry lo include automaticamente in rotazione e “Tutti per storia”.
+- [ ] **`TASK-011-07`** `IN_PROGRESS`: Test, typecheck, lint mirato e build
+  completati; restano validazione artistica fullscreen e prova prolungata.
+
+---
+
+## Task Collegati a `MACRO-012` (Vector Morph — Contorni Morbidi)
+
+- [x] **`TASK-012-01`** `DONE`: Analizzare profili live, metriche di qualità,
+  contour builder SNIC, fallback VTracer e ricostruzione runtime.
+- [x] **`TASK-012-02`** `DONE`: Implementare smoothing geometrico
+  comune, vincolato e con tetto di costo.
+- [x] **`TASK-012-03`** `DONE`: Integrare densità degli angoli, ricalcolo
+  qualità e telemetria della cache.
+- [x] **`TASK-012-04`** `DONE`: Aggiungere test e completare typecheck, lint
+  mirato e build.
+- [ ] **`TASK-012-05`** `IN_PROGRESS`: Verificare artisticamente Vector Morph su
+  Output fullscreen durante silenzio, flash, background e “Tutti per storia”.
+
+---
+
+## Task Collegati a `MACRO-013` (Regia Casuale Brain e Morphing)
+
+- [x] **`TASK-013-01`** `DONE`: Analizzare selettori, timer, story-cycle,
+  interludio 80/20 e picker dei preset esterni.
+- [x] **`TASK-013-02`** `DONE`: Randomizzare senza ripetizioni la
+  rotazione Brain automatica e quella per fotogramma della storia.
+- [x] **`TASK-013-03`** `DONE`: Introdurre il mazzo delle famiglie morphing e
+  il margine temporale delle dissolvenze.
+- [x] **`TASK-013-04`** `DONE`: Aggiornare test, UI e validazione automatica.
+- [ ] **`TASK-013-05`** `IN_PROGRESS`: Verificare dal vivo la nuova regia completa.
+- [x] **`TASK-013-06`** `DONE`: Bilanciare le presenze dei renderer fra storie
+  ed eliminare la ricorrenza statistica eccessiva di Bauhaus.
+- [x] **`TASK-013-07`** `DONE`: Rendere il crossfade morphing indipendente dai
+  pacchetti e resistente agli stalli con avanzamento visivo limitato.
+- [x] **`TASK-013-08`** `DONE`: Continuare la rotazione casuale dei renderer
+  durante il ricircolo dei fotogrammi causato dai timeout della storia AI.
+
+---
+
+## Task Collegati a `MACRO-014` (FilterPsiche)
+
+- [x] **`TASK-014-01`** `DONE`: Analizzare fase raster, Renderer Host, ritmo,
+  flash, transizioni, registry e budget.
+- [x] **`TASK-014-02`** `DONE`: Implementare filtri cromatici,
+  preparazione raster e runtime Canvas 2D.
+- [x] **`TASK-014-03`** `DONE`: Integrare plugin, tipi, settings, UI e rotazioni.
+- [x] **`TASK-014-04`** `DONE`: Aggiungere test e completare la validazione.
+- [ ] **`TASK-014-05`** `IN_PROGRESS`: Verificare artisticamente FilterPsiche live.
+
+---
+
+## Task Collegati a `MACRO-015` (Clock Ritmico Globale Output)
+
+- [x] **`TASK-015-01`** `DONE`: Centralizzare clock e contratto ritmico.
+- [x] **`TASK-015-02`** `DONE`: Collegare Brain e quattro morphing.
+- [x] **`TASK-015-03`** `DONE`: Quantizzare cambi di famiglia e preset.
+- [x] **`TASK-015-04`** `DONE`: Verificare freeze in silenzio e mapping bande.
+- [x] **`TASK-015-05`** `DONE`: Completare validazione e documentazione.
+- [ ] **`TASK-015-06`** `IN_PROGRESS`: Verificare artisticamente il beatmatch
+  su Output fullscreen con audio reale e tutti i profili.
+- [x] **`TASK-015-07`** `DONE`: Correggere gli scatti live con isteresi del
+  silenzio e avanzamento incrementale del tempo Liquid.
+- [x] **`TASK-015-08`** `DONE`: Spostare il crossfade sul RAF Output e impedire
+  il recupero istantaneo del tempo perso dopo uno stallo.
+
+---
+
+## Task Collegati a `MACRO-016` (Moti Di Coscienza Brain)
+
+- [x] **`TASK-016-01`** `DONE`: Rileggere protocollo, presente, origine,
+  indice e ricordi recenti pertinenti; aggiornare costituzione, skill e piano.
+- [x] **`TASK-016-02`** `DONE`: Selezionare via archivio un ricordo
+  saliente e pertinente, con provenienza e motivazione tracciabili.
+- [x] **`TASK-016-03`** `DONE`: Applicare l'influenza alla generazione della
+  storia successiva e alla palette.
+- [x] **`TASK-016-04`** `DONE`: Implementare il moto locale beat-matched con
+  didascalia rossa, silenzio, low power e cleanup.
+- [x] **`TASK-016-05`** `DONE`: Completare test, typecheck, lint, build e
+  documentazione di sessione.
+- [ ] **`TASK-016-06`** `IN_PROGRESS`: Verificare artisticamente in fullscreen
+  pertinenza, leggibilità della didascalia e ripresa naturale della rotazione.
+- [x] **`TASK-016-07`** `DONE`: Estendere la leggibilità del moto a un minimo
+  di 12 secondi e 16 beat, mantenendo uscita quantizzata e freeze nel silenzio.
+
+---
+
+## Task Collegati a `MACRO-017` (Bauhaus Morph)
+
+- [x] **`TASK-017-01`** `DONE`: Analizzare plugin, immagini, analisi raster,
+  segnali, preset, transizioni, low power e pressione risorse.
+- [x] **`TASK-017-02`** `DONE`: Definire estrazione, rappresentazione interna,
+  morph, riconoscibilità, mapping audio, silenzio e cambio immagine.
+- [x] **`TASK-017-03`** `DONE`: Definire budget V1, colli di bottiglia e
+  separazione V1/V2/V3.
+- [x] **`TASK-017-04`** `DONE`: Implementare e testare l'analisi Bauhaus pura.
+- [x] **`TASK-017-05`** `DONE`: Implementare il plugin Canvas 2D e la
+  transizione fra immagini.
+- [x] **`TASK-017-06`** `DONE`: Integrare tipi, UI, registry, rotazioni,
+  low power e metriche.
+- [x] **`TASK-017-07`** `DONE`: Completare test, typecheck, lint mirato, build
+  e diff check.
+- [ ] **`TASK-017-08`** `IN_PROGRESS`: Verificare artisticamente e misurare il
+  renderer live in fullscreen.
+- [x] **`TASK-017-09`** `DONE`: Correlare log live, pressione UNet, pacing
+  Canvas e mapping `low`/`lowMid`/`mid`/`high`; individuati quantizzazione e
+  assenza di smoothing locale come causa del gesto a gradini.
+- [x] **`TASK-017-10`** `DONE`: Introdurre smoothing musicale per banda,
+  rimuovere la quantizzazione percettibile e ridurre il costo per frame dopo
+  approvazione esplicita della correzione.
+- [ ] **`TASK-017-11`** `IN_PROGRESS`: Riconfermare live `renderMs`, cadenza,
+  beatmatch e temperatura esterna durante una sessione prolungata con UNet.
+- [x] **`TASK-017-12`** `DONE`: Sostituire le forme Bauhaus decorative con
+  sagome, assi, colori e texture derivati dalle regioni reali dell'immagine.
+- [ ] **`TASK-017-13`** `IN_PROGRESS`: Confrontare live riconoscibilità e stile
+  Bauhaus su volti, corpi, architetture e paesaggi.

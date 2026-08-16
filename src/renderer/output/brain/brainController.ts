@@ -3,7 +3,11 @@ import type {
   BrainProduction,
   BrainStatus,
 } from '@shared/brain/brainTypes'
-import type { BandEnergies, VisualStatePayload } from '@shared/types'
+import type {
+  BandEnergies,
+  ConsciousnessMotionCandidate,
+  VisualStatePayload,
+} from '@shared/types'
 import {
   BrainAiClient,
   BrainAiInfrastructureError,
@@ -37,7 +41,7 @@ import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 import { createBrainRendererHost } from './brainRendererHost'
 import { BrainRendererSelector } from './brainRendererSelector'
 import type { BrainRendererImageSource } from './brainRendererPlugin'
-import { BrainRhythmClock } from './brainRhythm'
+import type { BrainRhythmState } from './brainRhythm'
 import {
   brainLog,
   brainWarn,
@@ -75,15 +79,12 @@ import {
   createStoryMemoryDraft,
 } from './brainConsciousnessMemory'
 import { CoscienzaCore } from './coscienzaCore'
+import { createBrainConsciousnessMotionLayer } from './brainConsciousnessMotion'
 import { BrainVectorizer } from './brainVectorQuality'
 import { BrainVectorSceneCache } from './brainVectorSceneCache'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
-const RASTER_PREVIEW_MAX_OPACITY = 0.2
-const RASTER_PREVIEW_FADE_IN_MS = 900
-const RASTER_PREVIEW_FADE_OUT_MIN_MS = 3_000
-const RASTER_PREVIEW_FADE_OUT_MAX_MS = 10_000
 const PROCESS_DATA_KEYS = [
   'phrases',
   'randomPhrases',
@@ -199,6 +200,7 @@ export type BrainStoryCycleCompletion = {
 
 export type BrainControllerOptions = {
   onStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void
+  rhythmSource?: () => BrainRhythmState
 }
 
 export function createBrainController(
@@ -232,29 +234,6 @@ export function createBrainController(
     zIndex: '2',
     pointerEvents: 'none',
   })
-  const rasterPreviewStage = document.createElement('div')
-  Object.assign(rasterPreviewStage.style, {
-    position: 'absolute',
-    inset: '0',
-    zIndex: '0',
-    overflow: 'hidden',
-    pointerEvents: 'none',
-    contain: 'layout style paint',
-  })
-  const rasterPreviewImage = document.createElement('img')
-  rasterPreviewImage.alt = ''
-  rasterPreviewImage.setAttribute('aria-hidden', 'true')
-  Object.assign(rasterPreviewImage.style, {
-    display: 'block',
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    objectPosition: 'center',
-    opacity: '0',
-    willChange: 'opacity',
-    transform: 'translateZ(0)',
-  })
-  rasterPreviewStage.appendChild(rasterPreviewImage)
   const storyElement = document.createElement('div')
   Object.assign(storyElement.style, {
     position: 'absolute',
@@ -438,7 +417,6 @@ export function createBrainController(
   rasterMonitor.append(rasterHeader, rasterList)
   root.append(
     svgHost,
-    rasterPreviewStage,
     edgeSoftener,
     storyElement,
     rasterMonitor,
@@ -446,6 +424,7 @@ export function createBrainController(
     statusElement,
   )
   container.appendChild(root)
+  const consciousnessMotionLayer = createBrainConsciousnessMotionLayer(root)
   const unsubscribeProcessMonitor = subscribeBrainLog((entry) => {
     processHeader.textContent =
       `BRAIN // ${entry.stage.toLocaleUpperCase()} // ${
@@ -458,98 +437,6 @@ export function createBrainController(
 
   const rasterUrls = new Set<string>()
   const rasterPreviewBlobs = new Map<string, Blob>()
-  const rasterPreviewQueue: Array<{ frameKey: string; blob: Blob }> = []
-  let activeVectorFrameKey: string | null = null
-  let rasterPreviewRunning = false
-  let rasterPreviewAnimation: Animation | null = null
-  let activeRasterPreviewUrl: string | null = null
-  let rasterPreviewVersion = 0
-
-  const runRasterPreviewQueue = async () => {
-    if (rasterPreviewRunning || destroyed) return
-    rasterPreviewRunning = true
-    try {
-      while (!destroyed && rasterPreviewQueue.length > 0) {
-        const preview = rasterPreviewQueue.shift()
-        if (!preview || preview.frameKey !== activeVectorFrameKey) continue
-        const version = rasterPreviewVersion
-
-        const url = URL.createObjectURL(preview.blob)
-        activeRasterPreviewUrl = url
-        rasterPreviewImage.src = url
-        await rasterPreviewImage.decode().catch(() => undefined)
-        if (destroyed) break
-        if (
-          version !== rasterPreviewVersion ||
-          preview.frameKey !== activeVectorFrameKey
-        ) {
-          rasterPreviewImage.src = ''
-          URL.revokeObjectURL(url)
-          activeRasterPreviewUrl = null
-          continue
-        }
-
-        rasterPreviewAnimation = rasterPreviewImage.animate(
-          [
-            { opacity: 0 },
-            { opacity: RASTER_PREVIEW_MAX_OPACITY },
-          ],
-          {
-            duration: RASTER_PREVIEW_FADE_IN_MS,
-            easing: 'ease-out',
-            fill: 'forwards',
-          },
-        )
-        await rasterPreviewAnimation.finished.catch(() => undefined)
-        if (destroyed) break
-        if (
-          version !== rasterPreviewVersion ||
-          preview.frameKey !== activeVectorFrameKey
-        ) {
-          rasterPreviewImage.src = ''
-          URL.revokeObjectURL(url)
-          activeRasterPreviewUrl = null
-          continue
-        }
-
-        const fadeOutMs =
-          RASTER_PREVIEW_FADE_OUT_MIN_MS +
-          Math.random() *
-            (RASTER_PREVIEW_FADE_OUT_MAX_MS -
-              RASTER_PREVIEW_FADE_OUT_MIN_MS)
-        rasterPreviewAnimation = rasterPreviewImage.animate(
-          [
-            { opacity: RASTER_PREVIEW_MAX_OPACITY },
-            { opacity: 0 },
-          ],
-          {
-            duration: fadeOutMs,
-            easing: 'ease-in-out',
-            fill: 'forwards',
-          },
-        )
-        await rasterPreviewAnimation.finished.catch(() => undefined)
-        rasterPreviewAnimation = null
-        rasterPreviewImage.src = ''
-        URL.revokeObjectURL(url)
-        activeRasterPreviewUrl = null
-      }
-    } finally {
-      rasterPreviewRunning = false
-    }
-  }
-
-  const queueRasterPreview = (frameKey: string, blob: Blob) => {
-    // Mantiene soltanto la richiesta più recente: un raster non può apparire
-    // quando il fotogramma corrispondente non è più attivo.
-    rasterPreviewVersion += 1
-    rasterPreviewAnimation?.cancel()
-    rasterPreviewAnimation = null
-    rasterPreviewImage.style.opacity = '0'
-    rasterPreviewQueue.length = 0
-    rasterPreviewQueue.push({ frameKey, blob })
-    void runRasterPreviewQueue()
-  }
 
   const showRawRaster = (preview: PsychedelRasterPreview) => {
     if (destroyed) return
@@ -695,10 +582,6 @@ export function createBrainController(
     },
     thermalScheduler,
   )
-  const rhythmClock = new BrainRhythmClock({
-    onStalePacketIgnored: () => brainPerformanceMetrics.recordStalePacketIgnored(),
-    onPhaseRealignment: () => brainPerformanceMetrics.recordPhaseRealignment(),
-  })
   let storyAi: BrainAiClient | null = null
   let brainTranslator: BrainTranslator | null = null
   let status: BrainStatus | null = null
@@ -713,6 +596,7 @@ export function createBrainController(
   let frameIndex = 0
   let frameStartedAt = 0
   let transitionStartedAt = 0
+  let silenceStartedAt: number | null = null
   let currentFrameMorphPattern: BrainFrameMorphPattern = 'marea'
   let activeFrameTiming = calculateBrainFrameTiming(
     500,
@@ -756,6 +640,9 @@ export function createBrainController(
   let storyStartedAt = 0
   let storyCycleCompletionReported = false
   let storyCycleInterludeCompleted = false
+  let consciousnessMotionPausedAt: number | null = null
+  const consciousnessMotionMemoryIds = new Set<string>()
+  const consciousnessMotionStoryIds = new Set<string>()
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -843,6 +730,42 @@ export function createBrainController(
         error,
       )
     })
+  }
+
+  const requestConsciousnessInfluence = async (
+    story: BrainProduction['story'] | null,
+  ): Promise<ConsciousnessMotionCandidate | null> => {
+    const outputApi = window.fxOutput
+    if (!outputApi || !story || consciousnessMotionStoryIds.has(story.id)) return null
+    consciousnessMotionStoryIds.add(story.id)
+    try {
+      const candidate = await outputApi.suggestConsciousnessMotion({
+        storyId: story.id,
+        storyTitle: story.title,
+        storySynopsis: story.synopsis,
+        frameDescription: story.frames[frameIndex]?.description ?? null,
+        excludedMemoryIds: [...consciousnessMotionMemoryIds],
+      })
+      if (!candidate) return null
+      const accepted = consciousnessMotionLayer.offer(
+        candidate,
+        story.id,
+        performance.now(),
+      )
+      if (!accepted) return null
+      consciousnessMotionMemoryIds.add(candidate.memoryId)
+      brainLog('coscienza', 'moto di coscienza preparato', {
+        storyId: story.id,
+        memoryId: candidate.memoryId,
+        kind: candidate.kind,
+        relevance: candidate.relevanceReason,
+        consultedFiles: candidate.consultedFiles,
+      })
+      return candidate
+    } catch (error) {
+      brainWarn('coscienza', 'moto di coscienza rimandato', error)
+      return null
+    }
   }
 
   const modelCacheReady = Promise.all([
@@ -1082,10 +1005,6 @@ export function createBrainController(
     currentSvg.setMorphPattern(currentFrameMorphPattern)
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
-    activeVectorFrameKey = frameKey
-    if (synchronizedRaster) {
-      queueRasterPreview(activeVectorFrameKey, synchronizedRaster)
-    }
     frameStartedAt = performance.now()
     transitionStartedAt = hadVisibleFrame
       ? frameStartedAt
@@ -1287,11 +1206,15 @@ export function createBrainController(
             storyAi,
             brainTranslator,
           )
+          const consciousnessInfluence = await requestConsciousnessInfluence(
+            currentProduction?.story ?? null,
+          )
           const story = await coscienza.generate(phrases, recentStories, {
             sessionMemo: sessionMemo ?? undefined,
             sessionSynthesis,
             continuitySeed: continuityPhrase,
             recentBridges,
+            consciousnessInfluence,
           })
           nextContinuityPhrase = story.bridge
           recentBridges = story.bridge
@@ -1481,14 +1404,6 @@ export function createBrainController(
         story,
         productionDeadlineAt,
         (scene, sceneIndex) => {
-          const frameKey = `${story.id}:${scene.frameId}`
-          const synchronizedRaster = rasterPreviewBlobs.get(frameKey)
-          if (
-            synchronizedRaster &&
-            activeVectorFrameKey === frameKey
-          ) {
-            queueRasterPreview(frameKey, synchronizedRaster)
-          }
           progressiveScenes.set(sceneIndex, scene)
           progressiveReadyFrames = progressiveScenes.size
           if (!progressiveProduction) {
@@ -1649,11 +1564,13 @@ export function createBrainController(
 
   const advanceTimeline = (
     now: number,
+    rhythmActive: boolean,
     onBeat: boolean,
     beatPhase: number,
     beatDurationMs: number,
     beatIndex: number,
   ) => {
+    if (!rhythmActive) return
     if (!currentProduction) return
     if (storyCycleCompletionReported) return
     const frame =
@@ -1662,7 +1579,8 @@ export function createBrainController(
     const elapsed = now - frameStartedAt
     if (elapsed < activeFrameTiming.totalMs) return
     const beatAligned = onBeat || beatPhase <= 0.07 || beatPhase >= 0.93
-    const storyCycle = latestPayload?.settings?.brainRendererMode === 'story-cycle'
+    const rendererSettings = latestPayload?.settings
+    const storyCycle = rendererSettings?.brainRendererMode === 'story-cycle'
     if (!beatAligned && storyCycle) return
     if (!beatAligned && elapsed < activeFrameTiming.totalMs + 2_000) return
     if (recyclingStoryFrames) {
@@ -1674,49 +1592,58 @@ export function createBrainController(
         startProduction(nextProduction, beatDurationMs, beatIndex)
         return
       }
+      const waitingRendererChanged = rendererSettings &&
+        brainRendererSelector.advanceWaitingRenderer(rendererSettings, now)
+      if (waitingRendererChanged) {
+        brainLog('pipeline', 'renderer casuale avanzato durante l’attesa', {
+          storyId: currentProduction.story.id,
+          rendererId: brainRendererSelector.resolve(rendererSettings, now),
+          rendererOrder: 'waiting-random-without-replacement',
+        })
+      }
       recycleCurrentStoryFrame(beatDurationMs, beatIndex)
       if (!generating) void generateNext()
       return
     }
-    if (frameIndex < currentProduction.story.frames.length - 1) {
-      applyFrame(frameIndex + 1, beatDurationMs, beatIndex)
-      return
-    }
-    const rendererSettings = latestPayload?.settings
     if (
-      rendererSettings?.brainRendererMode === 'story-cycle' &&
-      brainRendererSelector.advanceStoryRenderer(
-        currentProduction.story.id,
-        rendererSettings,
-        now,
-      )
+      frameIndex < currentProduction.story.frames.length - 1
     ) {
-      completedStoryRendererPasses += 1
       if (
-        nextStoryGenerationDeferred &&
-        !shouldDeferNextStoryGeneration(
-          rendererSettings.brainRendererMode,
-          completedStoryRendererPasses,
+        rendererSettings?.brainRendererMode === 'story-cycle' &&
+        brainRendererSelector.advanceStoryRenderer(
+          currentProduction.story.id,
+          rendererSettings,
+          now,
         )
       ) {
-        nextStoryGenerationDeferred = false
-        nextGenerationAllowedAt = Math.max(
-          nextGenerationAllowedAt,
-          now + BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
-        )
-        brainLog('pipeline', 'refill sbloccato dopo il primo attraversamento', {
+        completedStoryRendererPasses += 1
+        if (
+          nextStoryGenerationDeferred &&
+          !shouldDeferNextStoryGeneration(
+            rendererSettings.brainRendererMode,
+            completedStoryRendererPasses,
+          )
+        ) {
+          nextStoryGenerationDeferred = false
+          nextGenerationAllowedAt = Math.max(
+            nextGenerationAllowedAt,
+            now + BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
+          )
+          brainLog('pipeline', 'refill sbloccato dopo la prima variazione', {
+            storyId: currentProduction.story.id,
+            completedRendererVariations: completedStoryRendererPasses,
+            transitionGuardMs: BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
+            targetInMs: Math.max(0, Math.round(nextGenerationTargetAt - now)),
+          })
+        }
+        brainLog('pipeline', 'renderer casuale assegnato al prossimo fotogramma', {
           storyId: currentProduction.story.id,
-          completedRendererPasses: completedStoryRendererPasses,
-          transitionGuardMs: BRAIN_CONFIG.storyCycleRefillTransitionGuardMs,
-          targetInMs: Math.max(0, Math.round(nextGenerationTargetAt - now)),
+          nextFrameIndex: frameIndex + 1,
+          rendererId: brainRendererSelector.resolve(rendererSettings, now),
+          rendererOrder: 'random-without-replacement',
         })
       }
-      brainLog('pipeline', 'storia riattraversata con il renderer successivo', {
-        storyId: currentProduction.story.id,
-        rendererOrder: 'random-without-replacement',
-        nextStoryReady: nextProduction !== null,
-      })
-      applyFrame(0, beatDurationMs, beatIndex)
+      applyFrame(frameIndex + 1, beatDurationMs, beatIndex)
       if (!nextStoryGenerationDeferred && !generating && !nextProduction) {
         window.setTimeout(() => void generateNext(), 0)
       }
@@ -1762,16 +1689,55 @@ export function createBrainController(
     thermalScheduler.recordFrame(now)
     brainPerformanceMetrics.recordOutputRaf(now)
     const bands = latestPayload?.bandEnergies ?? SILENT_BANDS
-    const rhythm = rhythmClock.projectState(performance.timeOrigin + now)
-    advanceTimeline(
-      now,
-      rhythm.beat,
-      rhythm.beatPhase,
-      rhythm.beatDurationMs,
-      rhythm.beatIndex,
+    const rhythm = options.rhythmSource?.() ?? {
+      active: false,
+      beat: false,
+      beatIndex: 0,
+      beatPhase: 0,
+      musicalPosition: 0,
+      beatPulse: 0,
+      kickEnvelope: 0,
+      beatDurationMs: 500,
+      bandTransients: SILENT_BANDS,
+    }
+    if (rhythm.active === true && silenceStartedAt !== null) {
+      const silenceDuration = Math.max(0, now - silenceStartedAt)
+      frameStartedAt += silenceDuration
+      transitionStartedAt += silenceDuration
+      silenceStartedAt = null
+    } else if (rhythm.active !== true && silenceStartedAt === null) {
+      silenceStartedAt = now
+    }
+    const rhythmicNow = silenceStartedAt ?? now
+    const motionState = consciousnessMotionLayer.update(
+      rhythm,
+      rhythmicNow,
+      latestPayload?.settings?.lowPowerMode === true,
     )
+    if (motionState.active && consciousnessMotionPausedAt === null) {
+      consciousnessMotionPausedAt = rhythmicNow
+    }
+    if (motionState.completedPauseMs > 0) {
+      frameStartedAt += motionState.completedPauseMs
+      transitionStartedAt += motionState.completedPauseMs
+      consciousnessMotionPausedAt = null
+      brainLog('coscienza', 'moto concluso; rotazione Brain ripresa', {
+        pauseMs: Math.round(motionState.completedPauseMs),
+      })
+    }
+    const timelineNow = consciousnessMotionPausedAt ?? rhythmicNow
+    if (!motionState.active) {
+      advanceTimeline(
+        timelineNow,
+        rhythm.active === true,
+        rhythm.beat,
+        rhythm.beatPhase,
+        rhythm.beatDurationMs,
+        rhythm.beatIndex,
+      )
+    }
     const transition = smootherstep(
-      (now - transitionStartedAt) / activeFrameTiming.transitionMs,
+      (timelineNow - transitionStartedAt) / activeFrameTiming.transitionMs,
     )
     currentSvg?.setOpacity(outgoingSvg ? transition : 1)
     outgoingSvg?.setOpacity(1 - transition)
@@ -1862,15 +1828,6 @@ export function createBrainController(
         receivedAt,
         performance.now(),
       )
-      if (payload.bandEnergies) {
-        rhythmClock.ingestSample(
-          payload.bandEnergies,
-          payload.audioTimestampMs,
-          payload.movingAverages,
-          payload.sequenceNumber,
-          receivedAt,
-        )
-      }
     },
     resumeStoryCycleAfterInterlude() {
       if (!storyCycleCompletionReported) return
@@ -1894,21 +1851,13 @@ export function createBrainController(
       window.clearTimeout(storyPanelTimerId)
       storyAi?.destroy()
       psychedel.destroy()
+      consciousnessMotionLayer.destroy()
       currentSvg?.destroy()
       outgoingSvg?.destroy()
       transitionCounterpartShapes = []
-      activeVectorFrameKey = null
       rasterPreviewBlobs.clear()
       print2dModes.clear()
       brainVectorSceneCache.clear()
-      rasterPreviewQueue.length = 0
-      rasterPreviewAnimation?.cancel()
-      rasterPreviewAnimation = null
-      rasterPreviewImage.src = ''
-      if (activeRasterPreviewUrl) {
-        URL.revokeObjectURL(activeRasterPreviewUrl)
-        activeRasterPreviewUrl = null
-      }
       rasterList
         .querySelectorAll<HTMLImageElement>('img')
         .forEach((image) => {

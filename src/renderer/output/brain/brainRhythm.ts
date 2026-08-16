@@ -1,11 +1,14 @@
 import type { BandEnergies } from '@shared/types'
 
 export type BrainRhythmState = {
+  /** False quando non esiste energia sufficiente per avanzare la geometria. */
+  active?: boolean
   beat: boolean
   beatIndex: number
   beatPhase: number
   musicalPosition: number
   beatPulse: number
+  kickEnvelope: number
   beatDurationMs: number
   bandTransients: BandEnergies
 }
@@ -27,13 +30,33 @@ const TRANSIENT_RELEASE_MS: BandEnergies = {
 const STALE_PACKET_AGE_MS = 1_500
 const LONG_SAMPLE_GAP_MS = 1_500
 const MAX_PROJECTION_STEP_MS = 300
+const SIGNAL_ENTER_ENERGY = 0.018
+const SIGNAL_EXIT_ENERGY = 0.008
+const SILENCE_HOLD_MS = 900
 
 type BrainRhythmClockHooks = {
   onStalePacketIgnored?: () => void
   onPhaseRealignment?: () => void
 }
 
-export class BrainRhythmClock {
+export function calculateBrainKickEnvelope(
+  beatPulse: number,
+  lowTransient: number,
+  lowMidTransient: number,
+): number {
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      Math.max(
+        beatPulse,
+        beatPulse * 0.82 + lowTransient * 0.26 + lowMidTransient * 0.08,
+      ),
+    ),
+  )
+}
+
+export class OutputRhythmClock {
   private baseline = 0.08
   private previousBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
   private currentBands: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
@@ -51,8 +74,26 @@ export class BrainRhythmClock {
   private lastSequenceNumber = -1
   private lastBeatDetectedInIngest = false
   private skipNextProjectionAdvance = false
+  private signalActive = false
+  private lastAudibleAt = 0
 
   constructor(private readonly hooks: BrainRhythmClockHooks = {}) {}
+
+  private updateSignalActivity(bands: BandEnergies, now: number): void {
+    const energy = bands.low + bands.lowMid + bands.mid + bands.high
+    if (energy >= SIGNAL_ENTER_ENERGY) {
+      this.signalActive = true
+      this.lastAudibleAt = now
+      return
+    }
+    if (
+      this.signalActive &&
+      energy < SIGNAL_EXIT_ENERGY &&
+      now - this.lastAudibleAt >= SILENCE_HOLD_MS
+    ) {
+      this.signalActive = false
+    }
+  }
 
   ingestSample(
     bands: BandEnergies,
@@ -81,6 +122,7 @@ export class BrainRhythmClock {
 
     const sampleGap = this.lastIngestAt > 0 ? now - this.lastIngestAt : 0
     const elapsed = sampleGap > 0 ? Math.min(150, sampleGap) : 16
+    this.updateSignalActivity(bands, now)
 
     // Gap lungo / post-stallo: riallinea senza trasformare il livello corrente
     // in un nuovo transiente e senza ripercorrere beat intermedi.
@@ -190,7 +232,10 @@ export class BrainRhythmClock {
     let beat = this.lastBeatDetectedInIngest
     this.lastBeatDetectedInIngest = false
 
-    if (!beat && !this.skipNextProjectionAdvance) {
+    this.updateSignalActivity(this.currentBands, nowMs)
+    const active = this.signalActive
+
+    if (!beat && !this.skipNextProjectionAdvance && active) {
       // Avanzamento solo del delta locale clampato: nessun catch-up dopo RAF sospesi.
       this.musicalPosition += elapsed / this.beatDurationMs
       const predictedBeatIndex = Math.floor(this.musicalPosition)
@@ -211,12 +256,19 @@ export class BrainRhythmClock {
     this.skipNextProjectionAdvance = false
 
     const phase = beat ? 0 : this.musicalPosition % 1
+    const kickEnvelope = calculateBrainKickEnvelope(
+      this.beatPulse,
+      this.bandTransients.low,
+      this.bandTransients.lowMid,
+    )
     return {
+      active,
       beat,
       beatIndex: Math.max(this.beatIndex, this.lastEmittedBeatIndex),
       beatPhase: phase,
       musicalPosition: this.musicalPosition,
       beatPulse: this.beatPulse,
+      kickEnvelope,
       beatDurationMs: this.beatDurationMs,
       bandTransients: { ...this.bandTransients },
     }
@@ -231,3 +283,6 @@ export class BrainRhythmClock {
     return this.projectState(now)
   }
 }
+
+/** Alias mantenuto per compatibilità dei test e dei moduli Brain esistenti. */
+export { OutputRhythmClock as BrainRhythmClock }

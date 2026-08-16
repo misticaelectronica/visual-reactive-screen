@@ -8,6 +8,7 @@
 
 import type { AppSettings, BandEnergies, MorphingTransitionState, VisualStatePayload } from '@shared/types'
 import { getSlitScanPreset, type SlitScanPreset } from '@shared/slitScanPresets'
+import type { BrainRhythmState } from './brain/brainRhythm'
 
 interface TunnelRibbon {
   side: 'left' | 'right'
@@ -622,7 +623,10 @@ function drawVerticalSlit(
   ctx.restore()
 }
 
-export function create2001MorphingCanvas(container: HTMLElement) {
+export function create2001MorphingCanvas(
+  container: HTMLElement,
+  rhythmSource?: () => BrainRhythmState,
+) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Cannot create 2D context')
@@ -636,17 +640,40 @@ export function create2001MorphingCanvas(container: HTMLElement) {
   container.appendChild(canvas)
 
   let animationId = 0
-  let state = initTunnelState()
+  const state = initTunnelState()
+  let lastMusicalPosition = rhythmSource?.().musicalPosition ?? 0
+  let motionTime = 0
 
-  const animate = (now: number) => {
+  const animate = () => {
     if (!ctx || !currentSettings) {
       animationId = requestAnimationFrame(animate)
       return
     }
 
-    state.time = now
+    const rhythm = rhythmSource?.()
+    const musicalPosition = rhythm?.musicalPosition ?? lastMusicalPosition
+    const deltaBeats = rhythm?.active === true
+      ? Math.max(0, musicalPosition - lastMusicalPosition)
+      : 0
+    lastMusicalPosition = musicalPosition
+    const deltaMs = Math.min(
+      80,
+      deltaBeats * (rhythm?.beatDurationMs ?? 500),
+    )
+    motionTime += deltaMs
+    state.time = motionTime
     const preset = getSlitScanPreset(currentSettings.morphingPresetId)
     const factors = transitionFactors()
+    const bands: BandEnergies = {
+      low: Math.max(currentBands.low, rhythm?.kickEnvelope ?? 0),
+      lowMid: Math.max(
+        currentBands.lowMid,
+        rhythm?.beatPulse ?? 0,
+        rhythm?.bandTransients.lowMid ?? 0,
+      ),
+      mid: Math.max(currentBands.mid, rhythm?.bandTransients.mid ?? 0),
+      high: Math.max(currentBands.high, rhythm?.bandTransients.high ?? 0),
+    }
 
     const rect = container.getBoundingClientRect()
     if (canvas.width !== rect.width || canvas.height !== rect.height) {
@@ -654,20 +681,24 @@ export function create2001MorphingCanvas(container: HTMLElement) {
       canvas.height = rect.height
     }
 
-    const deltaMs = 16
-
     // Smooth speed modifier from audio bass — lazy interpolation avoids jumpy launches
-    const targetSpeed = (1.0 + currentBands.low * 0.9) * factors.speed
-    state.smoothedSpeed += (targetSpeed - state.smoothedSpeed) * 0.06
-    const eqEnergy = clamp(currentBands.low * 0.34 + currentBands.lowMid * 0.18 + currentBands.mid * 0.26 + currentBands.high * 0.22, 0, 1)
+    const targetSpeed = (1.0 + bands.low * 0.9) * factors.speed
+    if (rhythm?.active === true) {
+      state.smoothedSpeed += (targetSpeed - state.smoothedSpeed) * 0.06
+    }
+    const eqEnergy = clamp(bands.low * 0.34 + bands.lowMid * 0.18 + bands.mid * 0.26 + bands.high * 0.22, 0, 1)
     const targetEqThickness = preset.eqReactive
-      ? clamp(0.72 + currentBands.low * 0.76 + currentBands.lowMid * 0.30 + currentBands.mid * 0.22 - currentBands.high * 0.28 + eqEnergy * 0.18, 0.62, 1.78)
+      ? clamp(0.72 + bands.low * 0.76 + bands.lowMid * 0.30 + bands.mid * 0.22 - bands.high * 0.28 + eqEnergy * 0.18, 0.62, 1.78)
       : 1.0
-    state.smoothedEqThickness += (clamp(targetEqThickness, 0.62, 1.78) - state.smoothedEqThickness) * 0.08
-    const targetEqDensity = preset.eqReactive ? clamp(0.92 + currentBands.mid * 0.22 + currentBands.lowMid * 0.08 - currentBands.high * 0.05, 0.88, 1.20) : 1.0
-    const targetEqSpread = preset.eqReactive ? clamp(0.94 + currentBands.mid * 0.18 + currentBands.low * 0.06, 0.90, 1.18) : 1.0
-    state.smoothedEqDensity += (targetEqDensity - state.smoothedEqDensity) * 0.06
-    state.smoothedEqSpread += (targetEqSpread - state.smoothedEqSpread) * 0.06
+    if (rhythm?.active === true) {
+      state.smoothedEqThickness += (clamp(targetEqThickness, 0.62, 1.78) - state.smoothedEqThickness) * 0.08
+    }
+    const targetEqDensity = preset.eqReactive ? clamp(0.92 + bands.mid * 0.22 + bands.lowMid * 0.08 - bands.high * 0.05, 0.88, 1.20) : 1.0
+    const targetEqSpread = preset.eqReactive ? clamp(0.94 + bands.mid * 0.18 + bands.low * 0.06, 0.90, 1.18) : 1.0
+    if (rhythm?.active === true) {
+      state.smoothedEqDensity += (targetEqDensity - state.smoothedEqDensity) * 0.06
+      state.smoothedEqSpread += (targetEqSpread - state.smoothedEqSpread) * 0.06
+    }
     ensureRibbonCount(state, preset)
 
     const perspective = canvas.width * (0.16 + 0.08 * factors.depth)
@@ -675,7 +706,9 @@ export function create2001MorphingCanvas(container: HTMLElement) {
     // Move all ribbons and recycle those that have fully passed the camera
     const zSpeedMultiplier = preset.id === 'parallel-slit-ultra' ? 1.85 : 1
     for (const ribbon of state.ribbons) {
-      updateRibbon(ribbon, deltaMs, state.smoothedSpeed * zSpeedMultiplier)
+      if (deltaMs > 0) {
+        updateRibbon(ribbon, deltaMs, state.smoothedSpeed * zSpeedMultiplier)
+      }
 
       if (ribbon.zStart < NEAR_Z - ribbon.thicknessStart * 0.2) {
         recycleRibbon(ribbon, preset)
@@ -696,7 +729,7 @@ export function create2001MorphingCanvas(container: HTMLElement) {
     const visibleRibbonCount = Math.max(0, Math.floor(sorted.length * factors.ribbons))
     for (let i = 0; i < visibleRibbonCount; i++) {
       const ribbon = sorted[i]
-      drawRibbon(ctx, ribbon, canvas.width, canvas.height, perspective, currentBands, preset, state.smoothedEqThickness, state.smoothedEqSpread, factors)
+      drawRibbon(ctx, ribbon, canvas.width, canvas.height, perspective, bands, preset, state.smoothedEqThickness, state.smoothedEqSpread, factors)
     }
 
     // Draw the vertical source slit on top
@@ -704,8 +737,8 @@ export function create2001MorphingCanvas(container: HTMLElement) {
       ctx,
       canvas.width,
       canvas.height,
-      currentBands,
-      now,
+      bands,
+      motionTime,
       factors.slit,
       preset.lineMode === 'parallel' || preset.id === 'deep-dance-norwell',
       preset.id === 'parallel-slit-ultra',

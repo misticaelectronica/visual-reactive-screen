@@ -1,6 +1,7 @@
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { getThemeProfileForPreset, MorphingThemeProfile } from '@shared/morphingThemeProfiles'
 import type { BandEnergies, AppSettings, MorphingPreset, VisualStatePayload } from '@shared/types'
+import type { BrainRhythmState } from './brain/brainRhythm'
 
 // High-aesthetic Canvas 2D organic visibility boundaries
 const ORGANIC_MIN_ALPHA = 0.28
@@ -604,7 +605,10 @@ function drawSoftStreak(ctx: CanvasRenderingContext2D, options: StreakOptions) {
   ctx.restore()
 }
 
-export function createOniricMorphingCanvas(container: HTMLElement) {
+export function createOniricMorphingCanvas(
+  container: HTMLElement,
+  rhythmSource?: () => BrainRhythmState,
+) {
   const canvas = document.createElement('canvas')
   canvas.className = 'morphing-layer'
   canvas.style.position = 'absolute'
@@ -626,9 +630,9 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
   let currentWhiteMix = 0
   let currentBgColor = '#000000'
   let time = 0
-  let lastTime = performance.now()
+  let lastMusicalPosition = rhythmSource?.().musicalPosition ?? 0
   const transitionRng = mulberry32((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0)
-  let oniricTransitionState = createOniricTransitionState(performance.now(), transitionRng)
+  let oniricTransitionState = createOniricTransitionState(0, transitionRng)
 
   let smoothedLow = 0
   let smoothedLowMid = 0
@@ -665,8 +669,13 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     }
     lastRenderAt = now
 
-    const dt = now - lastTime
-    lastTime = now
+    const rhythm = rhythmSource?.()
+    const musicalPosition = rhythm?.musicalPosition ?? lastMusicalPosition
+    const deltaBeats = rhythm?.active === true
+      ? Math.max(0, musicalPosition - lastMusicalPosition)
+      : 0
+    const dt = Math.min(80, deltaBeats * (rhythm?.beatDurationMs ?? 500))
+    lastMusicalPosition = musicalPosition
 
     const presetId = currentSettings.morphingPresetId
     let preset = MORPHING_PRESETS.find((p) => p.id === presetId) || MORPHING_PRESETS[0]
@@ -674,9 +683,9 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     let defaultTransitionProgress = 0
 
     if (presetId === ONIRIC_DEFAULT_PRESET.id) {
-      oniricTransitionState = updateOniricTransitionState(oniricTransitionState, now, transitionRng)
+      oniricTransitionState = updateOniricTransitionState(oniricTransitionState, time, transitionRng)
       defaultTransitionProgress = clamp(
-        (now - oniricTransitionState.transitionStartTime) / oniricTransitionState.transitionDurationMs,
+        (time - oniricTransitionState.transitionStartTime) / oniricTransitionState.transitionDurationMs,
         0,
         1
       )
@@ -694,10 +703,12 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
 
     const tuning = motionTuning(currentSettings.motionProfile)
 
-    smoothedLow += (currentBands.low - smoothedLow) * tuning.smoothing.low
-    smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * tuning.smoothing.lowMid
-    smoothedMid += (currentBands.mid - smoothedMid) * tuning.smoothing.mid
-    smoothedHigh += (currentBands.high - smoothedHigh) * tuning.smoothing.high
+    if (rhythm?.active === true) {
+      smoothedLow += (currentBands.low - smoothedLow) * tuning.smoothing.low
+      smoothedLowMid += (currentBands.lowMid - smoothedLowMid) * tuning.smoothing.lowMid
+      smoothedMid += (currentBands.mid - smoothedMid) * tuning.smoothing.mid
+      smoothedHigh += (currentBands.high - smoothedHigh) * tuning.smoothing.high
+    }
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : (isFlashing ? 1 : 0)
     const softenedFlashTarget = flashTarget * 0.65
@@ -718,12 +729,22 @@ export function createOniricMorphingCanvas(container: HTMLElement) {
     smoothedKickPulse += (rawKickPulse - smoothedKickPulse) * tuning.kickAttack
     const kickPulse = clamp(smoothedKickPulse * (currentSettings.kickMovement ?? 0.08) * tuning.kickGain, 0, 0.42)
     const subPressure = clamp(smoothedLow * (currentSettings.subMovement ?? 0.26) * tuning.subGain, 0, 0.70)
-    const beatDrive = clamp(kickPulse * tuning.beatGain + Math.max(0, currentBands.lowMid - smoothedLowMid) * tuning.beatGain, 0, 0.52)
+    const beatDrive = clamp(
+      Math.max(kickPulse, rhythm?.beatPulse ?? 0, rhythm?.kickEnvelope ?? 0) * tuning.beatGain +
+        Math.max(0, currentBands.lowMid - smoothedLowMid) * tuning.beatGain +
+        (rhythm?.bandTransients.lowMid ?? 0) * 0.16,
+      0,
+      0.52,
+    )
 
     const bodyDensity = (smoothedLowMid * 0.78 + currentBands.lowMid * 0.22) * preset.lowMidDeformationAmount * 0.56 * (1 + subPressure * 0.72 + beatDrive * tuning.densityGain)
     const midGlow = (smoothedMid * 0.70 + currentBands.mid * 0.30) * preset.midOpacityAmount * (0.68 + debugSettings.glowIntensity * 0.30)
     const flashGlow = smoothedFlash * 0.10
-    const highTension = (smoothedHigh * 0.72 + currentBands.high * 0.28) * preset.highNoiseAmount * tuning.highGain
+    const highTension = (
+      smoothedHigh * 0.72 +
+      currentBands.high * 0.28 +
+      (rhythm?.bandTransients.high ?? 0) * 0.18
+    ) * preset.highNoiseAmount * tuning.highGain
 
     // Correzione 3: Assorbimento del flash come energia interna
     let integratedFlashGlow = smoothedMorphingFlash

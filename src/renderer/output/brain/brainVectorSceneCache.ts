@@ -33,6 +33,12 @@ export class BrainVectorSceneCache {
         svgLength: result.quality.svgLength,
         drawableCount: result.quality.drawableCount,
         profile: result.profile ?? null,
+        detectedSpikes: result.detectedSpikes ?? null,
+        contourRoughness: result.contourRoughness ?? null,
+        cornerDensityBefore: result.cornerDensityBefore ?? null,
+        cornerDensity: result.cornerDensity ?? null,
+        smoothedPathCount: result.smoothedPathCount ?? null,
+        maximumSmoothingDeviation: result.maximumSmoothingDeviation ?? null,
       })
       return {
         ...source.scene,

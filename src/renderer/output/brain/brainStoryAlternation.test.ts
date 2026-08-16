@@ -4,6 +4,7 @@ import {
   calculateStoryMorphingInterludeMs,
   createAlternateBrainStorySettings,
   createAlternateMorphingSettings,
+  MORPHING_INTERLUDE_TRANSITION_ALLOWANCE_MS,
 } from './brainStoryAlternation'
 
 describe('Brain story alternation', () => {
@@ -11,8 +12,10 @@ describe('Brain story alternation', () => {
     const brainDurationMs = 240_000
     const morphingDurationMs = calculateStoryMorphingInterludeMs(brainDurationMs)
 
-    expect(morphingDurationMs).toBe(60_000)
-    expect(brainDurationMs / (brainDurationMs + morphingDurationMs)).toBe(0.8)
+    expect(morphingDurationMs).toBe(72_000)
+    const fullMorphingTime = morphingDurationMs -
+      MORPHING_INTERLUDE_TRANSITION_ALLOWANCE_MS
+    expect(brainDurationMs / (brainDurationMs + fullMorphingTime)).toBe(0.8)
   })
 
   it('non introduce una finestra autonoma senza durata Brain', () => {

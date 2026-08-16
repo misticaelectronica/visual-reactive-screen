@@ -6,6 +6,7 @@ import type { BrainSvgController } from './brainSvgScene'
 import { brainLog, brainWarn } from './brainLog'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
+import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
 
 /** Renderer serigrafico storico, distinto dalla regia a finestre Psycho2D. */
 const ANALYSIS_WIDTH = 240
@@ -162,8 +163,14 @@ export function calculateBrainPrint2dMotion(
   const softness = settings.softMode ? 0.72 : 1
   const sensitivity = 0.68 + clamp(settings.sensitivity) * 0.42
   const scale = profile * softness * sensitivity
-  const beatEnvelope = clamp(rhythm?.beatPulse ?? 0) * activity * scale
-  const depthPx = clamp((drives.low * 16 + transients.low * 6) * scale, 0, 17)
+  const beatEnvelope = clamp(
+    rhythm?.kickEnvelope ?? rhythm?.beatPulse ?? 0,
+  ) * activity * scale
+  const depthPx = clamp(
+    (drives.low * 16 + transients.low * 6) * scale + beatEnvelope * 3.2,
+    0,
+    19,
+  )
   const propagationPx = clamp(
     (drives.lowMid * 21 + transients.lowMid * 7) * scale,
     0,
@@ -468,6 +475,8 @@ export function createBrainPrint2dScene(
   let resourcePressure = false
   let lastRenderedAt = Number.NEGATIVE_INFINITY
   let lastRenderSignature = ''
+  let lastMotionAt = Number.NaN
+  const motionSmoother = new BrainCanvasMotionSmoother()
   let previousBeatIndex = -1
   let marchStep = sceneSeed % LAYER_COUNT
   let transitionProgress = 1
@@ -532,7 +541,7 @@ export function createBrainPrint2dScene(
         previousBeatIndex = rhythm.beatIndex
         marchStep = (marchStep + 1) % LAYER_COUNT
       }
-      const motion = calculateBrainPrint2dMotion(
+      const rawMotion = calculateBrainPrint2dMotion(
         bands,
         settings,
         rhythm,
@@ -540,6 +549,44 @@ export function createBrainPrint2dScene(
         LAYER_COUNT,
         movingAverages,
       )
+      const motionElapsed = Number.isFinite(lastMotionAt)
+        ? Math.max(0, time - lastMotionAt)
+        : 16
+      lastMotionAt = time
+      const smoothMotion = motionSmoother.update(
+        {
+          low: clamp(rawMotion.depthPx / 19),
+          lowMid: clamp(rawMotion.propagationPx / 23),
+          mid: clamp(rawMotion.dislocationPx / 18),
+          high: clamp(rawMotion.chromaticPx / 13),
+          activity: rawMotion.activity,
+          beat: rawMotion.beatEnvelope,
+        },
+        motionElapsed,
+        rhythm?.beatDurationMs ?? 500,
+        rhythm?.active ?? (rawMotion.activity > 0),
+        settings.motionProfile,
+      )
+      const phaseRadians = (rhythm?.beatPhase ?? 0) * Math.PI * 2
+      const depthPx = smoothMotion.low * 19
+      const propagationPx = smoothMotion.lowMid * 23
+      const dislocationPx = smoothMotion.mid * 18
+      const chromaticPx = smoothMotion.high * 13
+      const motion: BrainPrint2dMotion = {
+        ...rawMotion,
+        activity: smoothMotion.activity,
+        depthPx,
+        propagationPx,
+        dislocationPx,
+        chromaticPx,
+        beatEnvelope: smoothMotion.beat,
+        depthOffsetPx: depthPx * Math.cos(phaseRadians),
+        propagationOffsetPx: propagationPx * Math.sin(phaseRadians),
+        dislocationOffsetPx:
+          dislocationPx * Math.cos(phaseRadians * 2 + Math.PI / 3),
+        chromaticOffsetPx:
+          chromaticPx * Math.sin(phaseRadians * 4 + Math.PI / 4),
+      }
       const audioActive = motion.activity >= 0.015 || motion.beatEnvelope >= 0.01
       const frameInterval = calculateBrainPrint2dFrameInterval(
         resourcePressure,
@@ -570,7 +617,7 @@ export function createBrainPrint2dScene(
         lastRenderSignature,
       )) return
       lastRenderSignature = renderSignature
-      brainPerformanceMetrics.recordCanvasFrame(time, resourcePressure)
+      const renderStartedAt = performance.now()
       canvas.dataset.brainMarchStep = String(marchStep)
       canvas.dataset.brainActivity = motion.activity.toFixed(3)
       canvas.dataset.brainAudioActive = audioActive ? 'true' : 'false'
@@ -756,9 +803,15 @@ export function createBrainPrint2dScene(
       context.globalAlpha = 1
       // Il pattern cambia solo l'ordine spaziale; non aggiunge moti temporali.
       canvas.dataset.brainPatternFamily = morphPattern
+      brainPerformanceMetrics.recordCanvasFrame(
+        time,
+        resourcePressure,
+        performance.now() - renderStartedAt,
+      )
     },
     destroy() {
       destroyed = true
+      motionSmoother.reset()
       bitmap?.close()
       bitmap = null
       artwork?.screenprintLayers.forEach((layer) => {

@@ -146,6 +146,9 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="print2d">Print2D — serigrafico</option>
             <option value="psycho2d">Psycho2D — finestre</option>
             <option value="vector-morph">Vector Morph — vettoriale</option>
+            <option value="material-morph">Materia Morph — sedimentale</option>
+            <option value="filter-psiche">FilterPsiche — cromatico</option>
+            <option value="bauhaus-morph">Bauhaus Morph — pittorico</option>
           </select>
         </label>
         <label>
@@ -159,7 +162,7 @@ export function VisualControls({ settings, onChange }: Props) {
           >
             <option value="manual">Manuale</option>
             <option value="rotation">Automatica</option>
-            <option value="story-cycle">Tutti per storia — ordine casuale</option>
+            <option value="story-cycle">Tutti per storia — casuale per fotogramma</option>
           </select>
         </label>
         <label>

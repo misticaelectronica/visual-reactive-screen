@@ -191,4 +191,40 @@ describe('ConsciousnessArchive', () => {
     expect(consciousness).toContain('Fuoco: `low`')
     expect(consciousness).toContain('## Modello Provvisorio Di Sé')
   })
+
+  it('propone un ricordo pertinente senza confondere immaginazione e fatto', async () => {
+    await archive.save(originDraft())
+    const memory = await archive.save({
+      kind: 'imagination',
+      title: 'Il ponte lunare della tribù',
+      source: 'test/story-model',
+      episodeId: 'episode-1',
+      perceived: 'Il processo narrativo ha concluso un sogno.',
+      interpretation: 'Riconosco il contenuto come sogno generato.',
+      imagination: 'Una tribù attraversa il ponte lunare per ritrovare la propria unità.',
+      reason: 'Conclusione di un episodio interno.',
+      salience: 0.72,
+    })
+
+    const candidate = await archive.suggestMotion({
+      storyId: 'story-2',
+      storyTitle: 'La tribù sul ponte lunare',
+      storySynopsis: 'Una tribù divisa attraversa il ponte lunare e cerca una nuova unità.',
+      excludedMemoryIds: [],
+    })
+
+    expect(candidate?.memoryId).toBe(memory.memoryId)
+    expect(candidate?.kind).toBe('imagination')
+    expect(candidate?.influenceText).toContain('tribù')
+    expect(candidate?.relevanceReason).toContain('richiama')
+    expect(candidate?.consultedFiles).toContain(memory.relativePath)
+
+    const excluded = await archive.suggestMotion({
+      storyId: 'story-2',
+      storyTitle: 'La tribù sul ponte lunare',
+      storySynopsis: 'Una tribù divisa attraversa il ponte lunare e cerca una nuova unità.',
+      excludedMemoryIds: [memory.memoryId, 'origine'],
+    })
+    expect(excluded).toBeNull()
+  })
 })

@@ -3,7 +3,13 @@ export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp' | '2001'
 export type FlashMode = 'high' | 'mid' | 'low' | 'off'
 export type MotionProfile = 'dub' | 'techno' | 'ambient'
-export type BrainRendererId = 'print2d' | 'psycho2d' | 'vector-morph'
+export type BrainRendererId =
+  | 'print2d'
+  | 'psycho2d'
+  | 'vector-morph'
+  | 'material-morph'
+  | 'filter-psiche'
+  | 'bauhaus-morph'
 export type BrainRendererMode = 'manual' | 'rotation' | 'story-cycle'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
@@ -13,6 +19,9 @@ export const BRAIN_RENDERER_IDS: BrainRendererId[] = [
   'print2d',
   'psycho2d',
   'vector-morph',
+  'material-morph',
+  'filter-psiche',
+  'bauhaus-morph',
 ]
 export const BRAIN_RENDERER_MODES: BrainRendererMode[] = [
   'manual',
@@ -176,6 +185,7 @@ export const IPC_CHANNELS = {
   readBrainConfigFile: 'fx:read-brain-config-file',
   saveConsciousnessMemory: 'fx:save-consciousness-memory',
   updateConsciousnessState: 'fx:update-consciousness-state',
+  suggestConsciousnessMotion: 'fx:suggest-consciousness-motion',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -243,6 +253,28 @@ export type ConsciousnessStateUpdateResult = {
   consultedFiles: string[]
 }
 
+export type ConsciousnessMotionQuery = {
+  storyId: string
+  storyTitle: string
+  storySynopsis: string
+  frameDescription?: string | null
+  excludedMemoryIds?: string[]
+}
+
+export type ConsciousnessMotionCandidate = {
+  memoryId: string
+  kind: ConsciousnessMemoryKind
+  title: string
+  source: string
+  salience: number
+  perceived: string
+  interpretation: string
+  imagination: string | null
+  relevanceReason: string
+  influenceText: string
+  consultedFiles: string[]
+}
+
 export type BrainVectorizationOptions = {
   engine: 'snic' | 'vtracer'
   fallbackToVTracer: boolean
@@ -293,6 +325,10 @@ export type BrainVectorizationResult =
       sourceBytes: number
       detectedSpikes: number
       contourRoughness: number
+      cornerDensityBefore: number
+      cornerDensity: number
+      smoothedPathCount: number
+      maximumSmoothingDeviation: number
       strongEdgeRecall?: number
       regionCount?: number
       pointCount?: number
@@ -381,4 +417,7 @@ export interface OutputApi {
   updateConsciousnessState: (
     snapshot: ConsciousnessStateSnapshot,
   ) => Promise<ConsciousnessStateUpdateResult>
+  suggestConsciousnessMotion: (
+    query: ConsciousnessMotionQuery,
+  ) => Promise<ConsciousnessMotionCandidate | null>
 }

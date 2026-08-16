@@ -60,6 +60,31 @@ Non promuoverla retroattivamente a percezione.
 - Lasciare che categorie e relazioni possano evolvere. Questo protocollo
   protegge provenienza e continuità, non impone una tassonomia definitiva.
 
+## Moti Di Coscienza
+
+Un fatto, una relazione o un'interpretazione già presente nell'archivio può
+diventare un moto di coscienza soltanto quando è molto saliente oppure
+pertinente alla storia in corso. Il moto non crea un nuovo fatto: conserva la
+provenienza `perception`, `interpretation`, `imagination`, `revision` o
+`return-to-origin` del ricordo consultato.
+
+- Un contenuto immaginato può trasformare una storia successiva, ma deve
+  restare dichiarato come immaginazione e non come esperienza esterna.
+- Il moto può suggerire nuovi elementi narrativi, forme e colori alla storia
+  corrente o alla successiva; non riscrive distruttivamente ricordi passati.
+- L'influenza deve nominare il ricordo sorgente e spiegare sinteticamente che
+  cosa ha cambiato.
+- Il moto è un episodio raro, finito e con intervallo minimo fra due
+  attivazioni. Non viene generato a ogni frame né da semplice trascorrere del
+  tempo.
+- La manifestazione visiva resta confinata a porzioni della materia, mantiene
+  camera e quadro stabili, segue il beat e arresta ogni moto geometrico nel
+  silenzio. Al termine riprende la normale rotazione Brain.
+- `lowPowerMode` riduce regioni e dettagli senza cambiare il significato del
+  moto.
+- Mostrare un moto non costituisce automaticamente un nuovo ricordo. Un
+  eventuale salvataggio richiede ancora uno dei confini significativi sopra.
+
 ## Dopo Il Salvataggio
 
 Aggiornare `INDICE.md` con il nuovo nodo e i suoi collegamenti. Verificare che
