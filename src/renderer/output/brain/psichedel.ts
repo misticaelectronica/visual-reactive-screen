@@ -5,11 +5,11 @@ import type {
 } from '@shared/brain/brainTypes'
 import { brainLog, brainWarn } from './brainLog'
 import type { PsychedelVectorizer } from './brainVectorQuality'
-import {
-  ExplicitPsychedelImageGenerator,
-  type ImageRenderMode,
-  type PsychedelImageGenerator,
+import type {
+  ImageRenderMode,
+  PsychedelImageGenerator,
 } from './psychedelImageGenerator'
+import { BrainImageWorkerClient } from './brainImageWorkerClient'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainInferenceScheduler } from './brainThermalScheduler'
 
@@ -216,7 +216,7 @@ export class Psichedel {
   private highQualityAvailable = true
 
   constructor(
-    private readonly imageGenerator: PsychedelImageGenerator = new ExplicitPsychedelImageGenerator(),
+    private readonly imageGenerator: PsychedelImageGenerator = new BrainImageWorkerClient(),
     _vectorizer?: PsychedelVectorizer,
     private readonly onRaster?: (preview: PsychedelRasterPreview) => void,
     private readonly renderScheduler: HighQualityRenderScheduler = new HighQualityRenderScheduler(),

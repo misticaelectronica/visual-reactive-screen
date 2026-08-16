@@ -16,10 +16,14 @@ import {
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
+import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
 import {
   choosePsycho2dInkPalette,
   ditherPsycho2dPixels,
+  PSYCHO2D_TEXTURE_BANDS,
   selectPsycho2dDensityVariant,
+  selectPsycho2dTextureBand,
+  type Psycho2DTextureBand,
 } from './brainPsycho2dDither'
 
 const ANALYSIS_WIDTH = 160
@@ -42,7 +46,10 @@ type PreparedSource = {
 
 type PreparedArtwork = {
   planId: string
-  variants: [HTMLCanvasElement, HTMLCanvasElement, HTMLCanvasElement]
+  variants: Record<
+    Psycho2DTextureBand,
+    [HTMLCanvasElement, HTMLCanvasElement, HTMLCanvasElement]
+  >
 }
 
 function clamp(value: number, minimum = 0, maximum = 1): number {
@@ -191,13 +198,25 @@ export function createBrainPsycho2dWindowScene(
   let transitionRole: 'enter' | 'exit' = 'enter'
   let flashGestureIndex = 0
   let flashWasActive = false
+  let activeTextureBand: Psycho2DTextureBand = 'beat'
+  let previousTextureBand: Psycho2DTextureBand = 'beat'
+  let lastTextureBeatIndex = -1
+  let textureDrives: Record<Psycho2DTextureBand, number> = {
+    beat: 0,
+    lowMid: 0,
+    mid: 0,
+    high: 0,
+  }
+  const motionSmoother = new BrainCanvasMotionSmoother()
 
   const releaseArtwork = (): void => {
     if (!artwork) return
-    artwork.variants.forEach((variant) => {
-      variant.width = 1
-      variant.height = 1
-    })
+    for (const texture of PSYCHO2D_TEXTURE_BANDS) {
+      artwork.variants[texture].forEach((variant) => {
+        variant.width = 1
+        variant.height = 1
+      })
+    }
     artwork = null
   }
 
@@ -296,24 +315,28 @@ export function createBrainPsycho2dWindowScene(
       ),
     ]
     const ink = choosePsycho2dInkPalette(analyzedPalette)
-    const variants = DITHER_THRESHOLDS.map((threshold) => {
-      const variant = document.createElement('canvas')
-      variant.width = DITHER_WIDTH
-      variant.height = DITHER_HEIGHT
-      const variantContext = variant.getContext('2d')
-      if (!variantContext) return variant
-      const imageData = variantContext.createImageData(DITHER_WIDTH, DITHER_HEIGHT)
-      imageData.data.set(ditherPsycho2dPixels(
-        sourcePixels.data,
-        DITHER_WIDTH,
-        DITHER_HEIGHT,
-        ink.dark,
-        ink.light,
-        threshold,
-      ))
-      variantContext.putImageData(imageData, 0, 0)
-      return variant
-    }) as [HTMLCanvasElement, HTMLCanvasElement, HTMLCanvasElement]
+    const variants = Object.fromEntries(PSYCHO2D_TEXTURE_BANDS.map((texture) => [
+      texture,
+      DITHER_THRESHOLDS.map((threshold) => {
+        const variant = document.createElement('canvas')
+        variant.width = DITHER_WIDTH
+        variant.height = DITHER_HEIGHT
+        const variantContext = variant.getContext('2d')
+        if (!variantContext) return variant
+        const imageData = variantContext.createImageData(DITHER_WIDTH, DITHER_HEIGHT)
+        imageData.data.set(ditherPsycho2dPixels(
+          sourcePixels.data,
+          DITHER_WIDTH,
+          DITHER_HEIGHT,
+          ink.dark,
+          ink.light,
+          threshold,
+          texture,
+        ))
+        variantContext.putImageData(imageData, 0, 0)
+        return variant
+      }) as [HTMLCanvasElement, HTMLCanvasElement, HTMLCanvasElement],
+    ])) as PreparedArtwork['variants']
     composite.width = 1
     composite.height = 1
     return { planId: activePlan.id, variants }
@@ -341,7 +364,9 @@ export function createBrainPsycho2dWindowScene(
         planId: plan.id,
         windows: plan.windows.length,
         rendering: 'one-bit-precomputed',
-        variants: artwork?.variants.length ?? 0,
+        variants: artwork
+          ? PSYCHO2D_TEXTURE_BANDS.length * DITHER_THRESHOLDS.length
+          : 0,
       })
     }
   }
@@ -398,6 +423,9 @@ export function createBrainPsycho2dWindowScene(
           ? LOW_POWER_FRAME_INTERVAL_MS
           : NORMAL_FRAME_INTERVAL_MS
       if (time - lastRenderedAt < frameInterval) return
+      const elapsedSinceRender = Number.isFinite(lastRenderedAt)
+        ? Math.max(0, time - lastRenderedAt)
+        : frameInterval
       lastRenderedAt = time
       const renderStartedAt = performance.now()
       const latchedBeatPulse = time < latchedBeatUntil
@@ -417,12 +445,59 @@ export function createBrainPsycho2dWindowScene(
       const flashActive = flash?.active === true && flashDrive > 0.04
       if (flashActive && !flashWasActive) flashGestureIndex += 1
       flashWasActive = flashActive
-      const densityVariant = selectPsycho2dDensityVariant(
-        bands.lowMid,
-        rhythm?.bandTransients.lowMid ?? 0,
-        Math.max(beatPulse, kickEnvelope),
-      )
-      const activeArtwork = artwork.variants[densityVariant]
+      const rhythmActive = rhythm?.active ??
+        bands.low + bands.lowMid + bands.mid + bands.high > 0.01
+      const transients = rhythm?.bandTransients ?? {
+        low: 0,
+        lowMid: 0,
+        mid: 0,
+        high: 0,
+      }
+      if (rhythmActive) {
+        const smoothedMotion = motionSmoother.update(
+          {
+            low: clamp(bands.low * 0.72 + transients.low * 0.72),
+            lowMid: clamp(bands.lowMid * 0.72 + transients.lowMid * 1.1),
+            mid: clamp(bands.mid * 0.78 + transients.mid * 1.05),
+            high: clamp(bands.high * 0.68 + transients.high * 1.18),
+            activity: clamp(Math.max(bands.low, bands.lowMid, bands.mid, bands.high)),
+            beat: Math.max(beatPulse, kickEnvelope),
+          },
+          elapsedSinceRender,
+          rhythm?.beatDurationMs ?? 500,
+          true,
+          settings.motionProfile,
+        )
+        textureDrives = {
+          beat: smoothedMotion.beat,
+          lowMid: smoothedMotion.lowMid,
+          mid: smoothedMotion.mid,
+          high: smoothedMotion.high,
+        }
+      } else {
+        motionSmoother.reset()
+      }
+      if (rhythmActive && rhythm && rhythm.beatIndex !== lastTextureBeatIndex) {
+        const nextTextureBand = selectPsycho2dTextureBand(rhythm.beatIndex)
+        if (lastTextureBeatIndex < 0) {
+          activeTextureBand = nextTextureBand
+          previousTextureBand = nextTextureBand
+        } else if (nextTextureBand !== activeTextureBand) {
+          previousTextureBand = activeTextureBand
+          activeTextureBand = nextTextureBand
+        }
+        lastTextureBeatIndex = rhythm.beatIndex
+      }
+      const driveForTexture = (texture: Psycho2DTextureBand): number =>
+        textureDrives[texture]
+      const activeDrive = driveForTexture(activeTextureBand)
+      const densityVariant = selectPsycho2dDensityVariant(activeDrive, 0)
+      const activeArtwork = artwork.variants[activeTextureBand][densityVariant]
+      const textureBlendLinear = previousTextureBand === activeTextureBand
+        ? 1
+        : clamp(beatPhase / 0.36)
+      const textureBlend = textureBlendLinear * textureBlendLinear *
+        (3 - 2 * textureBlendLinear)
       context.save()
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.filter = 'none'
@@ -442,7 +517,21 @@ export function createBrainPsycho2dWindowScene(
       context.globalAlpha = 1
       context.filter = `contrast(${(1 + beatPulse * 0.52 + kickEnvelope * 0.08).toFixed(2)})`
       context.imageSmoothingEnabled = false
+      if (textureBlend < 0.999) {
+        const previousDrive = driveForTexture(previousTextureBand)
+        const previousDensity = selectPsycho2dDensityVariant(previousDrive, 0)
+        context.globalAlpha = 1
+        context.drawImage(
+          artwork.variants[previousTextureBand][previousDensity],
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        )
+      }
+      context.globalAlpha = textureBlend
       context.drawImage(activeArtwork, 0, 0, canvas.width, canvas.height)
+      context.globalAlpha = 1
       context.filter = 'none'
       context.restore()
 
@@ -622,6 +711,8 @@ export function createBrainPsycho2dWindowScene(
       )
       canvas.dataset.brainPsycho2dPlan = plan.id
       canvas.dataset.brainPsycho2dProgress = `one-bit-${densityVariant}`
+      canvas.dataset.brainPsycho2dTexture = activeTextureBand
+      canvas.dataset.brainPsycho2dTextureBlend = textureBlend.toFixed(3)
       canvas.dataset.brainPsycho2dMorph = `${transitionRole}-${transitionProgress.toFixed(3)}`
       canvas.dataset.brainPsycho2dBeat = beatScanDrive.toFixed(3)
       canvas.dataset.brainPsycho2dFlash = flashPixelDrive.toFixed(3)
@@ -632,6 +723,7 @@ export function createBrainPsycho2dWindowScene(
       assets.clear()
       loading.clear()
       releaseArtwork()
+      motionSmoother.reset()
       canvas.width = 1
       canvas.height = 1
       canvas.remove()

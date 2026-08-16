@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   choosePsycho2dInkPalette,
   ditherPsycho2dPixels,
+  selectPsycho2dTextureBand,
   selectPsycho2dDensityVariant,
 } from './brainPsycho2dDither'
 
@@ -36,5 +37,40 @@ describe('Psycho2D one-bit dither', () => {
       dark: [5, 5, 5],
       light: [240, 238, 221],
     })
+  })
+
+  it('alterna sempre il beat con una banda materica diversa', () => {
+    expect(Array.from({ length: 6 }, (_, index) =>
+      selectPsycho2dTextureBand(index))).toEqual([
+      'beat',
+      'lowMid',
+      'beat',
+      'mid',
+      'beat',
+      'high',
+    ])
+  })
+
+  it('produce firme differenti per le quattro texture sullo stesso raster', () => {
+    const pixels = new Uint8ClampedArray(8 * 8 * 4)
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      pixels[offset] = 128
+      pixels[offset + 1] = 128
+      pixels[offset + 2] = 128
+      pixels[offset + 3] = 255
+    }
+    const signatures = ['beat', 'lowMid', 'mid', 'high'].map((texture) =>
+      Array.from(ditherPsycho2dPixels(
+        pixels,
+        8,
+        8,
+        [0, 0, 0],
+        [255, 255, 255],
+        0,
+        texture as 'beat' | 'lowMid' | 'mid' | 'high',
+      )).join(','),
+    )
+
+    expect(new Set(signatures).size).toBe(4)
   })
 })

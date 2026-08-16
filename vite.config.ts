@@ -104,7 +104,17 @@ export default defineConfig({
               vite: {
                 build: {
                   rollupOptions: {
+                    input: {
+                      main: path.resolve(__dirname, 'src/main/main.ts'),
+                      brainVectorizerWorker: path.resolve(
+                        __dirname,
+                        'src/main/brainVectorizerWorker.ts',
+                      ),
+                    },
                     external: ['@visioncortex/vtracer'],
+                    output: {
+                      entryFileNames: '[name].js',
+                    },
                   },
                 },
                 resolve: {

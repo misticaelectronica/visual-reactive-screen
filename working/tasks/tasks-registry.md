@@ -2,6 +2,80 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `MACRO-022` (Isolamento Vettorializzazione dal Main)
+
+- [x] **`TASK-022-01`** `DONE`: Correlare scatti e fuori ritmo con metriche
+  della sessione live più recente.
+- [x] **`TASK-022-02`** `DONE`: Provare la pressione grafica attivata dai gap
+  RAF; rimossa dopo il test perché oscillava fra plugin e passthrough.
+- [x] **`TASK-022-03`** `DONE`: Spostare SNIC/VTracer in Worker Node senza
+  bloccare il main Electron e il relay audio IPC.
+- [x] **`TASK-022-04`** `DONE`: Verificare il worker con raster sintetico.
+- [x] **`TASK-022-05`** `DONE`: Completare build automatica.
+- [x] **`TASK-022-06`** `DONE`: Verificare live continuità IPC e Worker Node;
+  vettorializzazione confermata fuori dal main, pressione adattiva respinta.
+
+## Task Collegati a `MACRO-021` (FPS Ridotti con Stessi Layer)
+
+- [x] **`TASK-021-01`** `DONE`: Aggiungere opzione, default,
+  normalizzazione e controllo UI.
+- [x] **`TASK-021-02`** `DONE`: Applicare esclusivamente il frame pacing a
+  tutti i renderer Brain e morphing esterni.
+- [x] **`TASK-021-03`** `DONE`: Verificare che layer, DPR, densità e qualità
+  non dipendano dalla nuova opzione.
+- [x] **`TASK-021-04`** `DONE`: Completare test, typecheck, lint e build.
+- [x] **`TASK-021-05`** `DONE`: Confronto live eseguito con esito negativo;
+  opzione ritirata integralmente.
+- [x] **`TASK-021-06`** `DONE`: Dimostrare dai log che la cadenza scadente
+  permaneva anche a FPS normali ed era causata dal passthrough globale.
+- [x] **`TASK-021-07`** `DONE`: Rimuovere flag, persistenza, UI e pacing
+  sperimentale senza modificare `lowPowerMode`.
+
+## Task Collegati a `PIANO-025` (Rollback Prestazioni Renderer)
+
+- [x] **`TASK-023-01`** `DONE`: Ripristinare Liquid e Oniric a 60 FPS normali,
+  Liquid a 60 punti e i layer normali senza tetto aggiuntivo.
+- [x] **`TASK-023-02`** `DONE`: Ripristinare FilterPsiche a 480×270/30 FPS/7
+  slice e Materia Morph a 24 FPS/12 regioni.
+- [x] **`TASK-023-03`** `DONE`: Eliminare l'alternanza adattiva
+  plugin/passthrough preservando lo scheduler delle inferenze.
+- [x] **`TASK-023-04`** `DONE`: Conservare e verificare in build Worker
+  immagini e Worker Node di vettorializzazione.
+- [x] **`TASK-023-05`** `DONE`: Completare test, typecheck, lint, diff-check e
+  build Electron.
+
+## Task Collegati a `MACRO-020` (Isolamento Inferenza Immagini)
+
+- [x] **`TASK-020-01`** `DONE`: Verificare il confine reale fra Output,
+  generatore Psichedel e runtime ONNX/WebGPU.
+- [x] **`TASK-020-02`** `DONE`: Spostare runtime e inferenza immagini in
+  un Worker dedicato con protocollo tipizzato e coda seriale.
+- [x] **`TASK-020-03`** `DONE`: Integrare il client Worker come generatore
+  predefinito preservando timeout, progressi, rilascio e metriche.
+- [x] **`TASK-020-04`** `DONE`: Completare test, typecheck, lint e build.
+- [ ] **`TASK-020-05`** `IN_PROGRESS`: Confrontare live gap RAF e temperatura durante
+  UNet; decidere soltanto dopo il profiling se serve un processo separato.
+
+## Task Collegati a `MACRO-019` (Riallineamento Beat Renderer)
+
+- [x] **`TASK-019-01`** `DONE`: Correggere consumo del beat e
+  riallineamento della fase nel clock Output.
+- [x] **`TASK-019-02`** `DONE`: Correggere l'accento di FilterPsiche, Materia
+  Morph, Liquid e Oniric; i budget normali sperimentali sono stati poi
+  ripristinati da `PIANO-025`.
+- [x] **`TASK-019-03`** `DONE`: Validare test, tipi, lint e build renderer.
+- [x] **`TASK-019-04`** `DONE`: Correggere envelope e mapping degli hat
+  senza indebolire kick, altre bande o freeze nel silenzio.
+
+---
+
+## Task Collegati a `MACRO-018` (Documentazione Architettura Corrente)
+
+- [x] **`TASK-018-01`** `DONE`: Verificare processi, flussi runtime,
+  Brain, preset, renderer, audio, dipendenze, performance e accoppiamenti.
+- [x] **`TASK-018-02`** `DONE`: Scrivere e validare il documento architetturale
+  compatto aderente al codice.
+
 ---
 
 ## 📋 Task Collegati a `MACRO-004` (Working System Setup)
@@ -131,6 +205,8 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-010-23`** `DONE`: Aggiungere un inviluppo kick condiviso al clock
   Brain e applicare un guadagno locale moderato a Print2D, Psycho2D e Vector
   Morph, senza movimento globale o costo geometrico aggiuntivo in low power.
+- [x] **`TASK-010-24`** `DONE`: Alternare le texture Psycho2D fra beat,
+  `lowMid`, `mid` e `high`, con dissolvenza ritmica e arresto nel silenzio.
 
 ---
 

@@ -19,7 +19,7 @@ import {
   getOutputWindow,
   handleVisualStateAck,
 } from './windows'
-import { vectorizeBrainImage } from './brainVectorizer'
+import { vectorizeBrainImageOffMainThread } from './brainVectorizerClient'
 import { readBrainConfigFile } from './brainConfigFiles'
 import {
   saveConsciousnessMemory,
@@ -59,7 +59,7 @@ export function registerIpcHandlers(): void {
     bytes: unknown,
     options?: BrainVectorizationOptions,
   ) => {
-    return vectorizeBrainImage(bytes, options)
+    return vectorizeBrainImageOffMainThread(bytes, options)
   })
 
   ipcMain.handle(

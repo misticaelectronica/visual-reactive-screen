@@ -69,6 +69,7 @@ describe('Materia Morph motion', () => {
     expect(lowMid.fusion).toBeGreaterThan(lowMid.structure)
     expect(mid.structure).toBeGreaterThan(mid.grain)
     expect(high.grain).toBeGreaterThan(high.pressure)
+    expect(high.grain).toBeLessThan(0.6)
   })
 
   it('trasforma il flash globale in accento locale senza inventare un beat', () => {
@@ -82,6 +83,28 @@ describe('Materia Morph motion', () => {
     expect(motion.flash).toBe(0.75)
     expect(motion.activity).toBeGreaterThan(0)
     expect(motion.beat).toBe(0)
+  })
+
+  it('mantiene leggibile il fronte del beat anche su materia poco energica', () => {
+    const motion = calculateBrainMaterialMotion(
+      { low: 0.08, lowMid: 0.025, mid: 0.01, high: 0.005 },
+      DEFAULT_SETTINGS,
+      {
+        active: true,
+        beat: true,
+        beatIndex: 4,
+        beatPhase: 0,
+        musicalPosition: 4,
+        beatPulse: 1,
+        kickEnvelope: 1,
+        beatDurationMs: 500,
+        bandTransients: { low: 0.7, lowMid: 0.1, mid: 0, high: 0 },
+      },
+      { low: 0.07, lowMid: 0.024, mid: 0.01, high: 0.005 },
+    )
+
+    expect(motion.beat).toBeGreaterThanOrEqual(0.3)
+    expect(motion.pressure).toBeGreaterThan(0.2)
   })
 
   it('prepara il budget low power e riceve pressione risorse e flash', async () => {

@@ -643,12 +643,22 @@ export function create2001MorphingCanvas(
   const state = initTunnelState()
   let lastMusicalPosition = rhythmSource?.().musicalPosition ?? 0
   let motionTime = 0
+  let lastRenderedAt = 0
 
-  const animate = () => {
+  const animate = (now: number) => {
     if (!ctx || !currentSettings) {
       animationId = requestAnimationFrame(animate)
       return
     }
+
+    const targetFrameMs = currentSettings.lowPowerMode === true
+      ? 1_000 / 30
+      : 0
+    if (targetFrameMs > 0 && now - lastRenderedAt < targetFrameMs) {
+      animationId = requestAnimationFrame(animate)
+      return
+    }
+    lastRenderedAt = now
 
     const rhythm = rhythmSource?.()
     const musicalPosition = rhythm?.musicalPosition ?? lastMusicalPosition

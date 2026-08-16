@@ -44,4 +44,18 @@ describe('BrainCanvasMotionSmoother', () => {
       beat: 0,
     })
   })
+
+  it('non trasforma gli hat ravvicinati in un dettaglio sostenuto', () => {
+    const smoother = new BrainCanvasMotionSmoother()
+    const attack = smoother.update(targets, 80, 500, true, 'dub')
+    const release = smoother.update(
+      { ...targets, high: 0 },
+      80,
+      500,
+      true,
+      'dub',
+    )
+
+    expect(release.high).toBeLessThan(attack.high * 0.4)
+  })
 })

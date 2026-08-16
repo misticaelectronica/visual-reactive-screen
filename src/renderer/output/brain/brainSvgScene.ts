@@ -681,10 +681,7 @@ export function createBrainSvgScene(
       const constrainedRendering = resourcePressure || adaptivePressure
       const frameInterval = constrainedRendering
         ? 1_000 / 24
-        : calculateBrainMotionFrameInterval(
-            settings.lowPowerMode,
-            scene.svg.length,
-          )
+        : calculateBrainMotionFrameInterval(settings.lowPowerMode, scene.svg.length)
       if (time - lastGeometryAt < frameInterval) return
       lastGeometryAt = time
       const colorInterval = settings.lowPowerMode ? 66 : 33

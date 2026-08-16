@@ -63,8 +63,8 @@ export const BRAIN_CONFIG = {
   // Esperimento MACRO-009: il modello dichiara batch dinamico. Il ramo
   // condizionale singolo dimezza il batch UNet senza cambiare seed/step/shape.
   imageGuidanceMode: 'single-conditional' as const,
-  // Esperimento PIANO-010: durante l'inferenza il Renderer Host rallenta il
-  // plugin e usa quattro soli campi cromatici a bassa risoluzione.
+  // Fallback PIANO-010: dopo un gap RAF reale il Renderer Host rallenta
+  // brevemente il plugin. La sola inferenza nel Worker non lo attiva più.
   lightweightDenoisingRender: true,
   denoisingPassthroughWidth: 320,
   denoisingPassthroughHeight: 180,

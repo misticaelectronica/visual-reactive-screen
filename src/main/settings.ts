@@ -21,7 +21,12 @@ export function loadSettingsFromDisk(): AppSettings {
   try {
     if (!fs.existsSync(p)) return { ...DEFAULT_SETTINGS }
     const raw = fs.readFileSync(p, 'utf-8')
-    const parsed = JSON.parse(raw) as Partial<AppSettings>
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & {
+      reducedFpsMode?: unknown
+    }
+    // L'opzione sperimentale è stata ritirata: non deve riapparire da un file
+    // impostazioni scritto da una build precedente.
+    delete parsed.reducedFpsMode
     return normalizeSettings({ ...DEFAULT_SETTINGS, ...parsed })
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -69,6 +74,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
       : 'liquid',
     flashMode: isFlashMode(settings.flashMode) ? settings.flashMode : 'mid',
     softMode: settings.softMode === true,
+    lowPowerMode: settings.lowPowerMode === true,
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,

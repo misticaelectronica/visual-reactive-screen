@@ -545,7 +545,6 @@ export function createBrainController(
   }
 
   let destroyed = false
-  let imageInferenceActive = false
   const reportThermalEvent = (event: BrainThermalSchedulerEvent) => {
     if (event.type === 'long-frame') {
       brainWarn('thermal', 'gap RAF: estendo la pausa prima della prossima inferenza', event)
@@ -570,7 +569,6 @@ export function createBrainController(
     showRawRaster,
     undefined,
     (active) => {
-      imageInferenceActive = active
       brainPerformanceMetrics.setInference(active)
       // Ogni anteprima resta visibile mentre UNet prepara la successiva.
       rasterList.style.display = 'grid'
@@ -1754,10 +1752,6 @@ export function createBrainController(
     }
 
     if (latestPayload?.settings) {
-      // La generazione testuale o l'attesa della pipeline non sono pressione
-      // grafica. Soltanto l'inferenza immagini contende realmente WebGPU.
-      currentSvg?.setResourcePressure(imageInferenceActive)
-      outgoingSvg?.setResourcePressure(imageInferenceActive)
       currentSvg?.update(
         bands,
         latestPayload.settings,

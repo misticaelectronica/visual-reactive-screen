@@ -78,7 +78,30 @@ describe('FilterPsiche', () => {
     expect(motion.beat).toBeGreaterThan(0.5)
     expect(motion.inverseMix).toBeGreaterThan(0.8)
     expect(motion.sliceAmount).toBeGreaterThan(0.5)
+    expect(motion.sliceAmount).toBeLessThan(0.7)
     expect(motion.flash).toBe(0.8)
     expect(motion.phaseDirection).toBeLessThan(0)
+  })
+
+  it('mantiene leggibile il fronte del beat anche su un passaggio scarno', () => {
+    const motion = calculateFilterPsicheMotion(
+      { low: 0.08, lowMid: 0.025, mid: 0.01, high: 0.005 },
+      DEFAULT_SETTINGS,
+      {
+        active: true,
+        beat: true,
+        beatIndex: 4,
+        beatPhase: 0,
+        musicalPosition: 4,
+        beatPulse: 1,
+        kickEnvelope: 1,
+        beatDurationMs: 500,
+        bandTransients: { low: 0.7, lowMid: 0.1, mid: 0, high: 0 },
+      },
+      { low: 0.07, lowMid: 0.024, mid: 0.01, high: 0.005 },
+    )
+
+    expect(motion.beat).toBeGreaterThanOrEqual(0.3)
+    expect(motion.inverseMix).toBeGreaterThan(0.2)
   })
 })

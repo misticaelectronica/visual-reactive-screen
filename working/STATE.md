@@ -1,5 +1,106 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Rollback prestazioni renderer — 2026-08-16
+
+- Ritirata integralmente l'opzione `reducedFpsMode`; i valori salvati da build
+  precedenti vengono ignorati e rimossi al caricamento.
+- Liquid e Oniric tornano a 60 FPS normali; Liquid torna a 60 punti e non ha
+  più il tetto aggiuntivo di otto veli in modalità normale.
+- FilterPsiche torna a 480×270, 30 FPS e 7 slice; Materia Morph torna a 24 FPS
+  e 12 regioni. `lowPowerMode` resta invariato.
+- Rimossa la pressione grafica adattiva che commutava ripetutamente fra plugin
+  e passthrough dopo i gap UNet. Lo scheduler continua soltanto a rinviare la
+  prossima inferenza dopo un long frame.
+- Worker immagini e Worker Node di vettorializzazione sono mantenuti e presenti
+  nella build.
+- Validazione: 50 file / 295 test, typecheck, lint, diff-check e build Electron
+  arm64 completi; prova fullscreen del rollback pendente.
+
+## Correzione scatti globali da servizi pesanti — 2026-08-16
+
+- I log live hanno separato due cause: passthrough forzato a 19,9 FPS per tutta
+  l'inferenza e buco IPC di 1.557 ms durante la vettorializzazione nel main.
+- Dopo l'isolamento UNet, `imageInferenceActive` resta una metrica ma non forza
+  più `resourcePressure`. Anche la successiva protezione adattiva basata sui
+  gap RAF è stata rimossa dopo la prova live negativa.
+- SNIC/VTracer gira ora in `brainVectorizerWorker.js`, separato dal main che
+  inoltra audio e ACK. Il buffer raster viene trasferito al worker.
+- Smoke test 320×180: 217 ms nel worker mentre il loop chiamante ha continuato
+  a eseguire 42 tick; risultato vettoriale valido.
+- Validazione: 51 file / 298 test, typecheck, lint mirato, diff-check e build
+  Electron completa verdi; prova fullscreen pendente.
+
+## Modalità FPS ridotti con stessi layer — ritirata 2026-08-16
+
+- L'opzione sperimentale `Modalità FPS ridotti` è stata rimossa dopo il test
+  live; non è più presente in UI, tipi, default o runtime.
+- Liquid, Oniric, PsyHyp e 2001 vengono limitati a 30 FPS; Print2D, Psycho2D,
+  Vector, Materia, FilterPsiche e Bauhaus usano la propria cadenza ridotta già
+  collaudata, senza ridurre layer, regioni, slice, ribbon, risoluzione o DPR.
+- Il clock Output e l'acquisizione audio non vengono rallentati: impulso, fase,
+  kick e transienti continuano a essere catturati prima del frame pacing.
+- Se FPS ridotti e basso consumo sono entrambi attivi, il basso consumo mantiene
+  anche le proprie semplificazioni visive; la nuova opzione da sola no.
+- Validazione: 50 file / 295 test, typecheck, lint mirato, diff-check e build
+  completa verdi; prova fullscreen pendente.
+
+## Isolamento inferenza immagini — 2026-08-16
+
+- Psichedel usa ora un Dedicated Worker: tokenizer, sessioni ONNX, UNet, VAE e
+  codifica PNG non vengono più eseguiti nel thread JavaScript del RAF Output.
+- L'Output risolve configurazione, geometria, step, timeout e URL WASM, invia
+  una richiesta tipizzata e riceve soltanto progressi e raster pronto.
+- Il worker mantiene una sola inferenza alla volta, riusa le sessioni e supporta
+  abort/rilascio; il bundle Vite lo emette come chunk separato.
+- Non sono cambiati camera, materia, clock, silenzio, low power o protezione
+  passthrough durante il denoising.
+- Validazione automatica: 50 file / 295 test, typecheck, lint mirato e build
+  completa verdi. Resta il confronto live dei gap RAF e della temperatura:
+  il worker non elimina da solo la possibile contesa nel processo GPU Chromium.
+
+## Riallineamento beat renderer — 2026-08-16
+
+- Correzione hat: soglia high meno permissiva, release 75 ms e smoothing locale
+  di 0,16 beat impediscono la sovrapposizione continua sui sedicesimi.
+- Liquid/Oniric non usano più gli high per cambiare velocità o traiettoria; gli
+  hat restano brevi variazioni di opacità, contrasto e texture locale.
+- FilterPsiche e Materia non sommano più due volte lo stesso transiente high:
+  slice e grana tornano a chiudersi fra gli attacchi.
+- Il listener IPC non consuma più `beat=true`: soltanto il RAF Output pubblica
+  il fronte condiviso a Brain e ai Canvas indipendenti.
+- Ogni kick reale riallinea `musicalPosition` a un intero senza arretrare; il
+  frame successivo riparte vicino a fase zero.
+- FilterPsiche, Materia, Liquid e Oniric usano un accento immediato indipendente
+  dall'energia sostenuta, con release smussato e zero impulso nel silenzio.
+- I budget normali ridotti sono stati respinti dal test live e ripristinati:
+  Liquid/Oniric 60 FPS, FilterPsiche 30 FPS a 480×270 e Materia 24 FPS. Low
+  power resta invariato.
+- Validazione: 49 file / 293 test, typecheck, lint mirato e build Vite/Electron
+  verdi. Resta la conferma percettiva fullscreen.
+
+## Documentazione architettura corrente — 2026-08-16
+
+- Creata una fotografia tecnica verificata di processi, IPC, flusso runtime,
+  Brain, preset, rendering, audio reactive, dipendenze e performance.
+- Documentati esplicitamente i confini reali: plugin Brain legati a DOM/Canvas,
+  morphing esterni separati, preset non unificati e assenza di render graph.
+- Separate le metriche osservate dai target nel codice e dai dati non
+  determinabili, senza introdurre componenti teorici.
+- Documento: `docs/architettura-brain-visual-reactive-screen.md`.
+- Validazione: typecheck e diff-check verdi.
+
+## Psycho2D — texture musicali alternate 2026-08-16
+
+- Quattro trame one-bit derivate dallo stesso raster sostituiscono la singola
+  matrice Bayer: impulso, tessitura `lowMid`, diagonale `mid` e grana `high`.
+- La sequenza sul clock globale è `beat → lowMid → beat → mid → beat → high`;
+  beat/kick resta quindi l'ancora fra ogni risposta delle altre bande.
+- Il cambio usa una dissolvenza smoothstep nella prima parte del beat e inviluppi
+  smussati per banda. Nel silenzio famiglia, densità e dissolvenza si congelano.
+- Camera e raster restano stabili; le dodici varianti sono preparate una volta e
+  riusate. Validazione: 49 file / 287 test, typecheck, lint mirato, Vite,
+  Electron e pacchetti macOS ZIP/DMG verdi.
+
 ## Ricircolo d'attesa Brain — correzione 2026-08-16
 
 - Il blocco apparente su Vector Morph era un timeout ripetuto della storia AI:
@@ -8,7 +109,8 @@
   ripetizioni consecutive; non altera il bilanciamento dei renderer fra storie.
 - Il cambio resta quantizzato sul gate ritmico esistente, la camera è stabile e
   non vengono introdotti timer o movimenti nel silenzio.
-- Validazione: 49 file / 285 test e typecheck verdi; build in verifica.
+- Validazione: 49 file / 285 test, typecheck, Vite, Electron e pacchetti macOS
+  ZIP/DMG verdi.
 
 ## Bauhaus Morph — implementazione 2026-08-16
 
@@ -71,14 +173,14 @@
 
 > **Ultimo Aggiornamento**: 16 Agosto 2026 (CEST)
 > **Stato Generale**: 🟢 In Sviluppo Attivo / Operativo  
-> **Ultima Sessione**: `SESSION-2026-08-16-08` — Implementazione Bauhaus Morph
+> **Ultima Sessione**: `SESSION-2026-08-16-22` — Rollback prestazioni renderer
 
 ---
 
 ## 🎯 Macrotask Completato Più Recente
 
-- **Macrotask**: `MACRO-006` - Ottimizzazione Performance Live & Low Power Tuning
-- **Stato**: 🟢 DONE (test manuale finale affidato allo sviluppatore)
+- **Macrotask**: `MACRO-023` - Rollback Prestazioni Renderer
+- **Stato**: 🟢 DONE
 
 ---
 
@@ -102,6 +204,12 @@
 | `MACRO-015` | Clock Ritmico Globale Output | 🟡 IN PROGRESS | 16 Agosto 2026 | - |
 | `MACRO-016` | Moti Di Coscienza Brain | 🟡 IN PROGRESS | 16 Agosto 2026 | - |
 | `MACRO-017` | Bauhaus Morph — Renderer Brain Pittorico | 🟡 IN PROGRESS | 16 Agosto 2026 | - |
+| `MACRO-018` | Documentazione Architettura Corrente | 🟢 DONE | 16 Agosto 2026 | 16 Agosto 2026 |
+| `MACRO-019` | Riallineamento Beat Renderer | 🟡 IN PROGRESS | 16 Agosto 2026 | - |
+| `MACRO-020` | Isolamento Inferenza Immagini | 🟡 IN PROGRESS | 16 Agosto 2026 | - |
+| `MACRO-021` | FPS Ridotti con Stessi Layer | ⚪ ARCHIVED | 16 Agosto 2026 | 16 Agosto 2026 |
+| `MACRO-022` | Isolamento Vettorializzazione dal Main | 🟢 DONE | 16 Agosto 2026 | 16 Agosto 2026 |
+| `MACRO-023` | Rollback Prestazioni Renderer | 🟢 DONE | 16 Agosto 2026 | 16 Agosto 2026 |
 
 ---
 
@@ -156,6 +264,10 @@
     low power, denoising e frequenza di apparizione nei mazzi casuali.
 33. [ ] Verificare dal vivo clock globale, quantizzazione e arresto geometrico
     in silenzio su Brain, Liquid, Oniric, PsyHyp e 2001.
+34. [x] Produrre la documentazione architetturale compatta e verificata di
+    Brain + Visual Reactive Screen.
+35. [ ] Confermare fullscreen il nuovo fronte beat e il margine RAF di
+    FilterPsiche, Materia Morph, Liquid e Oniric con Soft/low power disattivi.
 
 ## Clock Ritmico Globale — SESSION-2026-08-16-04
 

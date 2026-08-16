@@ -379,6 +379,9 @@ async function tensorToPngBlob(
     )
     return outputCanvas.convertToBlob({ type: 'image/png' })
   }
+  if (typeof document === 'undefined') {
+    throw new Error('OffscreenCanvas non disponibile nel worker immagini')
+  }
   const sourceCanvas = document.createElement('canvas')
   sourceCanvas.width = width
   sourceCanvas.height = height
@@ -418,6 +421,7 @@ export class Sd15OnnxWebGpuRuntime {
   constructor(
     readonly manifest: ImageModelManifest,
     readonly artifactBaseUrl: string,
+    readonly wasmBaseUrl?: string,
   ) {}
 
   async load(onProgress?: (progress: Sd15BrowserProgress) => void): Promise<void> {
@@ -446,9 +450,9 @@ export class Sd15OnnxWebGpuRuntime {
     const adapter = await gpu.requestAdapter()
     if (!adapter) throw new Error('Nessun adattatore WebGPU disponibile')
     this.ort = await import('onnxruntime-web/webgpu')
-    const runtimeBase = new URL('.', window.location.href)
+    const runtimeBase = new URL('.', globalThis.location.href)
     runtimeBase.pathname = `${runtimeBase.pathname.replace(/\/+$/, '')}/ort-wasm/`
-    this.ort.env.wasm.wasmPaths = runtimeBase.href
+    this.ort.env.wasm.wasmPaths = this.wasmBaseUrl ?? runtimeBase.href
     const sessionOptions: InferenceSession.SessionOptions = {
       executionProviders: ['webgpu'],
       enableMemPattern: false,

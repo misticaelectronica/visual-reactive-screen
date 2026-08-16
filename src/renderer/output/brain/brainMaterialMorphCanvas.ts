@@ -1,6 +1,9 @@
 import type { AppSettings, BandEnergies } from '@shared/types'
 import type { BrainFrameMorphPattern } from './brainFrameMotion'
-import type { BrainRhythmState } from './brainRhythm'
+import {
+  calculateRhythmicAccent,
+  type BrainRhythmState,
+} from './brainRhythm'
 import type { BrainFlashState, BrainSceneRendererController } from './brainSvgScene'
 import type {
   BrainRendererImageSource,
@@ -275,9 +278,8 @@ export function calculateBrainMaterialMotion(
     (low * 0.3 + lowMid * 0.28 + mid * 0.23 + high * 0.19) * scale +
     flashDrive * 0.18,
   )
-  const beat = clamp(
-    rhythm?.kickEnvelope ?? rhythm?.beatPulse ?? 0,
-  ) * clamp(activity * 1.4 + low * 0.35)
+  const beat = calculateRhythmicAccent(rhythm) *
+    clamp(0.3 + activity * 0.9 + low * 0.28)
   const phase = rhythm?.beatPhase ?? 0
   const phaseRadians = phase * Math.PI * 2
   const directionalActivity = clamp(activity + beat + flashDrive * 0.3)
@@ -286,7 +288,9 @@ export function calculateBrainMaterialMotion(
     pressure: clamp((low * 0.86 + beat * 0.32) * scale),
     fusion: clamp((lowMid * 0.88 + transients.lowMid * 0.24) * scale),
     structure: clamp((mid * 0.82 + transients.mid * 0.32) * scale),
-    grain: clamp((high * 0.78 + transients.high * 0.38) * scale),
+    // `bandDrive` contiene già il transiente high: evita il doppio conteggio
+    // che trasformava i sedicesimi di hat in grana sostenuta.
+    grain: clamp(high * 0.58 * scale),
     beat,
     flash: flashDrive,
     phaseX: directionalActivity > 0.001
@@ -530,11 +534,15 @@ export function createBrainMaterialMorphScene(
       const motion: BrainMaterialMotion = {
         ...rawMotion,
         activity: smoothMotion.activity,
-        pressure: smoothMotion.low,
+        pressure: Math.max(
+          smoothMotion.low,
+          rawMotion.pressure * 0.76,
+          rawMotion.beat * 0.34,
+        ),
         fusion: smoothMotion.lowMid,
         structure: smoothMotion.mid,
         grain: smoothMotion.high,
-        beat: smoothMotion.beat,
+        beat: Math.max(rawMotion.beat, smoothMotion.beat),
         phaseX: directionalActivity > 0.001 ? Math.cos(phase) * directionalActivity : 0,
         phaseY: directionalActivity > 0.001 ? Math.sin(phase) * directionalActivity : 0,
       }
@@ -610,7 +618,7 @@ export function createBrainMaterialMorphScene(
         const phase = index * 1.618 + (rhythm?.beatPhase ?? 0) * Math.PI * 2
         const localScale = 1 +
           motion.pressure * (0.006 + region.areaRatio * 0.032) +
-          motion.beat * (0.004 + region.salience * 0.009)
+          motion.beat * (0.012 + region.salience * 0.018)
         const offsetX =
           Math.cos(phase) * motion.fusion * 2.4 + motion.phaseX * (index % 2 ? -1 : 1)
         const offsetY =

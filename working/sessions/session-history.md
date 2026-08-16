@@ -996,5 +996,115 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   consecutive e separato dalle statistiche delle storie reali.
 - **Vincoli**: cambio sul gate beat già esistente, camera stabile, nessuna
   attività autonoma nel silenzio e costo limitato a pochi identificatori.
-- **Validazione**: 49 file / 285 test, typecheck e lint mirato verdi; build in
-  verifica.
+- **Validazione**: 49 file / 285 test, typecheck, lint mirato, Vite, Electron e
+  pacchetti macOS ZIP/DMG verdi.
+
+### `SESSION-2026-08-16-15`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Alternare musicalmente le texture di Psycho2D.
+- **Regia**: sequenza `beat → lowMid → beat → mid → beat → high`, riallineata
+  al clock globale e guidata dall'inviluppo della banda corrente.
+- **Materia**: quattro matrici one-bit differenti preservano lo stesso raster;
+  la famiglia cambia con dissolvenza smoothstep e la densità usa segnali
+  smussati.
+- **Silenzio e costo**: stato congelato senza timer autonomi; dodici canvas
+  preparate una volta e riusate, con massimo due famiglie disegnate durante la
+  breve dissolvenza.
+- **Validazione**: 49 file / 287 test, typecheck, lint mirato, diff-check,
+  Vite, Electron e pacchetti macOS ZIP/DMG verdi.
+
+### `SESSION-2026-08-16-16`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Produrre una fotografia tecnica compatta e aderente al codice
+  di Brain + Visual Reactive Screen per la revisione architetturale.
+- **Risultato**: documentati processi, IPC, flusso input→frame, Brain, famiglie
+  preset, pipeline Canvas/SVG, audio reactive, entry point, dipendenze,
+  prestazioni già misurate e punti di accoppiamento.
+- **Confini chiariti**: Brain vive in Output e pilota controller DOM; il plugin
+  host non è backend-neutral; i morphing esterni hanno una factory distinta;
+  non esistono preset system unificato o render graph.
+- **Validazione**: confronto con tipi, registry, loop RAF, configurazione e
+  metriche reali; `pnpm typecheck` e `git diff --check` verdi.
+
+### `SESSION-2026-08-16-17`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Correggere la risposta fuori tempo di FilterPsiche, Materia
+  Morph, Liquid e Oniric, usando il miglioramento Soft + low power come indizio.
+- **Cause**: latch beat consumato nel listener IPC prima del RAF, posizione non
+  sempre ancorata dopo il beat, accento subordinato all'attività sostenuta e
+  budget normale troppo distante dal low power funzionante.
+- **Correzione**: un solo publish ritmico per RAF, fase ancorata, fronte comune
+  immediato con release morbido e budget normali ridotti senza cambiare camera,
+  silenzio o alternanza.
+- **Budget**: Liquid/Oniric 40 FPS e 8 veli; FilterPsiche 24 FPS a 400×225 e 5
+  slice; Materia 20 FPS e 10 regioni. Low power invariato.
+- **Validazione**: 49 file / 291 test, typecheck, lint mirato e build
+  Vite/Electron verdi; conferma percettiva fullscreen pendente.
+
+### `SESSION-2026-08-16-18`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Correggere la risposta eccessiva e sostenuta agli hi-hat.
+- **Causa**: envelope high lungo quanto un sedicesimo, doppio conteggio del
+  transiente in FilterPsiche/Materia e modulazione di velocità/traiettoria in
+  Liquid/Oniric.
+- **Correzione**: soglia high più selettiva, release 75–80 ms, niente high su
+  velocità o posizione; accenti limitati a texture, contrasto e opacità locale.
+- **Vincoli**: kick e altre bande invariati, camera stabile, zero moto nel
+  silenzio e nessun aumento del costo.
+- **Validazione**: 49 file / 293 test, typecheck, lint mirato e build
+  Vite/Electron verdi; conferma percettiva fullscreen pendente.
+
+### `SESSION-2026-08-16-19`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Isolare l'inferenza immagini responsabile dei gap del RAF.
+- **Implementazione**: aggiunti client, protocollo e Dedicated Worker immagini;
+  ONNX, tokenizer, UNet, VAE e PNG vivono fuori dal thread grafico Output.
+- **Compatibilità**: percorsi modello e WASM vengono risolti dall'Output per
+  funzionare sia con Vite sia nell'app `file://`; sessioni riusate e coda seriale.
+- **Vincoli**: camera, clock, silenzio, low power e passthrough invariati.
+- **Validazione**: 50 file / 295 test, typecheck, lint mirato, diff-check e
+  build completa verdi; Vite emette `brainImageWorker` come chunk separato.
+- **Residuo**: misurare live gap RAF e temperatura; WebGPU resta condivisa nel
+  processo GPU Chromium, quindi l'isolamento non garantisce da solo zero stalli.
+
+### `SESSION-2026-08-16-20`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Provare meno FPS mantenendo gli stessi layer visuali.
+- **Implementazione**: aggiunta opzione persistente `reducedFpsMode` in UI e
+  frame pacing di tutti i renderer Brain e morphing esterni.
+- **Separazione**: il flag non entra in condizioni di DPR, risoluzione, layer,
+  regioni, slice, ribbon o qualità; `lowPowerMode` resta distinto.
+- **Beatmatch**: clock e input audio restano alla cadenza normale e precedono il
+  pacing, così i transienti non vengono campionati soltanto a 30 FPS.
+- **Validazione**: 50 file / 295 test, typecheck, lint mirato, diff-check e
+  build completa verdi; prova fullscreen pendente.
+
+### `SESSION-2026-08-16-21`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Diagnosticare gli scatti e il fuori ritmo presenti anche con
+  FPS normali.
+- **Evidenza**: RAF Output 120,5 Hz con p95 circa 9 ms, ma passthrough a 19,9
+  FPS e pressione 100%; inoltre la vettorializzazione ha fermato l'IPC per
+  1.557 ms sostituendo 186 pacchetti audio.
+- **Correzione**: pressione grafica soltanto dopo gap RAF reali; SNIC/VTracer
+  trasferito in un Worker Node separato dal relay IPC.
+- **Smoke test**: raster 320×180 vettorializzato in 217 ms con 42 tick del loop
+  chiamante eseguiti durante il lavoro.
+- **Validazione**: 51 file / 298 test, typecheck, lint, diff-check e build
+  Electron completa verdi; prova live pendente.
+
+### `SESSION-2026-08-16-22`
+- **Data**: 16 Agosto 2026 (CEST)
+- **Obiettivo**: Eseguire il rollback chirurgico delle regressioni di qualità,
+  cadenza e pressione grafica confermate dal test live.
+- **Renderer**: Liquid e Oniric ripristinati a 60 FPS; Liquid torna a 60 punti
+  e senza tetto normale di otto veli. FilterPsiche torna a 480×270/30 FPS/7
+  slice; Materia Morph a 24 FPS/12 regioni.
+- **Opzioni**: `reducedFpsMode` rimosso da tipi, default, persistenza, UI e
+  pacing. `lowPowerMode` resta separato e invariato.
+- **Pressione**: eliminata la commutazione adattiva plugin/passthrough; resta
+  soltanto il backoff dello scheduler prima delle inferenze successive.
+- **Isolamento mantenuto**: Worker immagini e Worker Node di vettorializzazione
+  presenti nella build; nessun ritorno di SNIC/VTracer nel main.
+- **Validazione**: 50 file / 295 test, typecheck, lint, diff-check e build
+  Electron arm64 completa verdi; prova fullscreen del rollback pendente.

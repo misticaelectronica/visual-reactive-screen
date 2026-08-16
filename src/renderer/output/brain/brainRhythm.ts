@@ -18,13 +18,13 @@ const TRANSIENT_THRESHOLDS: BandEnergies = {
   low: 0.02,
   lowMid: 0.018,
   mid: 0.015,
-  high: 0.012,
+  high: 0.022,
 }
 const TRANSIENT_RELEASE_MS: BandEnergies = {
   low: 260,
   lowMid: 220,
   mid: 180,
-  high: 140,
+  high: 75,
 }
 
 const STALE_PACKET_AGE_MS = 1_500
@@ -51,6 +51,28 @@ export function calculateBrainKickEnvelope(
       Math.max(
         beatPulse,
         beatPulse * 0.82 + lowTransient * 0.26 + lowMidTransient * 0.08,
+      ),
+    ),
+  )
+}
+
+/**
+ * Fronte ritmico comune ai renderer. Non dipende dall'energia sostenuta: un
+ * kick valido resta leggibile nei passaggi scarni e il silenzio dichiarato dal
+ * clock non può produrre un impulso artificiale.
+ */
+export function calculateRhythmicAccent(
+  rhythm?: BrainRhythmState,
+): number {
+  if (!rhythm || rhythm.active === false) return 0
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      Math.max(
+        rhythm.kickEnvelope,
+        rhythm.beatPulse,
+        rhythm.bandTransients.low * 0.86 + rhythm.bandTransients.lowMid * 0.24,
       ),
     ),
   )
@@ -208,9 +230,18 @@ export class OutputRhythmClock {
         ? Math.max(1, Math.round(sinceBeat / this.beatDurationMs))
         : 1
       this.lastBeatAt = now
-      this.beatIndex = Math.max(this.beatIndex + elapsedBeats, 1)
-      this.lastEmittedBeatIndex = this.beatIndex
-      this.musicalPosition = Math.max(this.musicalPosition, this.beatIndex)
+      // Il fronte reale diventa il nuovo riferimento. Se la proiezione era già
+      // oltre l'indice rilevato, avanza al prossimo intero senza tornare
+      // indietro: il frame seguente riparte realmente vicino a fase zero.
+      const phaseAlignedBeatIndex = Math.max(
+        this.beatIndex + elapsedBeats,
+        this.lastEmittedBeatIndex,
+        Math.ceil(this.musicalPosition),
+        1,
+      )
+      this.beatIndex = phaseAlignedBeatIndex
+      this.lastEmittedBeatIndex = phaseAlignedBeatIndex
+      this.musicalPosition = phaseAlignedBeatIndex
       this.beatPulse = 1
     }
 

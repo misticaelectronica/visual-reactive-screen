@@ -358,8 +358,9 @@ export function OutputApp() {
           inputState.sequenceNumber,
           receivedAt,
         )
-        // Il gate di regia vede lo stesso campione prima del pacing Canvas.
-        rhythmState = rhythmClock.projectState(receivedAt)
+        // Non proiettare qui: projectState consuma il latch `beat`. Il solo RAF
+        // Output pubblica il fronte, così tutti i renderer osservano lo stesso
+        // stato per l'intero frame visuale.
       }
       latestInputState = inputState
       const alternationEnabled = inputState.settings?.alternateBrainWithMorphing === true

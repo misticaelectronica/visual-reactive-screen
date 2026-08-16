@@ -1,11 +1,31 @@
 import { describe, expect, it, vi } from 'vitest'
-import { BrainRhythmClock, calculateBrainKickEnvelope } from './brainRhythm'
+import {
+  BrainRhythmClock,
+  calculateBrainKickEnvelope,
+  calculateRhythmicAccent,
+} from './brainRhythm'
 
 describe('BrainRhythmClock', () => {
   it('rinforza leggermente il beat con i transienti bassi senza superare il clamp', () => {
     expect(calculateBrainKickEnvelope(0.5, 0.5, 0)).toBeCloseTo(0.54, 2)
     expect(calculateBrainKickEnvelope(1, 1, 1)).toBe(1)
     expect(calculateBrainKickEnvelope(0, 0, 0)).toBe(0)
+  })
+
+  it('espone un accento comune anche con poca energia sostenuta e lo azzera nel silenzio', () => {
+    const rhythm = {
+      active: true,
+      beat: true,
+      beatIndex: 3,
+      beatPhase: 0,
+      musicalPosition: 3,
+      beatPulse: 0.72,
+      kickEnvelope: 0.8,
+      beatDurationMs: 500,
+      bandTransients: { low: 0.4, lowMid: 0.2, mid: 0, high: 0 },
+    }
+    expect(calculateRhythmicAccent(rhythm)).toBe(0.8)
+    expect(calculateRhythmicAccent({ ...rhythm, active: false })).toBe(0)
   })
 
   it('rileva transienti bassi e stima il tempo senza duplicare lo stesso picco', () => {
@@ -99,6 +119,25 @@ describe('BrainRhythmClock', () => {
     expect(onBeat.musicalPosition % 1).toBe(0)
   })
 
+  it('ancora davvero la posizione all’intero dopo un primo beat arrivato su fase libera', () => {
+    const clock = new BrainRhythmClock()
+    const bed = { low: 0.04, lowMid: 0.03, mid: 0.02, high: 0.01 }
+    const kick = { ...bed, low: 0.85 }
+
+    clock.update(bed, 100)
+    clock.projectState(700)
+    const before = clock.projectState(1_000)
+    expect(before.musicalPosition % 1).toBeGreaterThan(0.1)
+
+    clock.ingestSample(kick, 1_100)
+    const onBeat = clock.projectState(1_100)
+    const followingFrame = clock.projectState(1_116)
+
+    expect(onBeat.musicalPosition % 1).toBe(0)
+    expect(followingFrame.beatPhase).toBeGreaterThan(0)
+    expect(followingFrame.beatPhase).toBeLessThan(0.08)
+  })
+
   it('rileva attacco e rilascio separati sulle quattro bande', () => {
     const clock = new BrainRhythmClock()
     const silence = { low: 0, lowMid: 0, mid: 0, high: 0 }
@@ -115,6 +154,21 @@ describe('BrainRhythmClock', () => {
         attack.bandTransients[band],
       )
     }
+  })
+
+  it('rilascia un hat prima del sedicesimo successivo senza coda sostenuta', () => {
+    const clock = new BrainRhythmClock()
+    const silence = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    const hat = { ...silence, high: 0.8 }
+
+    clock.update(silence, 100)
+    const attack = clock.update(hat, 116)
+    const beforeNextSixteenth = clock.projectState(241)
+
+    expect(attack.bandTransients.high).toBeGreaterThan(0.3)
+    expect(beforeNextSixteenth.bandTransients.high).toBeLessThan(
+      attack.bandTransients.high * 0.25,
+    )
   })
 
   it('mantiene il tempo quando manca un singolo beat rilevato', () => {

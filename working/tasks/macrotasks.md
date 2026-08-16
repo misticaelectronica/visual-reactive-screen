@@ -6,6 +6,32 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟢 Macrotask Completati (Passati)
 
+### `MACRO-023`: Rollback Prestazioni Renderer
+- **Descrizione**: Ripristino dei budget visuali normali, rimozione della
+  modalità FPS ridotti e della pressione grafica adattiva, mantenendo i Worker.
+- **Moduli Coinvolti**: settings, UI e renderer Output/Brain
+- **Stato**: 🟢 COMPLETED — validazione automatica completa; prova live pendente
+- **Piano di Lavoro**: `working/plans/piano-025-rollback-prestazioni-renderer.md`
+
+### `MACRO-022`: Isolamento Vettorializzazione dal Main
+- **Descrizione**: SNIC/VTracer spostato in un Worker Node separato dal relay
+  IPC. La protezione grafica adattiva provata insieme è stata rimossa.
+- **Stato**: 🟢 COMPLETED — Worker confermato da log, smoke test e build
+- **Piano di Lavoro**: `working/plans/piano-024-isolamento-vettorializzazione-main.md`
+
+### `MACRO-021`: FPS Ridotti con Stessi Layer
+- **Descrizione**: Esperimento di riduzione della sola cadenza dei renderer.
+- **Stato**: ⚪ ARCHIVED — prova live negativa; implementazione rimossa
+- **Piano di Lavoro**: `working/plans/piano-023-fps-ridotti-stessi-layer.md`
+
+### `MACRO-018`: Documentazione Architettura Corrente
+- **Descrizione**: Fotografia verificata dell'implementazione reale di Brain +
+  Visual Reactive Screen: processi, flussi, preset, rendering, audio,
+  dipendenze, performance e accoppiamenti.
+- **Moduli Coinvolti**: intero runtime e `docs/`
+- **Stato**: 🟢 COMPLETED
+- **Piano di Lavoro**: `working/plans/piano-020-documentazione-architettura-corrente.md`
+
 ### `MACRO-001`: Architettura Base Electron & IPC Engine
 - **Descrizione**: Realizzazione del processo Main Electron, della Control Window React, dell'Output Window fullscreen senza bordi, e dell'IPC bidirezionale con `backgroundThrottling: false`.
 - **Moduli Coinvolti**: `src/main/`, `src/preload/`, `src/renderer/control/`, `src/renderer/output/`
@@ -44,6 +70,20 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 ---
 
 ## 🟡 Macrotask In Corso (Attivi)
+
+### `MACRO-020`: Isolamento Inferenza Immagini
+- **Descrizione**: Spostare caricamento e inferenza ONNX/WebGPU di Psichedel
+  fuori dal thread JavaScript dell'Output, consegnando al renderer raster pronti.
+- **Stato**: 🟡 IN PROGRESS — isolamento e build completati; profiling live
+  comparativo pendente
+- **Piano di Lavoro**: `working/plans/piano-022-isolamento-inferenza-immagini.md`
+
+### `MACRO-019`: Riallineamento Beat Renderer
+- **Descrizione**: Correggere clock, fronte d'attacco e budget dei renderer
+  FilterPsiche, Materia Morph, Liquid e Oniric che risultano fuori tempo.
+- **Stato**: 🟡 IN PROGRESS — correzione e validazione automatica completate;
+  conferma percettiva fullscreen pendente
+- **Piano di Lavoro**: `working/plans/piano-021-riallineamento-beat-renderer.md`
 
 ### `MACRO-017`: Bauhaus Morph — Renderer Brain Pittorico
 - **Descrizione**: Tradurre progressivamente il raster di Coscienza Onirica in
@@ -98,8 +138,8 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Descrizione**: Estendere la vita delle immagini di Coscienza Onirica con
   composizioni Canvas 2D/2.5D a finestre, crop e takeover guidati da metadati
   semantici minimi, separando Director e runtime grafico.
-- **Stato**: 🟡 IN PROGRESS — V1 implementata e compilata; validazione live
-  del cambio renderer ancora da eseguire
+- **Stato**: 🟡 IN PROGRESS — V1 e alternanza texture per banda implementate;
+  validazione live del cambio renderer ancora da eseguire
 - **Piano di Lavoro**: `working/plans/piano-009-psycho2d-regia-semantica.md`
 
 ### `MACRO-011`: Materia Morph — Renderer Brain Materico

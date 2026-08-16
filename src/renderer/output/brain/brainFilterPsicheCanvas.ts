@@ -1,7 +1,10 @@
 import type { AppSettings, BandEnergies } from '@shared/types'
 import type { DreamStory } from '@shared/brain/brainTypes'
 import type { BrainRendererPluginContext } from './brainRendererPlugin'
-import type { BrainRhythmState } from './brainRhythm'
+import {
+  calculateRhythmicAccent,
+  type BrainRhythmState,
+} from './brainRhythm'
 import type {
   BrainFlashState,
   BrainSceneRendererController,
@@ -190,8 +193,8 @@ export function calculateFilterPsicheMotion(
   const activity = clamp(
     (low * 0.3 + lowMid * 0.28 + mid * 0.23 + high * 0.19) * scale,
   )
-  const beat = clamp(rhythm?.kickEnvelope ?? rhythm?.beatPulse ?? 0) *
-    clamp(activity * 1.3 + low * 0.42)
+  const beat = calculateRhythmicAccent(rhythm) *
+    clamp(0.3 + activity * 0.86 + low * 0.28)
   const phaseDirection = activity > 0.002
     ? Math.cos((rhythm?.beatPhase ?? 0) * Math.PI * 2)
     : 0
@@ -202,7 +205,9 @@ export function calculateFilterPsicheMotion(
     inverseMix: clamp(beat * 0.72 + flashDrive * 0.94 + low * 0.12),
     alternateMix: clamp(lowMid * 0.34 + mid * 0.28 + beat * 0.18),
     contrast: clamp(mid * 0.42 + beat * 0.22 + flashDrive * 0.35),
-    sliceAmount: clamp(high * 0.5 + transients.high * 0.42 + flashDrive * 0.28),
+    // `high` include già il transiente: non sommarlo due volte, altrimenti gli
+    // hat ravvicinati mantengono le slice quasi sempre aperte.
+    sliceAmount: clamp(high * 0.38 + flashDrive * 0.28),
     phaseDirection,
   }
 }
@@ -419,10 +424,12 @@ export function createBrainFilterPsicheScene(
       const motion: FilterPsicheMotion = {
         ...rawMotion,
         activity: smoothMotion.activity,
-        beat: smoothMotion.beat,
-        inverseMix: smoothMotion.low,
+        // Attacco diretto e release smussato: il fronte non viene ritardato
+        // dall'inviluppo musicale e sopravvive a un eventuale frame saltato.
+        beat: Math.max(rawMotion.beat, smoothMotion.beat),
+        inverseMix: Math.max(smoothMotion.low, rawMotion.beat * 0.72),
         alternateMix: smoothMotion.lowMid,
-        contrast: smoothMotion.mid,
+        contrast: Math.max(smoothMotion.mid, rawMotion.beat * 0.26),
         sliceAmount: smoothMotion.high,
       }
       const transitionChanged =

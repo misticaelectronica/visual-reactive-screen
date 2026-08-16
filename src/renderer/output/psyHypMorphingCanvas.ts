@@ -1588,7 +1588,9 @@ export function createPsyHypMorphingCanvas(
       return
     }
 
-    const targetInterval = currentSettings.lowPowerMode === true ? 1000 / 30 : quality === 'low' ? 1000 / 24 : PSY_MIN_FRAME_INTERVAL_MS
+    const targetInterval = currentSettings.lowPowerMode === true
+      ? 1000 / 30
+      : quality === 'low' ? 1000 / 24 : PSY_MIN_FRAME_INTERVAL_MS
     const elapsedSinceRender = now - lastRenderAt
     if (elapsedSinceRender < targetInterval) {
       rafId = requestAnimationFrame(render)

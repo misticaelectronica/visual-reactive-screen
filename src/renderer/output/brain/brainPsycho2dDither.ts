@@ -1,5 +1,23 @@
 type Rgb = readonly [number, number, number]
 
+export type Psycho2DTextureBand = 'beat' | 'lowMid' | 'mid' | 'high'
+
+export const PSYCHO2D_TEXTURE_BANDS: readonly Psycho2DTextureBand[] = [
+  'beat',
+  'lowMid',
+  'mid',
+  'high',
+]
+
+const PSYCHO2D_TEXTURE_SEQUENCE: readonly Psycho2DTextureBand[] = [
+  'beat',
+  'lowMid',
+  'beat',
+  'mid',
+  'beat',
+  'high',
+]
+
 const BAYER_4X4 = [
   0, 8, 2, 10,
   12, 4, 14, 6,
@@ -25,6 +43,32 @@ function luminance(color: Rgb): number {
   return color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722
 }
 
+function textureThreshold(
+  x: number,
+  y: number,
+  texture: Psycho2DTextureBand,
+): number {
+  const bayer = BAYER_4X4[(y % 4) * 4 + (x % 4)] - 7.5
+  if (texture === 'lowMid') {
+    const weave = (Math.floor(x / 2) + Math.floor(y / 4)) % 2 === 0 ? -1 : 1
+    return bayer * 2.8 + weave * 18
+  }
+  if (texture === 'mid') {
+    const diagonal = ((x + y * 2) % 9) - 4
+    return bayer * 2.2 + diagonal * 6
+  }
+  if (texture === 'high') {
+    const grain = ((Math.imul(x + 11, 37) ^ Math.imul(y + 7, 53)) & 15) - 7.5
+    return bayer * 1.5 + grain * 4.2
+  }
+  return bayer * 5
+}
+
+export function selectPsycho2dTextureBand(beatIndex: number): Psycho2DTextureBand {
+  const index = Math.abs(Math.trunc(beatIndex)) % PSYCHO2D_TEXTURE_SEQUENCE.length
+  return PSYCHO2D_TEXTURE_SEQUENCE[index]
+}
+
 export function choosePsycho2dInkPalette(colors: readonly string[]): {
   dark: Rgb
   light: Rgb
@@ -45,6 +89,7 @@ export function ditherPsycho2dPixels(
   dark: Rgb,
   light: Rgb,
   thresholdOffset = 0,
+  texture: Psycho2DTextureBand = 'beat',
 ): Uint8ClampedArray {
   if (width <= 0 || height <= 0 || rgba.length !== width * height * 4) {
     return new Uint8ClampedArray()
@@ -58,7 +103,7 @@ export function ditherPsycho2dPixels(
         rgba[offset + 1] * 0.7152 +
         rgba[offset + 2] * 0.0722
       const orderedThreshold =
-        128 + thresholdOffset + (BAYER_4X4[(y % 4) * 4 + (x % 4)] - 7.5) * 5
+        128 + thresholdOffset + textureThreshold(x, y, texture)
       const color = sourceLuminance < clamp(orderedThreshold) ? dark : light
       output[offset] = color[0]
       output[offset + 1] = color[1]

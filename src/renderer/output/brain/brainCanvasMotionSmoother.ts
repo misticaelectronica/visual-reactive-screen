@@ -18,7 +18,7 @@ const ATTACK_BEATS: BrainCanvasMotionTargets = {
   low: 0.22,
   lowMid: 0.17,
   mid: 0.12,
-  high: 0.075,
+  high: 0.045,
   activity: 0.16,
   beat: 0.035,
 }
@@ -27,7 +27,7 @@ const RELEASE_BEATS: BrainCanvasMotionTargets = {
   low: 0.7,
   lowMid: 0.56,
   mid: 0.42,
-  high: 0.3,
+  high: 0.16,
   activity: 0.5,
   beat: 0.24,
 }
@@ -82,4 +82,3 @@ export class BrainCanvasMotionSmoother {
     this.values = { ...ZERO_TARGETS }
   }
 }
-

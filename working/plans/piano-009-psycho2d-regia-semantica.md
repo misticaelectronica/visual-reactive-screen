@@ -3,7 +3,7 @@
 > **ID Piano**: `PIANO-009`  
 > **Macrotask di Riferimento**: `MACRO-010`  
 > **Data Creazione**: 2026-08-09  
-> **Stato**: `IN_PROGRESS — V1 IMPLEMENTATA, VALIDAZIONE LIVE PENDING`  
+> **Stato**: `IN_PROGRESS — TEXTURE MUSICALI IMPLEMENTATE, VALIDAZIONE LIVE PENDING`
 > **Autore/Agente**: Codex
 
 ---
@@ -33,6 +33,17 @@ Il risultato minimo credibile non richiede segmentazione, depth estimation o
 riconoscimento universale degli oggetti. Richiede soprattutto di sapere dove
 non coprire, dove un overlay è leggibile e quale dettaglio vale la pena
 ingrandire.
+
+### Estensione 2026-08-16 — alternanza texture per banda
+
+- [x] Verificare camera stabile, materia raster, silenzio, beatmatch,
+  transizioni, alternanza e costo.
+- [x] Analizzare la trama one-bit corrente e la selezione delle densità.
+- [x] Preparare quattro famiglie di texture derivate dallo stesso raster.
+- [x] Alternare `beat → lowMid → beat → mid → beat → high` sul clock globale.
+- [x] Smussare cambio famiglia e intensità senza timer autonomi.
+- [x] Aggiungere test, typecheck, lint mirato e build.
+- [ ] Registrare la verifica live artistica e prestazionale.
 
 ---
 
