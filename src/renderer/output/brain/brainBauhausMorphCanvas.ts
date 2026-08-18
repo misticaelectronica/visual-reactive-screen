@@ -60,6 +60,34 @@ function smoothstep(value: number): number {
   return x * x * (3 - 2 * x)
 }
 
+// Le forme devono comparire e stabilizzarsi prima che l'immagine di sfondo
+// inizi a ritirarsi: il fondo resta fermo al soffitto durante la fase di
+// reveal (0 → UNDERLAY_REVEAL_PHASE_END) e scende verso il pavimento solo
+// dopo. Il soffitto stesso è basso: le forme devono dominare la scena, non
+// l'immagine sottostante.
+const UNDERLAY_CEILING = 0.35
+const UNDERLAY_FLOOR = 0.08
+const UNDERLAY_REVEAL_PHASE_END = 0.6
+const UNDERLAY_BEAT_MODULATION = 0.04
+
+export function computeBauhausUnderlayOpacity(
+  abstractionProgress: number,
+  motion: Pick<BauhausMotion, 'activity' | 'beat'>,
+): number {
+  const fadeProgress = smoothstep(
+    (abstractionProgress - UNDERLAY_REVEAL_PHASE_END) /
+      (1 - UNDERLAY_REVEAL_PHASE_END),
+  )
+  const base = UNDERLAY_CEILING - fadeProgress * (UNDERLAY_CEILING - UNDERLAY_FLOOR)
+  // Respiro leggero legato al beat: nullo in silenzio (Check Silenzio).
+  const beatBreath = motion.activity > 0 ? motion.beat * UNDERLAY_BEAT_MODULATION : 0
+  return clamp(
+    base + beatBreath,
+    UNDERLAY_FLOOR - UNDERLAY_BEAT_MODULATION,
+    UNDERLAY_CEILING + UNDERLAY_BEAT_MODULATION,
+  )
+}
+
 function createCanvas(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -495,7 +523,15 @@ export function createBrainBauhausMorphScene(
       if (destroyed || failed || !context) return
       const drawingContext = context
       prepare(settings.lowPowerMode)
-      const current = artworkFor(currentSource)
+      // In attesa che l'immagine corrente finisca di decodere, mostrare
+      // l'ultima disponibile (di norma già in cache, quasi istantanea)
+      // invece di restare fermi: una forma sufficientemente coerente che
+      // esiste per un intervallo è preferibile a un fotogramma vuoto
+      // (filosofia.md §1 — il denoising non cerca una rappresentazione
+      // definitiva, negozia con ciò che è già disponibile).
+      const current = artworkFor(currentSource) ??
+        artworkFor(previousSource) ??
+        artworkFor(nextSource)
       if (!current) return
       const rawMotion = calculateBauhausMotion(
         bands,
@@ -581,7 +617,7 @@ export function createBrainBauhausMorphScene(
       drawingContext.globalAlpha = 1
       drawingContext.fillStyle = to.composition.palette[0] ?? '#171514'
       drawingContext.fillRect(0, 0, width, height)
-      const underlayOpacity = clamp(0.88 - abstractionProgress * 0.68, 0.2, 0.88)
+      const underlayOpacity = computeBauhausUnderlayOpacity(abstractionProgress, motion)
       if (transition < 0.999) {
         drawingContext.globalAlpha = underlayOpacity * (1 - transition)
         drawingContext.drawImage(from.base, 0, 0, width, height)

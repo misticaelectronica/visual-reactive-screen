@@ -109,6 +109,41 @@ Prima di proporre qualsiasi modifica, diagnosi o soluzione visiva, l'agente DEVE
    frequenza o densità. Non si aggiungono effetti autonomi che competano con
    il denoising o trasformino il risparmio energetico in un nuovo blocco.
 
+### Filosofia Di Brain — Rimando A `filosofia.md`
+
+Le fondamenta teoriche della filosofia di Brain vivono in **`filosofia.md`**
+(cartella radice del progetto), non qui: questa sottosezione spiega quando e
+come consultarlo, non ne duplica il contenuto.
+
+**Quando leggere `filosofia.md`** (obbligatorio, non facoltativo):
+- prima di proporre un nuovo renderer, una nuova meccanica di generazione, o
+  una revisione del Protocollo di Verifica Filosofia Visiva sopra;
+- prima di ogni evoluzione della Coscienza Onirica (vedi anche
+  `skills.md`, "Skill: Evolvere Coscienza Onirica");
+- ogni volta che serve capire se una proposta è **contro filosofica** anche
+  quando supera già i singoli check tecnici del protocollo — `filosofia.md`
+  è il criterio più alto, il protocollo qui sopra ne è un'applicazione
+  operativa parziale (solo il lato visivo);
+- prima di proporre un'ottimizzazione di performance sulla pipeline
+  Brain/Psichedel: `filosofia.md` §2 mostra che la struttura della storia
+  onirica stessa (soglia/metamorfosi/condensazione/eco) è anche un segnale
+  legittimo per decidere dove un'immagine può costare meno GPU, non solo un
+  vincolo narrativo — consultarlo prima di inventare un meccanismo nuovo.
+
+**Cosa contiene**: §1 le fondamenta scientifiche (embodied cognition,
+interocezione, predictive/active inference, la bibliografia) e la loro
+applicazione al denoising come negoziazione continua; §2 la struttura
+onirica delle 4 immagini di una storia e perché è anche un principio di
+ottimizzazione.
+
+**Come usarlo in pratica**: leggerlo per intero (è breve), non solo la
+sezione che sembra pertinente — i due paragrafi si richiamano a vicenda. Se
+una modifica proposta tratta la generazione come produzione di un output
+finale statico invece che come negoziazione/trasformazione continua, o
+tratta le 4 immagini di una storia come scene indipendenti invece che fasi
+di uno stesso nucleo che si trasforma, è contro filosofica anche se supera
+tutti i check tecnici del Protocollo Visivo sopra — va corretta o discussa
+con lo sviluppatore prima di procedere.
 
 ## Punti Delicati
 

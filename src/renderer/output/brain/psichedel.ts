@@ -47,23 +47,36 @@ export class HighQualityRenderScheduler {
   }
 }
 
+// L'ultimo fotogramma è l'"eco" della struttura onirica (soglia → metamorfosi
+// → condensazione → eco, vedi filosofia.md §2): un ritorno deformato del
+// nucleo, non una scena fresca indipendente. Costa meno perché è meno
+// risolto per natura, non solo per necessità tecnica — quindi resta sempre
+// nel budget di fotogrammi a qualità leggera, invece di finirci per caso.
 export function selectLowQualityFrameIndices(
   frameCount: number,
   random: () => number = Math.random,
 ): Set<number> {
-  const candidates = Array.from(
-    { length: Math.max(0, frameCount - 1) },
+  if (frameCount <= 1) return new Set()
+  const echoFrameIndex = frameCount - 1
+  const budget = Math.min(2, frameCount - 1)
+  const otherCandidates = Array.from(
+    { length: Math.max(0, frameCount - 2) },
     (_, index) => index + 1,
   )
-  for (let index = candidates.length - 1; index > 0; index -= 1) {
+  for (let index = otherCandidates.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.min(
       index,
       Math.floor(Math.max(0, Math.min(0.999999, random())) * (index + 1)),
     )
-    ;[candidates[index], candidates[randomIndex]] =
-      [candidates[randomIndex], candidates[index]]
+    ;[otherCandidates[index], otherCandidates[randomIndex]] =
+      [otherCandidates[randomIndex], otherCandidates[index]]
   }
-  return new Set(candidates.slice(0, Math.min(2, candidates.length)))
+  const selected = new Set<number>([echoFrameIndex])
+  for (const candidate of otherCandidates) {
+    if (selected.size >= budget) break
+    selected.add(candidate)
+  }
+  return selected
 }
 
 function hashSeed(value: string): number {
@@ -189,6 +202,14 @@ export function hasUnusualFigure(text: string): boolean {
   return UNUSUAL_FIGURE_TERMS.test(text)
 }
 
+export function downgradeModeUnderPressure(
+  mode: ImageRenderMode,
+): ImageRenderMode {
+  if (mode === 'high-quality' || mode === 'enhanced') return 'standard'
+  if (mode === 'standard') return 'interlude'
+  return mode
+}
+
 export class PsychedelInfrastructureError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options)
@@ -257,6 +278,7 @@ export class Psichedel {
     story: DreamStory,
     deadlineAt: number = Number.POSITIVE_INFINITY,
     onSceneReady?: (scene: PsychedelScene, frameIndex: number) => void,
+    getPressureHint?: () => boolean,
   ): Promise<PsychedelScene[]> {
     const scenesByFrame = this.retainedScenes.get(story.id) ?? new Map<string, PsychedelScene>()
     this.retainedScenes.set(story.id, scenesByFrame)
@@ -317,7 +339,7 @@ export class Psichedel {
         const requestedMode = this.renderScheduler.next()
         const progressiveLiveGeneration = Number.isFinite(deadlineAt)
         const lowQualityFrame = lowQualityFrameIndices.has(index)
-        const scheduledMode: ImageRenderMode =
+        const baseScheduledMode: ImageRenderMode =
           lowQualityFrame
             ? 'standard'
             : progressiveLiveGeneration
@@ -325,6 +347,18 @@ export class Psichedel {
               : requestedMode === 'high-quality' && !this.highQualityAvailable
                 ? 'enhanced'
                 : requestedMode
+        const underPressure = getPressureHint?.() ?? false
+        const scheduledMode: ImageRenderMode = underPressure
+          ? downgradeModeUnderPressure(baseScheduledMode)
+          : baseScheduledMode
+        if (underPressure && scheduledMode !== baseScheduledMode) {
+          brainLog('psichedel', 'step ridotti per pressione reale rilevata', {
+            storyId: story.id,
+            frameId: frame.id,
+            from: baseScheduledMode,
+            to: scheduledMode,
+          })
+        }
         if (requestedMode === 'high-quality' && progressiveLiveGeneration) {
           brainLog(
             'psichedel',
@@ -343,12 +377,16 @@ export class Psichedel {
             generationRound * 104_729 +
             attempt * 7_919
           ) >>> 0
+          const baseRetryMode: ImageRenderMode =
+            scheduledMode === 'high-quality' && !this.highQualityAvailable
+              ? 'enhanced'
+              : 'standard'
           const mode: ImageRenderMode =
             attempt === 0
               ? scheduledMode
-              : scheduledMode === 'high-quality' && !this.highQualityAvailable
-                ? 'enhanced'
-                : 'standard'
+              : underPressure
+                ? downgradeModeUnderPressure(baseRetryMode)
+                : baseRetryMode
           const prompt = buildPsychedelImagePrompt(story, frame, attempt, mode)
           try {
             brainLog('psichedel', `generazione raster ${index + 1}/${story.frames.length}`, {

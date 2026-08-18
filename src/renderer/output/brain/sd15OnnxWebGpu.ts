@@ -23,6 +23,10 @@ const VAE_SCALE = 0.18215
 // dei blocchi di risalita (23 contro 24).
 const UNET_IMAGE_MULTIPLE = 64
 
+function macrotaskYield(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)))
+}
+
 type OrtWebGpu = typeof import('onnxruntime-web/webgpu')
 
 export type Sd15BrowserPhase =
@@ -662,6 +666,9 @@ export class Sd15OnnxWebGpuRuntime {
           message: `Denoising ${stepIndex + 1}/${schedule.length}`,
           pct: Math.round(((stepIndex + 1) / schedule.length) * 90),
         })
+        if (BRAIN_CONFIG.gpuYieldBetweenSubmits) {
+          await macrotaskYield(BRAIN_CONFIG.gpuYieldMs)
+        }
       }
       ensureSd15NotAborted(signal)
       const scaledLatents = Float32Array.from(

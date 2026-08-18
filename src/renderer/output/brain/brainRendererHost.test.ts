@@ -170,7 +170,7 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
-  it('usa FilterPsiche durante il denoising e poi riprende il renderer pieno', () => {
+  it('usa FilterPsiche solo sotto pressione risorse reale, non per la sola generazione in corso', () => {
     const registry = new BrainRendererRegistry()
     const updates: number[] = []
     const pressureCalls: boolean[][] = []
@@ -229,24 +229,38 @@ describe('Brain renderer host', () => {
     )
 
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
-    expect(updates).toEqual([1, 0])
-    expect(pressureCalls[1]).toContain(true)
-    expect(container.querySelector('[data-brain-denoising-filter-psiche="true"]')).not.toBeNull()
+    // Senza pressione risorse reale, il layer di passthrough non deve
+    // nemmeno essere creato: nessun costo pagato per qualcosa che non serve.
+    expect(updates).toEqual([1])
+    expect(container.querySelector('[data-brain-denoising-filter-psiche="true"]')).toBeNull()
 
+    // La sola generazione in corso (offlineHold) non deve più coprire il
+    // renderer pieno: il passthrough resta idle (e non viene creato) e il
+    // renderer reale continua ad aggiornare normalmente.
     host.setOfflineHold?.(true)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 2_000)
-    expect(updates).toEqual([2, 1])
+    expect(updates).toEqual([2])
     expect(host.element.dataset.brainOfflineHold).toBe('active')
+    expect(host.element.dataset.brainDenoisingFilterPsiche ?? 'idle').toBe('idle')
+
+    host.setResourcePressure(true)
+    host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 3_000)
+    // La prima vera pressione crea finalmente il layer di passthrough.
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('entering')
+    expect(container.querySelector('[data-brain-denoising-filter-psiche="true"]')).not.toBeNull()
+    expect(updates).toHaveLength(2)
+    expect(pressureCalls[1]).toContain(true)
 
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_000)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_100)
-    expect(updates).toEqual([3, 3])
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('active')
+    // Anche in stato "active" il renderer reale sotto il passthrough continua
+    // ad aggiornare (al ritmo ridotto), non resta congelato.
+    expect(updates[0]).toBeGreaterThan(2)
 
+    host.setResourcePressure(false)
     host.setOfflineHold?.(false)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 11_000)
-    expect(updates).toEqual([4, 4])
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('exiting')
     host.destroy()
@@ -307,7 +321,7 @@ describe('Brain renderer host', () => {
       () => 'print2d',
       'print2d',
     )
-    host.setOfflineHold?.(true)
+    host.setResourcePressure(true)
     host.update(
       { low: 0.72, lowMid: 0.3, mid: 0.2, high: 0.1 },
       DEFAULT_SETTINGS,

@@ -26,6 +26,35 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-029-08`** `DONE`: Escludere temporaneamente Psycho2D da tutte le rotazioni automatiche.
 - [x] **`TASK-029-09`** `DONE`: Disabilitare Psycho2D nel registry runtime e nella UI per impedirne ogni comparsa.
 - [x] **`TASK-029-10`** `DONE`: Correggere il renderer identificato dalla schermata: escludere Print2D e ripristinare Psycho2D.
+- [x] **`TASK-029-11`** `DONE`: Ripristinare Print2D nella rotazione temporale
+  generale e nell'attesa, mantenendolo escluso soltanto dalla modalità
+  "Tutti per storia"; confermato che Psycho2D era già interamente ripristinato
+  da `TASK-029-10`.
+- [x] **`TASK-029-12`** `DONE`: Escludere Liquid Morphing e 2001 Slit-Scan
+  dall'interludio morphing di "Tutti per storia" (`buildMorphingInterludeDeck`);
+  restano Oniric e PsyHyp.
+- [x] **`TASK-029-13`** `DONE`: Diagnosticare il renderer dominante nel mazzo
+  "Tutti per storia" analizzando i log live. Trovate due cause: (1) il
+  bilanciamento fra storie contava le comparse per storia (+1 flat) invece dei
+  fotogrammi realmente occupati, penalizzando poco i renderer persistenti
+  (2–4 fotogrammi) rispetto a quelli a fotogramma singolo; (2) lo scambio che
+  garantisce FilterPsiche in prima posizione usava uno swap a due elementi che
+  spediva il renderer meno mostrato (spesso il più penalizzato) in fondo al
+  mazzo invece di scorrerlo di una sola posizione. Corrette entrambe: il peso
+  ora riflette i fotogrammi effettivamente mostrati e FilterPsiche viene
+  spostato in testa senza alterare l'ordine relativo degli altri.
+- [x] **`TASK-029-14`** `DONE`: Rimuovere del tutto il forzamento di
+  FilterPsiche in prima posizione in `balancedStoryDeck`: la simulazione su
+  200 storie mostrava il 62,9% dei fotogrammi occupati da FilterPsiche da
+  sola. Con il solo ordinamento per peso (fotogrammi mostrati) la
+  distribuzione scende a 23–27% a testa fra i quattro renderer attivi in
+  "Tutti per storia", senza esclusioni strutturali.
+- [x] **`TASK-029-15`** `DONE`: Estendere il bilanciamento per peso anche al
+  mazzo usato durante l'attesa (rigenerazione in corso), che prima usava
+  shuffle puro senza registrare né consultare le comparse. Aggiunta
+  `weightedDeck` condivisa e peso combinato comparse chiuse + in corso.
+  Simulazione su attesa lunga: 28–29% a testa fra i tre renderer persistenti,
+  nessuna dominanza.
 
 ---
 

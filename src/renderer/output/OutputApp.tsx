@@ -27,6 +27,22 @@ import {
   createAlternateMorphingSettings,
 } from './brain/brainStoryAlternation'
 
+const BRAIN_RENDERER_LABELS: Record<string, string> = {
+  print2d: 'Print2D',
+  psycho2d: 'Psycho2D',
+  'vector-morph': 'Vector Morph',
+  'material-morph': 'Materia Morph',
+  'filter-psiche': 'FilterPsiche',
+  'bauhaus-morph': 'Bauhaus Morph',
+}
+
+const MORPHING_ALGO_LABELS: Record<string, string> = {
+  liquid: 'Liquid Morphing',
+  oniric: 'Oniric Morphing',
+  'psy-hyp': 'PsyHyp Morphing',
+  '2001': '2001 Slit-Scan',
+}
+
 type VisualFamily = MorphingAlgorithm | 'brain'
 
 type MorphingController = {
@@ -281,6 +297,28 @@ export function OutputApp() {
   const morphingTransitionRef = useRef<MorphingTransition | null>(null)
   const [msgCount, setMsgCount] = useState(0)
   const [lastColor, setLastColor] = useState<string>('—')
+  const [activeRendererLabel, setActiveRendererLabel] = useState<string>('—')
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const algo = morphingRef.current?.__algo
+      if (algo === 'brain') {
+        const brainRendererId = rootRef.current
+          ?.querySelector<HTMLElement>('[data-active-renderer]')
+          ?.dataset.activeRenderer
+        setActiveRendererLabel(
+          brainRendererId
+            ? BRAIN_RENDERER_LABELS[brainRendererId] ?? brainRendererId
+            : 'Brain',
+        )
+      } else if (algo) {
+        setActiveRendererLabel(MORPHING_ALGO_LABELS[algo] ?? algo)
+      } else {
+        setActiveRendererLabel('—')
+      }
+    }, 250)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     const api = window.fxOutput
@@ -658,6 +696,23 @@ export function OutputApp() {
         uscita: ✓<br />
         messaggi: {msgCount}<br />
         colore: {lastColor}
+      </div>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 8,
+          right: 8,
+          zIndex: 9999,
+          background: 'rgba(0,0,0,0.65)',
+          color: '#0f0',
+          fontFamily: 'monospace',
+          fontSize: 12,
+          padding: '4px 8px',
+          borderRadius: 4,
+          pointerEvents: 'none',
+        }}
+      >
+        {activeRendererLabel}
       </div>
     </div>
   )

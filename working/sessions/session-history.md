@@ -1267,3 +1267,77 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   del Blob già presente nel buffer e revocato al cleanup.
 - **Validazione**: 52 file / 310 test, typecheck, lint, bundle Vite/Electron e
   diff-check verdi; prova percettiva fullscreen pendente.
+
+### `SESSION-2026-08-17-01`
+- **Data**: 17 Agosto 2026 (CEST)
+- **Obiettivo**: Correggere l'esclusione di Print2D e verificare lo stato di
+  Psycho2D dopo richiesta esplicita dello sviluppatore.
+- **Correzione**: `AUTOMATICALLY_EXCLUDED_RENDERERS` svuotato in
+  `brainRendererSelector.ts`; Print2D torna nella rotazione temporale generale
+  e nel ciclo d'attesa, restando escluso soltanto da `STORY_CYCLE_EXCLUDED_RENDERERS`
+  ("Tutti per storia", insieme a Bauhaus Morph).
+- **Verifica Psycho2D**: registry, UI, rotazione, ciclo per storia e attesa
+  risultavano già interamente ripristinati dalla correzione precedente
+  (`SESSION-2026-08-16-27`); nessuna modifica necessaria.
+- **Test aggiornati**: riscritti i due test di `brainRendererSelector.test.ts`
+  che presupponevano l'esclusione automatica di Print2D.
+- **Validazione**: 52 file / 310 test, typecheck e lint verdi (build non
+  rieseguita in questa sessione).
+
+### `SESSION-2026-08-17-02`
+- **Data**: 17 Agosto 2026 (CEST)
+- **Obiettivo**: Escludere Liquid Morphing e 2001 Slit-Scan dall'interludio
+  "Tutti per storia" e diagnosticare un renderer percepito come dominante.
+- **Morphing**: rimossi `'liquid'` e `'2001'` da `MORPHING_FAMILIES` in
+  `morphingRotation.ts`; `buildMorphingInterludeDeck` ora sceglie solo fra
+  Oniric e PsyHyp durante l'alternanza Brain+Morphing.
+- **Diagnosi log**: analizzati `log/session-2026-08-17-21-38-39.txt` e
+  `log/session-2026-08-17-00-19-11.txt`. Trovate due cause strutturali nel
+  bilanciamento del mazzo "Tutti per storia" in `brainRendererSelector.ts`:
+  1. `closeStoryUsage` contava le presenze per storia (+1 flat) invece dei
+     fotogrammi realmente occupati, così i renderer persistenti (FilterPsiche,
+     Materia Morph, Vector Morph, 2–4 fotogrammi) risultavano sotto-penalizzati
+     rispetto a quelli a fotogramma singolo (Print2D, Psycho2D) pur occupando
+     più tempo reale a schermo.
+  2. Il riposizionamento che garantisce FilterPsiche in prima posizione
+     scambiava (swap) due elementi del mazzo: quando il renderer meno mostrato
+     finiva in prima posizione dopo l'ordinamento per peso, lo scambio lo
+     spediva in fondo al mazzo (nella vecchia posizione di FilterPsiche)
+     invece di scorrerlo semplicemente di una posizione, penalizzandolo
+     ulteriormente nelle storie successive.
+- **Correzione**: `currentStoryVisited` ora traccia i fotogrammi mostrati per
+  renderer (non un flag booleano) e `closeStoryUsage` somma quel peso;
+  aggiunta `moveDeckEntry` che sposta FilterPsiche (e l'eventuale renderer a
+  fotogramma singolo) senza alterare l'ordine relativo degli altri elementi
+  del mazzo.
+- **Nota collaterale**: individuate due istanze Electron `pnpm dev` attive
+  contemporaneamente (una aperta questa notte all'1:19, una nuova) come
+  possibile ulteriore causa di contesa GPU/thermal; segnalato allo
+  sviluppatore senza intervenire.
+- **Test aggiunti**: nuovo test di regressione in
+  `brainRendererSelector.test.ts` che riproduce lo scenario diagnosticato e
+  verifica che il renderer meno mostrato riceva il suo turno in ogni storia.
+- **Validazione**: 52 file / 311 test, typecheck e lint verdi (build non
+  rieseguita in questa sessione).
+
+### `SESSION-2026-08-17-03`
+- **Data**: 17 Agosto 2026 (CEST)
+- **Obiettivo**: Ridurre il lag percepito in modalità normale rispetto al
+  basso consumo, rispettando il protocollo di verifica filosofia visiva.
+- **Verifica preliminare**: le due istanze Electron `pnpm dev` concorrenti
+  segnalate nella sessione precedente non erano più attive (una sola istanza,
+  avviata alle 22:01); esclusa come causa attuale.
+- **Diagnosi log**: analizzato `log/session-2026-08-17-22-01-28.txt`.
+  `outputRaf` mostra spike ricorrenti (233–400 ms) coincidenti con le fasi di
+  denoising anche fuori pressione severa. Causa individuata:
+  `imageInferenceCooldownMs` (pausa fra inferenze UNet successive) era 6 s in
+  modalità normale contro i 12 s della modalità a basso consumo, cioè la GPU
+  riceve un nuovo carico di denoising il doppio delle volte.
+- **Correzione**: `imageInferenceCooldownMs` portato da 6 000 a 9 000 ms in
+  `brainConfig.ts`. Nessun renderer visivo toccato: FPS, layer, risoluzione,
+  mazzo "Tutti per storia" invariati. Verificato che il cambio non tocca
+  camera, materia, silenzio, beatmatch o transizione.
+- **Verifica live pendente**: confermare se lo scarto normale/basso-consumo
+  si riduce a sufficienza in una sessione prolungata.
+- **Validazione**: 52 file / 311 test, typecheck e lint verdi (build non
+  rieseguita in questa sessione).

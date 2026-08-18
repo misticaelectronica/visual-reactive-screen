@@ -5,29 +5,35 @@ import {
 } from '@shared/types'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
-const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['print2d'])
+const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>([])
 const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
   'print2d',
-  'bauhaus-morph',
 ])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'filter-psiche',
   'material-morph',
   'vector-morph',
-])
-const SINGLE_FRAME_STORY_RENDERERS = new Set<BrainRendererId>([
-  'print2d',
   'psycho2d',
   'bauhaus-morph',
 ])
+// Un renderer persistente è un invariante onirico (filosofia.md §2): deve
+// durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2
+// fotogrammi), ma non può occupare l'intera storia — altrimenti dentro una
+// singola storia non c'è alcuna alternanza visibile, solo fra storie
+// diverse. Il massimo è quindi vincolato a lasciare sempre almeno un
+// fotogramma per un cambio, su `BRAIN_CONFIG.renderFrameCount` fotogrammi.
+const MINIMUM_PERSISTENT_HOLD_FRAMES = 2
+const MAXIMUM_PERSISTENT_HOLD_FRAMES = 3
 
 export function selectBrainRendererHoldFrames(
   rendererId: BrainRendererId,
   random: () => number = Math.random,
 ): number {
   if (!PERSISTENT_STORY_RENDERERS.has(rendererId)) return 1
-  return 2 + Math.floor(Math.min(0.999_999, Math.max(0, random())) * 3)
+  const span = MAXIMUM_PERSISTENT_HOLD_FRAMES - MINIMUM_PERSISTENT_HOLD_FRAMES + 1
+  return MINIMUM_PERSISTENT_HOLD_FRAMES +
+    Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
 }
 
 export class BrainRendererSelector {
@@ -41,7 +47,7 @@ export class BrainRendererSelector {
   private waitingDeck: BrainRendererId[] = []
   private storyHoldRemaining = 0
   private waitingHoldRemaining = 0
-  private currentStoryVisited = new Set<BrainRendererId>()
+  private currentStoryVisited = new Map<BrainRendererId, number>()
   private readonly storyAppearances = new Map<BrainRendererId, number>()
 
   constructor(
@@ -87,37 +93,40 @@ export class BrainRendererSelector {
     this.storyDeckIndex = 0
   }
 
-  private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {
-    const randomized = this.shuffled(this.storyCycleIds())
+  private exposureWeight(id: BrainRendererId): number {
+    return (this.storyAppearances.get(id) ?? 0) +
+      (this.currentStoryVisited.get(id) ?? 0)
+  }
+
+  private weightedDeck(
+    ids: readonly BrainRendererId[],
+    avoidedId: BrainRendererId,
+  ): BrainRendererId[] {
+    const randomized = this.shuffled(ids)
     const deck = randomized.sort((left, right) =>
-      (this.storyAppearances.get(left) ?? 0) -
-      (this.storyAppearances.get(right) ?? 0),
+      this.exposureWeight(left) - this.exposureWeight(right),
     )
     if (deck.length > 1 && deck[0] === avoidedId) {
-      const firstCount = this.storyAppearances.get(deck[0]) ?? 0
+      const firstCount = this.exposureWeight(deck[0])
       const replacementIndex = deck.findIndex(
-        (id) => id !== avoidedId && (this.storyAppearances.get(id) ?? 0) === firstCount,
+        (id) => id !== avoidedId && this.exposureWeight(id) === firstCount,
       )
       if (replacementIndex > 0) {
         ;[deck[0], deck[replacementIndex]] = [deck[replacementIndex], deck[0]]
       }
     }
-    const filterIndex = deck.indexOf(FILTER_PSICHE_ID)
-    if (filterIndex >= 0) {
-      const filterTarget = avoidedId === FILTER_PSICHE_ID && deck.length > 1
-        ? 1
-        : 0
-      ;[deck[filterTarget], deck[filterIndex]] = [deck[filterIndex], deck[filterTarget]]
-      if (filterTarget === 1 && !SINGLE_FRAME_STORY_RENDERERS.has(deck[0])) {
-        const singleFrameIndex = deck.findIndex(
-          (id, index) => index > 1 && SINGLE_FRAME_STORY_RENDERERS.has(id),
-        )
-        if (singleFrameIndex > 1) {
-          ;[deck[0], deck[singleFrameIndex]] = [deck[singleFrameIndex], deck[0]]
-        }
-      }
-    }
     return deck
+  }
+
+  private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {
+    return this.weightedDeck(this.storyCycleIds(), avoidedId)
+  }
+
+  private recordExposure(id: BrainRendererId, frames: number): void {
+    this.currentStoryVisited.set(
+      id,
+      (this.currentStoryVisited.get(id) ?? 0) + frames,
+    )
   }
 
   private rotationDuration(baseInterval: number): number {
@@ -127,8 +136,8 @@ export class BrainRendererSelector {
   }
 
   private closeStoryUsage(): void {
-    for (const id of this.currentStoryVisited) {
-      this.storyAppearances.set(id, (this.storyAppearances.get(id) ?? 0) + 1)
+    for (const [id, framesShown] of this.currentStoryVisited) {
+      this.storyAppearances.set(id, (this.storyAppearances.get(id) ?? 0) + framesShown)
     }
     this.currentStoryVisited.clear()
   }
@@ -155,8 +164,8 @@ export class BrainRendererSelector {
     this.storyDeck = this.balancedStoryDeck(this.activeId)
     if (settings?.brainRendererMode === 'story-cycle') {
       this.activeId = this.storyDeck[0] ?? this.activeId
-      this.currentStoryVisited.add(this.activeId)
       this.storyHoldRemaining = this.storyHoldForActive()
+      this.recordExposure(this.activeId, this.storyHoldRemaining + 1)
       this.mode = 'story-cycle'
       this.switchedAt = Number.NEGATIVE_INFINITY
     }
@@ -177,8 +186,8 @@ export class BrainRendererSelector {
     if (this.storyDeckIndex >= this.storyDeck.length - 1) return false
     this.storyDeckIndex += 1
     this.activeId = this.storyDeck[this.storyDeckIndex]
-    this.currentStoryVisited.add(this.activeId)
     this.storyHoldRemaining = this.storyHoldForActive()
+    this.recordExposure(this.activeId, this.storyHoldRemaining + 1)
     this.switchedAt = now
     return true
   }
@@ -192,14 +201,16 @@ export class BrainRendererSelector {
       return false
     }
     if (this.waitingDeck.length === 0) {
-      this.waitingDeck = this.shuffled(
+      this.waitingDeck = this.weightedDeck(
         automaticIds.filter((id) => id !== this.activeId),
+        this.activeId,
       )
     }
     const nextId = this.waitingDeck.shift()
     if (!nextId || nextId === this.activeId) return false
     this.activeId = nextId
     this.waitingHoldRemaining = this.storyHoldForActive()
+    this.recordExposure(this.activeId, this.waitingHoldRemaining + 1)
     this.switchedAt = now
     return true
   }

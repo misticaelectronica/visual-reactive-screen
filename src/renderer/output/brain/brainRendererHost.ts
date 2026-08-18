@@ -79,12 +79,22 @@ export function createBrainRendererHost(
   }
 
   let active = createLayer(initialRendererId, performance.now())
+  root.dataset.activeRenderer = active.id
   let incoming: RendererLayer | null = null
-  const denoisingFilterPsiche = createLayer('filter-psiche', performance.now())
-  denoisingFilterPsiche.root.dataset.brainDenoisingFilterPsiche = 'true'
-  denoisingFilterPsiche.root.style.opacity = '0'
-  denoisingFilterPsiche.root.style.zIndex = '2'
-  denoisingFilterPsiche.controller.setResourcePressure(true)
+  // Costruito solo alla prima vera pressione risorse, non a ogni cambio di
+  // fotogramma: quasi sempre non serve (nessuna transizione lo richiede),
+  // quindi non vale la pena pagarne il costo di creazione ogni volta.
+  let denoisingFilterPsiche: RendererLayer | null = null
+  const ensureDenoisingFilterPsiche = (now: number): RendererLayer => {
+    if (!denoisingFilterPsiche) {
+      denoisingFilterPsiche = createLayer('filter-psiche', now)
+      denoisingFilterPsiche.root.dataset.brainDenoisingFilterPsiche = 'true'
+      denoisingFilterPsiche.root.style.opacity = '0'
+      denoisingFilterPsiche.root.style.zIndex = '2'
+      denoisingFilterPsiche.controller.setResourcePressure(true)
+    }
+    return denoisingFilterPsiche
+  }
   let passthroughState: 'idle' | 'entering' | 'active' | 'exiting' = 'idle'
   let passthroughStartedAt = 0
   let passthroughStartOpacity = 0
@@ -141,7 +151,7 @@ export function createBrainRendererHost(
       morphPattern = pattern
       active.controller.setMorphPattern(pattern)
       incoming?.controller.setMorphPattern(pattern)
-      denoisingFilterPsiche.controller.setMorphPattern(pattern)
+      denoisingFilterPsiche?.controller.setMorphPattern(pattern)
     },
     setResourcePressure(activePressure) {
       if (resourcePressure === activePressure) return
@@ -157,7 +167,7 @@ export function createBrainRendererHost(
     setTransition(progress, role, counterpartShapes) {
       transitionProgress = clamp(progress)
       transitionRole = role
-      denoisingFilterPsiche.controller.setTransition(progress, role, counterpartShapes)
+      denoisingFilterPsiche?.controller.setTransition(progress, role, counterpartShapes)
       active.controller.setTransition(progress, role, counterpartShapes)
       incoming?.controller.setTransition(progress, role, counterpartShapes)
     },
@@ -170,50 +180,50 @@ export function createBrainRendererHost(
       flash?: BrainFlashState,
     ) {
       if (destroyed) return
-      const passthroughReady =
-        BRAIN_CONFIG.lightweightDenoisingRender &&
-        denoisingFilterPsiche.controller.isReady?.() !== false
-      const shouldSuspendPlugin = (resourcePressure || offlineHold) && passthroughReady
-      if (shouldSuspendPlugin) {
-        if (passthroughState === 'idle' || passthroughState === 'exiting') {
-          passthroughState = 'entering'
-          passthroughStartedAt = time
-          passthroughStartOpacity = passthroughOpacity
-          root.dataset.brainDenoisingFilterPsiche = 'entering'
-          brainLog('render', 'denoising-filter-psiche: active', {
-            renderer: active.id,
-          })
+      if (resourcePressure && BRAIN_CONFIG.lightweightDenoisingRender) {
+        const passthrough = ensureDenoisingFilterPsiche(time)
+        const passthroughReady = passthrough.controller.isReady?.() !== false
+        if (passthroughReady) {
+          if (passthroughState === 'idle' || passthroughState === 'exiting') {
+            passthroughState = 'entering'
+            passthroughStartedAt = time
+            passthroughStartOpacity = passthroughOpacity
+            root.dataset.brainDenoisingFilterPsiche = 'entering'
+            brainLog('render', 'denoising-filter-psiche: active', {
+              renderer: active.id,
+            })
+          }
+          const progress = smootherstep(
+            (time - passthroughStartedAt) /
+              BRAIN_CONFIG.denoisingPassthroughCrossfadeMs,
+          )
+          passthroughOpacity = passthroughStartOpacity +
+            (1 - passthroughStartOpacity) * progress
+          passthrough.root.style.opacity = String(passthroughOpacity)
+          passthrough.controller.update(
+            bands,
+            settings,
+            time,
+            rhythm,
+            movingAverages,
+            flash,
+          )
+          const pluginFrameInterval = settings.lowPowerMode
+            ? 1_000 / BRAIN_CONFIG.lowPowerDenoisingPassthroughPluginFps
+            : 1_000 / BRAIN_CONFIG.denoisingPassthroughPluginFps
+          if (
+            (passthroughState === 'entering' || passthroughState === 'active') &&
+            time - lastPassthroughPluginUpdateAt >= pluginFrameInterval
+          ) {
+            lastPassthroughPluginUpdateAt = time
+            active.controller.update(bands, settings, time, rhythm, movingAverages, flash)
+          }
+          if (progress >= 1) {
+            passthroughState = 'active'
+            root.dataset.brainDenoisingFilterPsiche = 'active'
+          }
+          return
         }
-        const progress = smootherstep(
-          (time - passthroughStartedAt) /
-            BRAIN_CONFIG.denoisingPassthroughCrossfadeMs,
-        )
-        passthroughOpacity = passthroughStartOpacity +
-          (1 - passthroughStartOpacity) * progress
-        denoisingFilterPsiche.root.style.opacity = String(passthroughOpacity)
-        denoisingFilterPsiche.controller.update(
-          bands,
-          settings,
-          time,
-          rhythm,
-          movingAverages,
-          flash,
-        )
-        const pluginFrameInterval = settings.lowPowerMode
-          ? 1_000 / BRAIN_CONFIG.lowPowerDenoisingPassthroughPluginFps
-          : 1_000 / BRAIN_CONFIG.denoisingPassthroughPluginFps
-        if (
-          passthroughState === 'entering' &&
-          time - lastPassthroughPluginUpdateAt >= pluginFrameInterval
-        ) {
-          lastPassthroughPluginUpdateAt = time
-          active.controller.update(bands, settings, time, rhythm, movingAverages, flash)
-        }
-        if (progress >= 1) {
-          passthroughState = 'active'
-          root.dataset.brainDenoisingFilterPsiche = 'active'
-        }
-        return
       }
 
       if (passthroughState === 'entering' || passthroughState === 'active') {
@@ -222,7 +232,7 @@ export function createBrainRendererHost(
         passthroughStartOpacity = passthroughOpacity
         root.dataset.brainDenoisingFilterPsiche = 'exiting'
       }
-      if (passthroughState === 'exiting') {
+      if (passthroughState === 'exiting' && denoisingFilterPsiche) {
         const progress = smootherstep(
           (time - passthroughStartedAt) /
             BRAIN_CONFIG.denoisingPassthroughCrossfadeMs,
@@ -292,6 +302,7 @@ export function createBrainRendererHost(
 
       const previous = active
       active = incoming
+      root.dataset.activeRenderer = active.id
       incoming = null
       switchStartedAt = null
       active.root.style.opacity = '1'

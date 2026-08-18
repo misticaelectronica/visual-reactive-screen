@@ -957,6 +957,14 @@ describe('Psichedel', () => {
     expect(selected.has(0)).toBe(false)
   })
 
+  it('include sempre l’ultimo fotogramma (l’eco onirico) nel budget leggero', () => {
+    for (const random of [() => 0, () => 0.5, () => 0.999_999]) {
+      const selected = selectLowQualityFrameIndices(4, random)
+      expect(selected.has(3)).toBe(true)
+      expect(selected.size).toBe(2)
+    }
+  })
+
   it('tratta un errore fetch del modello come infrastrutturale e conserva la storia', () => {
     expect(isPsychedelInfrastructureError(
       new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation"),

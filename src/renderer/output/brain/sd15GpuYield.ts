@@ -12,6 +12,10 @@ function boundProperty(target: object, property: PropertyKey): unknown {
   return typeof value === 'function' ? value.bind(target) : value
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)))
+}
+
 export function wrapGpuDeviceWithYield<T extends YieldableGpuDevice>(
   device: T,
   yieldMs: number,
@@ -19,14 +23,12 @@ export function wrapGpuDeviceWithYield<T extends YieldableGpuDevice>(
   const originalQueue = device.queue
   const queue = new Proxy(originalQueue, {
     get(target, property) {
+      if (property === 'onSubmittedWorkDone') {
+        return () => target.onSubmittedWorkDone().then(() => delay(yieldMs))
+      }
       if (property !== 'submit') return boundProperty(target, property)
       return (commandBuffers: Iterable<unknown>) => {
         target.submit(commandBuffers)
-        void target.onSubmittedWorkDone().then(
-          () => new Promise<void>((resolve) => {
-            setTimeout(resolve, Math.max(0, yieldMs))
-          }),
-        )
       }
     },
   })

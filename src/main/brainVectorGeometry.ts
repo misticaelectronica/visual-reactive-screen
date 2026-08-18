@@ -17,8 +17,9 @@ const FLATTEN_SPACING = 4
 const OUTPUT_SPACING = 6
 const MAXIMUM_POINTS_PER_SUBPATH = 128
 const MAXIMUM_TOTAL_POINTS = 5_200
-const MAXIMUM_POINT_DEVIATION = 1.4
-const MAXIMUM_CONTROL_REACH = 1.6
+const MAXIMUM_POINT_DEVIATION = 2.2
+const MAXIMUM_CONTROL_REACH = 2.2
+const SMOOTHING_PASSES = 2
 const MINIMUM_CORNER_TURN = Math.PI / 10
 
 function distance(left: Point, right: Point): number {
@@ -298,6 +299,20 @@ function smoothClosed(points: Point[]): { points: Point[]; maximumDeviation: num
   return { points: smoothed, maximumDeviation }
 }
 
+function smoothClosedRepeated(
+  points: Point[],
+  passes: number,
+): { points: Point[]; maximumDeviation: number } {
+  let current = points
+  let maximumDeviation = 0
+  for (let pass = 0; pass < passes; pass += 1) {
+    const result = smoothClosed(current)
+    current = result.points
+    maximumDeviation = Math.max(maximumDeviation, result.maximumDeviation)
+  }
+  return { points: current, maximumDeviation }
+}
+
 function format(value: number): string {
   const rounded = Math.round(value * 100) / 100
   return Object.is(rounded, -0) ? '0' : String(rounded)
@@ -435,7 +450,7 @@ export function smoothBrainVectorGeometry(svg: string): BrainVectorGeometryResul
         Math.min(MAXIMUM_POINTS_PER_SUBPATH, Math.ceil(perimeter / adaptiveSpacing)),
       )
       const resampled = resampleClosed(subpath.points, count)
-      const smoothed = smoothClosed(resampled)
+      const smoothed = smoothClosedRepeated(resampled, SMOOTHING_PASSES)
       rebuilt.push(cubicClosedPath(smoothed.points))
       pathMaximumDeviation = Math.max(pathMaximumDeviation, smoothed.maximumDeviation)
     }

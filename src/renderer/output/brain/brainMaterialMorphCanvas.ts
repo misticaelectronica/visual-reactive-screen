@@ -499,7 +499,12 @@ export function createBrainMaterialMorphScene(
     update(bands, settings, time, rhythm, movingAverages, flash) {
       if (destroyed || failed || !context) return
       prepare(settings.lowPowerMode)
-      const current = preparedFor(currentSource)
+      // Stesso principio di Bauhaus Morph: in attesa che l'immagine corrente
+      // finisca di decodere, mostrare l'ultima disponibile (di norma già in
+      // cache) invece di restare fermi (filosofia.md §1).
+      const current = preparedFor(currentSource) ??
+        preparedFor(previousSource) ??
+        preparedFor(nextSource)
       if (!current || !scratchContext || !maskContext || !maskImage) return
 
       const rawMotion = calculateBrainMaterialMotion(

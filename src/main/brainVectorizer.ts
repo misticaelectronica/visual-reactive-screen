@@ -39,8 +39,8 @@ const DEFAULT_VECTORIZATION_OPTIONS: BrainVectorizationOptions = {
   snicMergeColorThreshold: 10,
   snicStrongEdgeThreshold: 8,
   snicEdgeWeight: 0.7,
-  snicMinimumRegionAreaRatio: 0.0006,
-  snicMaximumRegions: 72,
+  snicMinimumRegionAreaRatio: 0.0004,
+  snicMaximumRegions: 100,
   contourSimplificationTolerance: 1.7,
   contourCurveSmoothing: 0.34,
   contourMaximumPoints: 2_400,
@@ -56,7 +56,7 @@ const VECTOR_PROFILES = [
       colorMode: 'color',
       hierarchical: 'stacked',
       mode: 'spline',
-      filterSpeckle: 12,
+      filterSpeckle: 8,
       colorPrecision: 7,
       layerDifference: 12,
       cornerThreshold: 60,
@@ -75,7 +75,7 @@ const VECTOR_PROFILES = [
       colorMode: 'color',
       hierarchical: 'stacked',
       mode: 'spline',
-      filterSpeckle: 6,
+      filterSpeckle: 4,
       colorPrecision: 8,
       layerDifference: 10,
       cornerThreshold: 52,
@@ -94,7 +94,7 @@ const VECTOR_PROFILES = [
       colorMode: 'color',
       hierarchical: 'cutout',
       mode: 'spline',
-      filterSpeckle: 24,
+      filterSpeckle: 16,
       colorPrecision: 5,
       layerDifference: 20,
       cornerThreshold: 72,
@@ -592,11 +592,27 @@ export function shouldTryDetailedVectorProfile(
   )
 }
 
+// Zona senza penalità: immagini con più dettaglio reale non vengono più
+// tirate verso un numero fisso di forme (era 24) — la ricchezza delle aree
+// vettorizzate resta quella prodotta dall'immagine, non quella del target.
+const RICH_PATH_COUNT_MIN = 30
+const RICH_PATH_COUNT_MAX = 90
+
+function pathCountPenalty(pathCount: number): number {
+  if (pathCount < RICH_PATH_COUNT_MIN) {
+    return (RICH_PATH_COUNT_MIN - pathCount) * 1.5
+  }
+  if (pathCount > RICH_PATH_COUNT_MAX) {
+    return (pathCount - RICH_PATH_COUNT_MAX) * 1.5
+  }
+  return 0
+}
+
 function candidatePenalty(
   candidate: VectorCandidate,
   options: BrainVectorizationOptions,
 ): number {
-  let penalty = Math.abs(candidate.pathCount - 24)
+  let penalty = pathCountPenalty(candidate.pathCount)
   if (candidate.svg.length < 2_500) penalty += 10_000
   if (candidate.pathCount < 5) penalty += (5 - candidate.pathCount) * 5_000
   if (candidate.pathCount > 180) penalty += (candidate.pathCount - 180) * 200

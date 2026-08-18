@@ -1,5 +1,415 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Trovato lo stallo di ~8s su Bauhaus/Materia Morph: bloccati in attesa dell'immagine — 2026-08-18
+
+- Analizzati i log più recenti (`session-2026-08-18-23-26-28.txt`). Trovato
+  un caso concreto: `canvasFrames.max: 7949.7ms` su Bauhaus Morph, subito
+  dopo "Bauhaus Morph preparato" — un vero stallo di quasi 8 secondi
+  nell'aggiornamento del renderer, non un draw lento (`renderMs` restava
+  0.1-0.3ms).
+- **Causa**: `update()` faceva `if (!current) return` quando
+  `artworkFor(currentSource)` non era ancora pronto — nessun disegno, zero
+  `recordCanvasFrame`, finché il `createImageBitmap` + analisi asincrona
+  della nuova immagine non finiva. Bauhaus Morph e Materia Morph hanno
+  `multipleImages: true` (gestiscono 3 sorgenti: previous/current/next) —
+  più lavoro asincrono in coda rispetto a FilterPsiche/Print2D
+  (`multipleImages: false`, una sola sorgente), quindi più esposti a uno
+  stallo quando `createImageBitmap` rallenta per la GPU/decoder condivisi
+  con l'inferenza UNet. Coerente con la segnalazione dello sviluppatore:
+  proprio questi due renderer sono i più critici sotto carico.
+- **Correzione** (`filosofia.md` §1 — "il sistema non cerca una
+  rappresentazione definitiva... lascia emergere forme sufficientemente
+  coerenti da esistere per un intervallo"): invece di bloccarsi in attesa
+  dell'immagine corrente, ora si usa un fallback a catena
+  (`artworkFor(currentSource) ?? artworkFor(previousSource) ?? artworkFor(nextSource)`)
+  — quasi sempre `previousSource` è già in cache (era il `current` del
+  fotogramma precedente), quindi il fallback è pressoché istantaneo: il
+  renderer continua a disegnare l'ultima immagine buona invece di restare
+  fermo, mentre la nuova finisce di decodere in background.
+- **Sulla qualità persa in 1-2 immagini su 4**: verificato nei log che è
+  comportamento intenzionale già esistente (non introdotto ora): 2 dei 4
+  fotogrammi per storia usano un profilo più leggero (`standard`/`interlude`),
+  ora sempre includendo l'eco (fix di ieri). Non è un effetto collaterale
+  del lag. Segnalato allo sviluppatore per decidere se questo compromesso
+  va rivisto, dato che ora lo percepisce come una perdita, non solo come
+  un risparmio accettabile.
+- Nessun nuovo test automatico per questo fix (cambia solo il fallback
+  dentro `update()`, non estraibile in una funzione pura testabile senza
+  mockare pesantemente canvas/ImageBitmap — coerente con la copertura test
+  già esistente su questi file, che testa solo le funzioni pure estratte).
+- Validazione: 53 file / 323 test, typecheck, lint e build Vite verdi.
+
+## Il renderer come invariante onirico: minimo/massimo di permanenza + passthrough pigro — 2026-08-18
+
+- Richiesta: un "sistema di morphing transizionale" per ogni transizione
+  (renderer↔renderer, renderer↔immagini), con i render che si alternano a
+  caso ma non meno di 2 morph dello stesso renderer, e un massimo da
+  stabilire — con richiesta esplicita che la soluzione migliori anche le
+  prestazioni.
+- **Filosofia** (`filosofia.md` §2.1, nuovo): il renderer persistente è esso
+  stesso un invariante onirico (la materia resta la stessa mentre l'immagine
+  si trasforma). Minimo 2 fotogrammi (già presente) per essere riconoscibile
+  come invariante; massimo derivato lasciando sempre almeno un fotogramma
+  libero per un cambio su 4 (`BRAIN_CONFIG.renderFrameCount`) — quindi
+  massimo 3, non più 4. `selectBrainRendererHoldFrames` aggiornato di
+  conseguenza (`brainRendererSelector.ts`); nuovo test che verifica su 100
+  storie simulate che ci sia sempre almeno un cambio di renderer dentro la
+  storia, non solo fra storie diverse.
+- **Prestazioni**: il layer di passthrough FilterPsiche
+  (`denoisingFilterPsiche` in `brainRendererHost.ts`) veniva creato da zero
+  a ogni singolo cambio di fotogramma (dato che `applyFrame` ricrea l'intero
+  host per ogni immagine), **anche se non serve quasi mai** (si attiva solo
+  sotto vera pressione risorse, oggi rara). Reso pigro: creato solo alla
+  prima vera pressione, non più un costo fisso a ogni transizione.
+- Test aggiornati in `brainRendererSelector.test.ts` (nuovo massimo 3) e
+  `brainRendererHost.test.ts` (verificano che il passthrough non esista
+  finché non serve davvero).
+- Validazione: 53 file / 323 test, typecheck, lint e build Vite verdi.
+
+## Filosofia estratta in `filosofia.md`; principio onirico come leva di performance — 2026-08-18
+
+- **Documentazione**: creato `filosofia.md` (radice del progetto). Contiene
+  §1 le fondamenta scientifiche già in `agents.md` (embodied cognition,
+  interocezione, predictive/active inference, bibliografia) spostate lì
+  integralmente, e §2 nuovo — la struttura onirica delle 4 immagini di Brain
+  (soglia/metamorfosi/condensazione/eco, invarianti onirici) presa dalle
+  neuroscienze cognitive del sonno. `agents.md` ora contiene solo un rimando
+  dettagliato (quando leggerlo, cosa contiene, come applicarlo) invece del
+  contenuto integrale. Aggiornato anche il rimando in `skills.md`
+  ("Skill: Evolvere Coscienza Onirica").
+- **Ottimizzazione**: lo sviluppatore ha chiesto di usare il principio
+  onirico stesso come leva di performance contro i lag residui, evitando
+  overengineering. `filosofia.md` §2 nota che l'ultima immagine di una
+  storia ("eco/ritorno deformato") è per natura meno risolta della soglia
+  che richiama — non solo per necessità tecnica. `selectLowQualityFrameIndices`
+  (`psichedel.ts`) sceglieva 2 fotogrammi rapidi a caso fra gli indici 1-3;
+  ora l'ultimo fotogramma (l'eco) è **sempre** incluso nel budget leggero,
+  l'altro slot resta casuale fra i rimanenti — zero nuova architettura,
+  riusa `ImageRenderMode`/`scheduledMode` già esistenti, riduce gli step
+  UNet medi per storia in modo deterministico invece che a caso.
+- Test aggiunto in `brainPipeline.test.ts` che verifica l'inclusione sempre
+  garantita dell'ultimo fotogramma, con vari semi random.
+- Validazione: 53 file / 322 test, typecheck e lint verdi.
+
+## Vector Morph più morbido/ricco, Bauhaus con forme dominanti — 2026-08-18
+
+- **Vector Morph**: lo smoothing curve esisteva già (`PIANO-014`) ma la
+  verifica live non era mai stata completata; rinforzato — `MAXIMUM_POINT_DEVIATION`
+  1.4→2.2, `MAXIMUM_CONTROL_REACH` 1.6→2.2, e ora due passate di smoothing
+  (`smoothClosedRepeated`) invece di una sola, in `brainVectorGeometry.ts`.
+  Ricchezza aree: rimosso il target fisso di 24 path in `candidatePenalty`
+  (`brainVectorizer.ts`) — ora nessuna penalità fra 30 e 90 path, penalità
+  solo fuori da quella fascia; `snicMaximumRegions` 72→100,
+  `snicMinimumRegionAreaRatio` 0.0006→0.0004; `filterSpeckle` VTracer
+  abbassato su tutti i profili (12→8, 6→4, 24→16) per scartare meno regioni
+  piccole.
+- **Bauhaus Morph**: nuova funzione pura `computeBauhausUnderlayOpacity`
+  sostituisce la formula lineare precedente. Prima: sfondo raster fino a
+  0.88 di opacità, e le forme iniziavano a comparire già ad
+  `abstractionProgress` 0.06 — sfondo e forme si sovrapponevano quasi
+  sempre. Ora: soffitto/pavimento abbassati a 0.35/0.08 (le forme dominano
+  la scena), e il fondo resta fermo al soffitto durante tutta la fase di
+  reveal delle forme (`abstractionProgress` 0→0.6), scendendo verso il
+  pavimento solo dopo — prima il morph degli oggetti, poi il fade
+  dell'immagine. Aggiunto un respiro leggero a beat (±0.04, nullo in
+  silenzio) per non lasciare il fondo perfettamente statico.
+- Nessuna nuova libreria; nessun cambio di camera/ordine dei layer canvas.
+- Test aggiunti/aggiornati: `brainVectorGeometry.test.ts` (nuovo limite
+  2.2), 4 nuovi test per `computeBauhausUnderlayOpacity` in
+  `brainBauhausMorphCanvas.test.ts`.
+- **Verifica live ancora richiesta** per entrambe (non posso vedere lo
+  schermo) — PIANO-014 aveva lo stesso punto debole la volta scorsa.
+- Validazione: 53 file / 321 test, typecheck, lint e build Vite verdi.
+
+## Piano archiviato per riferimento: delega P2P generazione immagini — 2026-08-18
+
+- Salvato `working/plans/piano-031-delega-p2p-generazione-immagini.md`:
+  disegno completo (server HTTP nel main, ponte IPC verso il renderer per la
+  generazione WebGPU, wrapper `PsychedelImageGenerator` peer-aware, fallback
+  locale sempre garantito, provenienza "collettiva" nella memoria di
+  Coscienza Onirica) per delegare la generazione SD1.5 a macchine pari sulla
+  LAN quando la macchina locale è sotto pressione reale.
+- **Non in corso**: lo sviluppatore ha scelto di provare prima
+  l'ottimizzazione locale più piccola descritta subito sotto. Il piano resta
+  pronto per quando/se serve una soluzione più incisiva.
+
+## Riduzione adattiva step UNet sotto pressione reale — 2026-08-18
+
+- Valutata e scartata (per ora) l'idea di delega P2P della generazione a
+  macchine pari sulla LAN: troppo grande/rischiosa, richiede hardware extra.
+  Pianificato invece un miglioramento locale più piccolo, riusando lo stesso
+  principio (reagire a pressione GPU *reale e misurata*, non a una stima).
+- **Implementato**: `Psichedel.generate()` accetta ora un
+  `getPressureHint?: () => boolean` opzionale; se vero, declassa il modo di
+  generazione pianificato di un livello (`high-quality`/`enhanced` →
+  `standard`, `standard` → `interlude`, il più leggero già esistente a 4
+  step invece di 8). Nuova funzione pura esportata
+  `downgradeModeUnderPressure`. `brainController.ts` passa
+  `() => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil`
+  — lo stesso segnale di gap RAF reale già usato e già validato altrove, non
+  un nuovo rilevatore.
+- Si applica sia al tentativo iniziale che al retry per singolo fotogramma;
+  log esplicito quando scatta ("step ridotti per pressione reale rilevata").
+  Nessuna modifica al motore di inferenza (`sd15OnnxWebGpu.ts`): il cambio è
+  tutto a monte, in quanti step vengono richiesti.
+- Creato `psichedel.test.ts` (prima assente): copre `downgradeModeUnderPressure`
+  e il comportamento end-to-end di `generate()` con/senza segnale di
+  pressione tramite un generatore e uno scheduler finti.
+- Validazione: 53 file / 317 test, typecheck, lint e build Vite verdi.
+
+## Bauhaus incluso in "Tutti per storia"; riverificata l'assenza di bias — 2026-08-18
+
+- Segnalato che Bauhaus Morph non compare quasi mai (era ancora escluso da
+  "Tutti per storia", unica esclusione residua insieme a Print2D) e che
+  FilterPsiche continua a sembrare più presente di tutti.
+- **Bauhaus**: rimosso da `STORY_CYCLE_EXCLUDED_RENDERERS` (resta escluso
+  solo Print2D, per scelta esplicita precedente dello sviluppatore); aggiunto
+  a `PERSISTENT_STORY_RENDERERS` (2-4 fotogrammi come gli altri, coerente con
+  la richiesta "permanere e morphare"). Verificato che il suo rendering non
+  viola la filosofia visiva (nessun movimento globale di camera, solo forme
+  geometriche locali sopra il raster).
+- **FilterPsiche**: riverificato con simulazione fresca (300 storie, storia +
+  attesa) sui 5 renderer ora attivi — 19,4–20,7% a testa, FilterPsiche è
+  addirittura il più basso. Nessun bias residuo nel selector. La sensazione
+  di dominanza riportata è quasi certamente dal prima del riavvio con il fix
+  del passthrough (sessione precedente) — da confermare dal vivo con
+  l'etichetta.
+- **Non reintrodotta** una sospensione per "sovraccarico" legata a
+  `resourcePressure`/basso consumo (suggerita come idea dallo sviluppatore):
+  quel meccanismo è stato già rimosso deliberatamente dopo una prova live
+  negativa (`SESSION-2026-08-16-22`); va reintrodotto solo su richiesta
+  esplicita e con validazione live, non come effetto collaterale di un fix
+  di bilanciamento.
+- Test aggiornati in `brainRendererSelector.test.ts` per il nuovo
+  comportamento di Bauhaus (incluso, persistente 2-4 immagini).
+- Validazione: 52 file / 314 test, typecheck e lint verdi.
+
+## Trovata la causa reale: FilterPsiche copriva tutto, renderer reale congelato — 2026-08-18
+
+- Lo sviluppatore ha usato l'etichetta appena aggiunta per confermare dal
+  vivo: l'etichetta mostrava Psycho2D/Materia Morph/Vector Morph a rotazione,
+  ma visivamente si vedeva sempre FilterPsiche, e Materia Morph risultava
+  fermo/statico. Individuata la causa esatta in `brainRendererHost.ts`.
+- **Causa 1 (sempre FilterPsiche)**: il passthrough leggero di FilterPsiche
+  (zIndex sopra al renderer attivo) veniva attivato da
+  `resourcePressure || offlineHold`. `resourcePressure` è morto da tempo
+  (nessuno lo imposta più da `brainController.ts` dopo il rollback
+  `SESSION-2026-08-16-22`, confermato in `STATE.md`: "la protezione adattiva
+  basata sui gap RAF è stata rimossa dopo la prova live negativa"). Restava
+  solo `offlineHold`, agganciato a `offlineWindow.isActive` — vero per
+  l'intera durata della generazione di una storia (spesso 40-100+ secondi,
+  quasi quanto o più della permanenza a schermo). Il passthrough restava
+  quindi opaco (zIndex sopra) per la maggior parte del tempo reale.
+- **Causa 2 (Materia Morph fermo)**: durante lo stato "active" del
+  passthrough (dopo la dissolvenza d'ingresso), `active.controller.update()`
+  veniva chiamato solo nello stato `'entering'`, mai in `'active'` — il
+  renderer reale sotto il passthrough smetteva letteralmente di aggiornare
+  finché il passthrough non usciva.
+- **Correzione**: `shouldSuspendPlugin` ora dipende solo da `resourcePressure`
+  (mai vero oggi, quindi il passthrough non si attiva più per la sola
+  generazione in corso); il renderer reale continua ad aggiornare (al ritmo
+  ridotto) anche in stato `'active'`, per robustezza se `resourcePressure`
+  tornasse in uso. `offlineHold` resta per il proprio dataset attribute e la
+  durata ridotta del crossfade, ma non copre più il quadro.
+- Test aggiornati in `brainRendererHost.test.ts` per riflettere che
+  `setOfflineHold(true)` da solo non attiva più il passthrough.
+- Validazione: 52 file / 314 test, typecheck, lint e build Vite verdi.
+
+## Etichetta renderer attivo in basso a destra — 2026-08-18
+
+- Aggiunta un'etichetta debug in basso a destra sull'Output che mostra il
+  nome del renderer/algoritmo attualmente attivo (Brain: Print2D, Psycho2D,
+  Vector Morph, Materia Morph, FilterPsiche, Bauhaus Morph; Morphing:
+  Liquid/Oniric/PsyHyp/2001), aggiornata ogni 250ms leggendo
+  `data-active-renderer` scritto da `brainRendererHost.ts` sul proprio root.
+- Utile anche per verificare dal vivo se il crossfade fra fotogrammi (6-9s,
+  già presente in `brainController.ts`) è effettivamente percepibile, dato
+  che lo sviluppatore continua a segnalare assenza di morphing sia fra
+  renderer diversi sia fra immagini dello stesso renderer.
+- Validazione: 52 file / 314 test, typecheck, lint e build Vite verdi.
+
+## Analisi lag analisi audio + yield GPU cooperativo davvero inerte — 2026-08-18
+
+- **Analisi**: l'analisi audio in sé (FFT via `AnalyserNode`, `computeBandEnergies`)
+  è economica e non è il collo di bottiglia; il ciclo RAF del Control gira a
+  piena velocità (throttling di background già disattivato su entrambe le
+  finestre e via switch Chromium). Il problema reale è che l'Output perde
+  pacchetti di stato audio (`missed` fino a 67 per finestra da 10s nei log)
+  quasi sempre in coincidenza con `generationActiveRatio:1` — la GPU è
+  occupata dall'inferenza UNet e il compositor dell'Output non riesce a
+  smaltire in tempo gli aggiornamenti audio-reattivi in arrivo dal Control.
+- **Bug trovato**: `wrapGpuDeviceWithYield` (`sd15GpuYield.ts`) avvolgeva
+  `submit()` per innescare una catena di promise dopo `onSubmittedWorkDone()`
+  con un `setTimeout`, ma **nessuno attendeva quella catena** — `submit()` è
+  sincrono per spec WebGPU, quindi il micro-yield non ha mai bloccato/
+  rallentato nulla. Il test esistente verificava solo che la catena venisse
+  creata, non che qualcuno la aspettasse.
+- **Verificato inoltre**: `onnxruntime-web@1.24.1` (versione installata) non
+  chiama mai `queue.onSubmittedWorkDone()` internamente (zero occorrenze nei
+  bundle dist) — quindi anche avvolgendo correttamente quel metodo, lo yield
+  non avrebbe comunque effetto pratico con questa versione.
+- **Correzione**: `wrapGpuDeviceWithYield` ora avvolge `onSubmittedWorkDone`
+  (il punto di sincronizzazione CPU-GPU standard) così che chi la attende
+  ottenga davvero il ritardo — corretto per compatibilità futura/altri
+  runtime. In aggiunta, inserito uno yield esplicito e verificabile
+  (`macrotaskYield(BRAIN_CONFIG.gpuYieldMs)`) direttamente nel loop di
+  denoising in `sd15OnnxWebGpu.ts`, dopo ogni step UNet — codice nostro,
+  eseguito per certo, indipendente dal comportamento interno del runtime.
+- Resta la leva già applicata in precedenza (`imageInferenceCooldownMs`
+  6s→9s) come mitigazione principale per la contesa hardware GPU, che uno
+  yield lato JS non può risolvere da solo.
+- Test aggiornati/aggiunti in `sd15GpuYield.test.ts` per riflettere il
+  comportamento corretto.
+- Validazione: 52 file / 314 test, typecheck e lint verdi.
+
+## Psycho2D reso persistente + trovata causa architetturale del "cambio con le immagini" — 2026-08-17
+
+- **Fix immediato applicato**: Psycho2D era l'unico renderer ammesso in
+  "Tutti per storia" a comparsa singola (1 fotogramma); ora è persistente
+  (2-4 fotogrammi) come FilterPsiche, Materia Morph e Vector Morph.
+  Nessun renderer in "Tutti per storia" cambia più a ogni singola immagine.
+- **Causa più profonda individuata, non ancora corretta**: `applyFrame` in
+  `brainController.ts` **distrugge e ricrea l'intero `brainRendererHost` a
+  ogni singolo fotogramma/immagine**, anche quando il renderer logicamente
+  "persiste" per più fotogrammi secondo `brainRendererSelector`. Di
+  conseguenza:
+  - lo stato interno di ogni renderer (motion smoother, avanzamento morph,
+    ecc.) riparte da zero a ogni immagine, anche quando il tipo di renderer
+    resta lo stesso — nessuna vera continuità del morph fra immagini
+    consecutive dello stesso renderer;
+  - il crossfade interno "active/incoming" di `brainRendererHost.ts`
+    (`SWITCH_DURATION_MS`) non scatta mai nella pratica: confermato nei log,
+    zero occorrenze di `cambio renderer Brain completato` o `cambio renderer
+    Brain preparato` in tutte le sessioni recenti, pur con cambi di
+    `rendererId` osservati;
+  - la transizione visibile fra immagini avviene solo al livello esterno
+    (`outgoingSvg`/`currentSvg` in `brainController.ts`, crossfade di
+    6-9 secondi), identica sia che il tipo di renderer cambi sia che resti
+    lo stesso — quindi anche una permanenza "logica" di più immagini non si
+    percepisce come continuità, perché l'istanza viene comunque ricreata e
+    ri-dissolta ogni volta.
+- **Fix proposto (non ancora implementato)**: quando il renderer risolto per
+  il nuovo fotogramma è identico a quello già attivo, evitare la
+  distruzione/ricreazione del host ed alimentare il renderer esistente con
+  le nuove immagini (richiede un metodo di aggiornamento contenuto sui
+  controller, non presente oggi nell'interfaccia `BrainSceneRendererController`).
+  Cambio strutturale su più file (host, controller, 6 plugin canvas);
+  richiede conferma prima di procedere data l'ampiezza.
+- Non ancora verificata la mancata reattività al ritmo (nessun log
+  strumenta `beatPulse`/`kickEnvelope`); ipotesi collegata alla stessa causa
+  (il renderer potrebbe passare la maggior parte della sua vita a "scaldare"
+  lo smoother del movimento dopo ogni ricreazione).
+- Validazione fix immediato: 52 file / 312 test, typecheck e lint verdi.
+- **Correzione di rotta**: verificato che "distruggi/ricrea + crossfade" è il
+  meccanismo di morphing usato in tutto il progetto (anche Liquid, Oniric,
+  PsyHyp, 2001 in `OutputApp.tsx` lo fanno), non un'anomalia di Brain; il
+  crossfade di Brain (`brainController.ts`) è un vero `smootherstep` da 6-9s
+  con forme di controparte, non un taglio secco. Il refactor sui 6 plugin
+  NON è stato eseguito: sarebbe stato basato su una diagnosi sbagliata.
+- **Richiesta finale dello sviluppatore**: concentrarsi solo su "Tutti per
+  storia" e far girare tutti i renderer attivi in modo omogeneo, senza
+  priorità a nessuno. Simulazione su 300 storie (con storia + attesa
+  intrecciate): 24,6% / 25,9% / 24,8% / 24,8% fra Psycho2D, Vector Morph,
+  Materia Morph e FilterPsiche — già omogeneo con i fix applicati oggi.
+  Bloccato con un test dedicato (tolleranza 15-35% a testa).
+- Validazione finale: 52 file / 313 test, typecheck e lint verdi.
+
+## Bilanciamento esteso al mazzo d'attesa — 2026-08-17
+
+- Trovata una seconda causa della dominanza di FilterPsiche in "Tutti per
+  storia": il mazzo usato durante l'**attesa** (quando la storia è finita e
+  il sistema ricicla i fotogrammi mentre la generazione successiva è ancora
+  in corso — spesso il periodo più lungo di visione reale, dato che generare
+  quattro immagini richiede più tempo della storia stessa) usava uno shuffle
+  puramente casuale, senza alcun bilanciamento per peso. Un renderer poteva
+  quindi dominare per puro caso proprio nei tratti più lunghi della sessione,
+  senza che il conteggio delle comparse per storia se ne accorgesse mai (il
+  peso di attesa non veniva nemmeno registrato).
+- **Correzione**: estratta `weightedDeck` (ordinamento per peso, riusata sia
+  dal mazzo storia sia dal mazzo attesa); il peso ora combina le comparse
+  chiuse (`storyAppearances`) con quelle in corso nella sessione attuale
+  (`currentStoryVisited`), così più pescate consecutive nella stessa attesa
+  si bilanciano a vicenda invece di ignorarsi. Le comparse in attesa vengono
+  registrate con lo stesso peso in fotogrammi delle comparse in storia.
+- Simulazione su una sessione di attesa lunga (2000 avanzamenti): 28–29% a
+  testa fra FilterPsiche, Materia Morph e Vector Morph, 14% Psycho2D (equo,
+  proporzionale alla sua permanenza più breve) — nessuna dominanza.
+- Test aggiunto: verifica che nessun renderer persistente superi il 35% di
+  quota durante un'attesa prolungata.
+- Validazione: 52 file / 312 test, typecheck e lint verdi.
+
+## Rimosso il forzamento FilterPsiche in testa al mazzo — 2026-08-17
+
+- Simulazione su 200 storie ha misurato FilterPsiche presente nel **62,9%**
+  di tutti i fotogrammi "Tutti per storia": la regola che lo forzava sempre in
+  prima (o seconda) posizione, combinata con la sua permanenza fino a 4
+  fotogrammi, gli permetteva di occupare da sola l'intera storia.
+- Rimossa la regola di forzamento in `balancedStoryDeck`
+  (`brainRendererSelector.ts`); resta solo l'ordinamento per peso già
+  corretto in precedenza (fotogrammi mostrati, non comparse). Nuova
+  simulazione sugli stessi parametri: 23–27% a testa fra FilterPsiche,
+  Materia Morph, Vector Morph e Psycho2D — nessuna dominanza, nessuna
+  esclusione strutturale.
+- Test aggiornato: sostituito il test che pretendeva FilterPsiche "garantita
+  entro la seconda immagine" con uno che verifica che nessun renderer superi
+  il 40% di quota su 200 storie e che tutti compaiano almeno una volta.
+- Verificato che Bauhaus Morph resta strutturalmente escluso da "Tutti per
+  storia" (`STORY_CYCLE_EXCLUDED_RENDERERS`, invariato) e che il suo file
+  (`brainBauhausMorphCanvas.ts`) non condivide codice con FilterPsiche
+  (`brainFilterPsicheCanvas.ts`) — nessuna traccia nei log recenti di Bauhaus
+  Morph selezionato.
+- Validazione: 52 file / 311 test, typecheck e lint verdi.
+
+## Cooldown inferenza in modalità normale — 2026-08-17
+
+- Diagnosticato via log perché la modalità normale sembra più "laggy" del
+  basso consumo: `imageInferenceCooldownMs` (pausa fra un'inferenza UNet e la
+  successiva) era 6 s in modalità normale contro 12 s in basso consumo —
+  il doppio degli intervalli di respiro GPU, quindi il doppio della frequenza
+  con cui la GPU viene colpita da un nuovo carico di denoising, coerente con
+  gli spike RAF (233–400 ms) osservati nei log anche fuori pressione severa.
+- **Nessuna causa nei renderer visivi**: FPS, layer, risoluzione e mazzo
+  "Tutti per storia" non sono coinvolti; il gap era solo nel passo con cui il
+  Worker immagini viene autorizzato a ripartire. Cambio compatibile con la
+  filosofia visiva (nessun effetto su camera, materia, silenzio, beatmatch,
+  transizione).
+- **Correzione**: `imageInferenceCooldownMs` portato da 6 000 a 9 000 ms in
+  `brainConfig.ts` — via di mezzo verso il valore già usato per
+  `imageInferenceLongFrameBackoffMs`. La cadenza di generazione delle immagini
+  rallenta leggermente ma la GPU ha più respiro fra un'inferenza e l'altra.
+  Reversibile con una sola costante; nessun'altra modifica.
+- **Verifica live pendente**: da confermare con una sessione prolungata se lo
+  scarto percepito fra normale e basso consumo si riduce a sufficienza, o se
+  serve un valore intermedio diverso.
+- Validazione: 52 file / 311 test, typecheck e lint verdi.
+
+## Bilanciamento mazzo "Tutti per storia" — 2026-08-17
+
+- Liquid Morphing e 2001 Slit-Scan sono esclusi dall'interludio morphing di
+  "Tutti per storia" (`buildMorphingInterludeDeck`); l'interludio ora sceglie
+  solo fra Oniric e PsyHyp.
+- Diagnosticato un renderer dominante nel ciclo "Tutti per storia" leggendo i
+  log live: il conteggio delle presenze fra storie era per-storia (+1) invece
+  che per fotogrammi realmente occupati, e lo scambio che garantisce
+  FilterPsiche in prima posizione spediva il renderer meno mostrato in fondo
+  al mazzo (swap a due elementi) invece di scorrerlo di una posizione.
+  Corretti entrambi: il peso ora conta i fotogrammi mostrati e FilterPsiche
+  viene inserito in testa senza alterare l'ordine relativo degli altri.
+- Individuate anche due istanze Electron `pnpm dev` in esecuzione
+  contemporaneamente (una da stanotte, una nuova) come possibile causa
+  ulteriore di contesa GPU; segnalato allo sviluppatore, nessuna azione presa
+  senza conferma.
+- Validazione: 52 file / 311 test, typecheck e lint verdi.
+
+## Correzione rotazione Print2D/Psycho2D — 2026-08-17
+
+- Print2D torna nella rotazione temporale generale e nel ciclo d'attesa; resta
+  escluso soltanto dalla modalità "Tutti per storia" (insieme a Bauhaus Morph).
+- Psycho2D era già stato interamente ripristinato (registry, UI, rotazione,
+  ciclo per storia e attesa) dalla correzione `SESSION-2026-08-16-27`; nessuna
+  ulteriore modifica necessaria.
+- Validazione: 52 file / 310 test, typecheck e lint verdi.
+
 ## Soluzioni denoising stall — 2026-08-16
 
 - Il riquadro del moto di coscienza non contiene più sfere sintetiche: riusa

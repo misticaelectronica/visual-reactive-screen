@@ -1471,6 +1471,7 @@ export function createBrainController(
             totalFrames: story.frames.length,
           })
           },
+          () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
         )
       }
       const scenes = BRAIN_CONFIG.offlineGenerationEnabled

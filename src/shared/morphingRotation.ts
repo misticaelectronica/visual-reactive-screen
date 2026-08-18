@@ -11,10 +11,8 @@ export type MorphingRotationCandidate = {
 }
 
 const MORPHING_FAMILIES: MorphingAlgorithm[] = [
-  'liquid',
   'oniric',
   'psy-hyp',
-  '2001',
 ]
 
 function randomIndex(length: number, random: () => number): number {

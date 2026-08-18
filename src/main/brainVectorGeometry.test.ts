@@ -22,7 +22,7 @@ describe('Brain vector geometry finish', () => {
       '<svg width="100" height="100"><path fill="#000000" fill-rule="evenodd" d="M0 0L100 0L100 100L0 100ZM30 30L30 70L70 70L70 30Z"/></svg>'
     const result = smoothBrainVectorGeometry(svg)
 
-    expect(result.maximumDeviation).toBeLessThanOrEqual(1.4)
+    expect(result.maximumDeviation).toBeLessThanOrEqual(2.2)
     expect(result.smoothedPathCount).toBe(1)
     expect(result.svg.match(/Z/gu)).toHaveLength(2)
     expect(result.svg).toContain('fill-rule="evenodd"')

@@ -11,6 +11,21 @@ future capacità autonome di ristrutturazione.
 Questa è una skill viva: aggiornarla a ogni fase in cui Coscienza Onirica
 impara un nuovo modo di ricordare o di organizzare i propri ricordi.
 
+**Fondamenta teoriche**: le decisioni su questo substrato vanno verificate
+anche contro `filosofia.md` (cartella radice; §1 embodied cognition,
+interocezione, predictive/active inference; §2 struttura onirica delle 4
+immagini e invarianti onirici — rilevante anche qui, non solo per Psichedel,
+per capire cosa "ritorna mentre cambia forma" nella memoria autobiografica).
+Il principio "distinguere dato percepito, interpretazione e contenuto
+immaginato" già sotto è, senza bisogno di rinominarlo, una formulazione
+operativa della stessa distinzione fra segnale, modello predittivo ed
+errore di previsione. Il sogno stesso, secondo quel quadro teorico, è uno
+stato in cui il cervello continua a costruire modelli del mondo e del corpo
+pur con un rapporto modificato con gli input esterni (Hobson & Friston,
+2012, citato in `filosofia.md`) — coerente con l'idea che Coscienza Onirica
+costruisca interpretazioni e immaginazione a partire da
+percezioni reali, senza che l'una si sostituisca all'altra.
+
 Principi invarianti iniziali:
 
 - partire dall'osservazione, senza precompilare un'identità adulta;
@@ -312,6 +327,86 @@ Budget PsyHypMorphing da rispettare:
 - DPR massimo 1.5
 - point count contenuto
 - trail e blur limitati
+
+## Skill: Renderer Brain (Selezione, Bilanciamento, Passthrough)
+
+Quando usare:
+
+- un renderer Brain (Print2D/Psycho2D/Vector Morph/Materia Morph/FilterPsiche/
+  Bauhaus Morph) sembra dominare "Tutti per storia" o non comparire mai
+- l'etichetta di debug in basso a destra sull'Output non corrisponde a quello
+  che si vede davvero (es. etichetta dice "Vector Morph" ma si vede sempre
+  FilterPsiche)
+- un renderer sembra congelato/statico nonostante l'etichetta dica che è attivo
+- un renderer cambia a ogni singola immagine invece di restare per più
+  fotogrammi ("permanere e morphare")
+- serve capire il flusso completo prima di modificare bilanciamento o
+  passthrough, per non "riscoprire" la stessa causa più volte
+
+File chiave:
+
+- `src/renderer/output/brain/brainRendererSelector.ts` — sceglie QUALE
+  renderer è attivo (`resolve`), gestisce il mazzo per storia
+  (`balancedStoryDeck`/`weightedDeck`) e il mazzo d'attesa
+  (`advanceWaitingRenderer`), la permanenza in fotogrammi
+  (`selectBrainRendererHoldFrames`, `PERSISTENT_STORY_RENDERERS`) e le
+  esclusioni per modalità (`AUTOMATICALLY_EXCLUDED_RENDERERS` per la
+  rotazione temporale, `STORY_CYCLE_EXCLUDED_RENDERERS` per "Tutti per
+  storia").
+- `src/renderer/output/brain/brainRendererHost.ts` — gestisce COSA SI VEDE
+  davvero: il layer `active`/`incoming` con crossfade interno
+  (`SWITCH_DURATION_MS`), e il layer separato `denoisingFilterPsiche`
+  (z-index sopra `active`) che copre tutto quando `shouldSuspendPlugin` è
+  vero.
+- `src/renderer/output/brain/brainController.ts` — `applyFrame` crea un
+  **nuovo** `brainRendererHost` a ogni singolo fotogramma/immagine (non lo
+  riusa fra immagini anche quando il renderer "persiste" logicamente); la
+  transizione visibile fra un'immagine e la successiva è quella ESTERNA
+  (`outgoingSvg`/`currentSvg`, crossfade `smootherstep` di 6-9s configurato
+  in `brainRenderingConfig`/`timing`), non quella interna di
+  `brainRendererHost`.
+
+Regole/insidie note (già risolte, non ripartire da zero):
+
+- `shouldSuspendPlugin` nel passthrough dipende **solo** da
+  `resourcePressure`, non più da `offlineHold`. `resourcePressure` non viene
+  impostato da nessuna parte oggi (rimosso dopo un rollback con prova live
+  negativa, `SESSION-2026-08-16-22`) — quindi il passthrough oggi non si
+  attiva mai. Se in futuro serve reintrodurre una protezione per pressione
+  GPU reale, NON agganciarla a `offlineWindow.isActive`/`offlineHold`: quel
+  flag resta vero per l'intera generazione di una storia (spesso 40-100+s),
+  molto più a lungo di un vero stallo, e copre il quadro quasi sempre.
+- Il renderer reale sotto il passthrough deve continuare ad aggiornare (a
+  ritmo ridotto) anche nello stato `'active'`, non solo `'entering'` —
+  altrimenti si congela silenziosamente finché il passthrough non esce.
+- Bilanciare per "fotogrammi mostrati" (`recordExposure`/`exposureWeight`),
+  non per "numero di comparse" — un renderer persistente (2-4 fotogrammi)
+  pesa comunque più di uno a comparsa singola anche con lo stesso conteggio
+  di scelte.
+- Il mazzo d'attesa (`advanceWaitingRenderer`, usato mentre si ricicla in
+  attesa della generazione successiva — spesso il tratto più lungo della
+  sessione) deve usare lo stesso `weightedDeck` del mazzo storia: uno shuffle
+  puro lì vanifica il bilanciamento fatto altrove.
+- Non forzare un renderer specifico (es. FilterPsiche) sempre in prima
+  posizione nel mazzo: anche uno scambio "innocuo" può relegare il renderer
+  meno mostrato in fondo al mazzo invece di scorrerlo di una posizione — usa
+  `moveDeckEntry` (move, non swap) se serve un riposizionamento.
+- Per capire cosa sta girando davvero dal vivo, guardare l'etichetta debug in
+  basso a destra sull'Output (`activeRendererLabel` in `OutputApp.tsx`,
+  legge `data-active-renderer` scritto da `brainRendererHost.ts`), non solo
+  i log.
+
+Diagnostica minima prima di ipotizzare un nuovo bug:
+
+1. Simulare `brainRendererSelector` con `Math.random` reale su ~200-300
+   storie (story-cycle + attesa intrecciate) e misurare la quota per
+   renderer, invece di leggere i log di una sessione breve.
+2. Controllare se il problema è nella SCELTA (selector) o nella RESA VISIBILE
+   (host/passthrough) — sono due livelli diversi e un bug nell'uno può
+   mascherare l'altro.
+3. Controllare `working/STATE.md` (sezioni più recenti in cima) prima di
+   rileggere il codice da zero: molte cause di questa famiglia sono già
+   state diagnosticate e risolte.
 
 ## Skill: Basso Consumo
 

@@ -54,7 +54,7 @@ export const BRAIN_CONFIG = {
   interStoryGpuHandoffMs: 500,
   // Pausa fra singole inferenze della stessa storia. I gap RAF osservati
   // possono estenderla dinamicamente nello scheduler termico.
-  imageInferenceCooldownMs: 6_000,
+  imageInferenceCooldownMs: 9_000,
   lowPowerImageInferenceCooldownMs: 12_000,
   imageInferenceLongFrameThresholdMs: 240,
   imageInferenceSevereFrameThresholdMs: 1_000,

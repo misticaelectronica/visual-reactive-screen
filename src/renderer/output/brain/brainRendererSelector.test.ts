@@ -15,20 +15,20 @@ describe('Brain renderer selector', () => {
   })
 
   it('alterna i renderer ammessi senza ricreare la storia', () => {
-    const selector = new BrainRendererSelector(['print2d', 'psycho2d', 'vector-morph'])
+    const selector = new BrainRendererSelector(['print2d', 'vector-morph'])
     const settings = {
       ...DEFAULT_SETTINGS,
       brainRendererMode: 'rotation' as const,
       brainRendererId: 'print2d' as const,
       brainRendererRotationMs: 10_000,
     }
-    expect(selector.resolve(settings, 1_000)).toBe('psycho2d')
-    expect(selector.resolve(settings, 10_999)).toBe('psycho2d')
+    expect(selector.resolve(settings, 1_000)).toBe('print2d')
+    expect(selector.resolve(settings, 10_999)).toBe('print2d')
     expect(selector.resolve(settings, 11_000)).toBe('vector-morph')
-    expect(selector.resolve(settings, 21_000)).toBe('psycho2d')
+    expect(selector.resolve(settings, 21_000)).toBe('print2d')
   })
 
-  it('esclude Print2D dalla rotazione automatica', () => {
+  it('include Print2D e Psycho2D nella rotazione automatica', () => {
     const randomValues = [0, 0.99, 0]
     const selector = new BrainRendererSelector(
       ['print2d', 'psycho2d', 'vector-morph', 'material-morph'],
@@ -46,23 +46,26 @@ describe('Brain renderer selector', () => {
     for (let step = 1; step <= 8; step += 1) {
       visited.push(selector.resolve(settings, step * 10_000))
     }
-    expect(visited).not.toContain('print2d')
+    expect(visited).toContain('print2d')
     expect(visited).toContain('psycho2d')
     expect(new Set(visited).size).toBeGreaterThan(1)
   })
 
-  it('mantiene FilterPsiche, Materia Morph e Vector Morph per 2-4 immagini', () => {
+  it('mantiene FilterPsiche, Materia Morph e Vector Morph per 2-3 immagini, mai l’intera storia', () => {
     for (const id of ['filter-psiche', 'material-morph', 'vector-morph'] as const) {
       expect(selectBrainRendererHoldFrames(id, () => 0)).toBe(2)
       expect(selectBrainRendererHoldFrames(id, () => 0.5)).toBe(3)
-      expect(selectBrainRendererHoldFrames(id, () => 0.999)).toBe(4)
+      expect(selectBrainRendererHoldFrames(id, () => 0.999)).toBe(3)
     }
   })
 
-  it('lascia Psycho2D come comparsa casuale di una sola immagine', () => {
-    expect(selectBrainRendererHoldFrames('psycho2d', () => 0.999)).toBe(1)
+  it('mantiene anche Psycho2D e Bauhaus per 2-3 immagini, invariato Print2D a comparsa singola', () => {
+    expect(selectBrainRendererHoldFrames('psycho2d', () => 0)).toBe(2)
+    expect(selectBrainRendererHoldFrames('psycho2d', () => 0.5)).toBe(3)
+    expect(selectBrainRendererHoldFrames('psycho2d', () => 0.999)).toBe(3)
+    expect(selectBrainRendererHoldFrames('bauhaus-morph', () => 0)).toBe(2)
+    expect(selectBrainRendererHoldFrames('bauhaus-morph', () => 0.999)).toBe(3)
     expect(selectBrainRendererHoldFrames('print2d', () => 0.999)).toBe(1)
-    expect(selectBrainRendererHoldFrames('bauhaus-morph', () => 0.999)).toBe(1)
   })
 
   it('mantiene Psycho2D nel ciclo per storia', () => {
@@ -84,26 +87,26 @@ describe('Brain renderer selector', () => {
     expect(selector.resolve(settings, 3_000)).toBe('psycho2d')
   })
 
-  it('esclude Bauhaus geometrico solo dal ciclo per storia', () => {
+  it('include Bauhaus nel ciclo per storia, oltre che nella selezione manuale', () => {
     const ids = ['filter-psiche', 'material-morph', 'bauhaus-morph'] as const
-    const storySelector = new BrainRendererSelector(ids, 'bauhaus-morph', () => 0)
+    const storySelector = new BrainRendererSelector(ids, 'filter-psiche', Math.random)
     const storySettings = {
       ...DEFAULT_SETTINGS,
       brainRendererMode: 'story-cycle' as const,
-      brainRendererId: 'bauhaus-morph' as const,
     }
 
-    storySelector.beginStory('story-without-geometry', storySettings)
-    const visited = [storySelector.resolve(storySettings, 0)]
-    for (let frame = 1; frame < 8; frame += 1) {
-      storySelector.advanceStoryRenderer(
-        'story-without-geometry',
-        storySettings,
-        frame * 1_000,
-      )
-      visited.push(storySelector.resolve(storySettings, frame * 1_000))
+    const seenAcrossStories = new Set<string>()
+    for (let story = 1; story <= 5; story += 1) {
+      const storyId = `story-${story}`
+      storySelector.beginStory(storyId, storySettings)
+      const base = story * 10_000
+      seenAcrossStories.add(storySelector.resolve(storySettings, base))
+      for (let frame = 1; frame < 4; frame += 1) {
+        storySelector.advanceStoryRenderer(storyId, storySettings, base + frame)
+        seenAcrossStories.add(storySelector.resolve(storySettings, base + frame))
+      }
     }
-    expect(visited).not.toContain('bauhaus-morph')
+    expect(seenAcrossStories.has('bauhaus-morph')).toBe(true)
 
     const manualSelector = new BrainRendererSelector(ids, 'bauhaus-morph', () => 0)
     expect(manualSelector.resolve({
@@ -139,24 +142,34 @@ describe('Brain renderer selector', () => {
     expect(visited.some((id) => id === 'filter-psiche')).toBe(true)
   })
 
-  it('rende FilterPsiche visibile entro la seconda immagine anche se chiudeva la storia precedente', () => {
-    const selector = new BrainRendererSelector(
-      ['print2d', 'psycho2d', 'vector-morph', 'material-morph', 'filter-psiche'],
-      'filter-psiche',
-      () => 0.99,
-    )
+  it('non lascia dominare FilterPsiche nonostante permanenza lunga e priorità iniziale', () => {
+    const ids = ['psycho2d', 'vector-morph', 'material-morph', 'filter-psiche'] as const
+    const selector = new BrainRendererSelector(ids, 'psycho2d', Math.random)
     const settings = {
       ...DEFAULT_SETTINGS,
       brainRendererMode: 'story-cycle' as const,
     }
-
-    selector.beginStory('story-after-filter', settings)
-    const first = selector.resolve(settings, 0)
-    selector.advanceStoryRenderer('story-after-filter', settings, 1_000)
-    const second = selector.resolve(settings, 1_000)
-
-    expect(first).not.toBe('filter-psiche')
-    expect(second).toBe('filter-psiche')
+    const frameCounts = new Map<string, number>()
+    let totalFrames = 0
+    for (let story = 0; story < 200; story += 1) {
+      const storyId = `story-${story}`
+      selector.beginStory(storyId, settings)
+      const base = story * 100_000
+      let id = selector.resolve(settings, base)
+      frameCounts.set(id, (frameCounts.get(id) ?? 0) + 1)
+      totalFrames += 1
+      for (let frame = 1; frame < 4; frame += 1) {
+        selector.advanceStoryRenderer(storyId, settings, base + frame)
+        id = selector.resolve(settings, base + frame)
+        frameCounts.set(id, (frameCounts.get(id) ?? 0) + 1)
+        totalFrames += 1
+      }
+    }
+    const filterShare = (frameCounts.get('filter-psiche') ?? 0) / totalFrames
+    expect(filterShare).toBeLessThan(0.4)
+    for (const id of ids) {
+      expect(frameCounts.get(id) ?? 0).toBeGreaterThan(0)
+    }
   })
 
   it('crea un nuovo ordine quando inizia la storia successiva', () => {
@@ -231,6 +244,28 @@ describe('Brain renderer selector', () => {
     expect(counts.get('filter-psiche') ?? 0).toBeGreaterThan(0)
   })
 
+  it('non relega in fondo al mazzo il renderer meno mostrato quando FilterPsiche va in prima posizione', () => {
+    const ids = ['filter-psiche', 'psycho2d', 'vector-morph'] as const
+    const selector = new BrainRendererSelector(ids, 'psycho2d', Math.random)
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+
+    const seenWithinFiveStories = new Set<string>()
+    for (let story = 1; story <= 5; story += 1) {
+      const storyId = `story-${story}`
+      selector.beginStory(storyId, settings)
+      const base = story * 10_000
+      seenWithinFiveStories.add(selector.resolve(settings, base))
+      for (let frame = 1; frame < 4; frame += 1) {
+        selector.advanceStoryRenderer(storyId, settings, base + frame)
+        seenWithinFiveStories.add(selector.resolve(settings, base + frame))
+      }
+    }
+    expect(seenWithinFiveStories.has('psycho2d')).toBe(true)
+  })
+
   it('continua a ruotare casualmente mentre ricicla i fotogrammi in attesa', () => {
     const ids = [
       'print2d',
@@ -254,6 +289,32 @@ describe('Brain renderer selector', () => {
     expect(new Set(visited).size).toBeGreaterThan(1)
     expect(visited).not.toContain('print2d')
     expect(visited).toContain('psycho2d')
+  })
+
+  it('bilancia per peso anche il mazzo di attesa durante una generazione lunga', () => {
+    const ids = ['psycho2d', 'vector-morph', 'material-morph', 'filter-psiche'] as const
+    const selector = new BrainRendererSelector(ids, 'psycho2d', Math.random)
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+    selector.beginStory('story-long-wait', settings)
+    selector.resolve(settings, 0)
+    const frameCounts = new Map<string, number>()
+    let totalFrames = 0
+    for (let step = 1; step <= 2_000; step += 1) {
+      selector.advanceWaitingRenderer(settings, step * 1_000)
+      const id = selector.resolve(settings, step * 1_000)
+      frameCounts.set(id, (frameCounts.get(id) ?? 0) + 1)
+      totalFrames += 1
+    }
+    const persistentShare = ['vector-morph', 'material-morph', 'filter-psiche'].map(
+      (id) => (frameCounts.get(id) ?? 0) / totalFrames,
+    )
+    for (const share of persistentShare) {
+      expect(share).toBeGreaterThan(0.2)
+      expect(share).toBeLessThan(0.35)
+    }
   })
 
   it('esce subito da Print2D quando passa alla rotazione automatica', () => {
@@ -285,5 +346,76 @@ describe('Brain renderer selector', () => {
 
     expect(selector.advanceWaitingRenderer(settings, 1_000)).toBe(false)
     expect(selector.resolve(settings, 1_000)).toBe('vector-morph')
+  })
+
+  it('gira tutti i renderer di "Tutti per storia" in modo omogeneo, senza priorità', () => {
+    const ids = [
+      'print2d',
+      'psycho2d',
+      'vector-morph',
+      'material-morph',
+      'filter-psiche',
+      'bauhaus-morph',
+    ] as const
+    const selector = new BrainRendererSelector(ids, 'print2d', Math.random)
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+    const frameCounts = new Map<string, number>()
+    let totalFrames = 0
+    for (let story = 0; story < 300; story += 1) {
+      const storyId = `story-${story}`
+      selector.beginStory(storyId, settings)
+      const base = story * 100_000
+      let id = selector.resolve(settings, base)
+      frameCounts.set(id, (frameCounts.get(id) ?? 0) + 1)
+      totalFrames += 1
+      for (let frame = 1; frame < 4; frame += 1) {
+        selector.advanceStoryRenderer(storyId, settings, base + frame)
+        id = selector.resolve(settings, base + frame)
+        frameCounts.set(id, (frameCounts.get(id) ?? 0) + 1)
+        totalFrames += 1
+      }
+      for (let wait = 0; wait < 3; wait += 1) {
+        selector.advanceWaitingRenderer(settings, base + 5 + wait)
+        id = selector.resolve(settings, base + 5 + wait)
+        frameCounts.set(id, (frameCounts.get(id) ?? 0) + 1)
+        totalFrames += 1
+      }
+    }
+    const activeRenderers = [
+      'psycho2d',
+      'vector-morph',
+      'material-morph',
+      'filter-psiche',
+      'bauhaus-morph',
+    ]
+    for (const id of activeRenderers) {
+      const share = (frameCounts.get(id) ?? 0) / totalFrames
+      expect(share).toBeGreaterThan(0.1)
+      expect(share).toBeLessThan(0.3)
+    }
+    expect(frameCounts.get('print2d') ?? 0).toBe(0)
+  })
+
+  it('garantisce almeno un cambio di renderer dentro ogni storia da 4 fotogrammi', () => {
+    const ids = ['filter-psiche', 'material-morph', 'vector-morph', 'psycho2d'] as const
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random)
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+    for (let story = 0; story < 100; story += 1) {
+      const storyId = `story-${story}`
+      selector.beginStory(storyId, settings)
+      const base = story * 10_000
+      const visited = new Set([selector.resolve(settings, base)])
+      for (let frame = 1; frame < 4; frame += 1) {
+        selector.advanceStoryRenderer(storyId, settings, base + frame)
+        visited.add(selector.resolve(settings, base + frame))
+      }
+      expect(visited.size).toBeGreaterThan(1)
+    }
   })
 })
