@@ -9,6 +9,17 @@ const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>([])
 const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
   'print2d',
 ])
+// Bauhaus Morph e Materia Morph preparano il materiale visivo analizzando
+// pixel/maschere di più sorgenti immagine per fotogramma (capabilities
+// multipleImages, brainRendererRegistry.ts): sotto pressione GPU reale
+// (denoising in corso, thermalScheduler) questa preparazione può accodarsi
+// dietro l'inferenza e restare visibilmente ferma per secondi. FilterPsiche
+// e Psycho2D non hanno mostrato lo stesso stallo nei log; finché non scelti
+// per una nuova storia si preferiscono a loro sotto pressione reale.
+const HEAVY_RENDERERS_UNDER_PRESSURE = new Set<BrainRendererId>([
+  'bauhaus-morph',
+  'material-morph',
+])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'filter-psiche',
@@ -54,6 +65,7 @@ export class BrainRendererSelector {
     private readonly availableIds: readonly BrainRendererId[],
     initialId: BrainRendererId = 'print2d',
     private readonly random: () => number = Math.random,
+    private readonly getPressureHint?: () => boolean,
   ) {
     this.activeId = availableIds.includes(initialId)
       ? initialId
@@ -80,7 +92,10 @@ export class BrainRendererSelector {
     const enabled = this.availableIds.filter(
       (id) => !STORY_CYCLE_EXCLUDED_RENDERERS.has(id),
     )
-    return enabled.length > 0 ? enabled : this.automaticIds()
+    const base = enabled.length > 0 ? enabled : this.automaticIds()
+    if (!this.getPressureHint?.()) return base
+    const light = base.filter((id) => !HEAVY_RENDERERS_UNDER_PRESSURE.has(id))
+    return light.length > 0 ? light : base
   }
 
   private beginDeckWith(activeId: BrainRendererId): void {

@@ -418,4 +418,69 @@ describe('Brain renderer selector', () => {
       expect(visited.size).toBeGreaterThan(1)
     }
   })
+
+  it('sotto pressione GPU reale evita Bauhaus Morph e Materia Morph nella storia', () => {
+    const ids = [
+      'filter-psiche',
+      'material-morph',
+      'vector-morph',
+      'psycho2d',
+      'bauhaus-morph',
+    ] as const
+    const selector = new BrainRendererSelector(
+      ids,
+      'filter-psiche',
+      Math.random,
+      () => true,
+    )
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+    for (let story = 0; story < 50; story += 1) {
+      const storyId = `story-${story}`
+      selector.beginStory(storyId, settings)
+      const base = story * 10_000
+      const visited = new Set([selector.resolve(settings, base)])
+      for (let frame = 1; frame < 4; frame += 1) {
+        selector.advanceStoryRenderer(storyId, settings, base + frame)
+        visited.add(selector.resolve(settings, base + frame))
+      }
+      expect(visited.has('bauhaus-morph')).toBe(false)
+      expect(visited.has('material-morph')).toBe(false)
+    }
+  })
+
+  it('senza pressione reale continua a includere tutti i renderer nella storia', () => {
+    const ids = [
+      'filter-psiche',
+      'material-morph',
+      'vector-morph',
+      'psycho2d',
+      'bauhaus-morph',
+    ] as const
+    const selector = new BrainRendererSelector(
+      ids,
+      'filter-psiche',
+      Math.random,
+      () => false,
+    )
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'story-cycle' as const,
+    }
+    const everVisited = new Set<string>()
+    for (let story = 0; story < 50; story += 1) {
+      const storyId = `story-${story}`
+      selector.beginStory(storyId, settings)
+      const base = story * 10_000
+      everVisited.add(selector.resolve(settings, base))
+      for (let frame = 1; frame < 4; frame += 1) {
+        selector.advanceStoryRenderer(storyId, settings, base + frame)
+        everVisited.add(selector.resolve(settings, base + frame))
+      }
+    }
+    expect(everVisited.has('bauhaus-morph')).toBe(true)
+    expect(everVisited.has('material-morph')).toBe(true)
+  })
 })

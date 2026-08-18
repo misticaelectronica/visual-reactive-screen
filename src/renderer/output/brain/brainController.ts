@@ -623,6 +623,9 @@ export function createBrainController(
   )
   const brainRendererSelector = new BrainRendererSelector(
     brainRendererRegistry.ids(),
+    undefined,
+    undefined,
+    () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
   )
   let transitionCounterpartShapes: BrainMorphShape[] = []
   let latestPayload: VisualStatePayload | null = null

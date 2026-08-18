@@ -1,5 +1,38 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Sotto pressione GPU reale, la storia evita Bauhaus/Materia Morph — 2026-08-19
+
+- Il fallback a catena di ieri (Bauhaus/Materia Morph) non basta da solo: i
+  log restano con freeze fino a 30s su questi due renderer durante il
+  denoising attivo. Lo sviluppatore ha chiesto, non come mascheramento ma
+  come scheduling, di far girare FilterPsiche/Psycho2D al posto loro quando
+  il sistema è sotto carico reale.
+- **Verifica preliminare**: Psycho2D ha `multipleImages: true` come
+  Bauhaus/Materia (stessa dipendenza a 3 sorgenti in
+  `brainRendererRegistry.ts`), ma non è mai stato segnalato come laggato nei
+  log reali — l'ipotesi "multipleImages ⇒ fragile" da sola non basta a
+  spiegare tutto; il costo reale sembra dominato dall'analisi pixel/maschera
+  pesante che Bauhaus/Materia fanno in più (non dalla sola molteplicità delle
+  sorgenti). Si è scelto di fidarsi dell'evidenza empirica (Psycho2D non
+  laggato) più che dell'ipotesi strutturale.
+- **Fix** (`brainRendererSelector.ts`): nuovo `HEAVY_RENDERERS_UNDER_PRESSURE
+  = {bauhaus-morph, material-morph}` e parametro opzionale
+  `getPressureHint?: () => boolean` nel costruttore. `storyCycleIds()` esclude
+  questi due renderer dal mazzo quando il segnale di pressione è vero (con
+  fallback al set completo se il filtro svuota il mazzo). Riusa lo stesso
+  segnale reale già validato per la riduzione step (`thermalScheduler`,
+  `longFrameBlockedUntil`), non un nuovo euristico — nessun sistema nuovo,
+  solo un altro punto di lettura dello stesso segnale.
+- **Nota sui limiti**: il filtro agisce solo quando il mazzo di storia viene
+  costruito/ricostruito (inizio storia, mazzo d'attesa) — non rimappa un
+  mazzo già in corso. Se la pressione inizia a metà storia con Bauhaus/Materia
+  già nel mazzo attivo, restano fino alla storia successiva (max 3 fotogrammi
+  di attesa, coerente con `filosofia.md` §2.1).
+- Nuovi test in `brainRendererSelector.test.ts`: sotto pressione (`() =>
+  true`) 50 storie simulate non selezionano mai Bauhaus/Materia; senza
+  pressione (`() => false`) li includono ancora entrambi.
+- Validazione: 53 file / 325 test, typecheck, lint e build Vite verdi.
+
 ## Trovato lo stallo di ~8s su Bauhaus/Materia Morph: bloccati in attesa dell'immagine — 2026-08-18
 
 - Analizzati i log più recenti (`session-2026-08-18-23-26-28.txt`). Trovato
