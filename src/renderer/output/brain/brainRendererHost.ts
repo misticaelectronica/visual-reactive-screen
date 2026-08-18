@@ -81,7 +81,7 @@ export function createBrainRendererHost(
   let active = createLayer(initialRendererId, performance.now())
   root.dataset.activeRenderer = active.id
   let incoming: RendererLayer | null = null
-  // Costruito solo alla prima vera pressione risorse, non a ogni cambio di
+  // Costruiti solo alla prima vera pressione risorse, non a ogni cambio di
   // fotogramma: quasi sempre non serve (nessuna transizione lo richiede),
   // quindi non vale la pena pagarne il costo di creazione ogni volta.
   let denoisingFilterPsiche: RendererLayer | null = null
@@ -95,6 +95,24 @@ export function createBrainRendererHost(
     }
     return denoisingFilterPsiche
   }
+  // Secondo strato, leggero quanto il primo (stessa risoluzione/fps ridotti
+  // del passthrough): sovrapposto in 'lighten' a FilterPsiche per dare il
+  // "mix" di movimento richiesto durante il denoising, senza sostituirlo —
+  // resta un accento (opacità ridotta rispetto al primo), non un secondo
+  // renderer a pieno carico.
+  let denoisingPsycho2d: RendererLayer | null = null
+  const ensureDenoisingPsycho2d = (now: number): RendererLayer => {
+    if (!denoisingPsycho2d) {
+      denoisingPsycho2d = createLayer('psycho2d', now)
+      denoisingPsycho2d.root.dataset.brainDenoisingPsycho2d = 'true'
+      denoisingPsycho2d.root.style.opacity = '0'
+      denoisingPsycho2d.root.style.zIndex = '2'
+      denoisingPsycho2d.root.style.mixBlendMode = 'lighten'
+      denoisingPsycho2d.controller.setResourcePressure(true)
+    }
+    return denoisingPsycho2d
+  }
+  const DENOISING_MIX_OPACITY_FACTOR = 0.6
   let passthroughState: 'idle' | 'entering' | 'active' | 'exiting' = 'idle'
   let passthroughStartedAt = 0
   let passthroughStartOpacity = 0
@@ -152,6 +170,7 @@ export function createBrainRendererHost(
       active.controller.setMorphPattern(pattern)
       incoming?.controller.setMorphPattern(pattern)
       denoisingFilterPsiche?.controller.setMorphPattern(pattern)
+      denoisingPsycho2d?.controller.setMorphPattern(pattern)
     },
     setResourcePressure(activePressure) {
       if (resourcePressure === activePressure) return
@@ -168,6 +187,7 @@ export function createBrainRendererHost(
       transitionProgress = clamp(progress)
       transitionRole = role
       denoisingFilterPsiche?.controller.setTransition(progress, role, counterpartShapes)
+      denoisingPsycho2d?.controller.setTransition(progress, role, counterpartShapes)
       active.controller.setTransition(progress, role, counterpartShapes)
       incoming?.controller.setTransition(progress, role, counterpartShapes)
     },
@@ -182,6 +202,7 @@ export function createBrainRendererHost(
       if (destroyed) return
       if (resourcePressure && BRAIN_CONFIG.lightweightDenoisingRender) {
         const passthrough = ensureDenoisingFilterPsiche(time)
+        const mix = ensureDenoisingPsycho2d(time)
         const passthroughReady = passthrough.controller.isReady?.() !== false
         if (passthroughReady) {
           if (passthroughState === 'idle' || passthroughState === 'exiting') {
@@ -208,6 +229,14 @@ export function createBrainRendererHost(
             movingAverages,
             flash,
           )
+          // Psycho2D si aggiunge solo quando è pronto (createImageBitmap
+          // può richiedere qualche frame in più della prima volta): finché
+          // non lo è resta a opacità 0, senza bloccare FilterPsiche.
+          const mixReady = mix.controller.isReady?.() !== false
+          mix.root.style.opacity = mixReady
+            ? String(passthroughOpacity * DENOISING_MIX_OPACITY_FACTOR)
+            : '0'
+          mix.controller.update(bands, settings, time, rhythm, movingAverages, flash)
           const pluginFrameInterval = settings.lowPowerMode
             ? 1_000 / BRAIN_CONFIG.lowPowerDenoisingPassthroughPluginFps
             : 1_000 / BRAIN_CONFIG.denoisingPassthroughPluginFps
@@ -247,10 +276,23 @@ export function createBrainRendererHost(
           movingAverages,
           flash,
         )
+        if (denoisingPsycho2d) {
+          denoisingPsycho2d.root.style.opacity =
+            String(passthroughOpacity * DENOISING_MIX_OPACITY_FACTOR)
+          denoisingPsycho2d.controller.update(
+            bands,
+            settings,
+            time,
+            rhythm,
+            movingAverages,
+            flash,
+          )
+        }
         if (progress >= 1) {
           passthroughState = 'idle'
           passthroughOpacity = 0
           denoisingFilterPsiche.root.style.opacity = '0'
+          if (denoisingPsycho2d) denoisingPsycho2d.root.style.opacity = '0'
           root.dataset.brainDenoisingFilterPsiche = 'idle'
           brainLog('render', 'denoising-filter-psiche: idle', {
             renderer: active.id,
@@ -316,6 +358,7 @@ export function createBrainRendererHost(
       destroyLayer(incoming)
       destroyLayer(active)
       destroyLayer(denoisingFilterPsiche)
+      destroyLayer(denoisingPsycho2d)
       incoming = null
       root.remove()
     },

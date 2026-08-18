@@ -1,5 +1,56 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Passthrough FilterPsiche+Psycho2D finalmente attivato con segnale reale — 2026-08-19
+
+- **Analisi log** (`session-2026-08-19-00-25-08.txt`, sessione live subito dopo
+  il fix precedente): individuato con precisione DOVE si concentra il freeze
+  di Bauhaus/Materia Morph. Estraendo `rendered` (frame canvas disegnati) per
+  ciascuna finestra `BrainMetrics` da 10s e incrociandolo con i log "X
+  preparato", il pattern è chiaro: `rendered` resta a **0 per 2-3 finestre
+  consecutive (~20-30s) esattamente a ridosso del cambio verso Bauhaus
+  Morph** (es. 22:27:56→22:28:16, appena prima/durante l'ingresso di
+  FilterPsiche dopo Bauhaus; 22:30:56→22:31:06, appena prima dell'ingresso
+  di Bauhaus). Una volta che il renderer è stabilmente attivo, `rendered`
+  torna a centinaia di frame/finestra (30-60fps) — nessun freeze in
+  steady-state.
+- **Conseguenza diagnostica**: il fallback a catena introdotto ieri
+  (`artworkFor(currentSource) ?? artworkFor(previousSource) ?? ...`) non può
+  aiutare in questo caso specifico, perché al **cold-start di un nuovo layer
+  Bauhaus/Materia la cache è vuota** — non c'è ancora nessuna
+  `previousSource` da cui recuperare. Il fallback protegge solo gli stalli
+  a metà esecuzione, non l'avvio a freddo sotto contesa GPU. Questo conferma
+  (non solo per ipotesi) che il fix giusto è a monte: evitare di *entrare*
+  in Bauhaus/Materia mentre la pressione è reale — esattamente quello che
+  il fix di ieri in `brainRendererSelector.ts` fa, ma che non era ancora
+  live in quella sessione (processo Electron non riavviato dopo il commit).
+- **Sulla domanda "la generazione si becca tutta la GPU?"**: confermato dai
+  log — `generationActiveRatio` è 1 (generazione attiva compattamente,
+  nessuna pausa) per 34 finestre su 45 dell'intera sessione di 7 minuti.
+  Non c'è quasi mai un momento in cui la GPU sia "libera" per definizione,
+  motivando ulteriormente la scelta di *rendering-first scheduling*
+  (renderer come carico prioritario, generazione come opportunistico) invece
+  di puntare a eliminare del tutto la contesa.
+- **Fix**: attivato finalmente il segnale reale (`brainController.ts`, loop
+  `render()`): `resourcePressureActive = now <
+  thermalScheduler.getSnapshot().longFrameBlockedUntil`, propagato a
+  `currentSvg`/`outgoingSvg` via `setResourcePressure()` — stesso segnale già
+  validato per la riduzione step e per evitare Bauhaus/Materia nel
+  selettore. Prima d'ora nessuno chiamava mai questo setter: il sistema di
+  passthrough esisteva ma era completamente inerte.
+- **Mix FilterPsiche+Psycho2D** (`brainRendererHost.ts`): il passthrough
+  durante il denoising non mostra più solo FilterPsiche, ma aggiunge un
+  secondo strato leggero Psycho2D sovrapposto in `mix-blend-mode: lighten`
+  a opacità ridotta (`DENOISING_MIX_OPACITY_FACTOR = 0.6`, un accento, non
+  una sostituzione) — richiesto esplicitamente per l'effetto di movimento
+  che i due renderer danno insieme. Stesso costo quasi nullo del passthrough
+  originale (320×180, fps ridotti); Psycho2D entra solo quando pronto
+  (`isReady()`), senza bloccare FilterPsiche se il suo primo
+  `createImageBitmap` è più lento.
+- Nuovi/aggiornati test in `brainRendererHost.test.ts`: il test di pressione
+  ora verifica anche la creazione del layer Psycho2D; nuovo test dedicato
+  verifica `mixBlendMode: lighten` e opacità Psycho2D < opacità FilterPsiche.
+- Validazione: 53 file / 326 test, typecheck, lint e build Vite verdi.
+
 ## Sotto pressione GPU reale, la storia evita Bauhaus/Materia Morph — 2026-08-19
 
 - Il fallback a catena di ieri (Bauhaus/Materia Morph) non basta da solo: i

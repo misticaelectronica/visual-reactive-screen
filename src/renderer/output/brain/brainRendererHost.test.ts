@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
+import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainRendererId } from '@shared/types'
+import type { BrainRendererPluginContext } from './brainRendererPlugin'
 import { BrainRendererRegistry } from './brainRendererPlugin'
 import { createBrainRendererHost } from './brainRendererHost'
 
@@ -174,15 +176,15 @@ describe('Brain renderer host', () => {
     const registry = new BrainRendererRegistry()
     const updates: number[] = []
     const pressureCalls: boolean[][] = []
-    registry.register({
-      id: 'print2d',
-      label: 'Print2D',
+    const makePlugin = (id: 'print2d' | 'filter-psiche' | 'psycho2d') => ({
+      id,
+      label: id,
       capabilities: {
         multipleImages: false,
         semanticMetadata: false,
         lowPowerMode: true,
       },
-      create(context) {
+      create(context: BrainRendererPluginContext) {
         const instance = updates.length
         updates.push(0)
         pressureCalls.push([])
@@ -195,7 +197,7 @@ describe('Brain renderer host', () => {
           setOpacity() {},
           getMorphShapes: () => [],
           setMorphPattern() {},
-          setResourcePressure(active) {
+          setResourcePressure(active: boolean) {
             pressureCalls[instance].push(active)
           },
           setTransition() {},
@@ -208,6 +210,9 @@ describe('Brain renderer host', () => {
         }
       },
     })
+    registry.register(makePlugin('print2d'))
+    registry.register(makePlugin('filter-psiche'))
+    registry.register(makePlugin('psycho2d'))
     const container = document.createElement('div')
     const raster = new Blob(['raster'])
     const host = createBrainRendererHost(
@@ -245,11 +250,14 @@ describe('Brain renderer host', () => {
 
     host.setResourcePressure(true)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 3_000)
-    // La prima vera pressione crea finalmente il layer di passthrough.
+    // La prima vera pressione crea finalmente i layer di passthrough: sia
+    // FilterPsiche sia Psycho2D (il "mix" richiesto durante il denoising).
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('entering')
     expect(container.querySelector('[data-brain-denoising-filter-psiche="true"]')).not.toBeNull()
-    expect(updates).toHaveLength(2)
+    expect(container.querySelector('[data-brain-denoising-psycho2d="true"]')).not.toBeNull()
+    expect(updates).toHaveLength(3)
     expect(pressureCalls[1]).toContain(true)
+    expect(pressureCalls[2]).toContain(true)
 
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_000)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_100)
@@ -263,6 +271,79 @@ describe('Brain renderer host', () => {
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 11_000)
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('exiting')
+    host.destroy()
+  })
+
+  it('sovrappone Psycho2D a FilterPsiche in "lighten" e a opacità ridotta durante il passthrough', () => {
+    const registry = new BrainRendererRegistry()
+    for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
+      registry.register({
+        id,
+        label: id,
+        capabilities: {
+          multipleImages: false,
+          semanticMetadata: false,
+          lowPowerMode: true,
+        },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update() {},
+            destroy() {
+              element.remove()
+            },
+          }
+        },
+      })
+    }
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'print2d',
+      'print2d',
+    )
+    host.setResourcePressure(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    host.update(
+      { low: 0, lowMid: 0, mid: 0, high: 0 },
+      DEFAULT_SETTINGS,
+      1_000 + BRAIN_CONFIG.denoisingPassthroughCrossfadeMs,
+    )
+    const filterPsicheLayer = container.querySelector(
+      '[data-brain-denoising-filter-psiche="true"]',
+    ) as HTMLElement | null
+    const psycho2dLayer = container.querySelector(
+      '[data-brain-denoising-psycho2d="true"]',
+    ) as HTMLElement | null
+    expect(filterPsicheLayer).not.toBeNull()
+    expect(psycho2dLayer).not.toBeNull()
+    expect(psycho2dLayer?.style.mixBlendMode).toBe('lighten')
+    const filterPsicheOpacity = Number(filterPsicheLayer?.style.opacity)
+    const psycho2dOpacity = Number(psycho2dLayer?.style.opacity)
+    expect(filterPsicheOpacity).toBeGreaterThan(0)
+    expect(psycho2dOpacity).toBeGreaterThan(0)
+    expect(psycho2dOpacity).toBeLessThan(filterPsicheOpacity)
     host.destroy()
   })
 

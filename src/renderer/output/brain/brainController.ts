@@ -1747,6 +1747,15 @@ export function createBrainController(
     )
     currentSvg?.setOpacity(outgoingSvg ? transition : 1)
     outgoingSvg?.setOpacity(1 - transition)
+    // Stesso segnale reale già usato per ridurre gli step di denoising
+    // (`getPressureHint` sotto) e per evitare Bauhaus/Materia Morph nella
+    // storia: finalmente attiva anche il passthrough leggero
+    // FilterPsiche+Psycho2D, rimasto inerte da quando l'euristica precedente
+    // (basata solo sui gap RAF) era stata rimossa dopo un test dal vivo
+    // negativo.
+    const resourcePressureActive = now < thermalScheduler.getSnapshot().longFrameBlockedUntil
+    currentSvg?.setResourcePressure?.(resourcePressureActive)
+    outgoingSvg?.setResourcePressure?.(resourcePressureActive)
     currentSvg?.setTransition(
       transition,
       'enter',
