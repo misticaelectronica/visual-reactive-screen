@@ -1,5 +1,31 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regressione trovata e corretta: mobilità/sensibilità musicale ridotta da resourcePressure troppo esteso — 2026-08-19
+
+- **Segnalato dallo sviluppatore** ("ridotto mobilità e sensibilità
+  musicale") dopo il lavoro di questa sessione sul passthrough
+  FilterPsiche+Psycho2D/flash. **Causa reale trovata nei log**
+  (`resourcePressureRatio` a 1.0 in più finestre consecutive,
+  `session-2026-08-19-18-45-14.txt`/`18-16-01.txt`): il render loop
+  collegava `currentSvg?.setResourcePressure()` (che spegne la ricchezza
+  visiva/morph di QUALUNQUE renderer attivo e attiva il passthrough) alla
+  stessa finestra `longFrameBlockedUntil` usata per il **pacing della
+  prossima generazione** (9-20s di backoff per gap RAF). Con gap RAF
+  frequenti (ogni 10-90s, a volte a raffica), quelle finestre si
+  incatenavano tenendo la pressione "attiva" per tratti lunghi — i
+  renderer restavano degradati per gran parte del tempo, non solo nei
+  rari stalli reali.
+- **Fix**: introdotto un impulso breve e dedicato
+  (`visualPressurePulseUntil`, 2.5s), impostato solo quando
+  `thermalScheduler` segnala davvero un evento `'long-frame'`
+  (`reportThermalEvent`), usato ORA per `setResourcePressure`/passthrough/
+  flash — abbastanza per coprire il momento dello stallo, non per
+  degradare tutto per 9-20s. Le altre due chiamate legittime a
+  `longFrameBlockedUntil` (evitare Bauhaus/Materia/Dream Segmentation
+  nella selezione renderer, ridurre gli step di denoising) restano
+  invariate — non avevano questo effetto collaterale.
+- Validazione: 56 file / 384 test, typecheck, lint e build verdi.
+
 ## Riattivazione: giri multipli, copertura renderer completa; Bauhaus cerchi; Dream Segmentation velo scuro — 2026-08-19
 
 - **Riattivazione — immagini 5-9, giri multipli decrescenti**: sostituito

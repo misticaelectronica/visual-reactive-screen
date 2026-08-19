@@ -572,8 +572,20 @@ export function createBrainController(
   }
 
   let destroyed = false
+  // `longFrameBlockedUntil` (9-20s) serve al pacing della PROSSIMA
+  // generazione, non alla ricchezza visiva del renderer attivo: con gap
+  // RAF frequenti quella finestra resta quasi sempre estesa, e
+  // propagarla a `setResourcePressure` degradava i renderer per la
+  // maggior parte del tempo, non solo durante gli stalli reali
+  // (segnalato dallo sviluppatore: "ridotto mobilità e sensibilità
+  // musicale"). Il passthrough/flash ha bisogno solo di coprire il
+  // momento dello stallo, non l'intera finestra di backoff — un impulso
+  // breve, dedicato, distinto dalla finestra lunga di generazione.
+  const VISUAL_PRESSURE_PULSE_MS = 2_500
+  let visualPressurePulseUntil = 0
   const reportThermalEvent = (event: BrainThermalSchedulerEvent) => {
     if (event.type === 'long-frame') {
+      visualPressurePulseUntil = performance.now() + VISUAL_PRESSURE_PULSE_MS
       brainWarn('thermal', 'gap RAF: estendo la pausa prima della prossima inferenza', event)
       return
     }
@@ -1995,13 +2007,12 @@ export function createBrainController(
     )
     currentSvg?.setOpacity(outgoingSvg ? transition : 1)
     outgoingSvg?.setOpacity(1 - transition)
-    // Stesso segnale reale già usato per ridurre gli step di denoising
-    // (`getPressureHint` sotto) e per evitare Bauhaus/Materia Morph nella
-    // storia: finalmente attiva anche il passthrough leggero
-    // FilterPsiche+Psycho2D, rimasto inerte da quando l'euristica precedente
-    // (basata solo sui gap RAF) era stata rimossa dopo un test dal vivo
-    // negativo.
-    const resourcePressureActive = now < thermalScheduler.getSnapshot().longFrameBlockedUntil
+    // Impulso breve e dedicato (non la finestra lunga di backoff della
+    // generazione, vedi `visualPressurePulseUntil` sopra): attiva il
+    // passthrough leggero FilterPsiche+Psycho2D e il flash solo per
+    // coprire il momento dello stallo, non per degradare la ricchezza
+    // visiva di ogni renderer per 9-20s a ogni gap RAF.
+    const resourcePressureActive = now < visualPressurePulseUntil
     currentSvg?.setResourcePressure?.(resourcePressureActive)
     outgoingSvg?.setResourcePressure?.(resourcePressureActive)
     currentSvg?.setTransition(
