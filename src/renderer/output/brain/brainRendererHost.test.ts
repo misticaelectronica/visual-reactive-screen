@@ -347,6 +347,77 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
+  it('maschera con un breve flash il fronte di salita della pressione risorse reale', () => {
+    const registry = new BrainRendererRegistry()
+    for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
+      registry.register({
+        id,
+        label: id,
+        capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update() {},
+            destroy() {
+              element.remove()
+            },
+          }
+        },
+      })
+    }
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'print2d',
+      'print2d',
+    )
+    const bands = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    host.update(bands, DEFAULT_SETTINGS, 1_000)
+    // Prima della pressione, nessun overlay creato: nessun costo pagato
+    // per qualcosa che quasi sempre non serve.
+    expect(container.querySelector('div[style*="mix-blend-mode: screen"]')).toBeNull()
+
+    host.setResourcePressure(true)
+    host.update(bands, DEFAULT_SETTINGS, 1_000)
+    const overlay = container.querySelector(
+      'div[style*="mix-blend-mode: screen"]',
+    ) as HTMLElement | null
+    expect(overlay).not.toBeNull()
+
+    host.update(bands, DEFAULT_SETTINGS, 1_020)
+    const risingOpacity = Number(overlay?.style.opacity)
+    expect(risingOpacity).toBeGreaterThan(0)
+
+    host.update(bands, DEFAULT_SETTINGS, 1_040)
+    const peakOpacity = Number(overlay?.style.opacity)
+    expect(peakOpacity).toBeGreaterThanOrEqual(risingOpacity)
+
+    host.update(bands, DEFAULT_SETTINGS, 1_500)
+    expect(overlay?.style.opacity).toBe('0')
+    host.destroy()
+  })
+
   it('inoltra audio e flash alla visuale leggera senza aggiornare continuamente il renderer pieno', () => {
     const registry = new BrainRendererRegistry()
     const received: Array<Array<{ low: number; flash: number }>> = []

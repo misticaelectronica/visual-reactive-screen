@@ -15,6 +15,17 @@ import { brainLog, brainWarn } from './brainLog'
 
 const SWITCH_DURATION_MS = 1_800
 const SWITCH_TIMEOUT_MS = 15_000
+// `resourcePressure` diventa vero SOLO dopo che il thermalScheduler ha già
+// rilevato un vero stallo (è reattivo, non predittivo): il salto visivo fra
+// l'ultimo fotogramma fermo di Bauhaus/Materia Morph e il passthrough
+// leggero arriva quindi sempre a stallo già avvenuto. Non eliminabile con
+// uno scheduling più furbo; si maschera con un breve flash — tecnica VJ
+// comune per coprire un taglio tecnico invece di farlo leggere come un
+// glitch. Non è reattività musicale (Check Silenzio): scatta solo sul
+// fronte di salita di una pressione GPU reale rilevata, non su base audio.
+const PRESSURE_FLASH_ATTACK_MS = 40
+const PRESSURE_FLASH_DECAY_MS = 160
+const PRESSURE_FLASH_PEAK_OPACITY = 0.55
 
 type RendererLayer = {
   id: BrainRendererId
@@ -57,6 +68,29 @@ export function createBrainRendererHost(
   let transitionRole: 'enter' | 'exit' = 'enter'
   let switchStartedAt: number | null = null
   const retryRendererAfter = new Map<BrainRendererId, number>()
+
+  let pressureFlashOverlay: HTMLDivElement | null = null
+  let pressureFlashStartedAt: number | null = null
+  // `setResourcePressure` non riceve il tempo di `update()`: il fronte di
+  // salita si registra qui e l'orologio del flash parte al successivo
+  // `update()`, restando nello stesso dominio temporale di `time` (RAF).
+  let pressureFlashArmed = false
+  const ensurePressureFlashOverlay = (): HTMLDivElement => {
+    if (!pressureFlashOverlay) {
+      pressureFlashOverlay = document.createElement('div')
+      Object.assign(pressureFlashOverlay.style, {
+        position: 'absolute',
+        inset: '0',
+        opacity: '0',
+        pointerEvents: 'none',
+        backgroundColor: '#ffffff',
+        mixBlendMode: 'screen',
+        zIndex: '3',
+      })
+      root.appendChild(pressureFlashOverlay)
+    }
+    return pressureFlashOverlay
+  }
 
   const createLayer = (id: BrainRendererId, now: number): RendererLayer => {
     const plugin = registry.get(id) ?? registry.get('print2d')
@@ -175,6 +209,10 @@ export function createBrainRendererHost(
     setResourcePressure(activePressure) {
       if (resourcePressure === activePressure) return
       resourcePressure = activePressure
+      if (activePressure) {
+        ensurePressureFlashOverlay()
+        pressureFlashArmed = true
+      }
       active.controller.setResourcePressure(activePressure)
       incoming?.controller.setResourcePressure(activePressure)
     },
@@ -200,6 +238,23 @@ export function createBrainRendererHost(
       flash?: BrainFlashState,
     ) {
       if (destroyed) return
+      if (pressureFlashArmed) {
+        pressureFlashArmed = false
+        pressureFlashStartedAt = time
+      }
+      if (pressureFlashStartedAt !== null) {
+        const elapsed = time - pressureFlashStartedAt
+        const totalMs = PRESSURE_FLASH_ATTACK_MS + PRESSURE_FLASH_DECAY_MS
+        if (elapsed >= totalMs) {
+          pressureFlashStartedAt = null
+          if (pressureFlashOverlay) pressureFlashOverlay.style.opacity = '0'
+        } else if (pressureFlashOverlay) {
+          const intensity = elapsed < PRESSURE_FLASH_ATTACK_MS
+            ? elapsed / PRESSURE_FLASH_ATTACK_MS
+            : 1 - (elapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
+          pressureFlashOverlay.style.opacity = String(clamp(intensity) * PRESSURE_FLASH_PEAK_OPACITY)
+        }
+      }
       if (resourcePressure && BRAIN_CONFIG.lightweightDenoisingRender) {
         const passthrough = ensureDenoisingFilterPsiche(time)
         const mix = ensureDenoisingPsycho2d(time)
@@ -359,6 +414,7 @@ export function createBrainRendererHost(
       destroyLayer(active)
       destroyLayer(denoisingFilterPsiche)
       destroyLayer(denoisingPsycho2d)
+      pressureFlashOverlay = null
       incoming = null
       root.remove()
     },
