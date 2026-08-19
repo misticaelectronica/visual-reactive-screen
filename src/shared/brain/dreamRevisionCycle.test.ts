@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  REVISION_CYCLE_MAX_IMAGES,
   REVISION_CYCLE_MAX_STORIES,
+  REVISION_CYCLE_MIN_IMAGES,
   REVISION_CYCLE_MIN_STORIES,
   combineRevisionTag,
+  computeRevisionLapDurationMs,
   deriveBioenergeticState,
   deriveOneiricPhase,
   pickRevisionEntries,
+  pickRevisionImageCount,
   pickStoriesUntilNextRevisionCycle,
   pruneArchiveEntriesForTag,
   selectRevisionPool,
@@ -74,6 +78,27 @@ describe('pickStoriesUntilNextRevisionCycle', () => {
       expect(value).toBeGreaterThanOrEqual(REVISION_CYCLE_MIN_STORIES)
       expect(value).toBeLessThanOrEqual(REVISION_CYCLE_MAX_STORIES)
     }
+  })
+})
+
+describe('pickRevisionImageCount', () => {
+  it('resta sempre nel range [5,9]', () => {
+    for (let index = 0; index < 50; index += 1) {
+      const value = pickRevisionImageCount(() => index / 50)
+      expect(value).toBeGreaterThanOrEqual(REVISION_CYCLE_MIN_IMAGES)
+      expect(value).toBeLessThanOrEqual(REVISION_CYCLE_MAX_IMAGES)
+    }
+  })
+})
+
+describe('computeRevisionLapDurationMs', () => {
+  it('il primo giro dura il 30% in meno del normale', () => {
+    expect(computeRevisionLapDurationMs(10_000, 0)).toBe(7_000)
+  })
+
+  it('dal secondo giro in poi dura il 50% in meno del normale', () => {
+    expect(computeRevisionLapDurationMs(10_000, 1)).toBe(5_000)
+    expect(computeRevisionLapDurationMs(10_000, 2)).toBe(5_000)
   })
 })
 

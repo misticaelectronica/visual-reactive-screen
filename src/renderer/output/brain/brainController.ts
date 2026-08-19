@@ -7,11 +7,13 @@ import type {
   PsychedelScene,
 } from '@shared/brain/brainTypes'
 import {
-  REVISION_CYCLE_IMAGE_COUNT,
+  REVISION_CYCLE_LAPS,
   combineRevisionTag,
+  computeRevisionLapDurationMs,
   deriveBioenergeticState,
   deriveOneiricPhase,
   pickRevisionEntries,
+  pickRevisionImageCount,
   pickStoriesUntilNextRevisionCycle,
   selectRevisionPool,
   type DreamImageArchiveEntry,
@@ -1224,27 +1226,46 @@ export function createBrainController(
     palette: DreamStory['palette'],
   ): BrainProduction | null => {
     const storyId = `revision:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`
+    const usable = loaded.filter((image) => entriesByFileName.has(image.fileName))
+    if (usable.length === 0) return null
+    const baseDurationMs = getBrainRenderingConfig().timing.frameDurationMs
+    const shuffleImages = <T,>(list: readonly T[]): T[] => {
+      const copy = [...list]
+      for (let index = copy.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1))
+        ;[copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]
+      }
+      return copy
+    }
     const frames: DreamFrame[] = []
     const scenes: PsychedelScene[] = []
-    loaded.forEach((image, index) => {
-      const entry = entriesByFileName.get(image.fileName)
-      if (!entry) return
-      const frameId = `${storyId}-${index}`
-      frames.push({
-        id: frameId,
-        title: entry.title || 'Eco',
-        description: entry.title || '',
-        visualIntent: '',
-        energy: entry.energy,
-        durationMs: getBrainRenderingConfig().timing.frameDurationMs,
+    // Le immagini scelte non passano una volta sola: girano per
+    // REVISION_CYCLE_LAPS giri, ciascuno più breve del precedente (un
+    // ricordo richiamato ripetutamente si consuma più in fretta) — ordine
+    // rimescolato a ogni giro per varietà.
+    for (let lap = 0; lap < REVISION_CYCLE_LAPS; lap += 1) {
+      const order = shuffleImages(usable)
+      const lapDurationMs = computeRevisionLapDurationMs(baseDurationMs, lap)
+      order.forEach((image, index) => {
+        const entry = entriesByFileName.get(image.fileName)
+        if (!entry) return
+        const frameId = `${storyId}-lap${lap}-${index}`
+        frames.push({
+          id: frameId,
+          title: entry.title || 'Eco',
+          description: entry.title || '',
+          visualIntent: '',
+          energy: entry.energy,
+          durationMs: lapDurationMs,
+        })
+        scenes.push({
+          frameId,
+          description: entry.title || '',
+          svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+          raster: new Blob([new Uint8Array(image.bytes)], { type: 'image/webp' }),
+        })
       })
-      scenes.push({
-        frameId,
-        description: entry.title || '',
-        svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
-        raster: new Blob([new Uint8Array(image.bytes)], { type: 'image/webp' }),
-      })
-    })
+    }
     if (frames.length === 0) return null
     const story: DreamStory = {
       id: storyId,
@@ -1283,7 +1304,7 @@ export function createBrainController(
       startProduction(realNextProduction, beatDurationMs, beatIndex)
       return
     }
-    const chosen = pickRevisionEntries(pool.entries, REVISION_CYCLE_IMAGE_COUNT)
+    const chosen = pickRevisionEntries(pool.entries, pickRevisionImageCount())
     const loaded = await api.loadDreamImages(chosen.map((entry) => entry.fileName))
       .catch(() => [])
     if (destroyed) return
@@ -1302,7 +1323,7 @@ export function createBrainController(
     revisionCycleActive = true
     root.dataset.revisionCycleActive = 'true'
     revisionCycleActiveUntil = performance.now() +
-      revisionProduction.story.frames.length * getBrainRenderingConfig().timing.frameDurationMs
+      revisionProduction.story.frames.reduce((total, frame) => total + frame.durationMs, 0)
     setBrainRevisionBoost(true)
     brainLog('pipeline', 'riattivazione iniziata', {
       tag: pool.tagUsed,

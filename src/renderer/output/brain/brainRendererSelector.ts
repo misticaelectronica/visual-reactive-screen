@@ -103,9 +103,12 @@ export class BrainRendererSelector {
   }
 
   private storyCycleIds(): BrainRendererId[] {
-    const enabled = this.availableIds.filter(
-      (id) => !STORY_CYCLE_EXCLUDED_RENDERERS.has(id),
-    )
+    // Print2D è escluso dalla rotazione story-cycle normale, ma durante
+    // la Riattivazione (PIANO-034) deve girare — è l'unico momento in cui
+    // compare, per costruzione, non per eccezione occasionale.
+    const boosted = this.getBoostHint?.() ?? false
+    const excluded = boosted ? AUTOMATICALLY_EXCLUDED_RENDERERS : STORY_CYCLE_EXCLUDED_RENDERERS
+    const enabled = this.availableIds.filter((id) => !excluded.has(id))
     const base = enabled.length > 0 ? enabled : this.automaticIds()
     if (!this.getPressureHint?.()) return base
     const light = base.filter((id) => !HEAVY_RENDERERS_UNDER_PRESSURE.has(id))
@@ -216,7 +219,14 @@ export class BrainRendererSelector {
       this.storyHoldRemaining -= 1
       return false
     }
-    if (this.storyDeckIndex >= this.storyDeck.length - 1) return false
+    if (this.storyDeckIndex >= this.storyDeck.length - 1) {
+      if (!this.getBoostHint?.()) return false
+      // Riattivazione: la storia sintetica dura molto più a lungo di una
+      // storia normale (fino a 3 giri delle immagini scelte) — il mazzo
+      // si rifornisce da solo invece di fermarsi sull'ultimo renderer,
+      // così l'alternanza continua per l'intera durata.
+      this.storyDeck = [...this.storyDeck, ...this.shuffled(this.storyCycleIds())]
+    }
     this.storyDeckIndex += 1
     this.activeId = this.storyDeck[this.storyDeckIndex]
     this.storyHoldRemaining = this.storyHoldForActive()

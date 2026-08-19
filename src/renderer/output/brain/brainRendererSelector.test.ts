@@ -28,6 +28,52 @@ describe('selectBrainRendererHoldFrames — boost del Ciclo di Revisione', () =>
   })
 })
 
+describe('BrainRendererSelector — Riattivazione (boost)', () => {
+  const ids = ['print2d', 'filter-psiche', 'vector-morph', 'psycho2d', 'bauhaus-morph'] as const
+
+  it('senza boost Print2D non compare mai nella storia', () => {
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random, () => false, () => false)
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const visited = new Set([selector.resolve(settings, 0)])
+    for (let frame = 1; frame < 4; frame += 1) {
+      selector.advanceStoryRenderer('story-1', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    expect(visited.has('print2d')).toBe(false)
+  })
+
+  it('con boost (Riattivazione) tutti i renderer compaiono, incluso Print2D, anche su una storia lunga', () => {
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random, () => false, () => true)
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const visited = new Set([selector.resolve(settings, 0)])
+    // Storia lunga come una Riattivazione reale (fino a 9 immagini × 3 giri).
+    for (let frame = 1; frame < 25; frame += 1) {
+      selector.advanceStoryRenderer('story-1', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    for (const id of ids) expect(visited.has(id)).toBe(true)
+  })
+
+  it('con boost il mazzo si rifornisce da solo invece di fermarsi sull\'ultimo renderer', () => {
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random, () => false, () => true)
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    let changes = 0
+    let previous = selector.resolve(settings, 0)
+    for (let frame = 1; frame < 25; frame += 1) {
+      selector.advanceStoryRenderer('story-1', settings, frame)
+      const current = selector.resolve(settings, frame)
+      if (current !== previous) changes += 1
+      previous = current
+    }
+    // Con hold [1,2] su 24 avanzamenti ci si aspettano molti cambi, non
+    // un mazzo che si esaurisce dopo i primi ~5 renderer.
+    expect(changes).toBeGreaterThan(ids.length)
+  })
+})
+
 describe('Brain renderer selector', () => {
   it('applica immediatamente la selezione manuale', () => {
     const selector = new BrainRendererSelector(['print2d', 'psycho2d'])

@@ -1,5 +1,42 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Riattivazione: giri multipli, copertura renderer completa; Bauhaus cerchi; Dream Segmentation velo scuro — 2026-08-19
+
+- **Riattivazione — immagini 5-9, giri multipli decrescenti**: sostituito
+  il numero fisso (10) con `pickRevisionImageCount()` (casuale 5-9). Le
+  immagini scelte non passano più una volta sola: girano per
+  `REVISION_CYCLE_LAPS = 3` giri, ciascuno rimescolato per varietà, con
+  durata per fotogramma decrescente (`computeRevisionLapDurationMs`):
+  primo giro -30%, dal secondo in poi -50% — un ricordo richiamato
+  ripetutamente si consuma più in fretta, non si dilata. `buildRevisionProduction`
+  ora costruisce i fotogrammi ripetendo il set scelto invece di usarlo una
+  sola volta; `revisionCycleActiveUntil` somma le durate reali (non più
+  frameCount × durata fissa).
+- **Copertura completa dei renderer + Print2D esclusivo**: durante la
+  Riattivazione (`getBoostHint` sul selettore) `storyCycleIds()` include
+  ora anche Print2D, bypassando `STORY_CYCLE_EXCLUDED_RENDERERS` — Print2D
+  compare *soltanto* durante la Riattivazione, mai nella rotazione
+  normale. Il mazzo di storia (`advanceStoryRenderer`) si rifornisce da
+  solo con una nuova mescolata quando si esaurisce, invece di fermarsi
+  sull'ultimo renderer per il resto della storia sintetica (molto più
+  lunga di una storia normale, fino a 27 fotogrammi) — garantisce per
+  costruzione che tutti i renderer disponibili vengano visti almeno una
+  volta.
+- **Dream Segmentation ancora debole**: aggiunto un velo scuro
+  (`drawDarkeningVeil`, `multiply`) sotto ogni membrana, prima del blend
+  `lighter` — senza, il colore additivo si perdeva contro le zone chiare
+  del raster. Il raster resta sempre visibile sotto (Check Materia), solo
+  scurito localmente per dare contrasto alla membrana sopra.
+- **Bauhaus Morph esteso**: nuovo motivo a cerchi concentrici attorno al
+  piano focale, riferimento diretto a Kandinsky ("Several Circles") e
+  alle forme annidate di Albers — locale (non tocca la camera, Check
+  Camera), rivelato con l'astrazione, reattivo al beat non a un orologio
+  autonomo (Check Silenzio/Beatmatch).
+- Nuovi test: `pickRevisionImageCount`/`computeRevisionLapDurationMs`
+  (`dreamRevisionCycle.test.ts`), copertura completa/rifornimento mazzo/
+  esclusività Print2D (`brainRendererSelector.test.ts`).
+- Validazione: 56 file / 384 test, typecheck, lint e build verdi.
+
 ## Riattivazione visibile, Bauhaus/Dream Segmentation più presenti — 2026-08-19
 
 - **Verificato dai log** (`session-2026-08-19-17-50-43.txt`) che il fix del

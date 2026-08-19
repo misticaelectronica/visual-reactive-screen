@@ -644,6 +644,39 @@ export function createBrainBauhausMorphScene(
         )
       })
 
+      // Cerchi concentrici attorno al piano focale — riferimento diretto a
+      // Kandinsky ("Several Circles") e alle forme annidate di Albers:
+      // estende il vocabolario di Bauhaus Morph oltre piani/linee/spazi
+      // negativi già esistenti, restando un motivo locale (Check Camera:
+      // non tocca la camera, solo l'area del piano focale) e reattivo al
+      // beat, non a un orologio autonomo (Check Silenzio/Beatmatch).
+      const focalPlane = activeComposition.planes.find((plane) => plane.focal)
+      if (focalPlane && !resourcePressure) {
+        const ringReveal = smoothstep((abstractionProgress - 0.3) / 0.5)
+        if (ringReveal > 0.001) {
+          const centerX = focalPlane.centerX * width
+          const centerY = focalPlane.centerY * height
+          const baseRadius = Math.max(focalPlane.width * width, focalPlane.height * height) * 0.5
+          const ringCount = settings.lowPowerMode ? 2 : 4
+          drawingContext.globalCompositeOperation = 'screen'
+          for (let ring = 0; ring < ringCount; ring += 1) {
+            const spread = 1 + ring * (0.55 + motion.surface * 0.12)
+            const radius = baseRadius * spread * (1 + motion.beat * 0.03)
+            if (radius <= 1) continue
+            drawingContext.beginPath()
+            drawingContext.arc(centerX, centerY, radius, 0, Math.PI * 2)
+            drawingContext.strokeStyle =
+              activeComposition.palette[(ring + 1) % activeComposition.palette.length] ?? '#eee7d8'
+            drawingContext.lineWidth = (1.1 + motion.beat * 1.4) * (1 - ring * 0.12)
+            drawingContext.globalAlpha = clamp(
+              ringReveal * (0.32 - ring * 0.05) + motion.beat * 0.08,
+            )
+            drawingContext.stroke()
+          }
+          drawingContext.globalCompositeOperation = 'source-over'
+        }
+      }
+
       const matchKey = `${from.source.id}->${to.source.id}`
       let matches = matchCache.get(matchKey)
       if (!matches) {

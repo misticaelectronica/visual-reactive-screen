@@ -13,9 +13,16 @@ export type BioenergeticState = 'tensione' | 'rilascio' | 'quiete'
 
 export const REVISION_CYCLE_MIN_STORIES = 2
 export const REVISION_CYCLE_MAX_STORIES = 4
-export const REVISION_CYCLE_IMAGE_COUNT = 10
+export const REVISION_CYCLE_MIN_IMAGES = 5
+export const REVISION_CYCLE_MAX_IMAGES = 9
 export const REVISION_CYCLE_ARCHIVE_CAP_PER_TAG = 24
 export const REVISION_CYCLE_BOOST_MULTIPLIER = 1.35
+// Le immagini scelte non passano una volta sola: girano più volte
+// ("giri"/lap), ciascuno più breve del precedente — un ricordo richiamato
+// ripetutamente si consuma più in fretta, non si dilata.
+export const REVISION_CYCLE_LAPS = 3
+export const REVISION_CYCLE_FIRST_LAP_DURATION_FACTOR = 0.7
+export const REVISION_CYCLE_LATER_LAP_DURATION_FACTOR = 0.5
 
 export type DreamImageArchiveEntry = {
   fileName: string
@@ -75,6 +82,24 @@ export function pickStoriesUntilNextRevisionCycle(random: () => number = Math.ra
   const span = REVISION_CYCLE_MAX_STORIES - REVISION_CYCLE_MIN_STORIES + 1
   return REVISION_CYCLE_MIN_STORIES +
     Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
+}
+
+export function pickRevisionImageCount(random: () => number = Math.random): number {
+  const span = REVISION_CYCLE_MAX_IMAGES - REVISION_CYCLE_MIN_IMAGES + 1
+  return REVISION_CYCLE_MIN_IMAGES +
+    Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
+}
+
+/**
+ * Durata di un fotogramma al giro `lapIndex` (0 = primo giro): -30% al
+ * primo giro, -50% dal secondo in poi — un ricordo che ritorna già una
+ * volta si consuma più in fretta la volta successiva.
+ */
+export function computeRevisionLapDurationMs(baseDurationMs: number, lapIndex: number): number {
+  const factor = lapIndex <= 0
+    ? REVISION_CYCLE_FIRST_LAP_DURATION_FACTOR
+    : REVISION_CYCLE_LATER_LAP_DURATION_FACTOR
+  return Math.max(1, Math.round(baseDurationMs * factor))
 }
 
 /**

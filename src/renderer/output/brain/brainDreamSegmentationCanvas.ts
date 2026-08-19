@@ -437,6 +437,29 @@ function focalRegionOf(field: CachedDreamField | null): MaterialRegion | null {
   return field.field.regions.find((region) => region.id === field.field.focalRegionId) ?? null
 }
 
+// Un velo scuro sotto la membrana (in 'multiply', prima del 'lighter')
+// affossa localmente il raster: senza, il colore additivo della membrana
+// si perde contro le zone chiare dell'immagine e resta poco leggibile
+// (segnalato dallo sviluppatore) — con il velo il contrasto regge anche
+// su fondali chiari, senza sostituire il raster (Check Materia: resta
+// sempre visibile sotto, solo scurito localmente).
+function drawDarkeningVeil(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  opacity: number,
+): void {
+  if (radius <= 0.5 || opacity <= 0.002) return
+  const gradient = context.createRadialGradient(x, y, 0, x, y, radius)
+  gradient.addColorStop(0, `rgba(0,0,0,${opacity})`)
+  gradient.addColorStop(1, 'rgba(0,0,0,0)')
+  context.fillStyle = gradient
+  context.beginPath()
+  context.arc(x, y, radius, 0, Math.PI * 2)
+  context.fill()
+}
+
 function drawMembrane(
   context: CanvasRenderingContext2D,
   x: number,
@@ -854,6 +877,9 @@ export function createBrainDreamSegmentationScene(
           const radius = Math.sqrt(blend.areaRatio) * width * 0.62 * scale
           const x = blend.centroidX * width
           const y = blend.centroidY * height
+          context.globalCompositeOperation = 'multiply'
+          drawDarkeningVeil(context, x, y, radius * 1.1, 0.4 + motion.tension * 0.12)
+          context.globalCompositeOperation = 'lighter'
           drawMembrane(context, x, y, radius, blend.color, 0.42 + motion.tension * 0.3)
           filamentNodes.push({ x, y, color: blend.color, salience: to.salience })
         }
@@ -898,6 +924,9 @@ export function createBrainDreamSegmentationScene(
           const x = region.centroidX * width
           const y = region.centroidY * height
           const radius = Math.sqrt(region.areaRatio) * width * 0.62 * scale
+          context.globalCompositeOperation = 'multiply'
+          drawDarkeningVeil(context, x, y, radius * 1.1, 0.4 + motion.tension * 0.12)
+          context.globalCompositeOperation = 'lighter'
           drawMembrane(context, x, y, radius, region.averageColor, 0.42 + motion.tension * 0.3)
           filamentNodes.push({ x, y, color: region.averageColor, salience: region.salience })
         }
