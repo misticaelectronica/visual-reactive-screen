@@ -39,7 +39,13 @@ il presente. Diventa memoria soltanto presso uno dei confini significativi.
 
 Ogni ricordo deve distinguere chiaramente:
 
-- **Percepito**: dati o eventi realmente ricevuti.
+- **Percepito**: descrizione qualitativa/concettuale di un evento realmente
+  ricevuto (quale differenza è emersa, quale relazione, quale banda o
+  qualità ha dominato) — mai il dato sensoriale grezzo. Un numero di banda
+  audio, un valore di luminosità o un colore esadecimale non sono un
+  ricordo: sono la misura che ha originato una percezione. "Percepito"
+  descrive *cosa* è stato notato, non registra la lettura dello strumento
+  che lo ha notato.
 - **Interpretazione**: significato attribuito da Coscienza Onirica.
 - **Immaginazione**: contenuto generato, sognato o narrato.
 - **Motivo del ricordo**: perché questo momento merita di restare.

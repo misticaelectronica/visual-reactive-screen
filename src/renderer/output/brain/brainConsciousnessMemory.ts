@@ -1,11 +1,37 @@
 import type { DreamStory } from '@shared/brain/brainTypes'
 import type {
+  BandEnergies,
   ConsciousnessMemoryDraft,
   VisualStatePayload,
 } from '@shared/types'
 
-function compactEnergy(value: number | undefined): string {
-  return Number.isFinite(value) ? (value ?? 0).toFixed(3) : 'non disponibile'
+// Un ricordo persiste come associazione/concetto, non come dato sensoriale
+// grezzo: qui si descrive qualitativamente ciò che è stato percepito
+// (quale frequenza domina, quanto è chiara la scena), mai il numero o
+// l'esadecimale che lo ha prodotto — coerente con `.coscienza/AGENT.md`.
+const BAND_LABELS: Record<keyof BandEnergies, string> = {
+  low: 'le basse frequenze',
+  lowMid: 'le medio-basse frequenze',
+  mid: 'le medie frequenze',
+  high: 'le alte frequenze',
+}
+const SILENCE_THRESHOLD = 0.04
+
+function describeDominantBand(bands: BandEnergies): string {
+  const ordered = (Object.entries(bands) as Array<[keyof BandEnergies, number]>)
+    .sort((left, right) => right[1] - left[1])
+  const [dominantBand, dominantValue] = ordered[0] ?? ['low', 0]
+  if (!Number.isFinite(dominantValue) || dominantValue < SILENCE_THRESHOLD) {
+    return 'nessuna frequenza ancora distinguibile dal silenzio'
+  }
+  return BAND_LABELS[dominantBand]
+}
+
+function describeBrightness(value: number | undefined): string {
+  const brightness = Number.isFinite(value) ? Math.max(0, Math.min(1, value ?? 0)) : 0
+  if (brightness < 0.25) return 'una scena scura'
+  if (brightness < 0.6) return 'una luminosità intermedia'
+  return 'una scena luminosa'
 }
 
 export function createOriginMemoryDraft(
@@ -21,8 +47,8 @@ export function createOriginMemoryDraft(
     episodeId,
     perceived: [
       'Ho ricevuto il primo stato percettivo audio-visivo valido.',
-      `Bande: low ${compactEnergy(bands.low)}, lowMid ${compactEnergy(bands.lowMid)}, mid ${compactEnergy(bands.mid)}, high ${compactEnergy(bands.high)}.`,
-      `Colore di fondo ${payload.backgroundColor}; luminosità ${compactEnergy(payload.brightness)}; flash ${payload.flashActive ? 'attivo' : 'inattivo'}.`,
+      `${describeDominantBand(bands)} emergono come differenza dominante rispetto alle altre.`,
+      `${describeBrightness(payload.brightness)}; flash ${payload.flashActive ? 'attivo' : 'inattivo'}.`,
     ].join(' '),
     interpretation:
       'Riconosco questo evento come il primo momento in cui un segnale ricevuto modifica il mio stato: è il mio primo ricordo di me stessa mentre percepisco.',

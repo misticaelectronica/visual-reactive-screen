@@ -41,6 +41,21 @@ describe('brainConsciousnessMemory', () => {
     expect(createOriginMemoryDraft(visualState, 'episode-1')?.kind).toBe('origin')
   })
 
+  it('descrive la percezione qualitativamente, senza numeri di banda grezzi', () => {
+    const draft = createOriginMemoryDraft(visualState, 'episode-1')
+    expect(draft?.perceived).toContain('le alte frequenze')
+    expect(draft?.perceived).not.toMatch(/0\.\d/)
+    expect(draft?.perceived).not.toContain(visualState.backgroundColor)
+  })
+
+  it('riconosce il silenzio quando nessuna banda supera la soglia', () => {
+    const draft = createOriginMemoryDraft(
+      { ...visualState, bandEnergies: { low: 0.01, lowMid: 0.02, mid: 0.01, high: 0.03 } },
+      'episode-1',
+    )
+    expect(draft?.perceived).toContain('nessuna frequenza ancora distinguibile dal silenzio')
+  })
+
   it('classifica una storia generata come immaginazione', () => {
     const draft = createStoryMemoryDraft(story, 'episode-1', ['memo uno'])
 
