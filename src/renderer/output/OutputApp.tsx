@@ -299,6 +299,7 @@ export function OutputApp() {
   const [msgCount, setMsgCount] = useState(0)
   const [lastColor, setLastColor] = useState<string>('—')
   const [activeRendererLabel, setActiveRendererLabel] = useState<string>('—')
+  const [revisionCycleActive, setRevisionCycleActive] = useState(false)
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -312,10 +313,17 @@ export function OutputApp() {
             ? BRAIN_RENDERER_LABELS[brainRendererId] ?? brainRendererId
             : 'Brain',
         )
+        setRevisionCycleActive(
+          rootRef.current
+            ?.querySelector<HTMLElement>('[data-revision-cycle-active]')
+            ?.dataset.revisionCycleActive === 'true',
+        )
       } else if (algo) {
         setActiveRendererLabel(MORPHING_ALGO_LABELS[algo] ?? algo)
+        setRevisionCycleActive(false)
       } else {
         setActiveRendererLabel('—')
+        setRevisionCycleActive(false)
       }
     }, 250)
     return () => window.clearInterval(id)
@@ -711,9 +719,16 @@ export function OutputApp() {
           padding: '4px 8px',
           borderRadius: 4,
           pointerEvents: 'none',
+          lineHeight: 1.5,
         }}
       >
         {activeRendererLabel}
+        {revisionCycleActive && (
+          <>
+            <br />
+            <span style={{ color: '#ffa53d' }}>Riattivazione attiva</span>
+          </>
+        )}
       </div>
     </div>
   )

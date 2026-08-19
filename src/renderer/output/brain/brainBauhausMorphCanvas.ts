@@ -65,9 +65,9 @@ function smoothstep(value: number): number {
 // reveal (0 → UNDERLAY_REVEAL_PHASE_END) e scende verso il pavimento solo
 // dopo. Il soffitto stesso è basso: le forme devono dominare la scena, non
 // l'immagine sottostante.
-const UNDERLAY_CEILING = 0.35
+const UNDERLAY_CEILING = 0.24
 const UNDERLAY_FLOOR = 0.08
-const UNDERLAY_REVEAL_PHASE_END = 0.6
+const UNDERLAY_REVEAL_PHASE_END = 0.4
 const UNDERLAY_BEAT_MODULATION = 0.04
 
 export function computeBauhausUnderlayOpacity(
@@ -281,7 +281,7 @@ export function advanceBauhausAbstraction(
   }
   const delta = clamp(rhythm.musicalPosition - previousMusicalPosition, 0, 0.16)
   return clamp(
-    progress + delta * (0.024 + motion.surface * 0.022 + motion.beat * 0.014),
+    progress + delta * (0.05 + motion.surface * 0.035 + motion.beat * 0.02),
   )
 }
 
@@ -668,7 +668,7 @@ export function createBrainBauhausMorphScene(
         drawingContext.save()
         planePath(drawingContext, plane, width, height, scale, offsetX, offsetY)
         drawingContext.globalCompositeOperation = index % 4 === 0 ? 'multiply' : 'source-over'
-        drawingContext.globalAlpha = clamp(local * (0.42 + plane.salience * 0.35 + motion.beat * 0.12))
+        drawingContext.globalAlpha = clamp(local * (0.55 + plane.salience * 0.35 + motion.beat * 0.12))
         drawingContext.fillStyle = plane.color
         drawingContext.fill()
         const sourceRegionId = transition >= 0.5

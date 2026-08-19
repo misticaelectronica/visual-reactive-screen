@@ -1,5 +1,44 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Riattivazione visibile, Bauhaus/Dream Segmentation più presenti — 2026-08-19
+
+- **Verificato dai log** (`session-2026-08-19-17-50-43.txt`) che il fix del
+  doppio innesco ha funzionato: un solo "riattivazione iniziata" (allora
+  ancora chiamata "riconsolidamento"), 10 immagini, nessun doppione. La
+  sessione è stata chiusa ~113s dopo (durata prevista 140s) prima della
+  conclusione naturale — non un bug, solo l'app chiusa a metà ciclo.
+  Spiega perché lo sviluppatore non l'aveva mai notato: gira correttamente
+  ma non c'era alcun segnale visibile.
+- **Rinominato "Ciclo di Revisione"/"Riconsolidamento" → "Riattivazione"**
+  (titolo storia sintetica, log `pipeline`): "riconsolidamento" in
+  italiano è un termine di uso corrente in ambito aziendale/finanziario
+  (consolidamento debiti), fuorviante. "Riattivazione" è comunque preciso
+  a livello neuroscientifico (riattivazione di un ricordo durante una
+  fase offline) senza l'ambiguità lessicale.
+- **Etichetta visibile implementata** (era rimasta solo pianificata nel
+  turno precedente): `brainController.ts` imposta
+  `root.dataset.revisionCycleActive` nei due punti dove il ciclo
+  inizia/finisce; `OutputApp.tsx` lo legge nello stesso polling già
+  usato per il nome del renderer e mostra una seconda riga arancione
+  "Riattivazione attiva" nell'etichetta di debug in basso a destra,
+  visibile solo quando il ciclo è davvero in corso.
+- **Bauhaus Morph troppo debole** (segnalato dallo sviluppatore): la
+  velocità di avanzamento dell'astrazione era troppo lenta rispetto alla
+  durata tipica di visione — per la maggior parte del tempo lo sfondo
+  restava al soffitto (0.35) e le forme non avevano ancora raggiunto la
+  soglia di rivelazione. Aumentata la velocità di avanzamento (~2×),
+  abbassato il soffitto dello sfondo (0.35→0.24) e anticipata la fase di
+  dissolvenza (0.6→0.4 di progresso astrazione), alzata l'opacità di base
+  delle forme (0.42→0.55).
+- **Dream Segmentation troppo debole** (segnalato dallo sviluppatore):
+  opacità di membrane/filamenti e ampiezza della respirazione erano
+  tarate troppo basse fin dall'implementazione iniziale. Raddoppiata
+  l'opacità delle membrane (~0.2→~0.42 base), aumentato il raggio
+  (0.5→0.62), aumentata l'ampiezza di respirazione (fino a 3× sul termine
+  di attività) e l'opacità dei filamenti.
+- Validazione: 56 file / 378 test (2 test aggiornati per le nuove
+  costanti Bauhaus), typecheck, lint e build verdi.
+
 ## Fix dal vivo: doppio innesco Riconsolidamento, Vector Morph bloccato, rinomina — 2026-08-19
 
 - **Verificato dai log** (`log/session-2026-08-19-17-25-13.txt`) che

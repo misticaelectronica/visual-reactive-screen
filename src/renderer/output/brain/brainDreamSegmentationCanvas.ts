@@ -345,8 +345,8 @@ export function computeRegionBreathing(
   // in silenzio (activity=beat=0) resta 1 qualunque sia la pressione, non
   // introduce mai movimento autonomo.
   const breathing = (
-    motion.activity * 0.05 +
-    motion.beat * (0.02 + region.salience * 0.03)
+    motion.activity * 0.14 +
+    motion.beat * (0.06 + region.salience * 0.09)
   ) * clamp(pressureBias, 0, 1)
   return 1 + breathing
 }
@@ -851,10 +851,10 @@ export function createBrainDreamSegmentationScene(
           if (!from || !to) continue
           const blend = computeCondensationBlend(from, to, transformState.localProgress)
           const scale = computeRegionBreathing(to, motion, pressureBias)
-          const radius = Math.sqrt(blend.areaRatio) * width * 0.5 * scale
+          const radius = Math.sqrt(blend.areaRatio) * width * 0.62 * scale
           const x = blend.centroidX * width
           const y = blend.centroidY * height
-          drawMembrane(context, x, y, radius, blend.color, 0.22 + motion.tension * 0.16)
+          drawMembrane(context, x, y, radius, blend.color, 0.42 + motion.tension * 0.3)
           filamentNodes.push({ x, y, color: blend.color, salience: to.salience })
         }
         for (const pair of condensationPairs) {
@@ -897,8 +897,8 @@ export function createBrainDreamSegmentationScene(
           const scale = computeRegionBreathing(region, motion, pressureBias)
           const x = region.centroidX * width
           const y = region.centroidY * height
-          const radius = Math.sqrt(region.areaRatio) * width * 0.5 * scale
-          drawMembrane(context, x, y, radius, region.averageColor, 0.2 + motion.tension * 0.14)
+          const radius = Math.sqrt(region.areaRatio) * width * 0.62 * scale
+          drawMembrane(context, x, y, radius, region.averageColor, 0.42 + motion.tension * 0.3)
           filamentNodes.push({ x, y, color: region.averageColor, salience: region.salience })
         }
       }
@@ -908,7 +908,7 @@ export function createBrainDreamSegmentationScene(
         context,
         filamentNodes,
         filamentBudget,
-        0.14 + motion.tension * 0.1,
+        0.26 + motion.tension * 0.18,
         patternOffset,
       )
 

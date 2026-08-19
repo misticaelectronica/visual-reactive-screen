@@ -1248,8 +1248,8 @@ export function createBrainController(
     if (frames.length === 0) return null
     const story: DreamStory = {
       id: storyId,
-      title: 'Riconsolidamento',
-      synopsis: 'Un ricordo richiamato torna labile e si ridepone, deformato dal morphing.',
+      title: 'Riattivazione',
+      synopsis: 'Un ricordo già immaginato riaffiora e si ridepone, deformato dal morphing.',
       bridge: null,
       continuityPhrase: null,
       palette,
@@ -1300,10 +1300,11 @@ export function createBrainController(
     }
     pendingProductionAfterRevisionCycle = realNextProduction
     revisionCycleActive = true
+    root.dataset.revisionCycleActive = 'true'
     revisionCycleActiveUntil = performance.now() +
       revisionProduction.story.frames.length * getBrainRenderingConfig().timing.frameDurationMs
     setBrainRevisionBoost(true)
-    brainLog('pipeline', 'riconsolidamento iniziato', {
+    brainLog('pipeline', 'riattivazione iniziata', {
       tag: pool.tagUsed,
       images: revisionProduction.story.frames.length,
     })
@@ -1805,11 +1806,12 @@ export function createBrainController(
     if (revisionCycleActive) {
       if (now >= revisionCycleActiveUntil) {
         revisionCycleActive = false
+        root.dataset.revisionCycleActive = 'false'
         setBrainRevisionBoost(false)
         storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
         const resumedProduction = pendingProductionAfterRevisionCycle
         pendingProductionAfterRevisionCycle = null
-        brainLog('pipeline', 'riconsolidamento concluso; generazione ripresa', {
+        brainLog('pipeline', 'riattivazione conclusa; generazione ripresa', {
           storyId: currentProduction.story.id,
         })
         if (resumedProduction) {
