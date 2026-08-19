@@ -6,6 +6,7 @@ import type {
   ConsciousnessMemoryDraft,
   ConsciousnessMotionQuery,
   ConsciousnessStateSnapshot,
+  SaveDreamImageRequest,
   VisualStateAck,
   VisualStatePayload,
 } from '@shared/types'
@@ -26,6 +27,11 @@ import {
   suggestConsciousnessMotion,
   updateConsciousnessState,
 } from './consciousnessStorage'
+import {
+  loadDreamImages,
+  queryDreamImageEntries,
+  saveDreamImage,
+} from './dreamImageArchiveStorage'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getDisplays, () => getAllDisplayInfo())
@@ -82,5 +88,20 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.suggestConsciousnessMotion,
     (_event, query: ConsciousnessMotionQuery) =>
       suggestConsciousnessMotion(query),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.saveDreamImage,
+    (_event, request: SaveDreamImageRequest) => saveDreamImage(request),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.queryDreamImageEntries,
+    () => queryDreamImageEntries(),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.loadDreamImages,
+    (_event, fileNames: string[]) => loadDreamImages(fileNames),
   )
 }

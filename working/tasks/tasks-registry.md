@@ -2,6 +2,18 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-034` (Ciclo Di Revisione)
+
+- [x] **`TASK-034-01`** `DONE`: Logica pura tag/trigger/eviction (`dreamRevisionCycle.ts` + test).
+- [x] **`TASK-034-02`** `DONE`: Archivio su disco `DreamImageArchive` + storage singleton + test.
+- [x] **`TASK-034-03`** `DONE`: IPC (canali, `OutputApi`, handler main, bridge preload).
+- [x] **`TASK-034-04`** `DONE`: Boost intensità morphing (`setBrainRevisionBoost`) e alternanza renderer (`getBoostHint`) + test.
+- [x] **`TASK-034-05`** `DONE`: Integrazione `brainController.ts` (contatore storie, archiviazione qualità piena, produzione sintetica, sospensione generazione, uscita pulita).
+- [x] **`TASK-034-06`** `DONE`: Test, typecheck, lint, build — tutti verdi.
+- [ ] **`TASK-034-07`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
 ## Task Collegati a `PIANO-032` (Nuovo Renderer Dream Segmentation)
 
 - [x] **`TASK-032-01`** `DONE`: Segmentazione riusata (`analyzeMaterialPixels`/`matchMaterialRegions`) + `prepareDreamField` leggero.

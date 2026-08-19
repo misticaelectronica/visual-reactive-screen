@@ -5,6 +5,29 @@ import {
   selectBrainRendererHoldFrames,
 } from './brainRendererSelector'
 
+describe('selectBrainRendererHoldFrames — boost del Ciclo di Revisione', () => {
+  it('senza boost resta nel range invariante onirico standard [2,3]', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, false)
+      expect(value).toBeGreaterThanOrEqual(2)
+      expect(value).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('con boost attivo l\'alternanza è più rapida, range [1,2]', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, true)
+      expect(value).toBeGreaterThanOrEqual(1)
+      expect(value).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('un renderer non persistente resta sempre a 1, boost o no', () => {
+    expect(selectBrainRendererHoldFrames('print2d', () => 0.5, false)).toBe(1)
+    expect(selectBrainRendererHoldFrames('print2d', () => 0.5, true)).toBe(1)
+  })
+})
+
 describe('Brain renderer selector', () => {
   it('applica immediatamente la selezione manuale', () => {
     const selector = new BrainRendererSelector(['print2d', 'psycho2d'])

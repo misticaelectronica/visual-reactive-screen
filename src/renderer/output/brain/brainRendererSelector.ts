@@ -41,15 +41,23 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
 // fotogramma per un cambio, su `BRAIN_CONFIG.renderFrameCount` fotogrammi.
 const MINIMUM_PERSISTENT_HOLD_FRAMES = 2
 const MAXIMUM_PERSISTENT_HOLD_FRAMES = 3
+// Ciclo di Revisione (PIANO-034): durante la rielaborazione l'alternanza
+// renderer deve essere più rapida ("morphing elevato tra renderer"), non
+// un sistema a parte — lo stesso invariante onirico (min 2/max 3) si
+// stringe a min 1/max 2.
+const MINIMUM_BOOSTED_HOLD_FRAMES = 1
+const MAXIMUM_BOOSTED_HOLD_FRAMES = 2
 
 export function selectBrainRendererHoldFrames(
   rendererId: BrainRendererId,
   random: () => number = Math.random,
+  boosted = false,
 ): number {
   if (!PERSISTENT_STORY_RENDERERS.has(rendererId)) return 1
-  const span = MAXIMUM_PERSISTENT_HOLD_FRAMES - MINIMUM_PERSISTENT_HOLD_FRAMES + 1
-  return MINIMUM_PERSISTENT_HOLD_FRAMES +
-    Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
+  const minimum = boosted ? MINIMUM_BOOSTED_HOLD_FRAMES : MINIMUM_PERSISTENT_HOLD_FRAMES
+  const maximum = boosted ? MAXIMUM_BOOSTED_HOLD_FRAMES : MAXIMUM_PERSISTENT_HOLD_FRAMES
+  const span = maximum - minimum + 1
+  return minimum + Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
 }
 
 export class BrainRendererSelector {
@@ -71,6 +79,7 @@ export class BrainRendererSelector {
     initialId: BrainRendererId = 'print2d',
     private readonly random: () => number = Math.random,
     private readonly getPressureHint?: () => boolean,
+    private readonly getBoostHint?: () => boolean,
   ) {
     this.activeId = availableIds.includes(initialId)
       ? initialId
@@ -163,7 +172,11 @@ export class BrainRendererSelector {
   }
 
   private storyHoldForActive(): number {
-    return selectBrainRendererHoldFrames(this.activeId, this.random) - 1
+    return selectBrainRendererHoldFrames(
+      this.activeId,
+      this.random,
+      this.getBoostHint?.() ?? false,
+    ) - 1
   }
 
   private nextRotationId(): BrainRendererId {

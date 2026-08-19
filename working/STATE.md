@@ -1,5 +1,49 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Ciclo di Revisione: generazione sospesa ogni 2-4 storie, morphing intensificato — 2026-08-19
+
+- Nuova funzionalità (`PIANO-034`,
+  `working/plans/piano-034-ciclo-di-revisione.md`): ogni 2-4 storie
+  (casuale, sempre a confine di storia) la generazione SD1.5 si sospende
+  del tutto e fino a 10 immagini già generate ad alta qualità ritornano
+  dall'archivio, con morphing e alternanza renderer intensificati — il
+  budget GPU liberato dalla generazione va tutto al visivo. Fondato su
+  `filosofia.md` §1 (Lowen: carica/scarica) e §2 (invarianti onirici, "un
+  elemento ritorna deformato" applicato fra storie diverse).
+- **Tag zero-costo**: fase onirica (`deriveOneiricPhase`, dalla posizione
+  del fotogramma nella storia) + stato bioenergetico
+  (`deriveBioenergeticState`, dalla direzione dell'energia rispetto al
+  fotogramma precedente) — entrambi derivati da dati già esistenti su
+  `DreamFrame`, nessun nuovo output richiesto a Qwen
+  (`src/shared/brain/dreamRevisionCycle.ts`).
+- **Archivio su disco** (`dream-images/`, gitignored, separato da
+  `.coscienza/` — asset tecnico non memoria autobiografica): classe
+  `DreamImageArchive` (`src/main/dreamImageArchive.ts`, testabile con
+  directory iniettabile) + singleton `dreamImageArchiveStorage.ts`, 3
+  nuovi canali IPC (`saveDreamImage`/`queryDreamImageEntries`/
+  `loadDreamImages`) sullo stesso pattern già usato per
+  `saveConsciousnessMemory`. Solo immagini a qualità piena
+  (`mode !== 'interlude'`) vengono scritte — filtro alla sorgente, non
+  solo al recupero. Cap 24 immagini per tag, eviction FIFO.
+- **Nessuna nuova pipeline di rendering**: il ciclo costruisce una
+  `BrainProduction` sintetica dalle immagini recuperate e la fa scorrere
+  attraverso `startProduction`/`applyFrame` esistenti, esattamente come
+  una storia vera — zero rischio di duplicare la macchina di
+  rendering/transizione già collaudata.
+- **Intensificazione** riusa leve già esistenti, non un sistema nuovo:
+  `setBrainRevisionBoost()` amplifica temporaneamente (×1.35)
+  `globalRhythmicMotion.intensity`/`transformation.intensity`
+  (`brainRenderingConfig.ts`) con ripristino esatto; il 5° parametro
+  `getBoostHint` di `BrainRendererSelector` (stesso pattern di
+  `getPressureHint` della sessione precedente) restringe la permanenza
+  renderer da [2,3] a [1,2] fotogrammi durante il ciclo.
+- **Sospensione generazione**: `generateNext()` esce subito se
+  `revisionCycleActive` — sospensione totale, non un allungamento del
+  cooldown; riparte da sola alla fine del ciclo.
+- Validazione: 56 file / 377 test (26 nuovi), typecheck, lint e build
+  (output + main + preload) verdi. Verifica manuale dal vivo rimandata
+  alla prossima sessione con audio.
+
 ## Nuovo renderer Brain: Dream Segmentation — 2026-08-19
 
 - Aggiunto un settimo renderer Brain (`PIANO-032`,

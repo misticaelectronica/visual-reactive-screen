@@ -1,3 +1,5 @@
+import type { DreamImageArchiveEntry } from './brain/dreamRevisionCycle'
+
 export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 
 export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp' | '2001'
@@ -188,9 +190,32 @@ export const IPC_CHANNELS = {
   saveConsciousnessMemory: 'fx:save-consciousness-memory',
   updateConsciousnessState: 'fx:update-consciousness-state',
   suggestConsciousnessMotion: 'fx:suggest-consciousness-motion',
+  saveDreamImage: 'fx:save-dream-image',
+  queryDreamImageEntries: 'fx:query-dream-image-entries',
+  loadDreamImages: 'fx:load-dream-images',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
+
+// Ciclo di Revisione (PIANO-034): archivio su disco delle immagini già
+// generate ad alta qualità, indicizzate per tag (fase onirica + stato
+// bioenergetico, vedi `@shared/brain/dreamRevisionCycle.ts`). Separato
+// dalla memoria autobiografica di Coscienza Onirica — è un asset
+// tecnico, non un ricordo.
+export type SaveDreamImageRequest = {
+  tag: string
+  storyId: string
+  frameId: string
+  frameIndex: number
+  energy: number
+  title: string
+  bytes: Uint8Array
+}
+
+export type LoadedDreamImage = {
+  fileName: string
+  bytes: Uint8Array
+}
 
 export type ConsciousnessMemoryKind =
   | 'origin'
@@ -422,4 +447,7 @@ export interface OutputApi {
   suggestConsciousnessMotion: (
     query: ConsciousnessMotionQuery,
   ) => Promise<ConsciousnessMotionCandidate | null>
+  saveDreamImage: (request: SaveDreamImageRequest) => Promise<{ ok: boolean }>
+  queryDreamImageEntries: () => Promise<DreamImageArchiveEntry[]>
+  loadDreamImages: (fileNames: string[]) => Promise<LoadedDreamImage[]>
 }

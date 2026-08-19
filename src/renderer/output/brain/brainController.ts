@@ -2,7 +2,20 @@ import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type {
   BrainProduction,
   BrainStatus,
+  DreamFrame,
+  DreamStory,
+  PsychedelScene,
 } from '@shared/brain/brainTypes'
+import {
+  REVISION_CYCLE_IMAGE_COUNT,
+  combineRevisionTag,
+  deriveBioenergeticState,
+  deriveOneiricPhase,
+  pickRevisionEntries,
+  pickStoriesUntilNextRevisionCycle,
+  selectRevisionPool,
+  type DreamImageArchiveEntry,
+} from '@shared/brain/dreamRevisionCycle'
 import type {
   BandEnergies,
   ConsciousnessMotionCandidate,
@@ -60,6 +73,7 @@ import { BrainTranslator } from './brainTranslator'
 import {
   getBrainRenderingConfig,
   loadBrainRenderingConfig,
+  setBrainRevisionBoost,
 } from './brainRenderingConfig'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import {
@@ -542,6 +556,17 @@ export function createBrainController(
       }
       oldest?.remove()
     }
+    // Ciclo di Revisione (PIANO-034): solo immagini a qualità piena
+    // entrano nell'archivio — 'interlude' (4 step) non viene mai
+    // archiviata, non solo esclusa al recupero.
+    if (preview.mode !== 'interlude') {
+      const story = findStoryById(preview.storyId)
+      const frameIndexInStory = story?.frames.findIndex((frame) => frame.id === preview.frameId) ?? -1
+      const frame = frameIndexInStory >= 0 ? story?.frames[frameIndexInStory] : undefined
+      if (story && frame && frameIndexInStory >= 0) {
+        void archiveHighQualityFrame(story, frame, frameIndexInStory, preview.blob)
+      }
+    }
   }
 
   let destroyed = false
@@ -626,6 +651,7 @@ export function createBrainController(
     undefined,
     undefined,
     () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
+    () => revisionCycleActive,
   )
   let transitionCounterpartShapes: BrainMorphShape[] = []
   let latestPayload: VisualStatePayload | null = null
@@ -654,6 +680,16 @@ export function createBrainController(
   let consciousnessMotionPausedAt: number | null = null
   const consciousnessMotionMemoryIds = new Set<string>()
   const consciousnessMotionStoryIds = new Set<string>()
+  // Ciclo di Revisione (PIANO-034): ogni 2-4 storie (casuale, sempre a
+  // confine di storia) la generazione si sospende e immagini già
+  // generate ad alta qualità ritornano, deformate da un morphing
+  // intensificato — filosofia.md §1 (Lowen: carica/scarica) e §2
+  // (invarianti onirici, "un elemento ritorna deformato").
+  let storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
+  let revisionCycleActive = false
+  let revisionCycleActiveUntil = 0
+  let pendingProductionAfterRevisionCycle: BrainProduction | null = null
+  let cachedDreamImageEntries: DreamImageArchiveEntry[] = []
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -1128,6 +1164,160 @@ export function createBrainController(
     window.setTimeout(() => void generateNext(), 0)
   }
 
+  // --- Ciclo di Revisione (PIANO-034) ---------------------------------
+
+  const refreshDreamImageArchiveCache = (): void => {
+    const api = window.fxOutput
+    if (!api) return
+    void api.queryDreamImageEntries()
+      .then((entries) => { cachedDreamImageEntries = entries })
+      .catch(() => undefined)
+  }
+
+  const findStoryById = (storyId: string): DreamStory | null => {
+    if (currentProduction?.story.id === storyId) return currentProduction.story
+    if (nextProduction?.story.id === storyId) return nextProduction.story
+    if (pendingStory?.id === storyId) return pendingStory
+    return storyQueue.find((story) => story.id === storyId) ?? null
+  }
+
+  const archiveHighQualityFrame = async (
+    story: DreamStory,
+    frame: DreamFrame,
+    frameIndexInStory: number,
+    blob: Blob,
+  ): Promise<void> => {
+    const api = window.fxOutput
+    if (!api) return
+    try {
+      const bytes = new Uint8Array(await blob.arrayBuffer())
+      const previousEnergy = frameIndexInStory > 0
+        ? story.frames[frameIndexInStory - 1]?.energy ?? null
+        : null
+      const phase = deriveOneiricPhase(frameIndexInStory, story.frames.length)
+      const state = deriveBioenergeticState(frame.energy, previousEnergy)
+      await api.saveDreamImage({
+        tag: combineRevisionTag(phase, state),
+        storyId: story.id,
+        frameId: frame.id,
+        frameIndex: frameIndexInStory,
+        energy: frame.energy,
+        title: frame.title,
+        bytes,
+      })
+      refreshDreamImageArchiveCache()
+    } catch (error) {
+      brainWarn('render', 'salvataggio nell’archivio del Ciclo di Revisione fallito', { error })
+    }
+  }
+
+  const buildRevisionProduction = (
+    loaded: readonly { fileName: string; bytes: Uint8Array }[],
+    entriesByFileName: ReadonlyMap<string, DreamImageArchiveEntry>,
+    palette: DreamStory['palette'],
+  ): BrainProduction | null => {
+    const storyId = `revision:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`
+    const frames: DreamFrame[] = []
+    const scenes: PsychedelScene[] = []
+    loaded.forEach((image, index) => {
+      const entry = entriesByFileName.get(image.fileName)
+      if (!entry) return
+      const frameId = `${storyId}-${index}`
+      frames.push({
+        id: frameId,
+        title: entry.title || 'Eco',
+        description: entry.title || '',
+        visualIntent: '',
+        energy: entry.energy,
+        durationMs: getBrainRenderingConfig().timing.frameDurationMs,
+      })
+      scenes.push({
+        frameId,
+        description: entry.title || '',
+        svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+        raster: new Blob([new Uint8Array(image.bytes)], { type: 'image/webp' }),
+      })
+    })
+    if (frames.length === 0) return null
+    const story: DreamStory = {
+      id: storyId,
+      title: 'Ciclo di revisione',
+      synopsis: 'Immagini già immaginate ritornano, deformate dal morphing.',
+      bridge: null,
+      continuityPhrase: null,
+      palette,
+      sourcePhrases: [],
+      frames,
+    }
+    return { story, scenes }
+  }
+
+  const beginRevisionCycle = async (
+    realNextProduction: BrainProduction,
+    beatDurationMs: number,
+    beatIndex: number,
+  ): Promise<void> => {
+    const api = window.fxOutput
+    const referenceStory = currentProduction?.story ?? null
+    const referenceFrame = referenceStory?.frames[frameIndex] ?? null
+    const currentPhase = referenceStory && referenceFrame
+      ? deriveOneiricPhase(frameIndex, referenceStory.frames.length)
+      : 'eco'
+    const currentState = referenceFrame
+      ? deriveBioenergeticState(
+        referenceFrame.energy,
+        frameIndex > 0 ? referenceStory?.frames[frameIndex - 1]?.energy ?? null : null,
+      )
+      : 'quiete'
+    const pool = api ? selectRevisionPool(cachedDreamImageEntries, currentPhase, currentState) : null
+    if (!api || !pool) {
+      // Archivio vuoto o bridge non disponibile: si salta silenziosamente
+      // il ciclo, la storia successiva parte normalmente.
+      startProduction(realNextProduction, beatDurationMs, beatIndex)
+      return
+    }
+    const chosen = pickRevisionEntries(pool.entries, REVISION_CYCLE_IMAGE_COUNT)
+    const loaded = await api.loadDreamImages(chosen.map((entry) => entry.fileName))
+      .catch(() => [])
+    if (destroyed) return
+    if (loaded.length === 0) {
+      startProduction(realNextProduction, beatDurationMs, beatIndex)
+      return
+    }
+    const entriesByFileName = new Map(chosen.map((entry) => [entry.fileName, entry]))
+    const palette = currentProduction?.story.palette ?? realNextProduction.story.palette
+    const revisionProduction = buildRevisionProduction(loaded, entriesByFileName, palette)
+    if (!revisionProduction) {
+      startProduction(realNextProduction, beatDurationMs, beatIndex)
+      return
+    }
+    pendingProductionAfterRevisionCycle = realNextProduction
+    revisionCycleActive = true
+    revisionCycleActiveUntil = performance.now() +
+      revisionProduction.story.frames.length * getBrainRenderingConfig().timing.frameDurationMs
+    setBrainRevisionBoost(true)
+    brainLog('pipeline', 'ciclo di revisione iniziato', {
+      tag: pool.tagUsed,
+      images: revisionProduction.story.frames.length,
+    })
+    startProduction(revisionProduction, beatDurationMs, beatIndex)
+  }
+
+  const advanceToNextProduction = (
+    readyNextProduction: BrainProduction,
+    beatDurationMs: number,
+    beatIndex: number,
+  ): void => {
+    if (storiesUntilNextRevisionCycle > 0) {
+      storiesUntilNextRevisionCycle -= 1
+      startProduction(readyNextProduction, beatDurationMs, beatIndex)
+      return
+    }
+    void beginRevisionCycle(readyNextProduction, beatDurationMs, beatIndex)
+  }
+
+  // ---------------------------------------------------------------------
+
   const generateStoryBatch = async (targetCount: number) => {
     await modelCacheReady
     await loadBrainRenderingConfig()
@@ -1355,7 +1545,11 @@ export function createBrainController(
   }
 
   const generateNext = async () => {
-    if (destroyed || generating || nextProduction) return
+    // Ciclo di Revisione (PIANO-034): durante la rielaborazione la
+    // generazione è sospesa del tutto, non solo allungata — il budget GPU
+    // liberato va alla qualità visiva. Riprende da sola non appena il
+    // ciclo termina (vedi `advanceTimeline`).
+    if (destroyed || generating || nextProduction || revisionCycleActive) return
     const cooldownRemainingMs =
       nextGenerationAllowedAt - performance.now()
     if (cooldownRemainingMs > 0) {
@@ -1598,6 +1792,27 @@ export function createBrainController(
     if (!rhythmActive) return
     if (!currentProduction) return
     if (storyCycleCompletionReported) return
+    if (revisionCycleActive) {
+      if (now >= revisionCycleActiveUntil) {
+        revisionCycleActive = false
+        setBrainRevisionBoost(false)
+        storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
+        const resumedProduction = pendingProductionAfterRevisionCycle
+        pendingProductionAfterRevisionCycle = null
+        brainLog('pipeline', 'ciclo di revisione concluso; generazione ripresa', {
+          storyId: currentProduction.story.id,
+        })
+        if (resumedProduction) {
+          startProduction(resumedProduction, beatDurationMs, beatIndex)
+        } else {
+          void generateNext()
+        }
+        return
+      }
+      // Mentre il ciclo è attivo i fotogrammi della storia sintetica
+      // avanzano con la stessa logica sotto (boost già impostato altrove):
+      // nessuna eccezione al di fuori del controllo di uscita sopra.
+    }
     const frame =
       currentProduction.story.frames[frameIndex]
     if (!frame) return
@@ -1614,7 +1829,7 @@ export function createBrainController(
           previousStoryId: currentProduction.story.id,
           nextStoryId: nextProduction.story.id,
         })
-        startProduction(nextProduction, beatDurationMs, beatIndex)
+        advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
         return
       }
       const waitingRendererChanged = rendererSettings &&
@@ -1676,7 +1891,7 @@ export function createBrainController(
         storyId: currentProduction.story.id,
         nextStoryId: nextProduction.story.id,
       })
-      startProduction(nextProduction, beatDurationMs, beatIndex)
+      advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
       return
     }
     brainLog('pipeline', 'storia terminata; riciclo le immagini mentre attendo', {
@@ -1798,6 +2013,7 @@ export function createBrainController(
   rafId = requestAnimationFrame(render)
   brainLog('pipeline', 'attesa produzione AI reale; nessun fotogramma simulato')
   void generateNext()
+  refreshDreamImageArchiveCache()
 
   return {
     setOpacity(opacity: number) {

@@ -713,6 +713,52 @@ export function getBrainRenderingConfig(): BrainRenderingConfig {
   return activeConfig
 }
 
+// Ciclo di Revisione (PIANO-034): durante la finestra di rielaborazione
+// (generazione sospesa, budget GPU libero per il visivo) l'intensità di
+// morphing esistente viene temporaneamente amplificata, non sostituita da
+// un nuovo sistema — riusa le stesse leve già presenti in
+// `globalRhythmicMotion`/`transformation`. Il ripristino è esatto
+// (nessuna deriva se boost on/off si alternano più volte).
+const REVISION_BOOST_MULTIPLIER = 1.35
+let revisionBoostActive = false
+let baselineGlobalRhythmicIntensity: number | null = null
+let baselineTransformationIntensity: number | null = null
+
+export function setBrainRevisionBoost(active: boolean): void {
+  if (active === revisionBoostActive) return
+  revisionBoostActive = active
+  if (active) {
+    baselineGlobalRhythmicIntensity = activeConfig.globalRhythmicMotion.intensity
+    baselineTransformationIntensity = activeConfig.transformation.intensity
+    activeConfig = {
+      ...activeConfig,
+      globalRhythmicMotion: {
+        ...activeConfig.globalRhythmicMotion,
+        intensity: baselineGlobalRhythmicIntensity * REVISION_BOOST_MULTIPLIER,
+      },
+      transformation: {
+        ...activeConfig.transformation,
+        intensity: baselineTransformationIntensity * REVISION_BOOST_MULTIPLIER,
+      },
+    }
+    return
+  }
+  if (baselineGlobalRhythmicIntensity === null || baselineTransformationIntensity === null) return
+  activeConfig = {
+    ...activeConfig,
+    globalRhythmicMotion: {
+      ...activeConfig.globalRhythmicMotion,
+      intensity: baselineGlobalRhythmicIntensity,
+    },
+    transformation: {
+      ...activeConfig.transformation,
+      intensity: baselineTransformationIntensity,
+    },
+  }
+  baselineGlobalRhythmicIntensity = null
+  baselineTransformationIntensity = null
+}
+
 export async function loadBrainRenderingConfig(): Promise<BrainRenderingConfig> {
   try {
     if (!window.fxOutput) {

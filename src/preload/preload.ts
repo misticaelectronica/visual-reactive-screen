@@ -63,6 +63,18 @@ const outputApi: OutputApi = {
     ipcRenderer.invoke(IPC_CHANNELS.suggestConsciousnessMotion, query) as ReturnType<
       OutputApi['suggestConsciousnessMotion']
     >,
+  saveDreamImage: (request) =>
+    ipcRenderer.invoke(IPC_CHANNELS.saveDreamImage, request) as ReturnType<
+      OutputApi['saveDreamImage']
+    >,
+  queryDreamImageEntries: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.queryDreamImageEntries) as ReturnType<
+      OutputApi['queryDreamImageEntries']
+    >,
+  loadDreamImages: (fileNames) =>
+    ipcRenderer.invoke(IPC_CHANNELS.loadDreamImages, fileNames) as ReturnType<
+      OutputApi['loadDreamImages']
+    >,
 }
 
 function isOutputEntry(): boolean {
