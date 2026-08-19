@@ -11,6 +11,82 @@ describe('Brain renderer host', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
+  it('passa a Print2D come rete di sicurezza se il renderer attivo fallisce (es. Vector Morph respinto dal controllo qualità)', () => {
+    const registry = new BrainRendererRegistry()
+    registry.register({
+      id: 'print2d',
+      label: 'Print2D',
+      capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element,
+          isReady: () => true,
+          setOpacity() {},
+          getMorphShapes: () => [],
+          setMorphPattern() {},
+          setResourcePressure() {},
+          setTransition() {},
+          update() {},
+          destroy() { element.remove() },
+        }
+      },
+    })
+    let vectorMorphFailed = false
+    registry.register({
+      id: 'vector-morph',
+      label: 'Vector Morph',
+      capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element,
+          isReady: () => true,
+          hasFailed: () => vectorMorphFailed,
+          setOpacity() {},
+          getMorphShapes: () => [],
+          setMorphPattern() {},
+          setResourcePressure() {},
+          setTransition() {},
+          update() {},
+          destroy() { element.remove() },
+        }
+      },
+    })
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'vector-morph',
+      'vector-morph',
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(host.element.dataset.activeRenderer).toBe('vector-morph')
+
+    vectorMorphFailed = true
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
+    // Non aspetta la fine del fotogramma: chiede subito Print2D come
+    // renderer entrante (crossfade normale, non un taglio secco).
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 4_500)
+    expect(host.element.dataset.activeRenderer).toBe('print2d')
+    host.destroy()
+  })
+
   it('mantiene il renderer corrente finché quello entrante è pronto', () => {
     const registry = new BrainRendererRegistry()
     const destroyed: BrainRendererId[] = []

@@ -359,6 +359,20 @@ export function createBrainRendererHost(
       const frameTransitionComplete = transitionProgress >= 1 && transitionRole === 'enter'
       if (frameTransitionComplete && desired !== active.id) requestRenderer(desired, time)
 
+      // Un fallimento del renderer ATTIVO (non solo di quello entrante,
+      // già gestito sotto) non deve restare a schermo per l'intera durata
+      // del fotogramma — es. Vector Morph quando la vettorializzazione
+      // viene respinta dal controllo qualità mostra solo il raster di
+      // sfondo finché nessuno lo nota. Print2D è la rete di sicurezza:
+      // renderer semplice, non fallisce mai per lo stesso motivo.
+      if (active.controller.hasFailed?.() === true && active.id !== 'print2d') {
+        brainWarn('render', 'renderer Brain attivo fallito; passo a Print2D come rete di sicurezza', {
+          active: active.id,
+        })
+        retryRendererAfter.set(active.id, time + 30_000)
+        requestRenderer('print2d', time)
+      }
+
       active.controller.update(bands, settings, time, rhythm, movingAverages, flash)
       incoming?.controller.update(bands, settings, time, rhythm, movingAverages, flash)
       if (!incoming) return

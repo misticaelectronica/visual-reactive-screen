@@ -689,6 +689,13 @@ export function createBrainController(
   let revisionCycleActive = false
   let revisionCycleActiveUntil = 0
   let pendingProductionAfterRevisionCycle: BrainProduction | null = null
+  // `beginRevisionCycle` attende una IPC async (`loadDreamImages`) prima
+  // di chiamare `startProduction`: finché non risolve, `nextProduction`
+  // resta non nullo e `recyclingStoryFrames` resta vero, quindi
+  // `advanceTimeline` può rientrare nello stesso ramo più volte durante
+  // l'attesa e innescare il ciclo due volte in parallelo. Questa guardia
+  // lo impedisce.
+  let revisionCycleStarting = false
   let cachedDreamImageEntries: DreamImageArchiveEntry[] = []
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
@@ -1241,8 +1248,8 @@ export function createBrainController(
     if (frames.length === 0) return null
     const story: DreamStory = {
       id: storyId,
-      title: 'Ciclo di revisione',
-      synopsis: 'Immagini già immaginate ritornano, deformate dal morphing.',
+      title: 'Riconsolidamento',
+      synopsis: 'Un ricordo richiamato torna labile e si ridepone, deformato dal morphing.',
       bridge: null,
       continuityPhrase: null,
       palette,
@@ -1296,7 +1303,7 @@ export function createBrainController(
     revisionCycleActiveUntil = performance.now() +
       revisionProduction.story.frames.length * getBrainRenderingConfig().timing.frameDurationMs
     setBrainRevisionBoost(true)
-    brainLog('pipeline', 'ciclo di revisione iniziato', {
+    brainLog('pipeline', 'riconsolidamento iniziato', {
       tag: pool.tagUsed,
       images: revisionProduction.story.frames.length,
     })
@@ -1313,7 +1320,10 @@ export function createBrainController(
       startProduction(readyNextProduction, beatDurationMs, beatIndex)
       return
     }
+    if (revisionCycleStarting || revisionCycleActive) return
+    revisionCycleStarting = true
     void beginRevisionCycle(readyNextProduction, beatDurationMs, beatIndex)
+      .finally(() => { revisionCycleStarting = false })
   }
 
   // ---------------------------------------------------------------------
@@ -1799,7 +1809,7 @@ export function createBrainController(
         storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
         const resumedProduction = pendingProductionAfterRevisionCycle
         pendingProductionAfterRevisionCycle = null
-        brainLog('pipeline', 'ciclo di revisione concluso; generazione ripresa', {
+        brainLog('pipeline', 'riconsolidamento concluso; generazione ripresa', {
           storyId: currentProduction.story.id,
         })
         if (resumedProduction) {

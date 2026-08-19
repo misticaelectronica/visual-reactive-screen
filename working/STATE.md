@@ -1,5 +1,48 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Fix dal vivo: doppio innesco Riconsolidamento, Vector Morph bloccato, rinomina — 2026-08-19
+
+- **Verificato dai log** (`log/session-2026-08-19-17-25-13.txt`) che
+  `PIANO-034` entra davvero in azione: "ciclo di revisione iniziato" alle
+  15:37:13 e "concluso; generazione ripresa" alle 15:38:23 (~70s, coerente
+  con 5 immagini × 14s). Il meccanismo funziona.
+- **Bug trovato**: il log mostrava l'innesco DUE VOLTE nello stesso
+  istante (9ms di distanza). Causa: `beginRevisionCycle` è asincrona
+  (attende `loadDreamImages` via IPC) e non chiude `nextProduction`/
+  `recyclingStoryFrames` finché non risolve — `advanceTimeline` poteva
+  rientrare nello stesso ramo su più fotogrammi RAF durante l'attesa e
+  richiamare `beginRevisionCycle` una seconda volta in parallelo (doppio
+  caricamento IPC, doppia `BrainProduction` sintetica, la seconda vince
+  sostituendo la prima). **Fix**: guardia sincrona
+  `revisionCycleStarting` in `advanceToNextProduction`, impostata prima
+  dell'await e liberata in `finally`.
+- **Bug separato trovato** (segnalato dallo sviluppatore, non legato al
+  Riconsolidamento): Vector Morph "delle volte non parte, resta solo
+  l'immagine di sfondo". Causa reale nei log: la vettorializzazione a
+  volte viene respinta dal controllo qualità ("meno di cinque forme
+  riconoscibili", `brainVectorSceneCache.ts`) — quando succede al
+  renderer GIÀ ATTIVO (non a quello entrante), `hasFailed()` non veniva
+  mai controllato in `brainRendererHost.ts`, quindi il fallimento restava
+  a schermo (solo raster) per l'intera durata del fotogramma, anche
+  30-40s. **Fix**: `update()` ora controlla anche
+  `active.controller.hasFailed?.()` e passa immediatamente a Print2D come
+  rete di sicurezza (crossfade normale, non un taglio secco), con lo
+  stesso cooldown di retry già usato per i fallimenti del renderer
+  entrante.
+- **Rinomina**: "Ciclo di Revisione" → **"Riconsolidamento"** (titolo
+  storia sintetica, log `pipeline`) — termine neuroscientifico preciso
+  (Nader/Schafe/LeDoux 2000: un ricordo richiamato diventa labile e viene
+  ri-registrato, spesso modificato) che corrisponde esattamente al
+  meccanismo (le immagini ritornano deformate, non riprodotte identiche).
+  Identificatori interni (`revisionCycle*`, `PIANO-034`,
+  `dreamRevisionCycle.ts`) invariati — solo l'etichetta rivolta allo
+  sviluppatore/ai log è cambiata.
+- Nuovo test in `brainRendererHost.test.ts` per il fallback di sicurezza
+  su fallimento del renderer attivo. Nessun test dedicato per la guardia
+  anti-doppio-innesco (stessa convenzione già in uso: `brainController.ts`
+  non ha file di test, troppo stateful/integrato per un mock leggero).
+- Validazione: 56 file / 378 test, typecheck, lint e build verdi.
+
 ## Ciclo di Revisione: generazione sospesa ogni 2-4 storie, morphing intensificato — 2026-08-19
 
 - Nuova funzionalità (`PIANO-034`,
