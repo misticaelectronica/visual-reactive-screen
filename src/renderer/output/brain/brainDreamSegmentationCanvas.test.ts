@@ -2,14 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import type { MaterialRegion, MaterialRegionMatch } from './brainMaterialAnalysis'
 import {
+  advanceElectricPulsePhase,
   calculateDreamMotion,
   computeBandProfile,
   computeCondensationBlend,
+  computeElectricPulsePoint,
   computeLocalMorphProgress,
   computeProfileDistance,
   computeRegionBreathing,
   computeSpostamentoTrail,
   findCondensationPairs,
+  quadraticPointAt,
   shouldRenderDreamFrame,
   updateBaselineProfile,
   updateDreamSurpriseAccumulator,
@@ -223,5 +226,43 @@ describe('Dream Segmentation — corpo e reattività', () => {
   it('richiede il render mentre una trasformazione è in corso, anche a moto fermo', () => {
     const motion = { activity: 0, beat: 0, tension: 0, flash: 0 }
     expect(shouldRenderDreamFrame(motion, true, false, false)).toBe(true)
+  })
+})
+
+describe('Dream Segmentation — scariche elettriche lungo la rete', () => {
+  it('la fase resta ferma in silenzio (Check Silenzio: zero orologio libero)', () => {
+    const stoppedRhythm = rhythm({ active: false })
+    expect(advanceElectricPulsePhase(0.3, 2, stoppedRhythm, 0.8)).toBeCloseTo(0.3, 5)
+  })
+
+  it('la fase resta ferma senza attività, anche con ritmo attivo', () => {
+    expect(advanceElectricPulsePhase(0.3, 2, rhythm(), 0)).toBeCloseTo(0.3, 5)
+  })
+
+  it('la fase avanza con musica attiva e si avvolge in [0,1)', () => {
+    const active = rhythm({ musicalPosition: 2.9 })
+    const next = advanceElectricPulsePhase(0.3, 2.5, active, 0.6)
+    expect(next).toBeGreaterThan(0.3)
+    expect(next).toBeLessThan(1)
+    const wrapped = advanceElectricPulsePhase(0.95, 2.9, active, 1)
+    expect(wrapped).toBeGreaterThanOrEqual(0)
+    expect(wrapped).toBeLessThan(1)
+  })
+
+  it('quadraticPointAt agli estremi coincide con i punti di partenza/arrivo', () => {
+    const start = quadraticPointAt(0, 0, 5, 10, 10, 0, 0)
+    const end = quadraticPointAt(0, 0, 5, 10, 10, 0, 1)
+    expect(start).toEqual({ x: 0, y: 0 })
+    expect(end).toEqual({ x: 10, y: 0 })
+  })
+
+  it('computeElectricPulsePoint sfuma a zero agli estremi e cresce verso il centro', () => {
+    const startGlow = computeElectricPulsePoint(0, 0, 10, 0, 5, 5, 0)
+    const midGlow = computeElectricPulsePoint(0, 0, 10, 0, 5, 5, 0.5)
+    const endGlow = computeElectricPulsePoint(0, 0, 10, 0, 5, 5, 1)
+    expect(startGlow.glow).toBeCloseTo(0, 5)
+    expect(endGlow.glow).toBeCloseTo(0, 5)
+    expect(midGlow.glow).toBeGreaterThan(startGlow.glow)
+    expect(midGlow.glow).toBeCloseTo(1, 5)
   })
 })

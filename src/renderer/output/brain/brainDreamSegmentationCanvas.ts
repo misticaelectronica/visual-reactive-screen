@@ -399,6 +399,66 @@ export function shouldRenderDreamFrame(
     transforming || transitionChanged || signatureChanged
 }
 
+// --- Livello 5: scariche elettriche lungo la rete (invariante onirico:
+// "relazione fra nodi e connessioni", filosofia.md/piano-032 — un
+// riferimento morfologico alla struttura nervosa, non un'anatomia
+// letterale del cervello). La fase avanza solo con musica attiva
+// (stesso pattern di `advanceBauhausAbstraction`, Check Silenzio: zero
+// in silenzio, mai un orologio libero). ---
+
+export function advanceElectricPulsePhase(
+  phase: number,
+  previousMusicalPosition: number | null,
+  rhythm: BrainRhythmState | undefined,
+  activity: number,
+): number {
+  if (!rhythm?.active || previousMusicalPosition === null || activity <= 0) {
+    return ((phase % 1) + 1) % 1
+  }
+  const delta = Math.max(0, Math.min(0.5, rhythm.musicalPosition - previousMusicalPosition))
+  const next = phase + delta * (0.5 + activity * 0.9)
+  return ((next % 1) + 1) % 1
+}
+
+export function quadraticPointAt(
+  x0: number,
+  y0: number,
+  cx: number,
+  cy: number,
+  x1: number,
+  y1: number,
+  t: number,
+): { x: number; y: number } {
+  const clamped = clamp(t)
+  const mt = 1 - clamped
+  return {
+    x: mt * mt * x0 + 2 * mt * clamped * cx + clamped * clamped * x1,
+    y: mt * mt * y0 + 2 * mt * clamped * cy + clamped * clamped * y1,
+  }
+}
+
+export type ElectricPulsePoint = { x: number; y: number; glow: number }
+
+/**
+ * Posizione e intensità di una scarica lungo il filamento al parametro
+ * `phase` (0-1, ciclico): sfuma dentro/fuori ai due estremi (un impulso
+ * che nasce e si esaurisce lungo la connessione, non un punto che appare
+ * e sparisce di colpo).
+ */
+export function computeElectricPulsePoint(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  midX: number,
+  midY: number,
+  phase: number,
+): ElectricPulsePoint {
+  const t = clamp(phase)
+  const point = quadraticPointAt(ax, ay, midX, midY, bx, by, t)
+  return { x: point.x, y: point.y, glow: Math.sin(Math.PI * t) }
+}
+
 async function prepareDreamSource(
   source: BrainRendererImageSource,
   width: number,
@@ -486,12 +546,16 @@ type FilamentNode = {
   salience: number
 }
 
+const ELECTRIC_PULSE_BUDGET = 5
+const ELECTRIC_PULSE_SPREAD = 0.17
+
 function drawFilamentNetwork(
   context: CanvasRenderingContext2D,
   nodes: FilamentNode[],
   budget: number,
   baseOpacity: number,
   patternOffset: number,
+  pulsePhase: number | null,
 ): void {
   if (nodes.length < 2 || budget <= 0) return
   const candidates: { a: FilamentNode; b: FilamentNode; weight: number }[] = []
@@ -514,7 +578,7 @@ function drawFilamentNetwork(
   // `drawTransitionBase` in Materia Morph): la "rete" non ha una forma
   // fissa, segue lo stesso respiro narrativo degli altri renderer.
   const bend = 0.04 + (patternOffset % 4) * 0.02
-  for (const { a, b, weight } of selected) {
+  selected.forEach(({ a, b, weight }, index) => {
     const midX = (a.x + b.x) / 2 + (b.y - a.y) * bend
     const midY = (a.y + b.y) / 2 - (b.x - a.x) * bend
     context.strokeStyle = `rgba(${Math.round((a.color[0] + b.color[0]) / 2)},${Math.round((a.color[1] + b.color[1]) / 2)},${Math.round((a.color[2] + b.color[2]) / 2)},${clamp(baseOpacity * (0.3 + weight * 0.5))})`
@@ -523,7 +587,28 @@ function drawFilamentNetwork(
     context.moveTo(a.x, a.y)
     context.quadraticCurveTo(midX, midY, b.x, b.y)
     context.stroke()
-  }
+    // Scariche elettriche lungo un budget ridotto di connessioni (Check
+    // Costo: poche, non una per filamento) — pulsePhase è null in
+    // silenzio, quindi nessuna scarica senza audio (Check Silenzio).
+    if (pulsePhase === null || index >= ELECTRIC_PULSE_BUDGET) return
+    const pulse = computeElectricPulsePoint(
+      a.x, a.y, b.x, b.y, midX, midY,
+      pulsePhase + index * ELECTRIC_PULSE_SPREAD,
+    )
+    if (pulse.glow <= 0.02) return
+    const glowRadius = 2.2 + (a.salience + b.salience) * 1.6
+    const gradient = context.createRadialGradient(
+      pulse.x, pulse.y, 0, pulse.x, pulse.y, glowRadius,
+    )
+    const glowAlpha = clamp(pulse.glow * 0.85)
+    gradient.addColorStop(0, `rgba(255,255,255,${glowAlpha})`)
+    gradient.addColorStop(0.5, `rgba(${a.color[0]},${a.color[1]},${a.color[2]},${glowAlpha * 0.6})`)
+    gradient.addColorStop(1, 'rgba(255,255,255,0)')
+    context.fillStyle = gradient
+    context.beginPath()
+    context.arc(pulse.x, pulse.y, glowRadius, 0, Math.PI * 2)
+    context.fill()
+  })
 }
 
 function drawGhostResidue(
@@ -592,6 +677,8 @@ export function createBrainDreamSegmentationScene(
   let stableField: CachedDreamField | null = null
   let baselineProfile: DreamBandProfile = { low: 0.25, lowMid: 0.25, mid: 0.25, high: 0.25 }
   let surpriseState: DreamSurpriseState = { accumulator: 0, lastEventAt: Number.NEGATIVE_INFINITY }
+  let electricPulsePhase = 0
+  let previousMusicalPosition: number | null = null
   let transformState: DreamTransformState = {
     transforming: false,
     localProgress: 0,
@@ -749,6 +836,13 @@ export function createBrainDreamSegmentationScene(
       // Livello superiore (significato): profilo di banda e sorpresa
       // accumulata, indipendenti dal transiente/beat locale.
       const audioActive = rhythm?.active ?? rawMotion.activity > 0
+      electricPulsePhase = advanceElectricPulsePhase(
+        electricPulsePhase,
+        previousMusicalPosition,
+        rhythm,
+        motion.activity,
+      )
+      previousMusicalPosition = rhythm?.musicalPosition ?? previousMusicalPosition
       const profile = computeBandProfile(bands)
       baselineProfile = updateBaselineProfile(baselineProfile, profile, motionElapsed)
       const distance = computeProfileDistance(profile, baselineProfile)
@@ -851,6 +945,19 @@ export function createBrainDreamSegmentationScene(
         context.drawImage(stableField.base, 0, 0, width, height)
       }
 
+      // Livello di contrasto: scurisce leggermente e uniformemente il
+      // raster prima delle primitive, così il colore additivo di
+      // membrane/filamenti/scariche resta leggibile anche su fondali
+      // chiari (segnalato dallo sviluppatore) — il raster resta sempre
+      // riconoscibile sotto (Check Materia), solo con meno contrasto
+      // locale, non sostituito.
+      context.globalCompositeOperation = 'multiply'
+      context.globalAlpha = clamp(0.32 + motion.tension * 0.12)
+      context.fillStyle = '#05050a'
+      context.fillRect(0, 0, width, height)
+      context.globalAlpha = 1
+      context.globalCompositeOperation = 'source-over'
+
       // Memoria: residui della configurazione precedente, sotto il resto.
       for (const ghost of ghosts) {
         drawGhostResidue(context, ghost, width, height, time, Math.ceil(regionBudget / 2))
@@ -933,12 +1040,16 @@ export function createBrainDreamSegmentationScene(
       }
 
       const patternOffset = ['marea', 'fioritura', 'corrente', 'spirale'].indexOf(morphPattern)
+      // Scariche solo con audio realmente attivo: `audioActive` è lo
+      // stesso segnale già usato per l'accumulatore di sorpresa (Check
+      // Silenzio applicato coerentemente in tutto il renderer).
       drawFilamentNetwork(
         context,
         filamentNodes,
         filamentBudget,
         0.26 + motion.tension * 0.18,
         patternOffset,
+        audioActive && motion.activity > 0.004 ? electricPulsePhase : null,
       )
 
       context.globalCompositeOperation = 'source-over'

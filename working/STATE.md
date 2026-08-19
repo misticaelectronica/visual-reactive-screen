@@ -1,5 +1,30 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Dream Segmentation: contrasto più forte, scariche elettriche lungo la rete — 2026-08-19
+
+- **Contrasto rafforzato ulteriormente** (richiesta esplicita dello
+  sviluppatore, "fai quello che vuoi ma rendilo più visibile"): aggiunto
+  un livello di scurimento uniforme (`multiply`, ~0.32-0.44 di opacità
+  legata alla tensione) su tutto il raster prima delle primitive, oltre
+  al velo scuro già esistente per singola membrana — il raster resta
+  sempre riconoscibile sotto (Check Materia), solo con meno contrasto
+  locale, non sostituito.
+- **Scariche elettriche lungo i filamenti**: nuovo livello ispirato
+  direttamente alla morfologia già prevista dal design brief
+  (`piano-032-dream-segmentation-renderer.md`: "la struttura neuronale
+  può essere un riferimento morfologico... senza diventare anatomia
+  letterale") — un piccolo bagliore viaggia lungo un budget ridotto
+  (`ELECTRIC_PULSE_BUDGET = 5`) di connessioni, sfumando dentro/fuori ai
+  due estremi (`computeElectricPulsePoint`, curva quadratica identica a
+  quella già disegnata). La fase avanza solo con musica realmente attiva
+  (`advanceElectricPulsePhase`, stesso pattern di
+  `advanceBauhausAbstraction`: zero in silenzio, mai un orologio libero
+  — Check Silenzio) e a costo quasi nullo (nessuna nuova analisi, solo
+  qualche gradiente radiale in più, disattivato del tutto in silenzio).
+- Nuovi test per le funzioni pure aggiunte
+  (`advanceElectricPulsePhase`/`quadraticPointAt`/`computeElectricPulsePoint`).
+- Validazione: 56 file / 389 test, typecheck, lint e build verdi.
+
 ## Regressione trovata e corretta: mobilità/sensibilità musicale ridotta da resourcePressure troppo esteso — 2026-08-19
 
 - **Segnalato dallo sviluppatore** ("ridotto mobilità e sensibilità
