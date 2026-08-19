@@ -149,6 +149,7 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="material-morph">Materia Morph — sedimentale</option>
             <option value="filter-psiche">FilterPsiche — cromatico</option>
             <option value="bauhaus-morph">Bauhaus Morph — pittorico</option>
+            <option value="dream-segmentation">Dream Segmentation — immaginazione</option>
           </select>
         </label>
         <label>

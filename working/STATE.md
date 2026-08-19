@@ -1,5 +1,63 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Nuovo renderer Brain: Dream Segmentation — 2026-08-19
+
+- Aggiunto un settimo renderer Brain (`PIANO-032`,
+  `working/plans/piano-032-dream-segmentation-renderer.md`), su
+  specifica filosofica dettagliata dello sviluppatore: rende visibile la
+  distinzione fra **reattività** (locale, beat/transiente) ed **evento**
+  (scarto tonale sostenuto che aggiorna lo "stato immaginativo" interno),
+  con segmentazione dell'immagine come configurazione temporaneamente
+  stabile che si trasforma (persistenza → destabilizzazione →
+  trasformazione → nuova stabilizzazione), mai un taglio secco.
+- **Riuso**: segmentazione via `analyzeMaterialPixels`/
+  `matchMaterialRegions` già esistenti (`brainMaterialAnalysis.ts`), non
+  un nuovo algoritmo. `prepareDreamField()` più leggero di
+  `prepareMaterialSource` (Materia Morph): niente canvas derivati
+  per-pixel (pigment/edges/grain), solo segmentazione + raster di base —
+  il linguaggio visivo qui è a primitive (membrane/filamenti), non
+  ricolorazione raster.
+- **Punto architetturale**: `transitionProgress`/`role` (pilotati
+  dall'host in `brainController.ts`, cadenza legata a beat/storia)
+  restano l'unica autorità su quali sorgenti sono disponibili per il
+  blend; l'accumulatore di sorpresa audio-driven
+  (`updateDreamSurpriseAccumulator`, distanza fra profilo di banda a
+  breve termine e baseline EMA, non energia sommata — intercetta un
+  cambio di *carattere* tonale, non un semplice swell di volume) decide
+  solo *quando* iniziare a inseguirli, con una propria inerzia
+  (`computeLocalMorphProgress`, durata minima ~3.2s, continua ad
+  avanzare anche se l'host ha già raggiunto progress 1) — due orologi
+  distinti, mai uno che sostituisce l'altro.
+- **Condensazione** ("terza forma", non crossfade):
+  `findCondensationPairs` individua regioni scomparse che confluiscono
+  nella regione superstite più vicina; `computeCondensationBlend`
+  combina i colori con blend non lineare (`screen`) e l'area in
+  quadratura (`sqrt(a²+b²)`), verificato più grande di entrambe le
+  regioni a metà trasformazione, non un punto medio.
+- **Check Silenzio vs "corpo interno"**: la filosofia vuole che stato
+  interno (pressione GPU, attività generativa) partecipi come "secondo
+  corpo", ma `agents.md` Check Silenzio è una regola dura. Risolto
+  rendendo la pressione un fattore **solo moltiplicativo** su un valore
+  già derivato dall'audio (`computeRegionBreathing`): zero movimento
+  autonomo in silenzio qualunque sia lo stato interno, testato
+  esplicitamente.
+- **Check Materia**: il raster sorgente resta sempre disegnato come
+  livello di base; le primitive (membrane/filamenti/condensazioni) sono
+  un livello secondario compositato sopra, mai l'unico contenuto.
+- Registrato come 7° renderer (`brainRendererRegistry.ts`), incluso in
+  `PERSISTENT_STORY_RENDERERS`; aggiunto **preventivamente** a
+  `HEAVY_RENDERERS_UNDER_PRESSURE` (decisione esplicita dello
+  sviluppatore) perché usa lo stesso pattern `createImageBitmap` +
+  analisi pixel per sorgente che ha causato i freeze di cold-start di
+  Bauhaus/Materia Morph risolti ieri — trattato allo stesso modo fin da
+  subito, non dopo aver osservato un freeze in log.
+- Nuovi test in `brainDreamSegmentationCanvas.test.ts` sulle funzioni
+  pure (sorpresa/evento, avanzamento trasformazione, condensazione,
+  respirazione) — nessun mock di canvas, stesso stile di
+  `brainBauhausMorphCanvas.test.ts`.
+- Validazione: 54 file / 348 test, typecheck, lint e build Vite verdi.
+  Verifica manuale dal vivo rimandata alla prossima sessione con audio.
+
 ## Passthrough FilterPsiche+Psycho2D finalmente attivato con segnale reale — 2026-08-19
 
 - **Analisi log** (`session-2026-08-19-00-25-08.txt`, sessione live subito dopo

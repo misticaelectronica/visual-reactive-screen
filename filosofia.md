@@ -7,6 +7,94 @@ non le sostituisce, le fonda. Va letto per intero prima di ogni decisione di
 alto livello su Brain; vedi `agents.md` per il quando/come usarlo nel
 dettaglio.
 
+## 0. La Musica Come Generatrice Di Uno Stato Immaginativo
+
+### Musica come generatrice di uno stato immaginativo
+
+Brain non considera la musica come un insieme di segnali da tradurre
+direttamente in parametri visivi. Le neuroscienze cognitive della musica
+mostrano che l'ascolto può attivare processi di costruzione del significato
+nei quali caratteristiche percettive, emozione, memoria e associazione
+convergono in rappresentazioni di ordine superiore.
+
+Tra il segnale musicale e l'immagine esiste quindi uno spazio intermedio:
+uno **stato immaginativo interno**. Questo stato può contenere relazioni,
+scene, azioni, oggetti, qualità affettive e strutture temporali senza essere
+ancora una rappresentazione visiva determinata.
+
+Brain genera le proprie immagini a partire da questo stato, non
+direttamente dall'audio.
+
+### Continuità semantica
+
+Una sequenza di immagini appartiene allo stesso processo immaginativo quando
+conserva un nucleo semantico, affettivo o relazionale anche mentre le forme
+visibili cambiano.
+
+La continuità non richiede quindi che lo stesso oggetto rimanga
+riconoscibile.
+
+Una forma può diventare un'altra, un luogo trasformarsi in un corpo, un
+oggetto diventare struttura o materia, purché qualcosa della relazione
+originaria continui ad agire nella nuova configurazione.
+
+Le immagini successive sono trasformazioni della stessa immaginazione, non
+interpretazioni indipendenti dello stesso brano.
+
+### Eventi percettivi
+
+L'immaginazione musicale si sviluppa nel tempo.
+
+Cambiamenti percettivamente significativi nella musica possono coincidere
+con la comparsa di nuovi eventi nelle rappresentazioni immaginate.
+
+Brain distingue quindi tra **reattività** ed **evento**.
+
+Il beat, il transient o una variazione di energia possono modificare
+localmente il comportamento visuale; un evento avviene invece quando la
+configurazione musicale produce una variazione sufficientemente
+significativa da modificare lo stato immaginativo interno.
+
+A quel punto Brain non applica semplicemente un effetto alla scena
+esistente: aggiorna ciò che sta immaginando.
+
+### Ambiguità semantica
+
+La musica orienta l'immaginazione senza determinarla completamente.
+
+Uno stesso stimolo può produrre configurazioni simili tra diversi
+osservatori, ma associazioni, cultura, memoria e contesto contribuiscono
+alla forma concreta assunta dall'esperienza.
+
+Brain deve quindi restringere progressivamente uno spazio di possibilità
+senza ridurlo a una corrispondenza fissa tra suono e immagine.
+
+Il significato emerge come attrattore, non come traduzione.
+
+### Brain come processo di immaginazione
+
+La relazione fondamentale non è:
+
+`audio → parametro visivo`
+
+ma:
+
+`audio → percezione → stato affettivo e associativo → modello immaginativo → manifestazione visiva`
+
+Il modello immaginativo persiste nel tempo, incorpora ciò che è già
+accaduto e viene modificato dagli eventi successivi.
+
+Brain non visualizza ciò che la musica sta facendo.
+
+Brain modifica ciò che sta immaginando mentre ascolta.
+
+Bibliografia scientifica essenziale: Jalon et al., Nature Communications
+2026, per le rappresentazioni neurali condivise e modality-general; Margulis
+et al., PNAS 2022, per l'intersoggettività culturalmente condizionata;
+Margulis et al., Cognition 2022, per lo sviluppo temporale degli eventi
+immaginati; McAuley et al., Cognition 2021, per la narrativa percepita come
+dimensione semantica della musica.
+
 ## 1. Fondamenta Teoriche Della Filosofia Di Brain
 
 Il riferimento è un filone delle neuroscienze contemporanee che descrive la

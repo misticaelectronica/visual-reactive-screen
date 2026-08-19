@@ -6,6 +6,7 @@ import { createBrainVectorMorphScene } from './brainVectorMorphScene'
 import { createBrainMaterialMorphScene } from './brainMaterialMorphCanvas'
 import { createBrainFilterPsicheScene } from './brainFilterPsicheCanvas'
 import { createBrainBauhausMorphScene } from './brainBauhausMorphCanvas'
+import { createBrainDreamSegmentationScene } from './brainDreamSegmentationCanvas'
 
 export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
   const registry = new BrainRendererRegistry()
@@ -76,6 +77,16 @@ export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
       lowPowerMode: true,
     },
     create: createBrainBauhausMorphScene,
+  })
+  registry.register({
+    id: 'dream-segmentation',
+    label: 'Dream Segmentation — immaginazione',
+    capabilities: {
+      multipleImages: true,
+      semanticMetadata: true,
+      lowPowerMode: true,
+    },
+    create: createBrainDreamSegmentationScene,
   })
   return registry
 }

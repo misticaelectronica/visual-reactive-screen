@@ -16,9 +16,13 @@ const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
 // dietro l'inferenza e restare visibilmente ferma per secondi. FilterPsiche
 // e Psycho2D non hanno mostrato lo stesso stallo nei log; finché non scelti
 // per una nuova storia si preferiscono a loro sotto pressione reale.
+// Dream Segmentation usa lo stesso pattern (createImageBitmap + analisi
+// pixel per sorgente, capabilities.multipleImages) e va trattato allo
+// stesso modo in via preventiva, non dopo aver osservato un freeze in log.
 const HEAVY_RENDERERS_UNDER_PRESSURE = new Set<BrainRendererId>([
   'bauhaus-morph',
   'material-morph',
+  'dream-segmentation',
 ])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
@@ -27,6 +31,7 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'vector-morph',
   'psycho2d',
   'bauhaus-morph',
+  'dream-segmentation',
 ])
 // Un renderer persistente è un invariante onirico (filosofia.md §2): deve
 // durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2

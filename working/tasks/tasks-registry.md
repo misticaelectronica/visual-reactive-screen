@@ -2,6 +2,19 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-032` (Nuovo Renderer Dream Segmentation)
+
+- [x] **`TASK-032-01`** `DONE`: Segmentazione riusata (`analyzeMaterialPixels`/`matchMaterialRegions`) + `prepareDreamField` leggero.
+- [x] **`TASK-032-02`** `DONE`: Funzioni pure evento vs reattività (profilo di banda, baseline, accumulatore sorpresa con dwell).
+- [x] **`TASK-032-03`** `DONE`: Avanzamento trasformazione con inerzia (`computeLocalMorphProgress`) disaccoppiato dall'host ma vincolato ad esso.
+- [x] **`TASK-032-04`** `DONE`: Condensazione ("terza forma") e spostamento (trail del fuoco visivo).
+- [x] **`TASK-032-05`** `DONE`: Respirazione corporea solo moltiplicativa (Check Silenzio) e disegno (membrane/filamenti/fantasmi).
+- [x] **`TASK-032-06`** `DONE`: Collegamento renderer id in tutti i punti (types, registry, selector, label debug, select Control).
+- [x] **`TASK-032-07`** `DONE`: Test, typecheck, lint, build — tutti verdi.
+- [ ] **`TASK-032-08`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
 ## Task Collegati a `MACRO-030` (Soluzioni Denoising Stall)
 
 - [x] **`TASK-030-01`** `DONE`: Leggere host renderer e verificare ONNX Runtime 1.24.1.
