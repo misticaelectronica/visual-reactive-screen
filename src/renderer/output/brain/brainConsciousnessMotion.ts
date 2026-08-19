@@ -4,6 +4,13 @@ import type { BrainRhythmState } from './brainRhythm'
 const MOTION_BEATS = 16
 const MOTION_MIN_READ_MS = 12_000
 const MOTION_COOLDOWN_MS = 75_000
+// Rete di sicurezza: l'uscita normale richiede 16 beat consecutivi
+// rilevati dopo il tempo minimo — se il rilevamento del beat è
+// irregolare (silenzio, ritmo instabile) può non arrivare mai, e senza
+// un tetto l'intera timeline della storia resta congelata a oltranza
+// (osservato dal vivo: bloccato per oltre 2 minuti). Il tetto forza
+// comunque l'uscita, anche senza il conteggio beat completo.
+const MOTION_MAX_READ_MS = 45_000
 
 function hash(value: string): number {
   let result = 2166136261
@@ -184,11 +191,12 @@ export function createBrainConsciousnessMotionLayer(
           lowPowerMode ? 0.42 + pulse * 0.06 : 0.46 + pulse * 0.1,
         )
       }
-      if (
+      const beatExitReady =
         rhythm.active && rhythm.beat &&
         rhythm.beatIndex - startedBeat >= MOTION_BEATS &&
         now - startedAt >= MOTION_MIN_READ_MS
-      ) {
+      const forcedExit = now - startedAt >= MOTION_MAX_READ_MS
+      if (beatExitReady || forcedExit) {
         completedPauseMs = Math.max(0, now - startedAt)
         lastFinishedAt = now
         active = null

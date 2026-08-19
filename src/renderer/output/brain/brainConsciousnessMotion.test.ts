@@ -80,4 +80,35 @@ describe('Brain consciousness motion', () => {
     expect(revoke).toHaveBeenCalledWith('blob:alternate-frame')
     expect(host.childElementCount).toBe(0)
   })
+
+  it('forza l\'uscita dopo il tetto massimo anche se il conteggio beat non si completa mai', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:alternate-frame')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const host = document.createElement('div')
+    const controller = createBrainConsciousnessMotionLayer(host)
+    controller.setImageSources([
+      { id: 'story-1:frame-1', raster: new Blob(['one']) },
+      { id: 'story-1:frame-2', raster: new Blob(['two']) },
+    ], 'story-1:frame-1')
+    controller.offer(candidate, 'story-1', 0)
+    expect(controller.update(rhythm({ beat: true, beatIndex: 0 }), 0, false).active).toBe(true)
+
+    // Rilevamento beat irregolare: beatIndex non avanza mai di 16, quindi
+    // la condizione normale di uscita non scatta mai da sola.
+    const stillStuck = controller.update(
+      rhythm({ beat: true, beatIndex: 1 }),
+      40_000,
+      false,
+    )
+    expect(stillStuck.active).toBe(true)
+
+    const forced = controller.update(
+      rhythm({ beat: true, beatIndex: 1 }),
+      45_000,
+      false,
+    )
+    expect(forced.active).toBe(false)
+    expect(forced.completedPauseMs).toBe(45_000)
+    controller.destroy()
+  })
 })

@@ -1,5 +1,28 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Trovato e corretto: congelamento fino a 2m14s (non un bug di Dream Segmentation) — 2026-08-19
+
+- **Segnalato dallo sviluppatore**: Dream Segmentation "resta fissa per
+  minuti". **Verificato dai log** (`session-2026-08-19-23-08-00.txt`) che
+  NON è un bug specifico del renderer: alle 21:10:36 è partito un "moto
+  di coscienza" (`brainConsciousnessMotion.ts`, il pannello che richiama
+  un ricordo passato) — per design congela l'intera timeline della
+  storia (nessun avanzamento fotogramma/renderer) finché il pannello non
+  si conclude. L'unica condizione di uscita richiedeva 16 beat
+  consecutivi rilevati dopo un minimo di 12s; con rilevamento del beat
+  irregolare quella condizione non si è mai verificata, e la timeline è
+  rimasta bloccata dalle 21:10:36 alle 21:12:50 — **2 minuti e 14
+  secondi**. Qualunque renderer fosse attivo in quel momento (stavolta
+  Dream Segmentation, selezionato pochi secondi prima) sarebbe apparso
+  "fisso" allo stesso modo.
+- **Fix**: aggiunto un tetto massimo di sicurezza
+  (`MOTION_MAX_READ_MS = 45_000`) — l'uscita forzata scatta comunque
+  dopo 45s anche se il conteggio beat non si completa mai, indipendente
+  dalla condizione normale di uscita (che resta invariata per il caso
+  normale).
+- Nuovo test: uscita forzata con `beatIndex` che non avanza mai di 16.
+- Validazione: 56 file / 390 test, typecheck, lint e build verdi.
+
 ## Dream Segmentation: contrasto più forte, scariche elettriche lungo la rete — 2026-08-19
 
 - **Contrasto rafforzato ulteriormente** (richiesta esplicita dello
