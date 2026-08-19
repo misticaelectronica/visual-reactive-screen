@@ -70,8 +70,11 @@ export function createBrainConsciousnessMotionLayer(
     width: '100%',
     height: '100%',
     objectFit: 'cover',
-    opacity: '0.82',
-    filter: 'contrast(1.08) saturate(1.12)',
+    // In negativo e più tenue: è un riaffiorare della memoria, non
+    // un'immagine piena — deve leggersi come traccia, non come sostituto
+    // dell'immagine corrente.
+    opacity: '0.5',
+    filter: 'invert(1) contrast(1.08) saturate(1.12)',
     willChange: 'filter, opacity',
   })
   region.appendChild(embeddedImage)
@@ -173,11 +176,12 @@ export function createBrainConsciousnessMotionLayer(
         const high = rhythm.bandTransients.high
         const mid = rhythm.bandTransients.mid
         embeddedImage.style.filter = [
+          'invert(1)',
           `contrast(${(1.08 + mid * 0.28 + pulse * 0.1).toFixed(3)})`,
           `saturate(${(1.12 + high * 0.42 + pulse * 0.16).toFixed(3)})`,
         ].join(' ')
         embeddedImage.style.opacity = String(
-          lowPowerMode ? 0.74 + pulse * 0.08 : 0.78 + pulse * 0.14,
+          lowPowerMode ? 0.42 + pulse * 0.06 : 0.46 + pulse * 0.1,
         )
       }
       if (
