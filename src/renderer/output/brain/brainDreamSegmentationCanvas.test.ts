@@ -6,6 +6,7 @@ import {
   calculateDreamMotion,
   computeBandProfile,
   computeCondensationBlend,
+  computeDendriteBranchPoint,
   computeElectricPulsePoint,
   computeLocalMorphProgress,
   computeProfileDistance,
@@ -264,5 +265,28 @@ describe('Dream Segmentation — scariche elettriche lungo la rete', () => {
     expect(endGlow.glow).toBeCloseTo(0, 5)
     expect(midGlow.glow).toBeGreaterThan(startGlow.glow)
     expect(midGlow.glow).toBeCloseTo(1, 5)
+  })
+})
+
+describe('Dream Segmentation — diramazioni dendritiche', () => {
+  it('la diramazione punta lontano dal nodo verso cui va la connessione principale', () => {
+    // Nodo in (10,0), connesso verso (0,0): la diramazione con seed 0.5
+    // (nessun jitter) deve puntare nella direzione opposta, verso x
+    // crescenti.
+    const branch = computeDendriteBranchPoint(10, 0, 0, 0, 0.5, 5)
+    expect(branch.x).toBeGreaterThan(10)
+    expect(branch.y).toBeCloseTo(0, 5)
+  })
+
+  it('è deterministica: stesso seed, stesso punto', () => {
+    const first = computeDendriteBranchPoint(3, 4, 8, 1, 0.27, 6)
+    const second = computeDendriteBranchPoint(3, 4, 8, 1, 0.27, 6)
+    expect(first).toEqual(second)
+  })
+
+  it('seed diversi producono diramazioni diverse', () => {
+    const a = computeDendriteBranchPoint(3, 4, 8, 1, 0.1, 6)
+    const b = computeDendriteBranchPoint(3, 4, 8, 1, 0.9, 6)
+    expect(a).not.toEqual(b)
   })
 })

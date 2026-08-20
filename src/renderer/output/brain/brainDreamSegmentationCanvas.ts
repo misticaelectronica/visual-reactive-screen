@@ -345,8 +345,8 @@ export function computeRegionBreathing(
   // in silenzio (activity=beat=0) resta 1 qualunque sia la pressione, non
   // introduce mai movimento autonomo.
   const breathing = (
-    motion.activity * 0.14 +
-    motion.beat * (0.06 + region.salience * 0.09)
+    motion.activity * 0.34 +
+    motion.beat * (0.16 + region.salience * 0.22)
   ) * clamp(pressureBias, 0, 1)
   return 1 + breathing
 }
@@ -548,6 +548,64 @@ type FilamentNode = {
 
 const ELECTRIC_PULSE_BUDGET = 5
 const ELECTRIC_PULSE_SPREAD = 0.17
+const DENDRITE_BRANCHES_PER_NODE = 2
+const DENDRITE_LENGTH_RATIO = 0.3
+const DENDRITE_MAX_LENGTH = 16
+
+// Hash deterministico (non casuale a ogni frame — una connessione neurale
+// non trema, la sua forma è stabile): stesso punto, stessa diramazione,
+// finché la geometria sottostante non cambia davvero.
+function hashUnit(x: number, y: number, salt: number): number {
+  let h = (Math.round(x * 131) ^ Math.round(y * 977) ^ Math.imul(salt, 2654435761)) | 0
+  h = Math.imul(h ^ (h >>> 15), 2246822519)
+  h ^= h >>> 13
+  return ((h >>> 0) % 1000) / 1000
+}
+
+/**
+ * Punto di una piccola diramazione (dendrite) che si stacca dal nodo,
+ * puntando lontano dalla connessione principale — le linee smettono di
+ * essere semplici segmenti fra due nodi e cominciano ad assomigliare a
+ * connessioni nervose che si ramificano.
+ */
+export function computeDendriteBranchPoint(
+  fromX: number,
+  fromY: number,
+  towardX: number,
+  towardY: number,
+  seed: number,
+  length: number,
+): { x: number; y: number } {
+  const baseAngle = Math.atan2(fromY - towardY, fromX - towardX)
+  const jitter = (seed - 0.5) * Math.PI * 0.9
+  const angle = baseAngle + jitter
+  return { x: fromX + Math.cos(angle) * length, y: fromY + Math.sin(angle) * length }
+}
+
+function drawDendrites(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  towardX: number,
+  towardY: number,
+  distance: number,
+  color: readonly [number, number, number],
+  opacity: number,
+): void {
+  const length = Math.min(DENDRITE_MAX_LENGTH, distance * DENDRITE_LENGTH_RATIO)
+  if (length <= 1 || opacity <= 0.002) return
+  for (let branch = 0; branch < DENDRITE_BRANCHES_PER_NODE; branch += 1) {
+    const seed = hashUnit(x, y, branch + 1)
+    const branchLength = length * (0.55 + seed * 0.45)
+    const tip = computeDendriteBranchPoint(x, y, towardX, towardY, seed, branchLength)
+    context.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${opacity})`
+    context.lineWidth = 0.5
+    context.beginPath()
+    context.moveTo(x, y)
+    context.lineTo(tip.x, tip.y)
+    context.stroke()
+  }
+}
 
 function drawFilamentNetwork(
   context: CanvasRenderingContext2D,
@@ -587,6 +645,14 @@ function drawFilamentNetwork(
     context.moveTo(a.x, a.y)
     context.quadraticCurveTo(midX, midY, b.x, b.y)
     context.stroke()
+    // Piccole diramazioni ai due estremi: una connessione neurale non è
+    // un segmento pulito fra due punti, si ramifica localmente. Costo
+    // trascurabile (due tratti corti per nodo, geometria stabile fra un
+    // frame e l'altro).
+    const distance = Math.hypot(a.x - b.x, a.y - b.y)
+    const dendriteOpacity = clamp(baseOpacity * (0.4 + weight * 0.4))
+    drawDendrites(context, a.x, a.y, b.x, b.y, distance, a.color, dendriteOpacity)
+    drawDendrites(context, b.x, b.y, a.x, a.y, distance, b.color, dendriteOpacity)
     // Scariche elettriche lungo un budget ridotto di connessioni (Check
     // Costo: poche, non una per filamento) — pulsePhase è null in
     // silenzio, quindi nessuna scarica senza audio (Check Silenzio).
@@ -987,7 +1053,10 @@ export function createBrainDreamSegmentationScene(
           context.globalCompositeOperation = 'multiply'
           drawDarkeningVeil(context, x, y, radius * 1.1, 0.4 + motion.tension * 0.12)
           context.globalCompositeOperation = 'lighter'
-          drawMembrane(context, x, y, radius, blend.color, 0.42 + motion.tension * 0.3)
+          drawMembrane(
+            context, x, y, radius, blend.color,
+            clamp(0.42 + motion.tension * 0.3 + (scale - 1) * 0.45),
+          )
           filamentNodes.push({ x, y, color: blend.color, salience: to.salience })
         }
         for (const pair of condensationPairs) {
@@ -1034,7 +1103,14 @@ export function createBrainDreamSegmentationScene(
           context.globalCompositeOperation = 'multiply'
           drawDarkeningVeil(context, x, y, radius * 1.1, 0.4 + motion.tension * 0.12)
           context.globalCompositeOperation = 'lighter'
-          drawMembrane(context, x, y, radius, region.averageColor, 0.42 + motion.tension * 0.3)
+          // Il respiro si vede anche in luminosità, non solo in dimensione:
+          // la stessa espansione che allarga il raggio schiarisce la
+          // membrana, altrimenti su regioni piccole la sola scala resta
+          // impercettibile (segnalato dallo sviluppatore).
+          drawMembrane(
+            context, x, y, radius, region.averageColor,
+            clamp(0.42 + motion.tension * 0.3 + (scale - 1) * 0.45),
+          )
           filamentNodes.push({ x, y, color: region.averageColor, salience: region.salience })
         }
       }

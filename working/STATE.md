@@ -1,5 +1,23 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Dream Segmentation: respiro più marcato, connessioni davvero neurali — 2026-08-20
+
+- **Respiro poco visibile** (segnalato dopo il giro precedente):
+  ampiezza di `computeRegionBreathing` più che raddoppiata
+  (`activity*0.14→0.34`, `beat*(0.06+sal*0.09)→beat*(0.16+sal*0.22)`).
+  Legata anche l'opacità della membrana alla stessa espansione (non solo
+  il raggio): il respiro ora si vede in dimensione E luminosità insieme,
+  altrimenti su regioni piccole la sola scala restava impercettibile.
+- **Filamenti non assomigliavano a connessioni neurali**: aggiunte
+  piccole diramazioni dendritiche ai due estremi di ogni filamento
+  (`computeDendriteBranchPoint`, `drawDendrites`) — geometria
+  deterministica (hash stabile sulla posizione del nodo, non casuale a
+  ogni frame: una connessione nervosa non trema), costo trascurabile (due
+  tratti corti per nodo).
+- Nuovi test per `computeDendriteBranchPoint` (direzione, determinismo,
+  varietà fra seed diversi).
+- Validazione: 56 file / 393 test, typecheck, lint e build verdi.
+
 ## Trovato e corretto: congelamento fino a 2m14s (non un bug di Dream Segmentation) — 2026-08-19
 
 - **Segnalato dallo sviluppatore**: Dream Segmentation "resta fissa per
