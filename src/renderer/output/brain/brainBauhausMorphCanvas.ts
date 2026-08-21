@@ -11,7 +11,15 @@ import {
   matchBauhausPlanes,
   type BauhausComposition,
   type BauhausPlane,
+  type BauhausPlaneShape,
+  type BauhausPoint,
 } from './brainBauhausAnalysis'
+import {
+  BAUHAUS_SILHOUETTES,
+  BAUHAUS_SILHOUETTE_POINT_COUNT,
+  type BauhausSilhouette,
+  type BauhausSilhouettePoint,
+} from './brainBauhausSilhouettes'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
@@ -224,11 +232,16 @@ async function prepareArtwork(
   return promise
 }
 
+// Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
+// aveva la propria versione con drift casuale — 0.006/0.007/0.008,
+// 0.42/0.44 — segnalato dallo sviluppatore come "soglie a cazzo"): stessa
+// formula, stessi numeri ovunque, leggermente più reattiva della media
+// osservata prima di questa unificazione.
 function bandDrive(value: number, average: number | undefined, transient: number): number {
   const baseline = Math.max(0.018, average ?? value * 0.82)
-  const sustained = clamp((value - 0.007) / 0.44)
-  const lift = clamp((value - baseline) / (baseline * 0.82 + 0.026))
-  return clamp(sustained * 0.58 + lift * 0.26 + transient * 0.4)
+  const sustained = clamp((value - 0.006) / 0.4)
+  const lift = clamp((value - baseline) / (baseline * 0.8 + 0.024))
+  return clamp(sustained * 0.6 + lift * 0.3 + transient * 0.44)
 }
 
 export function calculateBauhausMotion(
@@ -244,11 +257,11 @@ export function calculateBauhausMotion(
   const mid = bandDrive(bands.mid, movingAverages?.mid, transients.mid)
   const high = bandDrive(bands.high, movingAverages?.high, transients.high)
   const profile = settings.motionProfile === 'ambient'
-    ? 0.58
+    ? 0.66
     : settings.motionProfile === 'techno'
-      ? 1
-      : 0.78
-  const scale = profile * (0.7 + clamp(settings.sensitivity) * 0.38) *
+      ? 1.12
+      : 0.9
+  const scale = profile * (0.76 + clamp(settings.sensitivity) * 0.44) *
     (settings.softMode ? 0.72 : 1)
   const signalScale = rhythm?.active === false ? 0 : scale
   const activity = rhythm?.active === false
@@ -283,6 +296,270 @@ export function advanceBauhausAbstraction(
   return clamp(
     progress + delta * (0.05 + motion.surface * 0.035 + motion.beat * 0.02),
   )
+}
+
+// Le figure Bauhaus non sono un livello continuo ma un comportamento raro,
+// guadagnato dall'attività e dal beat reali già calcolati da
+// `calculateBauhausMotion` (non un secondo profilo di banda separato: qui
+// non serve rilevare un CAMBIO di carattere come in Dream Segmentation,
+// basta l'energia sostenuta). Zero audio → l'accumulatore resta a 0 e
+// nessuna figura può comparire (Check Silenzio). Colore preso dalla
+// palette dell'immagine corrente, posizione su ancore non casuali; se una
+// figura resta vicina a un piano esistente abbastanza a lungo può provare
+// a diventare una sagoma riconoscibile, scelta da una libreria curata a
+// mano (non casuale, non ML) in base alle proporzioni del piano vicino —
+// risponde al vincolo del brief originale piano-019 ("non una
+// sovrapposizione di forme casuali") sia nella genesi sia nell'esito.
+// Ingresso/uscita e il "diventare oggetto" sono sempre un morph continuo
+// (Check Transizione, riusa `interpolatedPlane`), mai la camera intera
+// (Check Camera), disabilitate sotto `resourcePressure` (Check Costo).
+const FIGURE_OUTLINE_POINTS = BAUHAUS_SILHOUETTE_POINT_COUNT
+// Bauhaus Morph resta il renderer attivo solo per la durata di un "hold"
+// (2-3 fotogrammi storia, `brainRendererSelector.ts` — tipicamente
+// 20-80s reali) prima di essere sostituito, e lo stato della figura
+// (accumulatore compreso) vive nella chiusura dell'istanza: viene
+// azzerato ogni volta che Bauhaus torna attivo dopo essere stato
+// sostituito. Le soglie originarie richiedevano energia sostenuta quasi
+// al massimo per innescare entro quella finestra — con audio reale
+// (moderato, non ai massimi) la comparsa richiedeva più tempo di quanto
+// Bauhaus restasse mai attivo, di fatto "mai" (segnalato dallo
+// sviluppatore: "raro sì ma non rarissimo"). Ricalibrate perché un
+// innesco arrivi in modo affidabile entro una finestra di ascolto
+// moderato-sostenuto realistica (~15-20s), non solo nel caso limite di
+// energia quasi massima per minuti.
+const FIGURE_ACTIVITY_GAIN_PER_MS = 0.00012
+const FIGURE_BEAT_GAIN_PER_MS = 0.00028
+const FIGURE_DECAY_PER_MS = 0.00002
+const FIGURE_THRESHOLD = 1
+const MINIMUM_FIGURE_DWELL_MS = 18_000
+const FIGURE_MIN_SIZE_RATIO = 0.14
+const FIGURE_MAX_SIZE_RATIO = 0.24
+const FIGURE_FADE_IN_MS = 900
+const FIGURE_HOLD_MS = 3_200
+const FIGURE_FADE_OUT_MS = 1_400
+const FIGURE_MAX_ALPHA = 0.5
+const FIGURE_PROXIMITY_THRESHOLD = 0.22
+const FIGURE_PROXIMITY_DWELL_MS = 1_500
+const FIGURE_BECOME_MS = 1_200
+const FIGURE_ANCHORS: readonly BauhausSilhouettePoint[] = [
+  { x: 1 / 3, y: 1 / 3 },
+  { x: 2 / 3, y: 1 / 3 },
+  { x: 1 / 3, y: 2 / 3 },
+  { x: 2 / 3, y: 2 / 3 },
+]
+
+export type BauhausFigureAccumulatorState = {
+  accumulator: number
+  lastEventAt: number
+}
+
+export type BauhausFigureBecomeState = 'abstract' | 'becoming' | 'object'
+
+export type BauhausFigureInstance = {
+  plane: BauhausPlane
+  spawnedAt: number
+  becomeState: BauhausFigureBecomeState
+  nearMs: number
+  becomeStartedAt: number | null
+  targetSilhouetteId: string | null
+  targetPlane: BauhausPlane | null
+}
+
+// Hash deterministico (non casuale ad ogni frame): stesso trigger, stessa
+// geometria, finché la figura non ne genera una nuova — stesso pattern già
+// usato in `brainDreamSegmentationCanvas.ts`/`brainGlitchMorphCanvas.ts`,
+// copia privata locale come in quei file (nessuna condivisa nel repo).
+function hashUnit(x: number, y: number, salt: number): number {
+  let h = (Math.round(x * 131) ^ Math.round(y * 977) ^ Math.imul(salt, 2654435761)) | 0
+  h = Math.imul(h ^ (h >>> 15), 2246822519)
+  h ^= h >>> 13
+  return ((h >>> 0) % 1000) / 1000
+}
+
+function sampleAbstractOutline(
+  shape: BauhausPlaneShape,
+  pointCount: number,
+): BauhausSilhouettePoint[] {
+  if (shape === 'ellipse') {
+    return Array.from({ length: pointCount }, (_, index) => {
+      const angle = -Math.PI / 2 + (index / pointCount) * Math.PI * 2
+      return { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 }
+    })
+  }
+  const corners = shape === 'triangle'
+    ? [{ x: 0, y: -0.5 }, { x: 0.5, y: 0.5 }, { x: -0.5, y: 0.5 }]
+    : [{ x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }, { x: 0.5, y: 0.5 }, { x: -0.5, y: 0.5 }]
+  const points: BauhausSilhouettePoint[] = []
+  const sideCount = corners.length
+  const stepsPerSide = pointCount / sideCount
+  for (let side = 0; side < sideCount; side += 1) {
+    const a = corners[side]
+    const b = corners[(side + 1) % sideCount]
+    for (let step = 0; step < stepsPerSide && points.length < pointCount; step += 1) {
+      const t = step / stepsPerSide
+      points.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
+    }
+  }
+  while (points.length < pointCount) points.push(points[points.length - 1])
+  return points
+}
+
+function bakeOutline(
+  points: readonly BauhausSilhouettePoint[],
+  centerX: number,
+  centerY: number,
+  size: number,
+): BauhausPoint[] {
+  return points.map((point) => ({
+    x: centerX + point.x * size,
+    y: centerY + point.y * size,
+  }))
+}
+
+export function updateBauhausFigureAccumulator(
+  state: BauhausFigureAccumulatorState,
+  motion: Pick<BauhausMotion, 'activity' | 'beat'>,
+  elapsedMs: number,
+  now: number,
+  active: boolean,
+): { state: BauhausFigureAccumulatorState; triggered: boolean } {
+  // Check Silenzio: senza audio attivo l'accumulatore non cresce mai.
+  if (!active) {
+    return { state: { accumulator: 0, lastEventAt: state.lastEventAt }, triggered: false }
+  }
+  const elapsed = Math.max(0, elapsedMs)
+  const growth = (
+    motion.activity * FIGURE_ACTIVITY_GAIN_PER_MS + motion.beat * FIGURE_BEAT_GAIN_PER_MS
+  ) * elapsed
+  const decayed = Math.max(0, state.accumulator - FIGURE_DECAY_PER_MS * elapsed)
+  const nextAccumulator = decayed + growth
+  const dwellElapsed = now - state.lastEventAt >= MINIMUM_FIGURE_DWELL_MS
+  if (dwellElapsed && nextAccumulator >= FIGURE_THRESHOLD) {
+    return { state: { accumulator: 0, lastEventAt: now }, triggered: true }
+  }
+  return { state: { accumulator: nextAccumulator, lastEventAt: state.lastEventAt }, triggered: false }
+}
+
+export function createBauhausFigure(
+  triggerAt: number,
+  musicalPosition: number,
+  composition: Pick<BauhausComposition, 'palette'>,
+): BauhausFigureInstance {
+  const shapeSeed = hashUnit(triggerAt, musicalPosition, 1)
+  const shape: BauhausPlaneShape = shapeSeed < 0.34
+    ? 'rect'
+    : shapeSeed < 0.67
+      ? 'ellipse'
+      : 'triangle'
+  const anchorIndex = Math.min(
+    FIGURE_ANCHORS.length - 1,
+    Math.floor(hashUnit(triggerAt, musicalPosition, 2) * FIGURE_ANCHORS.length),
+  )
+  const anchor = FIGURE_ANCHORS[anchorIndex]
+  const jitterX = (hashUnit(triggerAt, musicalPosition, 3) - 0.5) * 0.12
+  const jitterY = (hashUnit(triggerAt, musicalPosition, 4) - 0.5) * 0.12
+  const centerX = clamp(anchor.x + jitterX, 0.12, 0.88)
+  const centerY = clamp(anchor.y + jitterY, 0.12, 0.88)
+  const size = FIGURE_MIN_SIZE_RATIO +
+    hashUnit(triggerAt, musicalPosition, 5) * (FIGURE_MAX_SIZE_RATIO - FIGURE_MIN_SIZE_RATIO)
+  const rotation = shape === 'triangle'
+    ? (hashUnit(triggerAt, musicalPosition, 6) - 0.5) * 0.6
+    : 0
+  const paletteIndex = Math.min(
+    composition.palette.length - 1,
+    Math.floor(hashUnit(triggerAt, musicalPosition, 7) * composition.palette.length),
+  )
+  const color = composition.palette[paletteIndex] ?? '#eee7d8'
+  const outline = bakeOutline(
+    sampleAbstractOutline(shape, FIGURE_OUTLINE_POINTS),
+    centerX,
+    centerY,
+    size,
+  )
+  const plane: BauhausPlane = {
+    id: `figure-${triggerAt.toFixed(0)}`,
+    sourceRegionId: -1,
+    shape,
+    centerX,
+    centerY,
+    width: size,
+    height: size,
+    rotation,
+    color,
+    salience: 0.6,
+    focal: false,
+    abstractionStart: 0,
+    abstractionEnd: 1,
+    outline,
+  }
+  return {
+    plane,
+    spawnedAt: triggerAt,
+    becomeState: 'abstract',
+    nearMs: 0,
+    becomeStartedAt: null,
+    targetSilhouetteId: null,
+    targetPlane: null,
+  }
+}
+
+export function computeBauhausFigureEnvelope(
+  elapsedMs: number,
+): { opacity: number; scale: number; alive: boolean } {
+  const elapsed = Math.max(0, elapsedMs)
+  const holdStart = FIGURE_FADE_IN_MS
+  const fadeOutStart = FIGURE_FADE_IN_MS + FIGURE_HOLD_MS
+  const totalLife = fadeOutStart + FIGURE_FADE_OUT_MS
+  if (elapsed >= totalLife) return { opacity: 0, scale: 1, alive: false }
+  if (elapsed < holdStart) {
+    const t = smoothstep(elapsed / FIGURE_FADE_IN_MS)
+    return { opacity: t, scale: 0.85 + t * 0.15, alive: true }
+  }
+  if (elapsed < fadeOutStart) {
+    return { opacity: 1, scale: 1, alive: true }
+  }
+  const t = smoothstep((elapsed - fadeOutStart) / FIGURE_FADE_OUT_MS)
+  return { opacity: 1 - t, scale: 1 + t * 0.04, alive: true }
+}
+
+export function updateBauhausFigureProximity(
+  figureCenterX: number,
+  figureCenterY: number,
+  nearbyPlanes: readonly Pick<BauhausPlane, 'centerX' | 'centerY' | 'width' | 'height' | 'shape'>[],
+  nearMs: number,
+  elapsedMs: number,
+): {
+  nearMs: number
+  nearestPlane: Pick<BauhausPlane, 'width' | 'height' | 'shape'> | null
+} {
+  let nearestDistance = Number.POSITIVE_INFINITY
+  let nearestPlane: Pick<BauhausPlane, 'centerX' | 'centerY' | 'width' | 'height' | 'shape'> | null = null
+  for (const plane of nearbyPlanes) {
+    const distance = Math.hypot(plane.centerX - figureCenterX, plane.centerY - figureCenterY)
+    if (distance < nearestDistance) {
+      nearestDistance = distance
+      nearestPlane = plane
+    }
+  }
+  const within = nearestPlane !== null && nearestDistance <= FIGURE_PROXIMITY_THRESHOLD
+  const nextNearMs = within ? nearMs + Math.max(0, elapsedMs) : 0
+  return { nearMs: nextNearMs, nearestPlane: within ? nearestPlane : null }
+}
+
+export function selectBauhausSilhouette(
+  nearbyPlane: Pick<BauhausPlane, 'width' | 'height'>,
+  seed: number,
+): BauhausSilhouette {
+  const aspectRatio = nearbyPlane.height > 0.0001 ? nearbyPlane.width / nearbyPlane.height : 1
+  const ranked = [...BAUHAUS_SILHOUETTES].sort(
+    (a, b) => Math.abs(a.aspectRatio - aspectRatio) - Math.abs(b.aspectRatio - aspectRatio),
+  )
+  const candidates = ranked.slice(0, 3)
+  const index = Math.min(
+    candidates.length - 1,
+    Math.floor(hashUnit(seed, aspectRatio * 1_000, 11) * candidates.length),
+  )
+  return candidates[index]
 }
 
 function parseColor(value: string): RGB {
@@ -431,6 +708,11 @@ export function createBrainBauhausMorphScene(
   let abstractionProgress = 0
   let previousMusicalPosition: number | null = null
   let lastMotionAt = Number.NaN
+  let figureAccumulator: BauhausFigureAccumulatorState = {
+    accumulator: 0,
+    lastEventAt: Number.NEGATIVE_INFINITY,
+  }
+  let activeFigure: BauhausFigureInstance | null = null
   const motionSmoother = new BrainCanvasMotionSmoother()
   const prepared = new Map<string, PreparedBauhausArtwork>()
   const matchCache = new Map<string, ReturnType<typeof matchBauhausPlanes>>()
@@ -574,6 +856,31 @@ export function createBrainBauhausMorphScene(
         motion,
       )
       previousMusicalPosition = rhythm?.musicalPosition ?? previousMusicalPosition
+
+      // Figure Bauhaus (PIANO-037): l'accumulatore avanza ad ogni update(),
+      // non solo sui fotogrammi che superano il gating sotto — un
+      // comportamento raro guadagnato dall'ascolto reale, non un momento
+      // fisso legato al ritmo di disegno.
+      const audioActive = rhythm?.active ?? motion.activity > 0
+      const figureAccumulatorResult = updateBauhausFigureAccumulator(
+        figureAccumulator,
+        motion,
+        motionElapsed,
+        time,
+        audioActive,
+      )
+      figureAccumulator = figureAccumulatorResult.state
+      if (!resourcePressure && !activeFigure && figureAccumulatorResult.triggered) {
+        activeFigure = createBauhausFigure(
+          time,
+          rhythm?.musicalPosition ?? 0,
+          current.composition,
+        )
+      }
+      if (activeFigure && !computeBauhausFigureEnvelope(time - activeFigure.spawnedAt).alive) {
+        activeFigure = null
+      }
+
       const from = transitionRole === 'enter'
         ? artworkFor(previousSource) ?? current
         : current
@@ -588,6 +895,16 @@ export function createBrainBauhausMorphScene(
         rhythm?.beatIndex ?? 0,
         settings.lowPowerMode ? 1 : 0,
         resourcePressure ? 1 : 0,
+        activeFigure ? 1 : 0,
+        activeFigure
+          ? Math.round(computeBauhausFigureEnvelope(time - activeFigure.spawnedAt).opacity * 100)
+          : 0,
+        activeFigure?.becomeState ?? '',
+        activeFigure?.becomeState === 'becoming'
+          ? Math.round(
+              ((time - (activeFigure.becomeStartedAt ?? time)) / FIGURE_BECOME_MS) * 100,
+            )
+          : 0,
       ].join(':')
       const transitionChanged = !Number.isFinite(previousTransitionProgress) ||
         Math.abs(transitionProgress - previousTransitionProgress) >= 0.001
@@ -677,6 +994,32 @@ export function createBrainBauhausMorphScene(
         }
       }
 
+      // Figura Bauhaus: disegnata SOPRA il materiale raster-derivato
+      // (sfondo/underlay/spazi negativi/cerchi) così si legge come un
+      // accento, ma SOTTO le piane abbinate/l'overlay raster focale che
+      // seguono, così quel materiale resta l'ancora compositiva dominante
+      // (Check Materia). `source-over` (non `screen`, per non duplicare il
+      // linguaggio dei cerchi), opacità limitata da `FIGURE_MAX_ALPHA`: non
+      // può mai occludere del tutto la composizione sotto.
+      if (!resourcePressure && activeFigure) {
+        const envelope = computeBauhausFigureEnvelope(time - activeFigure.spawnedAt)
+        const becomeProgress = activeFigure.becomeState === 'object'
+          ? 1
+          : activeFigure.becomeState === 'becoming' && activeFigure.becomeStartedAt !== null
+            ? smoothstep((time - activeFigure.becomeStartedAt) / FIGURE_BECOME_MS)
+            : 0
+        const drawnPlane = activeFigure.targetPlane
+          ? interpolatedPlane(activeFigure.plane, activeFigure.targetPlane, becomeProgress) ?? activeFigure.plane
+          : activeFigure.plane
+        drawingContext.save()
+        planePath(drawingContext, drawnPlane, width, height, envelope.scale, 0, 0)
+        drawingContext.globalCompositeOperation = 'source-over'
+        drawingContext.globalAlpha = clamp(envelope.opacity * FIGURE_MAX_ALPHA)
+        drawingContext.fillStyle = drawnPlane.color
+        drawingContext.fill()
+        drawingContext.restore()
+      }
+
       const matchKey = `${from.source.id}->${to.source.id}`
       let matches = matchCache.get(matchKey)
       if (!matches) {
@@ -685,6 +1028,7 @@ export function createBrainBauhausMorphScene(
       }
       const planeBudget = resourcePressure ? 6 : settings.lowPowerMode ? 7 : 12
       const texturedPlaneBudget = settings.lowPowerMode ? 2 : 4
+      const visiblePlanesForFigure: BauhausPlane[] = []
       matches.slice(0, planeBudget).forEach((match, index) => {
         const plane = interpolatedPlane(match.from, match.to, transition)
         if (!plane) return
@@ -693,6 +1037,7 @@ export function createBrainBauhausMorphScene(
           Math.max(0.08, plane.abstractionEnd - plane.abstractionStart),
         )
         if (local <= 0) return
+        visiblePlanesForFigure.push(plane)
         const phase = motion.phase * Math.PI * 2 + index * 1.37
         const offsetScale = motion.activity > 0 ? motion.surface * 1.8 : 0
         const offsetX = Math.cos(phase) * offsetScale * (index % 2 ? -1 : 1)
@@ -727,6 +1072,43 @@ export function createBrainBauhausMorphScene(
         drawingContext.stroke()
         drawingContext.restore()
       })
+
+      // Prossimità della figura ai piani appena disegnati: aggiornata QUI
+      // (dopo averli calcolati) e usata al disegno del PROSSIMO fotogramma
+      // — un ritardo di un frame, impercettibile, più semplice che
+      // ricalcolare i piani abbinati due volte nello stesso giro. Se la
+      // figura si allontana, `nearMs` si azzera: "diventare un oggetto"
+      // resta condizionato, non garantito (non deve essere "ad ogni
+      // occasione", segnalato dallo sviluppatore).
+      if (!resourcePressure && activeFigure?.becomeState === 'abstract') {
+        const proximity = updateBauhausFigureProximity(
+          activeFigure.plane.centerX,
+          activeFigure.plane.centerY,
+          visiblePlanesForFigure,
+          activeFigure.nearMs,
+          motionElapsed,
+        )
+        activeFigure.nearMs = proximity.nearMs
+        if (proximity.nearestPlane && activeFigure.nearMs >= FIGURE_PROXIMITY_DWELL_MS) {
+          const silhouette = selectBauhausSilhouette(proximity.nearestPlane, activeFigure.spawnedAt)
+          activeFigure.targetSilhouetteId = silhouette.id
+          activeFigure.targetPlane = {
+            ...activeFigure.plane,
+            outline: bakeOutline(
+              silhouette.points,
+              activeFigure.plane.centerX,
+              activeFigure.plane.centerY,
+              activeFigure.plane.width,
+            ),
+          }
+          activeFigure.becomeState = 'becoming'
+          activeFigure.becomeStartedAt = time
+        }
+      } else if (activeFigure?.becomeState === 'becoming' && activeFigure.becomeStartedAt !== null) {
+        if (time - activeFigure.becomeStartedAt >= FIGURE_BECOME_MS) {
+          activeFigure.becomeState = 'object'
+        }
+      }
 
       const focal = activeComposition.planes.find((plane) => plane.focal)
       const focalLayer = focal
@@ -804,6 +1186,7 @@ export function createBrainBauhausMorphScene(
       output.dataset.brainBauhausAbstraction = abstractionProgress.toFixed(3)
       output.dataset.brainBauhausTransition =
         `${transitionRole}-${transitionProgress.toFixed(3)}`
+      output.dataset.brainBauhausFigure = activeFigure?.becomeState ?? 'none'
       brainPerformanceMetrics.recordCanvasFrame(
         time,
         resourcePressure,
@@ -815,6 +1198,8 @@ export function createBrainBauhausMorphScene(
       prepared.clear()
       matchCache.clear()
       motionSmoother.reset()
+      figureAccumulator = { accumulator: 0, lastEventAt: Number.NEGATIVE_INFINITY }
+      activeFigure = null
       fallback.src = ''
       URL.revokeObjectURL(fallbackUrl)
       output.width = 1
