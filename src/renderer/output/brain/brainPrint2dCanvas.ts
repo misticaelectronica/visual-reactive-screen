@@ -117,11 +117,15 @@ export function calculateBrainPrint2dBandDrives(
   bands: BandEnergies,
   movingAverages?: BandEnergies,
 ): BrainPrint2dBandDrives {
+  // Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
+  // aveva la propria versione con drift casuale — segnalato dallo
+  // sviluppatore come "soglie a cazzo"): stessi numeri di baseline/soglia
+  // di `bandDrive` usato altrove, leggermente più reattiva di prima.
   const drive = (band: keyof BandEnergies): number => {
     const value = clamp(bands[band])
     const baseline = Math.max(0.018, movingAverages?.[band] ?? value * 0.82)
-    const sustained = clamp((value - 0.008) / 0.42)
-    const lift = clamp((value - baseline) / (baseline * 0.8 + 0.03))
+    const sustained = clamp((value - 0.006) / 0.4)
+    const lift = clamp((value - baseline) / (baseline * 0.8 + 0.024))
     return clamp(sustained * 0.68 + lift * 0.32)
   }
   return {
@@ -156,12 +160,12 @@ export function calculateBrainPrint2dMotion(
   )
   const activity = clamp((energy + transient * 0.24 - 0.008) / 0.62)
   const profile = settings.motionProfile === 'ambient'
-    ? 0.62
+    ? 0.66
     : settings.motionProfile === 'techno'
-      ? 1
-      : 0.82
+      ? 1.12
+      : 0.9
   const softness = settings.softMode ? 0.72 : 1
-  const sensitivity = 0.68 + clamp(settings.sensitivity) * 0.42
+  const sensitivity = 0.76 + clamp(settings.sensitivity) * 0.44
   const scale = profile * softness * sensitivity
   const beatEnvelope = clamp(
     rhythm?.kickEnvelope ?? rhythm?.beatPulse ?? 0,

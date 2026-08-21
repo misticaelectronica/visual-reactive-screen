@@ -10,8 +10,18 @@ import {
 } from './brainSvgScene'
 import { brainLog, brainWarn } from './brainLog'
 
-const RASTER_BACKGROUND_OPACITY = 0.92
-const VECTOR_FOREGROUND_OPACITY = 0.7
+// Raster a piena opacità e senza desaturazione, vettoriale più leggero
+// sopra: prima il raster risultava poco visibile sotto le forme
+// vettoriali (segnalato dallo sviluppatore) — Check Materia, il raster
+// resta il livello di base, non oscurato dall'overlay.
+const RASTER_BACKGROUND_OPACITY = 1
+const VECTOR_FOREGROUND_OPACITY = 0.55
+// Con solo poche forme rilevate (3/4) il vettoriale legge come un errore
+// di vettorializzazione, non come una scena — va scartato come un
+// fallimento vero e proprio, non tenuto a schermo (segnalato dallo
+// sviluppatore). Riusa lo stesso meccanismo di `hasFailed`/fallback già
+// gestito da `brainRendererHost.ts` per gli altri casi di rigetto.
+export const MIN_VECTOR_SHAPES = 5
 
 export function createBrainVectorMorphScene(
   context: BrainRendererPluginContext,
@@ -39,7 +49,6 @@ export function createBrainVectorMorphScene(
     height: '100%',
     objectFit: 'cover',
     opacity: String(RASTER_BACKGROUND_OPACITY),
-    filter: 'saturate(0.9) contrast(0.96)',
     pointerEvents: 'none',
     zIndex: '1',
   })
@@ -66,7 +75,7 @@ export function createBrainVectorMorphScene(
 
   void context.getVectorScene().then((scene) => {
     if (destroyed) return
-    inner = createBrainSvgScene(
+    const candidate = createBrainSvgScene(
       vectorForeground,
       scene,
       context.palette,
@@ -76,6 +85,18 @@ export function createBrainVectorMorphScene(
         frameCount: context.frameCount,
       },
     )
+    const shapeCount = candidate.getMorphShapes().length
+    if (shapeCount < MIN_VECTOR_SHAPES) {
+      candidate.destroy()
+      failed = true
+      brainWarn('render', 'plugin Vector Morph scartato: troppe poche forme rilevate', {
+        frameId: scene.frameId,
+        shapeCount,
+        minimo: MIN_VECTOR_SHAPES,
+      })
+      return
+    }
+    inner = candidate
     inner.setOpacity(1)
     inner.element.style.backgroundColor = 'transparent'
     inner.setMorphPattern(morphPattern)
@@ -89,6 +110,7 @@ export function createBrainVectorMorphScene(
     brainLog('render', 'plugin Vector Morph pronto', {
       frameId: scene.frameId,
       svgLength: scene.svg.length,
+      shapeCount,
     })
   }).catch((error) => {
     if (destroyed) return

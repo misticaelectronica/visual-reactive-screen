@@ -433,11 +433,14 @@ export function createBrainPsycho2dWindowScene(
         : 0
       const beatPulse = Math.max(latchedBeatPulse, clamp(rhythm?.beatPulse ?? 0))
       const beatPhase = rhythm?.beatPhase ?? lastBeatPhase
+      // Scala di genere unificata con gli altri renderer Brain (in
+      // precedenza ogni file aveva la propria versione con drift casuale
+      // — segnalato dallo sviluppatore come "soglie a cazzo").
       const kickProfileScale = settings.motionProfile === 'ambient'
-        ? 0.5
+        ? 0.6
         : settings.motionProfile === 'techno'
-          ? 1
-          : 0.8
+          ? 1.15
+          : 0.92
       const kickEnvelope = clamp(
         (rhythm?.kickEnvelope ?? beatPulse) * kickProfileScale,
       )
@@ -621,11 +624,14 @@ export function createBrainPsycho2dWindowScene(
         context.restore()
       }
 
+      // Scala di genere unificata con gli altri renderer Brain (in
+      // precedenza ogni file aveva la propria versione con drift casuale
+      // — segnalato dallo sviluppatore come "soglie a cazzo").
       const profileScale = settings.motionProfile === 'ambient'
-        ? 0.55
+        ? 0.6
         : settings.motionProfile === 'techno'
-          ? 1
-          : 0.78
+          ? 1.15
+          : 0.92
       const glitchDrive = clamp(
         (rhythm?.bandTransients.mid ?? 0) * 0.85 +
         (rhythm?.bandTransients.high ?? 0) * 1.2 +

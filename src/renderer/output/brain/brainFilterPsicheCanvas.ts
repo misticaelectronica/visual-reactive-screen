@@ -172,11 +172,15 @@ export function selectFilterPsicheVariant(
   return variants[index]
 }
 
+// Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
+// aveva la propria versione con drift casuale — segnalato dallo
+// sviluppatore come "soglie a cazzo"): stessa formula, stessi numeri
+// ovunque, leggermente più reattiva della media osservata prima.
 function bandDrive(value: number, average: number | undefined, transient: number): number {
   const baseline = Math.max(0.018, average ?? value * 0.82)
-  const sustained = clamp((value - 0.008) / 0.42)
-  const lift = clamp((value - baseline) / (baseline * 0.84 + 0.028))
-  return clamp(sustained * 0.55 + lift * 0.28 + transient * 0.42)
+  const sustained = clamp((value - 0.006) / 0.4)
+  const lift = clamp((value - baseline) / (baseline * 0.8 + 0.024))
+  return clamp(sustained * 0.6 + lift * 0.3 + transient * 0.44)
 }
 
 export function calculateFilterPsicheMotion(
@@ -194,9 +198,9 @@ export function calculateFilterPsicheMotion(
   const profile = settings.motionProfile === 'ambient'
     ? 0.66
     : settings.motionProfile === 'techno'
-      ? 1.08
-      : 0.88
-  const sensitivity = 0.78 + clamp(settings.sensitivity) * 0.46
+      ? 1.12
+      : 0.9
+  const sensitivity = 0.76 + clamp(settings.sensitivity) * 0.44
   const scale = profile * sensitivity * (settings.softMode ? 0.72 : 1)
   const flashDrive = flash?.active ? clamp(flash.intensity) : 0
   const activity = clamp(

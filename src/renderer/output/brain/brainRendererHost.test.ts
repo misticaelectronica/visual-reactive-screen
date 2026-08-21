@@ -11,11 +11,30 @@ describe('Brain renderer host', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
-  it('passa a Print2D come rete di sicurezza se il renderer attivo fallisce (es. Vector Morph respinto dal controllo qualità)', () => {
-    const registry = new BrainRendererRegistry()
+  function registerSafetyNetFixtures(registry: BrainRendererRegistry): { setVectorMorphFailed(value: boolean): void } {
     registry.register({
       id: 'print2d',
       label: 'Print2D',
+      capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element,
+          isReady: () => true,
+          setOpacity() {},
+          getMorphShapes: () => [],
+          setMorphPattern() {},
+          setResourcePressure() {},
+          setTransition() {},
+          update() {},
+          destroy() { element.remove() },
+        }
+      },
+    })
+    registry.register({
+      id: 'filter-psiche',
+      label: 'FilterPsiche',
       capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
       create(context) {
         const element = document.createElement('div')
@@ -55,6 +74,12 @@ describe('Brain renderer host', () => {
         }
       },
     })
+    return { setVectorMorphFailed: (value) => { vectorMorphFailed = value } }
+  }
+
+  it('passa a FilterPsiche come rete di sicurezza se il renderer attivo fallisce fuori dalla Riattivazione (es. Vector Morph respinto dal controllo qualità)', () => {
+    const registry = new BrainRendererRegistry()
+    const fixtures = registerSafetyNetFixtures(registry)
     const container = document.createElement('div')
     const raster = new Blob(['raster'])
     const host = createBrainRendererHost(
@@ -78,10 +103,47 @@ describe('Brain renderer host', () => {
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
     expect(host.element.dataset.activeRenderer).toBe('vector-morph')
 
-    vectorMorphFailed = true
+    fixtures.setVectorMorphFailed(true)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
-    // Non aspetta la fine del fotogramma: chiede subito Print2D come
-    // renderer entrante (crossfade normale, non un taglio secco).
+    // Non aspetta la fine del fotogramma: chiede subito FilterPsiche come
+    // renderer entrante (crossfade normale, non un taglio secco). Print2D
+    // è escluso di proposito: gira solo durante la Riattivazione
+    // (PIANO-034) — usarlo qui incondizionatamente era la regressione
+    // segnalata dallo sviluppatore.
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 4_500)
+    expect(host.element.dataset.activeRenderer).toBe('filter-psiche')
+    host.destroy()
+  })
+
+  it('passa a Print2D come rete di sicurezza se il renderer attivo fallisce DURANTE la Riattivazione', () => {
+    const registry = new BrainRendererRegistry()
+    const fixtures = registerSafetyNetFixtures(registry)
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'vector-morph',
+      'vector-morph',
+      () => true,
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(host.element.dataset.activeRenderer).toBe('vector-morph')
+
+    fixtures.setVectorMorphFailed(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 4_500)
     expect(host.element.dataset.activeRenderer).toBe('print2d')
     host.destroy()
@@ -347,6 +409,72 @@ describe('Brain renderer host', () => {
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 11_000)
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('exiting')
+    host.destroy()
+  })
+
+  it('tiene il flash di copertura al picco finché il passthrough non è davvero pronto (preparazione lenta)', () => {
+    const registry = new BrainRendererRegistry()
+    let filterPsicheReady = false
+    for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
+      registry.register({
+        id,
+        label: id,
+        capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => id === 'filter-psiche' ? filterPsicheReady : true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update() {},
+            destroy() { element.remove() },
+          }
+        },
+      })
+    }
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'print2d',
+      'print2d',
+    )
+
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    host.setResourcePressure(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_010)
+    const flashOpacity = () => Number(
+      container.querySelector<HTMLDivElement>('[data-brain-pressure-flash="true"]')?.style.opacity ?? '0',
+    )
+
+    // Ben oltre la normale finestra attacco+decadimento (200ms): senza la
+    // tenuta al picco il flash sarebbe già spento qui, scoprendo il
+    // fotogramma bloccato del renderer attivo (segnalato dallo sviluppatore).
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_500)
+    expect(flashOpacity()).toBeGreaterThan(0.4)
+
+    // Il passthrough diventa pronto: il flash può finalmente spegnersi.
+    filterPsicheReady = true
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_600)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 3_000)
+    expect(flashOpacity()).toBe(0)
     host.destroy()
   })
 

@@ -242,15 +242,19 @@ async function prepareMaterialSource(
   return preparation
 }
 
+// Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
+// aveva la propria versione con drift casuale — segnalato dallo
+// sviluppatore come "soglie a cazzo"): stessa formula, stessi numeri
+// ovunque, leggermente più reattiva della media osservata prima.
 function bandDrive(
   value: number,
   average: number | undefined,
   transient: number,
 ): number {
   const baseline = Math.max(0.018, average ?? value * 0.82)
-  const sustained = clamp((value - 0.006) / 0.44)
-  const lift = clamp((value - baseline) / (baseline * 0.82 + 0.025))
-  return clamp(sustained * 0.62 + lift * 0.25 + transient * 0.38)
+  const sustained = clamp((value - 0.006) / 0.4)
+  const lift = clamp((value - baseline) / (baseline * 0.8 + 0.024))
+  return clamp(sustained * 0.6 + lift * 0.3 + transient * 0.44)
 }
 
 export function calculateBrainMaterialMotion(
@@ -266,12 +270,12 @@ export function calculateBrainMaterialMotion(
   const mid = bandDrive(bands.mid, movingAverages?.mid, transients.mid)
   const high = bandDrive(bands.high, movingAverages?.high, transients.high)
   const profile = settings.motionProfile === 'ambient'
-    ? 0.58
+    ? 0.66
     : settings.motionProfile === 'techno'
-      ? 1
-      : 0.8
+      ? 1.12
+      : 0.9
   const softness = settings.softMode ? 0.72 : 1
-  const sensitivity = 0.72 + clamp(settings.sensitivity) * 0.38
+  const sensitivity = 0.76 + clamp(settings.sensitivity) * 0.44
   const scale = profile * softness * sensitivity
   const flashDrive = flash?.active ? clamp(flash.intensity) : 0
   const activity = clamp(

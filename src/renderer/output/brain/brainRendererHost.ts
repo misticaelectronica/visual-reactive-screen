@@ -19,13 +19,21 @@ const SWITCH_TIMEOUT_MS = 15_000
 // rilevato un vero stallo (è reattivo, non predittivo): il salto visivo fra
 // l'ultimo fotogramma fermo di Bauhaus/Materia Morph e il passthrough
 // leggero arriva quindi sempre a stallo già avvenuto. Non eliminabile con
-// uno scheduling più furbo; si maschera con un breve flash — tecnica VJ
-// comune per coprire un taglio tecnico invece di farlo leggere come un
-// glitch. Non è reattività musicale (Check Silenzio): scatta solo sul
-// fronte di salita di una pressione GPU reale rilevata, non su base audio.
-const PRESSURE_FLASH_ATTACK_MS = 40
+// uno scheduling più furbo; si maschera con un flash + poche strisce
+// tagliate/sfalsate in stile glitch — tecnica VJ comune per far leggere un
+// taglio tecnico come un accento voluto invece che come un difetto
+// (segnalato dallo sviluppatore: il mix FilterPsiche/Psycho2D scattava a
+// lag già iniziato). Non è reattività musicale (Check Silenzio): scatta
+// solo sul fronte di salita di una pressione GPU reale rilevata, non su
+// base audio; l'inviluppo resta quello già in uso (tenuto al picco finché
+// il passthrough non è davvero pronto, non un tempo fisso).
+const PRESSURE_FLASH_ATTACK_MS = 24
 const PRESSURE_FLASH_DECAY_MS = 160
 const PRESSURE_FLASH_PEAK_OPACITY = 0.55
+const PRESSURE_GLITCH_SLICE_COUNT = 4
+const PRESSURE_GLITCH_MAX_OFFSET_PX = 14
+const PRESSURE_GLITCH_PEAK_OPACITY = 0.4
+const PRESSURE_GLITCH_TINTS = ['rgba(70,225,255,0.55)', 'rgba(255,70,195,0.5)'] as const
 
 type RendererLayer = {
   id: BrainRendererId
@@ -49,6 +57,7 @@ export function createBrainRendererHost(
   pluginContext: Omit<BrainRendererPluginContext, 'container'>,
   getRendererId: (settings: AppSettings, now: number) => BrainRendererId,
   initialRendererId: BrainRendererId,
+  getBoostHint?: () => boolean,
 ): BrainSceneRendererController {
   const root = document.createElement('div')
   Object.assign(root.style, {
@@ -78,6 +87,7 @@ export function createBrainRendererHost(
   const ensurePressureFlashOverlay = (): HTMLDivElement => {
     if (!pressureFlashOverlay) {
       pressureFlashOverlay = document.createElement('div')
+      pressureFlashOverlay.dataset.brainPressureFlash = 'true'
       Object.assign(pressureFlashOverlay.style, {
         position: 'absolute',
         inset: '0',
@@ -90,6 +100,43 @@ export function createBrainRendererHost(
       root.appendChild(pressureFlashOverlay)
     }
     return pressureFlashOverlay
+  }
+
+  // Poche strisce sottili, sfalsate orizzontalmente e tinte in ciano/
+  // magenta (stessa frangia cromatica già usata altrove nel codebase per i
+  // glitch) sopra il renderer bloccato: costo nullo per frame, sono
+  // elementi CSS statici ristilizzati solo al momento dell'armo (non ad
+  // ogni frame), l'opacità segue lo stesso inviluppo del flash.
+  let pressureGlitchSlices: HTMLDivElement[] = []
+  const armPressureGlitchSlices = (): void => {
+    if (pressureGlitchSlices.length === 0) {
+      pressureGlitchSlices = Array.from({ length: PRESSURE_GLITCH_SLICE_COUNT }, () => {
+        const slice = document.createElement('div')
+        slice.dataset.brainPressureGlitchSlice = 'true'
+        Object.assign(slice.style, {
+          position: 'absolute',
+          left: '0',
+          right: '0',
+          opacity: '0',
+          pointerEvents: 'none',
+          mixBlendMode: 'screen',
+          zIndex: '3',
+        })
+        root.appendChild(slice)
+        return slice
+      })
+    }
+    pressureGlitchSlices.forEach((slice, index) => {
+      const top = 6 + Math.random() * 84
+      const height = 2 + Math.random() * 5
+      const offset = (Math.random() - 0.5) * 2 * PRESSURE_GLITCH_MAX_OFFSET_PX
+      Object.assign(slice.style, {
+        top: `${top.toFixed(1)}%`,
+        height: `${height.toFixed(1)}%`,
+        transform: `translateX(${offset.toFixed(1)}px)`,
+        backgroundColor: PRESSURE_GLITCH_TINTS[index % PRESSURE_GLITCH_TINTS.length],
+      })
+    })
   }
 
   const createLayer = (id: BrainRendererId, now: number): RendererLayer => {
@@ -211,6 +258,7 @@ export function createBrainRendererHost(
       resourcePressure = activePressure
       if (activePressure) {
         ensurePressureFlashOverlay()
+        armPressureGlitchSlices()
         pressureFlashArmed = true
       }
       active.controller.setResourcePressure(activePressure)
@@ -242,23 +290,44 @@ export function createBrainRendererHost(
         pressureFlashArmed = false
         pressureFlashStartedAt = time
       }
+      // La preparazione del passthrough (createImageBitmap + trasformazione
+      // pixel per pixel, tre varianti) può richiedere anche 1-2s — durante
+      // quell'attesa il fotogramma bloccato del renderer attivo restava
+      // visibile ben oltre il breve flash pensato per coprire un cambio
+      // istantaneo (segnalato dallo sviluppatore). Il flash ora resta al
+      // picco finché il passthrough non è davvero pronto, invece di
+      // spegnersi dopo un tempo fisso troppo corto per l'attesa reale — non
+      // costa nulla in più: usa lo stesso `ensureDenoisingFilterPsiche` già
+      // chiamato subito sotto, solo spostato prima.
+      const passthrough = resourcePressure && BRAIN_CONFIG.lightweightDenoisingRender
+        ? ensureDenoisingFilterPsiche(time)
+        : null
+      const passthroughReady = passthrough !== null && passthrough.controller.isReady?.() !== false
       if (pressureFlashStartedAt !== null) {
         const elapsed = time - pressureFlashStartedAt
         const totalMs = PRESSURE_FLASH_ATTACK_MS + PRESSURE_FLASH_DECAY_MS
-        if (elapsed >= totalMs) {
+        const holding = resourcePressure && !passthroughReady
+        if (!holding && elapsed >= totalMs) {
           pressureFlashStartedAt = null
           if (pressureFlashOverlay) pressureFlashOverlay.style.opacity = '0'
-        } else if (pressureFlashOverlay) {
+          pressureGlitchSlices.forEach((slice) => { slice.style.opacity = '0' })
+        } else {
           const intensity = elapsed < PRESSURE_FLASH_ATTACK_MS
             ? elapsed / PRESSURE_FLASH_ATTACK_MS
-            : 1 - (elapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
-          pressureFlashOverlay.style.opacity = String(clamp(intensity) * PRESSURE_FLASH_PEAK_OPACITY)
+            : holding
+              ? 1
+              : 1 - (elapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
+          const clamped = clamp(intensity)
+          if (pressureFlashOverlay) {
+            pressureFlashOverlay.style.opacity = String(clamped * PRESSURE_FLASH_PEAK_OPACITY)
+          }
+          pressureGlitchSlices.forEach((slice) => {
+            slice.style.opacity = String(clamped * PRESSURE_GLITCH_PEAK_OPACITY)
+          })
         }
       }
-      if (resourcePressure && BRAIN_CONFIG.lightweightDenoisingRender) {
-        const passthrough = ensureDenoisingFilterPsiche(time)
+      if (passthrough) {
         const mix = ensureDenoisingPsycho2d(time)
-        const passthroughReady = passthrough.controller.isReady?.() !== false
         if (passthroughReady) {
           if (passthroughState === 'idle' || passthroughState === 'exiting') {
             passthroughState = 'entering'
@@ -363,14 +432,21 @@ export function createBrainRendererHost(
       // già gestito sotto) non deve restare a schermo per l'intera durata
       // del fotogramma — es. Vector Morph quando la vettorializzazione
       // viene respinta dal controllo qualità mostra solo il raster di
-      // sfondo finché nessuno lo nota. Print2D è la rete di sicurezza:
-      // renderer semplice, non fallisce mai per lo stesso motivo.
-      if (active.controller.hasFailed?.() === true && active.id !== 'print2d') {
-        brainWarn('render', 'renderer Brain attivo fallito; passo a Print2D come rete di sicurezza', {
+      // sfondo finché nessuno lo nota. Print2D è pensato come rete di
+      // sicurezza semplice che non fallisce mai per lo stesso motivo, ma
+      // Print2D deve girare SOLO durante la Riattivazione (PIANO-034,
+      // regressione segnalata dallo sviluppatore: usarlo qui sempre lo
+      // faceva comparire anche fuori dal ciclo) — fuori dalla Riattivazione
+      // la rete di sicurezza usa FilterPsiche, già impiegato altrove in
+      // questo stesso file come passthrough leggero e affidabile.
+      const safetyNetId: BrainRendererId = getBoostHint?.() === true ? 'print2d' : 'filter-psiche'
+      if (active.controller.hasFailed?.() === true && active.id !== safetyNetId) {
+        brainWarn('render', 'renderer Brain attivo fallito; passo alla rete di sicurezza', {
           active: active.id,
+          safetyNet: safetyNetId,
         })
         retryRendererAfter.set(active.id, time + 30_000)
-        requestRenderer('print2d', time)
+        requestRenderer(safetyNetId, time)
       }
 
       active.controller.update(bands, settings, time, rhythm, movingAverages, flash)
@@ -429,6 +505,7 @@ export function createBrainRendererHost(
       destroyLayer(denoisingFilterPsiche)
       destroyLayer(denoisingPsycho2d)
       pressureFlashOverlay = null
+      pressureGlitchSlices = []
       incoming = null
       root.remove()
     },

@@ -919,6 +919,12 @@ export function createBrainController(
     if (visibleStoryPanelId === storyId) return
     visibleStoryPanelId = storyId
     window.clearTimeout(storyPanelTimerId)
+    // Riattivazione (PIANO-034): la sidebar del testo/storia deve restare
+    // nascosta per tutta la durata del ciclo, non solo all'inizio — senza
+    // questo controllo la produzione sintetica richiama comunque
+    // `setDreamMonitor` per ogni fotogramma e la riporterebbe visibile a
+    // metà ciclo.
+    if (revisionCycleActive) return
     storyElement.style.transition = 'opacity 900ms ease'
     storyElement.style.opacity = '0.616'
     storyPanelTimerId = window.setTimeout(() => {
@@ -1077,6 +1083,7 @@ export function createBrainController(
                 performance.now(),
               )
             : 'print2d',
+          () => revisionCycleActive,
         )
       : createBrainSvgScene(
           svgHost,
@@ -1334,6 +1341,15 @@ export function createBrainController(
     pendingProductionAfterRevisionCycle = realNextProduction
     revisionCycleActive = true
     root.dataset.revisionCycleActive = 'true'
+    // Le sidebar laterali (testo/storia a sinistra, galleria raster a
+    // destra) spariscono per tutta la Riattivazione — riappaiono da sole
+    // quando la produzione normale riprende (segnalato dallo sviluppatore).
+    window.clearTimeout(storyPanelTimerId)
+    storyPanelTimerId = 0
+    storyElement.style.transition = 'opacity 600ms ease'
+    storyElement.style.opacity = '0'
+    rasterMonitor.style.transition = 'opacity 600ms ease'
+    rasterMonitor.style.opacity = '0'
     revisionCycleActiveUntil = performance.now() +
       revisionProduction.story.frames.reduce((total, frame) => total + frame.durationMs, 0)
     setBrainRevisionBoost(true)
@@ -1841,6 +1857,13 @@ export function createBrainController(
         revisionCycleActive = false
         root.dataset.revisionCycleActive = 'false'
         setBrainRevisionBoost(false)
+        // Riappaiono: `setDreamMonitor` per la produzione ripresa richiama
+        // `showStoryPanelFor` a breve, ora che il guard sopra è disattivo —
+        // la galleria raster va invece ripristinata esplicitamente, non ha
+        // un trigger naturale successivo (Riattivazione non genera nuove
+        // anteprime).
+        rasterMonitor.style.transition = 'opacity 600ms ease'
+        rasterMonitor.style.opacity = '0.546'
         storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
         const resumedProduction = pendingProductionAfterRevisionCycle
         pendingProductionAfterRevisionCycle = null
@@ -2021,6 +2044,21 @@ export function createBrainController(
       transitionCounterpartShapes,
     )
     outgoingSvg?.setTransition(transition, 'exit')
+    // Riattivazione (PIANO-034): "più morphing tra render e immagini, non
+    // solo fadein/fadeout". Applicato SOLO qui (cambio fra un fotogramma
+    // e il successivo, il livello meno frequente), non nel cambio
+    // renderer interno di `brainRendererHost.ts`: lì la Riattivazione
+    // alterna i renderer quasi ad ogni fotogramma tenuto, e sommare un
+    // blend additivo ad ogni singolo micro-cambio si accumulava in un
+    // effetto "tutto glitchato" (segnalato dallo sviluppatore) invece di
+    // una fusione leggibile. Un solo cambio di blend mode, mai un filtro
+    // ricalcolato per frame: costo trascurabile.
+    if (outgoingSvg) {
+      outgoingSvg.element.style.mixBlendMode = revisionCycleActive ? 'lighter' : 'normal'
+      if (currentSvg) {
+        currentSvg.element.style.mixBlendMode = revisionCycleActive ? 'lighter' : 'normal'
+      }
+    }
     if (transition >= 1 && outgoingSvg) {
       outgoingSvg.destroy()
       outgoingSvg = null
