@@ -108,6 +108,13 @@ export function createBrainRendererHost(
   // elementi CSS statici ristilizzati solo al momento dell'armo (non ad
   // ogni frame), l'opacità segue lo stesso inviluppo del flash.
   let pressureGlitchSlices: HTMLDivElement[] = []
+  // Offset di base e velocità di deriva per striscia, fissati all'armo:
+  // il jitter per-frame (sotto, nello stesso punto che già aggiorna
+  // l'opacità) oscilla ATTORNO a questi valori, non li rimpiazza — così
+  // ogni comparsa ha una propria "corsa" ma resta stabile fra un frame e
+  // l'altro, non un tremolio casuale ad ogni tick.
+  let pressureGlitchBaseOffsets: number[] = []
+  let pressureGlitchDriftSpeeds: number[] = []
   const armPressureGlitchSlices = (): void => {
     if (pressureGlitchSlices.length === 0) {
       pressureGlitchSlices = Array.from({ length: PRESSURE_GLITCH_SLICE_COUNT }, () => {
@@ -126,10 +133,14 @@ export function createBrainRendererHost(
         return slice
       })
     }
+    pressureGlitchBaseOffsets = []
+    pressureGlitchDriftSpeeds = []
     pressureGlitchSlices.forEach((slice, index) => {
       const top = 6 + Math.random() * 84
       const height = 2 + Math.random() * 5
       const offset = (Math.random() - 0.5) * 2 * PRESSURE_GLITCH_MAX_OFFSET_PX
+      pressureGlitchBaseOffsets.push(offset)
+      pressureGlitchDriftSpeeds.push(0.012 + Math.random() * 0.02)
       Object.assign(slice.style, {
         top: `${top.toFixed(1)}%`,
         height: `${height.toFixed(1)}%`,
@@ -321,8 +332,12 @@ export function createBrainRendererHost(
           if (pressureFlashOverlay) {
             pressureFlashOverlay.style.opacity = String(clamped * PRESSURE_FLASH_PEAK_OPACITY)
           }
-          pressureGlitchSlices.forEach((slice) => {
+          pressureGlitchSlices.forEach((slice, index) => {
             slice.style.opacity = String(clamped * PRESSURE_GLITCH_PEAK_OPACITY)
+            const base = pressureGlitchBaseOffsets[index] ?? 0
+            const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
+            const jitter = Math.sin(elapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6
+            slice.style.transform = `translateX(${(base + jitter).toFixed(1)}px)`
           })
         }
       }
@@ -506,6 +521,8 @@ export function createBrainRendererHost(
       destroyLayer(denoisingPsycho2d)
       pressureFlashOverlay = null
       pressureGlitchSlices = []
+      pressureGlitchBaseOffsets = []
+      pressureGlitchDriftSpeeds = []
       incoming = null
       root.remove()
     },
