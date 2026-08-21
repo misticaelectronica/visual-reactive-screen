@@ -154,7 +154,7 @@ describe('updateBauhausFigureAccumulator', () => {
 
   it('non ri-scatta entro il tempo minimo di attesa dopo un trigger', () => {
     const justTriggered = { accumulator: 0, lastEventAt: 10_000 }
-    const result = updateBauhausFigureAccumulator(justTriggered, activeMotion, 5_000, 15_000, true)
+    const result = updateBauhausFigureAccumulator(justTriggered, activeMotion, 500, 10_800, true)
     expect(result.triggered).toBe(false)
   })
 

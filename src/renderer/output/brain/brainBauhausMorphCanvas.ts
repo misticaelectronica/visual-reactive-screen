@@ -298,40 +298,34 @@ export function advanceBauhausAbstraction(
   )
 }
 
-// Le figure Bauhaus non sono un livello continuo ma un comportamento raro,
-// guadagnato dall'attività e dal beat reali già calcolati da
-// `calculateBauhausMotion` (non un secondo profilo di banda separato: qui
-// non serve rilevare un CAMBIO di carattere come in Dream Segmentation,
-// basta l'energia sostenuta). Zero audio → l'accumulatore resta a 0 e
-// nessuna figura può comparire (Check Silenzio). Colore preso dalla
-// palette dell'immagine corrente, posizione su ancore non casuali; se una
-// figura resta vicina a un piano esistente abbastanza a lungo può provare
-// a diventare una sagoma riconoscibile, scelta da una libreria curata a
-// mano (non casuale, non ML) in base alle proporzioni del piano vicino —
-// risponde al vincolo del brief originale piano-019 ("non una
-// sovrapposizione di forme casuali") sia nella genesi sia nell'esito.
-// Ingresso/uscita e il "diventare oggetto" sono sempre un morph continuo
-// (Check Transizione, riusa `interpolatedPlane`), mai la camera intera
-// (Check Camera), disabilitate sotto `resourcePressure` (Check Costo).
+// Le figure Bauhaus sono un accento guadagnato dall'attività e dal beat
+// reali già calcolati da `calculateBauhausMotion` (non un secondo
+// profilo di banda separato: qui non serve rilevare un CAMBIO di
+// carattere come in Dream Segmentation, basta l'energia sostenuta).
+// Zero audio → l'accumulatore resta a 0 e nessuna figura può comparire
+// (Check Silenzio). Colore preso dalla palette dell'immagine corrente,
+// posizione su ancore non casuali; se una figura resta vicina a un piano
+// esistente abbastanza a lungo può provare a diventare una sagoma
+// riconoscibile, scelta da una libreria curata a mano (non casuale, non
+// ML) in base alle proporzioni del piano vicino — risponde al vincolo
+// del brief originale piano-019 ("non una sovrapposizione di forme
+// casuali") sia nella genesi sia nell'esito. Ingresso/uscita e il
+// "diventare oggetto" sono sempre un morph continuo (Check Transizione,
+// riusa `interpolatedPlane`), mai la camera intera (Check Camera),
+// disabilitate sotto `resourcePressure` (Check Costo).
 const FIGURE_OUTLINE_POINTS = BAUHAUS_SILHOUETTE_POINT_COUNT
-// Bauhaus Morph resta il renderer attivo solo per la durata di un "hold"
-// (2-3 fotogrammi storia, `brainRendererSelector.ts` — tipicamente
-// 20-80s reali) prima di essere sostituito, e lo stato della figura
-// (accumulatore compreso) vive nella chiusura dell'istanza: viene
-// azzerato ogni volta che Bauhaus torna attivo dopo essere stato
-// sostituito. Le soglie originarie richiedevano energia sostenuta quasi
-// al massimo per innescare entro quella finestra — con audio reale
-// (moderato, non ai massimi) la comparsa richiedeva più tempo di quanto
-// Bauhaus restasse mai attivo, di fatto "mai" (segnalato dallo
-// sviluppatore: "raro sì ma non rarissimo"). Ricalibrate perché un
-// innesco arrivi in modo affidabile entro una finestra di ascolto
-// moderato-sostenuto realistica (~15-20s), non solo nel caso limite di
-// energia quasi massima per minuti.
-const FIGURE_ACTIVITY_GAIN_PER_MS = 0.00012
-const FIGURE_BEAT_GAIN_PER_MS = 0.00028
+// Frequenza: lo sviluppatore ha chiesto esplicitamente il cambio di
+// figura molto spesso (non più "raro, ogni tanto") — soglie di guadagno
+// alte e tempo minimo fra un innesco e l'altro breve, così una nuova
+// figura può comparire quasi subito dopo che la precedente si è spenta
+// (vita di una figura ~5.5s, vedi `FIGURE_FADE_IN_MS`/`FIGURE_HOLD_MS`/
+// `FIGURE_FADE_OUT_MS` sotto), restando comunque guadagnata dall'ascolto
+// reale, non un timer piatto (Check Silenzio).
+const FIGURE_ACTIVITY_GAIN_PER_MS = 0.00045
+const FIGURE_BEAT_GAIN_PER_MS = 0.0009
 const FIGURE_DECAY_PER_MS = 0.00002
 const FIGURE_THRESHOLD = 1
-const MINIMUM_FIGURE_DWELL_MS = 18_000
+const MINIMUM_FIGURE_DWELL_MS = 2_500
 const FIGURE_MIN_SIZE_RATIO = 0.14
 const FIGURE_MAX_SIZE_RATIO = 0.24
 const FIGURE_FADE_IN_MS = 900
