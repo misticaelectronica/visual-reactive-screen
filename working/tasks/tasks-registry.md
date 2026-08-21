@@ -2,6 +2,39 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-037` (Figure Bauhaus indipendenti dal raster)
+
+- [x] **`TASK-037-01`** `DONE`: Ricerca (agente Explore) + design (agente Plan) + due giri di chiarimento (comportamento non momento fisso; libreria curata non ML).
+- [x] **`TASK-037-02`** `DONE`: Libreria curata di sagome (`brainBauhausSilhouettes.ts`, 6 forme a 8 punti).
+- [x] **`TASK-037-03`** `DONE`: Trigger raro via accumulatore alimentato da `motion` (Check Silenzio), geometria sintetica via `BauhausPlane` (Check Materia).
+- [x] **`TASK-037-04`** `DONE`: "Diventare un oggetto" — prossimità + selezione libreria + morph via `interpolatedPlane` riusato (Check Transizione).
+- [x] **`TASK-037-05`** `DONE`: Integrazione disegno/signature/budget, 26 nuovi test, typecheck/lint/build verdi.
+- [ ] **`TASK-037-06`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
+## Task Collegati alla Sessione 2026-08-21 (Regressione Print2D, Vector Morph, Glitch Morph, Riattivazione)
+
+- [x] **`TASK-036-01`** `DONE`: Fix regressione — rete di sicurezza del renderer attivo fallito usa Print2D solo se boosted (Riattivazione), FilterPsiche altrimenti (`brainRendererHost.ts`).
+- [x] **`TASK-036-02`** `DONE`: Vector Morph scarta scene con meno di `MIN_VECTOR_SHAPES` forme rilevate, riusando lo stesso meccanismo `hasFailed`.
+- [x] **`TASK-036-03`** `DONE`: Glitch Morph — rilievo beat-sync (`TERRAIN_BASE_RATIO`/`TERRAIN_BEAT_RATIO`), increspatura a velocità condivisa fra righe, indizio di profondità economico.
+- [x] **`TASK-036-04`** `DONE`: Riattivazione — sidebar laterali nascoste/ripristinate; morphing additivo+blur fra renderer e fotogrammi durante il ciclo, non solo dissolvenza.
+- [x] **`TASK-036-05`** `DONE`: Test, typecheck, lint, build — tutti verdi (409 test).
+- [ ] **`TASK-036-06`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
+## Task Collegati a `PIANO-035` (Nuovo Renderer Glitch Morph)
+
+- [x] **`TASK-035-01`** `DONE`: Analisi solo-design con anteprime Artifact iterative (raster attenuato, tinte per-riga, moto non uniforme) approvate dallo sviluppatore.
+- [x] **`TASK-035-02`** `DONE`: Profilo di luminanza per riga cacheato una volta alla preparazione (`buildGlitchProfile`) + seme deterministico per riga (`computeRowSeed`).
+- [x] **`TASK-035-03`** `DONE`: Ondulazione audio-gated (`computeLineWobble`, Check Silenzio) e tonalità per-riga indipendente dal tempo (`computeRowHue`).
+- [x] **`TASK-035-04`** `DONE`: Collegamento renderer id in tutti i punti (types, registry, selector — `PERSISTENT_STORY_RENDERERS`, label debug, select Control).
+- [x] **`TASK-035-05`** `DONE`: Test, typecheck, lint, build (incluso electron-builder) — tutti verdi.
+- [ ] **`TASK-035-06`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
 ## Task Collegati a `PIANO-034` (Ciclo Di Revisione)
 
 - [x] **`TASK-034-01`** `DONE`: Logica pura tag/trigger/eviction (`dreamRevisionCycle.ts` + test).

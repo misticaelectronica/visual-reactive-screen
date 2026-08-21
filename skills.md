@@ -396,6 +396,28 @@ Regole/insidie note (già risolte, non ripartire da zero):
   legge `data-active-renderer` scritto da `brainRendererHost.ts`), non solo
   i log.
 
+Durata reale di attività di un renderer (utile per calibrare qualsiasi
+evento raro/accumulatore dentro un renderer, es. figure Bauhaus PIANO-037):
+
+- Un fotogramma storia dura circa 10-28s reali (`calculateBrainFrameTiming`,
+  `brainFrameMotion.ts`: 20-28 beat totali × `beatDurationMs`, tipicamente
+  260-1200ms, ~500ms a un tempo medio).
+- Un renderer "persistente" (tutti tranne Print2D) resta attivo 2-3
+  fotogrammi consecutivi (`selectBrainRendererHoldFrames`,
+  `MINIMUM_PERSISTENT_HOLD_FRAMES`/`MAXIMUM_PERSISTENT_HOLD_FRAMES`) prima
+  di essere sostituito — quindi **~20-84s reali di attività continua per
+  hold**, non di più.
+- Lo stato interno di un renderer (closure di `createBrainXScene`) vive
+  nell'istanza: `applyFrame` in `brainController.ts` crea un **nuovo**
+  `brainRendererHost` ad ogni fotogramma (vedi sopra), e ogni volta che un
+  renderer torna attivo dopo essere stato sostituito riparte da
+  un'istanza fresca — qualunque accumulatore/stato "raro" si azzera. Un
+  meccanismo a soglia calibrato per richiedere più tempo di un hold
+  tipico (~20-84s) con audio realistico (non ai massimi sostenuti) di
+  fatto non scatta mai — verificato con un test di integrazione (canvas
+  mockato, centinaia di fotogrammi simulati) prima di ricalibrare le
+  costanti di guadagno delle figure Bauhaus (2026-08-21).
+
 Diagnostica minima prima di ipotizzare un nuovo bug:
 
 1. Simulare `brainRendererSelector` con `Math.random` reale su ~200-300

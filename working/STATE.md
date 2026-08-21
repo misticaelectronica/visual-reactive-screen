@@ -1,5 +1,102 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Nuovo: figure Bauhaus indipendenti dal raster (PIANO-037) — 2026-08-21
+
+- Bauhaus Morph disegna ora, di tanto in tanto, una forma geometrica pura
+  (rettangolo/ellisse/triangolo) non derivata dall'analisi del raster —
+  un comportamento raro guadagnato da un accumulatore alimentato da
+  `motion.activity`/`beat` (stesso principio dell'accumulatore di
+  sorpresa in Dream Segmentation, riadattato senza costruire un secondo
+  sistema di profilo di banda), mai un timer fisso (Check Silenzio).
+- **Comportamento richiesto in un secondo momento dallo sviluppatore**:
+  se la figura resta vicina a un piano raster-derivato già presente per
+  1-2s, prova a "diventare" una sagoma riconoscibile — scelta da una
+  libreria curata a mano (`brainBauhausSilhouettes.ts`, 6 sagome in
+  stile Bauhaus/Schlemmer: luna, foglia, bottiglia, uccello, stella,
+  freccia), selezionata in base alle proporzioni del piano vicino, MAI
+  via ML (scelta esplicita dello sviluppatore dopo averla proposta come
+  alternativa in fase di piano). Il morph verso la sagoma riusa
+  `interpolatedPlane` — già esistente, invariato — rappresentando sia la
+  forma astratta di partenza sia le sagome curate come contorni a 8
+  punti, così l'interpolazione punto-per-punto scatta automaticamente.
+- Vedi `working/plans/piano-037-bauhaus-figure-indipendenti.md` per il
+  piano completo (agente Explore + agente Plan, poi due giri di
+  AskUserQuestion per chiarire "comportamento non un momento fisso" e
+  "niente ML, libreria curata").
+- Validazione: 57 file / 429 test, typecheck, lint e build verdi.
+
+## Trovato e corretto: rallentamento generale da filtro CSS blur ricalcolato ogni frame — 2026-08-21
+
+- **Segnalato dallo sviluppatore**: dopo il round precedente (morphing
+  additivo durante la Riattivazione) l'app "lagga da morire", tutto
+  fuori tempo. **Causa trovata rileggendo le modifiche appena fatte**: il
+  morphing aggiunto per la Riattivazione applicava, oltre al blend mode
+  additivo (`mixBlendMode: 'lighter'`, quasi gratuito per la GPU), anche
+  un `filter: blur()` con raggio ricalcolato ad OGNI frame su due strati
+  a piena risoluzione (`brainRendererHost.ts` per il cambio renderer,
+  `brainController.ts` per il cambio fotogramma) — un filtro CSS
+  ricalcolato ogni frame è un'operazione pesante, non paragonabile a un
+  cambio di blend mode.
+- **Fix**: rimosso interamente il `blur()`. Resta solo il blend mode
+  additivo per l'effetto di fusione — stesso principio ("più morphing di
+  un fadein/fadeout"), costo quasi nullo. Il blend mode ora viene scritto
+  solo quando lo stato boosted cambia effettivamente (non ad ogni frame),
+  ulteriore riduzione di lavoro superfluo.
+- Validazione: 57 file / 409 test, typecheck, lint e build verdi.
+
+## Regressione Print2D fuori Riattivazione, rete di sicurezza Vector Morph, Glitch Morph beat-sync — 2026-08-21
+
+- **Regressione corretta**: la rete di sicurezza aggiunta in sessione
+  precedente per il fallimento del renderer attivo (`brainRendererHost.ts`)
+  passava sempre a Print2D, violando la regola "Print2D gira solo durante
+  la Riattivazione" (PIANO-034) già richiesta esplicitamente in
+  precedenza — segnalato dallo sviluppatore come regressione. Fix: la
+  rete di sicurezza ora usa `getBoostHint` per scegliere Print2D solo
+  durante la Riattivazione, FilterPsiche (già affidabile e usato altrove
+  nello stesso file) in ogni altro momento.
+- **Vector Morph**: scarta la scena vettoriale con meno di
+  `MIN_VECTOR_SHAPES = 5` forme rilevate (`hasFailed()` → true),
+  riusando lo stesso meccanismo di fallback appena corretto — prima una
+  vettorializzazione con 3/4 forme restava comunque a schermo come se
+  fosse valida.
+- **Glitch Morph**: rilievo ricalibrato — ampiezza base moderata (`0.09`
+  dell'altezza) che sale marcatamente ad ogni battito (`+0.16 × beat`),
+  raster più visibile (opacità 64%), rimossa la frequenza indipendente
+  per riga (frammentava la superficie in rumore scollegato dal raster,
+  segnalato dallo sviluppatore) sostituita da una velocità di
+  increspatura condivisa fra tutte le righe, aggiunto un indizio di
+  profondità economico (righe in basso più spesse/opache) per la
+  sensazione di rilievo 3D — nessuna libreria esterna, Canvas2D puro.
+- Riattivazione: sidebar laterali (testo/storia e galleria raster)
+  nascoste per tutta la durata del ciclo e ripristinate alla fine;
+  cambio renderer/fotogramma durante la Riattivazione ora fonde i due
+  strati in additivo con una sfocatura a metà transizione invece del
+  semplice dissolvenza lineare.
+- Validazione: 57 file / 409 test, typecheck, lint e build verdi.
+
+## Nuovo renderer: Glitch Morph — contorno di luminanza — 2026-08-20
+
+- Ottavo renderer Brain (`glitch-morph`, PIANO-035): il raster resta il
+  livello di base (attenuato al 40%, mai sostituito), sopra vengono
+  ridisegnate linee di contorno seguendo il profilo di luminanza
+  dell'immagine, con frangia cromatica iridescente e ondulazione
+  audio-gated per riga.
+- Nato da un'analisi solo-design su 3 giri di iterazione tramite
+  Artifact interattivi: variante scelta ("pura scanline") sostituita a
+  metà discussione da un riferimento più specifico (glitch art
+  olografica), poi corretta due volte su feedback diretto — sfondo nero
+  del riferimento rifiutato (il raster deve restare visibile fra le
+  linee), poi anche il raster a piena opacità rifiutato (deve restare
+  attenuato, non protagonista) — infine tinte primarie additive che
+  convergevano al bianco e movimento sincronizzato fra le righe corretti
+  con tonalità per-riga derivata dalla luminanza e semi hash per-riga
+  (fase/frequenza proprie, niente onda unica).
+- Vedi `working/plans/piano-035-glitch-morph-renderer.md` per la
+  tecnica completa e i Check di filosofia visiva applicati.
+- Validazione: 57 file / 406 test, typecheck, lint e build (incluso
+  electron-builder) verdi. Non ancora verificato dal vivo con musica
+  reale.
+
 ## Dream Segmentation: respiro più marcato, connessioni davvero neurali — 2026-08-20
 
 - **Respiro poco visibile** (segnalato dopo il giro precedente):
