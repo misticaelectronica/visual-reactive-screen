@@ -7,6 +7,7 @@ import { createBrainMaterialMorphScene } from './brainMaterialMorphCanvas'
 import { createBrainFilterPsicheScene } from './brainFilterPsicheCanvas'
 import { createBrainBauhausMorphScene } from './brainBauhausMorphCanvas'
 import { createBrainDreamSegmentationScene } from './brainDreamSegmentationCanvas'
+import { createBrainGlitchMorphScene } from './brainGlitchMorphCanvas'
 
 export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
   const registry = new BrainRendererRegistry()
@@ -87,6 +88,16 @@ export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
       lowPowerMode: true,
     },
     create: createBrainDreamSegmentationScene,
+  })
+  registry.register({
+    id: 'glitch-morph',
+    label: 'Glitch Morph — contorno',
+    capabilities: {
+      multipleImages: false,
+      semanticMetadata: false,
+      lowPowerMode: true,
+    },
+    create: createBrainGlitchMorphScene,
   })
   return registry
 }

@@ -35,6 +35,7 @@ const BRAIN_RENDERER_LABELS: Record<string, string> = {
   'filter-psiche': 'FilterPsiche',
   'bauhaus-morph': 'Bauhaus Morph',
   'dream-segmentation': 'Dream Segmentation',
+  'glitch-morph': 'Glitch Morph',
 }
 
 const MORPHING_ALGO_LABELS: Record<string, string> = {

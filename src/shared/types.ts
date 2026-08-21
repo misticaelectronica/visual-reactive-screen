@@ -13,6 +13,7 @@ export type BrainRendererId =
   | 'filter-psiche'
   | 'bauhaus-morph'
   | 'dream-segmentation'
+  | 'glitch-morph'
 export type BrainRendererMode = 'manual' | 'rotation' | 'story-cycle'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
@@ -26,6 +27,7 @@ export const BRAIN_RENDERER_IDS: BrainRendererId[] = [
   'filter-psiche',
   'bauhaus-morph',
   'dream-segmentation',
+  'glitch-morph',
 ]
 export const BRAIN_RENDERER_MODES: BrainRendererMode[] = [
   'manual',

@@ -32,6 +32,7 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'psycho2d',
   'bauhaus-morph',
   'dream-segmentation',
+  'glitch-morph',
 ])
 // Un renderer persistente è un invariante onirico (filosofia.md §2): deve
 // durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2

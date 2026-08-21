@@ -150,6 +150,7 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="filter-psiche">FilterPsiche — cromatico</option>
             <option value="bauhaus-morph">Bauhaus Morph — pittorico</option>
             <option value="dream-segmentation">Dream Segmentation — immaginazione</option>
+            <option value="glitch-morph">Glitch Morph — contorno</option>
           </select>
         </label>
         <label>
