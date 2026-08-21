@@ -1,6 +1,6 @@
 {
   "name": "mevrs-origine-fx",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "App desktop Electron: uscita HDMI a colori reattiva all'audio (MVP).",
   "author": "",
   "private": true,
