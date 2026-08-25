@@ -1,5 +1,27 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Fractal Spiral Degeneration: verso di avvolgimento variabile — 2026-08-25
+
+- **Segnalato dal Capo Supremo**: "le spirali girano tutte dalla stessa
+  parte". Causa reale: `computeSpiralArmPoints` calcolava sempre
+  `angle = t * turns * TAU + angleOffset` con `turns` sempre positivo —
+  ogni spirale, sia del campo di sfondo sia di ciascun oggetto in primo
+  piano, avvolgeva nello stesso verso, ovunque nella scena.
+- **Fix**: nuovo parametro `direction: 1 | -1` (default `1`, compatibile
+  con le chiamate esistenti) che inverte il segno di `turns` nella
+  formula dell'angolo. Il campo di sfondo (`BackgroundSpiralPoint`) ha
+  ora un verso proprio per punto, derivato deterministicamente da
+  `hashUnit` (stesso hash già usato per posizione/fase — stesso punto,
+  stesso verso sempre, nessun tremolio). Ogni oggetto in primo piano ha
+  analogamente un verso proprio derivato da `hashUnit(objectIndex, ...)`,
+  condiviso da tutti i suoi bracci (un oggetto resta coerente al suo
+  interno, la varietà è FRA oggetti diversi, non dentro lo stesso).
+- Nuovi test: inversione geometrica verificata (`direction` inverte il
+  segno della rotazione a parità di raggio), verso predefinito invariato
+  per compatibilità, campo di sfondo con entrambi i versi rappresentati.
+- Validazione: 58 file / 470 test, typecheck, lint e build Vite verdi.
+  Verifica dal vivo ancora da fare.
+
 ## Nome condiviso "Varco Percettivo"; armato anche prima del moto di coscienza — 2026-08-25
 
 - **Nome condiviso con la Direzione VJ** (Capo Supremo del Visual, su sua

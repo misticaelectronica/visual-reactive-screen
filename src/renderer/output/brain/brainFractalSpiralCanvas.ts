@@ -120,6 +120,7 @@ export type BackgroundSpiralPoint = {
   x: number
   y: number
   phase: number
+  direction: 1 | -1
 }
 
 const fractalFieldCache = new WeakMap<
@@ -211,6 +212,7 @@ export function computeBackgroundSpiralPoints(count: number): BackgroundSpiralPo
       x: clamp((column + 0.5 + jitterX) / columns),
       y: clamp((row + 0.5 + jitterY) / rows),
       phase: hashUnit(index, 3, 23) * TAU,
+      direction: hashUnit(index, 4, 29) < 0.5 ? -1 : 1,
     })
   }
   return points
@@ -367,12 +369,19 @@ export function computeSpiralArmPoints(
   turns: number,
   angleOffset: number,
   pointCount: number,
+  // Segnalato dal Capo Supremo ("le spirali girano tutte dalla stessa
+  // parte"): `turns` era sempre positivo, quindi ogni spirale (sfondo E
+  // ogni oggetto) avvolgeva nello stesso verso, ovunque. `direction` (±1)
+  // inverte il senso di avvolgimento senza toccare la geometria del
+  // singolo braccio; i chiamanti lo derivano deterministicamente da un
+  // hash (stesso oggetto → sempre lo stesso verso, mai un tremolio).
+  direction: 1 | -1 = 1,
 ): SpiralNode[] {
   if (pointCount <= 1) return []
   const points: SpiralNode[] = []
   for (let index = 0; index <= pointCount; index += 1) {
     const t = index / pointCount
-    const angle = t * turns * TAU + angleOffset
+    const angle = t * turns * direction * TAU + angleOffset
     const radius = maxRadius * t
     points.push({
       x: centerX + Math.cos(angle) * radius,
@@ -539,7 +548,9 @@ export function createBrainFractalSpiralScene(
       drawingContext.lineWidth = armRadius * 0.14
       drawingContext.globalAlpha = clamp(0.08 + motion.torsion * 0.14 + motion.beat * 0.05)
       const angleOffset = point.phase + beatPhaseOffset
-      const armPoints = computeSpiralArmPoints(centerX, centerY, armRadius, 1.5, angleOffset, 24)
+      const armPoints = computeSpiralArmPoints(
+        centerX, centerY, armRadius, 1.5, angleOffset, 24, point.direction,
+      )
       drawingContext.beginPath()
       armPoints.forEach((armPoint, step) => {
         if (step === 0) drawingContext.moveTo(armPoint.x, armPoint.y)
@@ -618,12 +629,19 @@ export function createBrainFractalSpiralScene(
     const phase = computeSpiralFillPhase(objectIndex, degenerationProgress, motion)
     const turns = 1.3 + motion.torsion * 1.5 + motion.density * 0.7
     const armWidth = objectRadius * (0.22 + motion.detail * 0.1)
+    // Verso di avvolgimento proprio dell'oggetto (hash deterministico
+    // sull'indice, stesso principio di `computeSpiralFillPhase` per la
+    // fase): ogni oggetto gira per conto suo, mai tutti nello stesso
+    // verso come prima.
+    const objectDirection: 1 | -1 = hashUnit(objectIndex, 7, 41) < 0.5 ? -1 : 1
     bufferContext.lineCap = 'round'
     for (let arm = 0; arm < armBudget; arm += 1) {
       const reveal = computeLevelReveal(arm, degenerationProgress, armBudget, beatBump)
       if (reveal <= 0.01) continue
       const angleOffset = phase + beatPhaseOffset + (arm / armBudget) * TAU
-      const points = computeSpiralArmPoints(centerX, centerY, objectRadius, turns, angleOffset, 48)
+      const points = computeSpiralArmPoints(
+        centerX, centerY, objectRadius, turns, angleOffset, 48, objectDirection,
+      )
       if (points.length < 2) continue
       const color = palette[(objectIndex + arm) % palette.length] ??
         rgbToCss(object.region.averageColor as RGB)

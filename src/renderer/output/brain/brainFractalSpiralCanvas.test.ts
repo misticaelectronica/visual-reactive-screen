@@ -127,6 +127,24 @@ describe('computeSpiralArmPoints', () => {
     expect(computeSpiralArmPoints(0, 0, 50, 1, 0, 1)).toEqual([])
     expect(computeSpiralArmPoints(0, 0, 50, 1, 0, 0)).toEqual([])
   })
+
+  it('`direction` inverte il verso di avvolgimento (segnalato: giravano tutte dalla stessa parte)', () => {
+    const clockwise = computeSpiralArmPoints(0, 0, 100, 2, 0, 40, 1)
+    const counterClockwise = computeSpiralArmPoints(0, 0, 100, 2, 0, 40, -1)
+    const midClockwise = clockwise[Math.floor(clockwise.length / 2)]
+    const midCounter = counterClockwise[Math.floor(counterClockwise.length / 2)]
+    // Stesso raggio (stessa geometria radiale), rotazione di segno opposto.
+    expect(Math.hypot(midClockwise.x, midClockwise.y)).toBeCloseTo(
+      Math.hypot(midCounter.x, midCounter.y), 5,
+    )
+    expect(midClockwise.rotation).toBeCloseTo(-midCounter.rotation, 5)
+  })
+
+  it('il verso predefinito resta orario (compatibilità con le chiamate esistenti)', () => {
+    const withDefault = computeSpiralArmPoints(0, 0, 100, 2, 0, 40)
+    const withExplicitOne = computeSpiralArmPoints(0, 0, 100, 2, 0, 40, 1)
+    expect(withDefault).toEqual(withExplicitOne)
+  })
 })
 
 describe('computeSpiralFillPhase', () => {
@@ -194,6 +212,13 @@ describe('computeBackgroundSpiralPoints', () => {
 
   it('è deterministico (stesso conteggio → stesso risultato)', () => {
     expect(computeBackgroundSpiralPoints(8)).toEqual(computeBackgroundSpiralPoints(8))
+  })
+
+  it('i punti hanno versi di avvolgimento diversi, non tutti uguali', () => {
+    const points = computeBackgroundSpiralPoints(20)
+    const directions = new Set(points.map((point) => point.direction))
+    expect(directions.has(1)).toBe(true)
+    expect(directions.has(-1)).toBe(true)
   })
 
   it('restituisce un array vuoto per conteggio zero o negativo', () => {
