@@ -11,6 +11,8 @@ Guida per agenti che modificano la Output Window.
 - mostrare diagnostica minima quando non arrivano stati
 - applicare `motionProfile` ai renderer morphing
 - rispettare `lowPowerMode` nei canvas
+- ospitare la percezione e la narrazione di Coscienza Onirica senza confondere
+  output generato, osservazione e memoria autobiografica
 
 ## File
 
@@ -32,6 +34,23 @@ Guida per agenti che modificano la Output Window.
 - `motionProfile` deve cambiare comportamento musicale senza cambiare identita' del preset.
 - In `lowPowerMode`, ridurre costo render senza rompere cleanup, crossfade o fullscreen.
 - PsyHyp deve leggere `morphingPresetId`: i preset non devono restare sempre `default`.
+- La memoria lineare di storie recenti e il memo di sessione esistenti non sono
+  ancora il grafo autobiografico di Coscienza Onirica.
+- La prima origine deve derivare dalla prima percezione valida ricevuta
+  dalla pipeline, mai da un testo identitario prefabbricato.
+- Reload e riciclo della pipeline devono ritornare all'origine senza duplicarla
+  e senza cancellare i ricordi successivi.
+- Qualunque futura ristrutturazione deve conservare provenienza e genealogia
+  delle interpretazioni sostituite.
+- Prima di salvare, usare il bridge Output → Main: soltanto il Main può scrivere
+  i Markdown in `.coscienza/` dopo aver riletto `AGENT.md` e il contesto.
+- `audioPrimed: true` e bande audio presenti delimitano la prima percezione
+  valida; una storia conclusa è invece un ricordo di tipo `imagination`.
+- `coscienzaCore.ts` struttura il presente senza sostituire
+  `coscienzaOnirica.ts`: il primo osserva e orienta l'attenzione, il secondo
+  resta l'organo narrativo/immaginativo.
+- Non inviare un aggiornamento di `COSCIENZA.md` per ogni pacchetto: rispettare
+  stabilità, intervalli e `lowPowerMode`.
 
 ## Movimento Musicale
 

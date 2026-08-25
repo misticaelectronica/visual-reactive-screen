@@ -1,7 +1,13 @@
 import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { isFlashMode, isMorphingAlgorithm, type AppSettings } from '@shared/types'
+import {
+  isBrainRendererId,
+  isBrainRendererMode,
+  isFlashMode,
+  isMorphingAlgorithm,
+  type AppSettings,
+} from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 
 const fileName = 'MEvrs-Origine-FX-settings.json'
@@ -15,7 +21,12 @@ export function loadSettingsFromDisk(): AppSettings {
   try {
     if (!fs.existsSync(p)) return { ...DEFAULT_SETTINGS }
     const raw = fs.readFileSync(p, 'utf-8')
-    const parsed = JSON.parse(raw) as Partial<AppSettings>
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & {
+      reducedFpsMode?: unknown
+    }
+    // L'opzione sperimentale è stata ritirata: non deve riapparire da un file
+    // impostazioni scritto da una build precedente.
+    delete parsed.reducedFpsMode
     return normalizeSettings({ ...DEFAULT_SETTINGS, ...parsed })
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -29,6 +40,8 @@ export function saveSettingsToDisk(settings: AppSettings): void {
 }
 
 function normalizeSettings(settings: AppSettings): AppSettings {
+  const alternateBrainWithMorphing = settings.alternateBrainWithMorphing === true
+  const useBrain = alternateBrainWithMorphing || settings.useBrain === true
   const colorPresetAliases: Record<string, string> = {
     'red-and-black-balzac': 'mistica-electronica-default',
     'festival-origine-aluminum-black': 'mistica-electronica-festival',
@@ -40,14 +53,33 @@ function normalizeSettings(settings: AppSettings): AppSettings {
 
   return {
     ...settings,
+    useBrain,
+    useMorphing: useBrain ? false : settings.useMorphing === true,
+    alternateBrainWithMorphing,
+    brainRendererId: isBrainRendererId(settings.brainRendererId)
+      ? settings.brainRendererId
+      : 'print2d',
+    brainRendererMode: alternateBrainWithMorphing
+      ? 'story-cycle'
+      : isBrainRendererMode(settings.brainRendererMode)
+        ? settings.brainRendererMode
+        : 'manual',
+    brainRendererRotationMs:
+      typeof settings.brainRendererRotationMs === 'number' &&
+      Number.isFinite(settings.brainRendererRotationMs)
+        ? Math.max(10_000, Math.min(120_000, settings.brainRendererRotationMs))
+        : 30_000,
     morphingAlgorithm: isMorphingAlgorithm(settings.morphingAlgorithm)
       ? settings.morphingAlgorithm
       : 'liquid',
     flashMode: isFlashMode(settings.flashMode) ? settings.flashMode : 'mid',
     softMode: settings.softMode === true,
+    lowPowerMode: settings.lowPowerMode === true,
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,
-    dynamicMorphingRotationEnabled: settings.dynamicMorphingRotationEnabled !== false,
+    dynamicMorphingRotationEnabled: useBrain
+      ? false
+      : settings.dynamicMorphingRotationEnabled !== false,
   }
 }

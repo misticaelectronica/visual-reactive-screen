@@ -6,6 +6,7 @@ import {
   type PsyHypShapeId,
 } from '@shared/psyHypMorphingShapes'
 import type { AppSettings, BandEnergies, VisualStatePayload } from '@shared/types'
+import type { BrainRhythmState } from './brain/brainRhythm'
 
 const DEBUG_PSY_HYP = false
 const DEBUG_PSY_PERF = false
@@ -1519,7 +1520,10 @@ function updatePsyHypAudioEnvelope(audio: PsyHypAudioEnvelope, bands: BandEnergi
   audio.flash = updateEnvelope(audio.flash, flashTarget, 0.16, 0.040)
 }
 
-export function createPsyHypMorphingCanvas(container: HTMLElement) {
+export function createPsyHypMorphingCanvas(
+  container: HTMLElement,
+  rhythmSource?: () => BrainRhythmState,
+) {
   const canvas = document.createElement('canvas')
   canvas.className = 'morphing-layer psy-hyp-morphing-layer'
   canvas.style.position = 'absolute'
@@ -1544,8 +1548,9 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
   let isFlashing = false
   let currentPreset = PSY_HYP_DEFAULT_PRESET
   let currentPresetId = currentPreset.id
-  let state = initPsyHypMorphingState(performance.now(), currentPreset, rng)
-  let lastTime = performance.now()
+  let motionNow = 0
+  let state = initPsyHypMorphingState(motionNow, currentPreset, rng)
+  let lastMusicalPosition = rhythmSource?.().musicalPosition ?? 0
   let lastRenderAt = 0
   let quality: PsyHypQuality = 'balanced'
   let averageRenderMs = 0
@@ -1583,7 +1588,9 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
       return
     }
 
-    const targetInterval = currentSettings.lowPowerMode === true ? 1000 / 30 : quality === 'low' ? 1000 / 24 : PSY_MIN_FRAME_INTERVAL_MS
+    const targetInterval = currentSettings.lowPowerMode === true
+      ? 1000 / 30
+      : quality === 'low' ? 1000 / 24 : PSY_MIN_FRAME_INTERVAL_MS
     const elapsedSinceRender = now - lastRenderAt
     if (elapsedSinceRender < targetInterval) {
       rafId = requestAnimationFrame(render)
@@ -1591,12 +1598,40 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
     }
     lastRenderAt = now
 
-    const deltaMs = Math.min(80, Math.max(1, now - lastTime))
-    lastTime = now
-    state = updatePsyHypMorphingState(state, now, currentPreset, rng, quality)
+    const rhythm = rhythmSource?.()
+    const musicalPosition = rhythm?.musicalPosition ?? lastMusicalPosition
+    const deltaBeats = rhythm?.active === true
+      ? Math.max(0, musicalPosition - lastMusicalPosition)
+      : 0
+    const deltaMs = rhythm?.active === true
+      ? Math.min(80, deltaBeats * (rhythm?.beatDurationMs ?? 500))
+      : 0
+    lastMusicalPosition = musicalPosition
+    motionNow += deltaMs
+    if (deltaMs > 0) {
+      state = updatePsyHypMorphingState(
+        state,
+        motionNow,
+        currentPreset,
+        rng,
+        quality,
+      )
+    }
 
     const flashTarget = currentWhiteMix !== 0 ? currentWhiteMix : isFlashing ? 1 : 0
-    updatePsyHypAudioEnvelope(audio, currentBands, currentSettings, flashTarget)
+    const rhythmicBands: BandEnergies = {
+      low: Math.max(currentBands.low, rhythm?.kickEnvelope ?? 0),
+      lowMid: Math.max(
+        currentBands.lowMid,
+        rhythm?.beatPulse ?? 0,
+        rhythm?.bandTransients.lowMid ?? 0,
+      ),
+      mid: Math.max(currentBands.mid, rhythm?.bandTransients.mid ?? 0),
+      high: Math.max(currentBands.high, rhythm?.bandTransients.high ?? 0),
+    }
+    if (rhythm?.active === true || flashTarget > 0) {
+      updatePsyHypAudioEnvelope(audio, rhythmicBands, currentSettings, flashTarget)
+    }
 
     const renderStart = performance.now()
     renderPsyHypMorphing({
@@ -1606,7 +1641,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
       trailCanvas,
       width: cssWidth,
       height: cssHeight,
-      timestamp: now,
+      timestamp: motionNow,
       deltaMs,
       preset: currentPreset,
       colors: {
@@ -1633,7 +1668,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
         transitionCache: createTransitionCache(
           state.currentShapeId,
           state.nextShapeId,
-          now,
+          motionNow,
           state.cycleSeed,
           currentPreset,
           quality,
@@ -1679,7 +1714,7 @@ export function createPsyHypMorphingCanvas(container: HTMLElement) {
         if (nextPreset.id !== currentPresetId) {
           currentPreset = nextPreset
           currentPresetId = nextPreset.id
-          state = initPsyHypMorphingState(performance.now(), currentPreset, rng)
+          state = initPsyHypMorphingState(motionNow, currentPreset, rng)
         }
       }
       if (payload.bandEnergies) currentBands = payload.bandEnergies

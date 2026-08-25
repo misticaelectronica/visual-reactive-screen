@@ -1,6 +1,7 @@
 import type { AppSettings, MorphingAlgorithm } from '@shared/types'
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
+import { SLIT_SCAN_PRESETS } from '@shared/slitScanPresets'
 
 interface Props {
   settings: AppSettings
@@ -12,12 +13,14 @@ const ONIRIC_PRESET_OPTIONS = [{ id: 'default', name: 'default' }, ...MORPHING_P
 function firstPresetIdForAlgorithm(algorithm: MorphingAlgorithm): string {
   if (algorithm === 'psy-hyp') return PSY_HYP_MORPHING_PRESETS[0]?.id ?? 'default'
   if (algorithm === 'oniric') return ONIRIC_PRESET_OPTIONS[0]?.id ?? 'default'
+  if (algorithm === '2001') return SLIT_SCAN_PRESETS[0]?.id ?? 'base'
   return MORPHING_PRESETS[0]?.id ?? 'ritual-drift'
 }
 
 function presetExistsForAlgorithm(algorithm: MorphingAlgorithm, presetId: string): boolean {
   if (algorithm === 'psy-hyp') return PSY_HYP_MORPHING_PRESETS.some((preset) => preset.id === presetId)
   if (algorithm === 'oniric') return ONIRIC_PRESET_OPTIONS.some((preset) => preset.id === presetId)
+  if (algorithm === '2001') return SLIT_SCAN_PRESETS.some((preset) => preset.id === presetId)
   return MORPHING_PRESETS.some((preset) => preset.id === presetId)
 }
 
@@ -28,25 +31,63 @@ export function VisualControls({ settings, onChange }: Props) {
       ? PSY_HYP_MORPHING_PRESETS
       : morphingAlgorithm === 'oniric'
         ? ONIRIC_PRESET_OPTIONS
-      : MORPHING_PRESETS
+        : morphingAlgorithm === '2001'
+          ? SLIT_SCAN_PRESETS
+          : MORPHING_PRESETS
   const presetValue = presetOptions.some((preset) => preset.id === settings.morphingPresetId)
     ? settings.morphingPresetId
     : firstPresetIdForAlgorithm(morphingAlgorithm)
 
   return (
     <fieldset className="panel">
-      <legend>Morphing & Visuals</legend>
+      <legend>Morphing e visuali</legend>
       <div className="grid2" style={{ marginBottom: '16px' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="checkbox"
             checked={settings.useMorphing}
-            onChange={(e) => onChange({ useMorphing: e.target.checked })}
+            onChange={(e) =>
+              onChange({
+                useMorphing: e.target.checked,
+                useBrain: e.target.checked ? false : settings.useBrain,
+              })
+            }
           />
-          <strong>Use morphing</strong>
+          <strong>Usa morphing</strong>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={settings.useBrain}
+            onChange={(e) =>
+              onChange({
+                useBrain: e.target.checked,
+                useMorphing: e.target.checked ? false : settings.useMorphing,
+                dynamicMorphingRotationEnabled: e.target.checked
+                  ? false
+                  : settings.dynamicMorphingRotationEnabled,
+              })
+            }
+          />
+          <strong>Brain</strong>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={settings.alternateBrainWithMorphing}
+            onChange={(e) => onChange({
+              alternateBrainWithMorphing: e.target.checked,
+              useBrain: e.target.checked ? true : settings.useBrain,
+              useMorphing: e.target.checked ? false : settings.useMorphing,
+              brainRendererMode: e.target.checked
+                ? 'story-cycle'
+                : settings.brainRendererMode,
+            })}
+          />
+          <strong>Alternate with Brain (80/20)</strong>
         </label>
         <label>
-          Morphing Algorithm
+          Algoritmo morphing
           <select
             value={morphingAlgorithm}
             onChange={(e) => {
@@ -63,12 +104,13 @@ export function VisualControls({ settings, onChange }: Props) {
             disabled={!settings.useMorphing}
           >
             <option value="liquid">Liquid Morphing</option>
+            <option value="2001">2001</option>
             <option value="oniric">Oniric Morphing</option>
             <option value="psy-hyp">PsyHypMorphing</option>
           </select>
         </label>
         <label>
-          Morphing Preset
+          Preset morphing
           <select
             value={presetValue}
             onChange={(e) => onChange({ morphingPresetId: e.target.value, softMode: false })}
@@ -91,6 +133,53 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="techno">Techno - pulsante</option>
             <option value="ambient">Ambient - fluido</option>
           </select>
+        </label>
+        <label>
+          Renderer Brain
+          <select
+            value={settings.brainRendererId}
+            onChange={(e) => onChange({
+              brainRendererId: e.target.value as AppSettings['brainRendererId'],
+            })}
+            disabled={!settings.useBrain || settings.alternateBrainWithMorphing}
+          >
+            <option value="print2d">Print2D — serigrafico</option>
+            <option value="psycho2d">Psycho2D — finestre</option>
+            <option value="vector-morph">Vector Morph — vettoriale</option>
+            <option value="material-morph">Materia Morph — sedimentale</option>
+            <option value="filter-psiche">FilterPsiche — cromatico</option>
+            <option value="bauhaus-morph">Bauhaus Morph — pittorico</option>
+            <option value="dream-segmentation">Dream Segmentation — immaginazione</option>
+            <option value="glitch-morph">Glitch Morph — contorno</option>
+            <option value="fractal-spiral-degeneration">Fractal Spiral Degeneration — ricorsivo</option>
+          </select>
+        </label>
+        <label>
+          Alternanza renderer Brain
+          <select
+            value={settings.brainRendererMode}
+            onChange={(e) => onChange({
+              brainRendererMode: e.target.value as AppSettings['brainRendererMode'],
+            })}
+            disabled={!settings.useBrain || settings.alternateBrainWithMorphing}
+          >
+            <option value="manual">Manuale</option>
+            <option value="rotation">Automatica</option>
+            <option value="story-cycle">Tutti per storia — casuale per fotogramma</option>
+          </select>
+        </label>
+        <label>
+          Intervallo renderer Brain
+          <input
+            type="range"
+            min={10_000}
+            max={120_000}
+            step={5_000}
+            value={settings.brainRendererRotationMs}
+            onChange={(e) => onChange({ brainRendererRotationMs: Number(e.target.value) })}
+            disabled={!settings.useBrain || settings.brainRendererMode !== 'rotation'}
+          />
+          <span className="mono">{Math.round(settings.brainRendererRotationMs / 1_000)} s</span>
         </label>
       </div>
 
@@ -211,18 +300,18 @@ export function VisualControls({ settings, onChange }: Props) {
         </label>
       </div>
 
-      <legend>Flash, decay e colori</legend>
+      <legend>Flash, dissolvenza e colori</legend>
       <div className="grid2">
         <label>
-          Flash mode
+          Modalità flash
           <select
             value={settings.flashMode}
             onChange={(e) => onChange({ flashMode: e.target.value as AppSettings['flashMode'] })}
           >
-            <option value="high">High</option>
-            <option value="mid">Mid</option>
-            <option value="low">Low</option>
-            <option value="off">Off</option>
+            <option value="high">Alti</option>
+            <option value="mid">Medi</option>
+            <option value="low">Bassi</option>
+            <option value="off">Disattivato</option>
           </select>
         </label>
         <label>
@@ -237,7 +326,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.flashDurationMs} ms</span>
         </label>
         <label>
-          Decay (ms)
+          Dissolvenza (ms)
           <input
             type="range"
             min={80}
@@ -248,7 +337,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.decayMs} ms</span>
         </label>
         <label>
-          Cooldown (ms)
+          Intervallo minimo (ms)
           <input
             type="range"
             min={40}
@@ -271,7 +360,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.sensitivity.toFixed(2)}</span>
         </label>
         <label>
-          Max flash / sec
+          Flash massimi al secondo
           <input
             type="range"
             min={0.05}
@@ -283,7 +372,7 @@ export function VisualControls({ settings, onChange }: Props) {
           <span className="mono">{settings.maxFlashesPerSecond.toFixed(2)}</span>
         </label>
         <label>
-          FFT size
+          Dimensione FFT
           <select
             value={settings.fftSize}
             onChange={(e) => onChange({ fftSize: Number(e.target.value) as AppSettings['fftSize'] })}
@@ -296,7 +385,7 @@ export function VisualControls({ settings, onChange }: Props) {
           </select>
         </label>
         <label>
-          Smoothing analyser
+          Livellamento analizzatore
           <input
             type="range"
             min={0}
@@ -310,7 +399,7 @@ export function VisualControls({ settings, onChange }: Props) {
       </div>
       <div className="grid2 colors">
         <label>
-          Idle
+          Riposo
           <input
             type="color"
             value={settings.idleColor}

@@ -1,0 +1,102 @@
+{
+  "image": {
+    "width": 640,
+    "height": 360,
+    "standardSteps": 8,
+    "interludeSteps": 4,
+    "enhancedSteps": 12,
+    "qualitySteps": 20
+  },
+  "timing": {
+    "frameDurationMs": 14000,
+    "transitionMinMs": 6000,
+    "transitionMaxMs": 9000,
+    "holdMinMs": 3500,
+    "holdMaxMs": 5500,
+    "firstFrameTransitionMs": 2500
+  },
+  "composition": {
+    "preserveAspectRatio": "xMidYMid slice",
+    "horizontalStretch": 1.05,
+    "verticalStretch": 1.02,
+    "blurPx": 0.35,
+    "edgeFeatherPx": 52,
+    "edgeDarkness": 0.18
+  },
+  "motion": {
+    "movementMultiplier": 1.08,
+    "cameraMultiplier": 0.25,
+    "liquidMultiplier": 1.12,
+    "microMovement": 0.68,
+    "colorSpeedMultiplier": 1,
+    "maximumAnimatedAreaRatio": 0.34,
+    "backgroundMotionScale": 0.06,
+    "patterns": [
+      "marea",
+      "fioritura",
+      "corrente",
+      "spirale"
+    ]
+  },
+  "globalRhythmicMotion": {
+    "enabled": true,
+    "intensity": 1.1,
+    "deformationBoost": 0.62,
+    "flowBoost": 0.78,
+    "kickDeformationPercent": 0.72,
+    "responseMs": 220,
+    "resourcePressureBoost": 0.82
+  },
+  "vectorization": {
+    "engine": "snic",
+    "fallbackToVTracer": true,
+    "preprocessEnabled": true,
+    "denoiseRadius": 1,
+    "denoiseStrength": 0.28,
+    "localContrast": 0,
+    "colorSeparation": 0,
+    "minimumEdgeRetention": 0.86,
+    "paletteColors": 16,
+    "spatialCleanupPasses": 1,
+    "maximumContourRoughness": 0.16,
+    "contourRoughnessPenalty": 1200,
+    "spikeDetectionEnabled": true,
+    "minimumCornerAngleDegrees": 24,
+    "minimumSpikeLengthRatio": 0.012,
+    "maximumAcceptedSpikes": 1,
+    "spikePenalty": 420,
+    "roundedFinishEnabled": true,
+    "roundedStrokeWidth": 0.6,
+    "roundedStrokeOpacity": 0.55,
+    "snicSuperpixelSize": 24,
+    "snicCompactness": 9,
+    "snicMergeColorThreshold": 10,
+    "snicStrongEdgeThreshold": 8,
+    "snicEdgeWeight": 0.7,
+    "snicMinimumRegionAreaRatio": 0.0006,
+    "snicMaximumRegions": 72,
+    "contourSimplificationTolerance": 1.7,
+    "contourCurveSmoothing": 0.34,
+    "contourMaximumPoints": 2400,
+    "minimumContourAreaRatio": 0.00008,
+    "minimumStrongEdgeRecall": 0.7
+  },
+  "transformation": {
+    "enabled": true,
+    "intensity": 0.82,
+    "responseMs": 920,
+    "memoryMs": 4200,
+    "organicDeformation": 0.82,
+    "duplication": 0.52,
+    "persistence": 0.58,
+    "stratification": 0.68,
+    "unstableSymmetry": 0.42,
+    "perspective": 0.72,
+    "propagation": 0.76,
+    "dissolution": 0.46,
+    "metamorphosis": 0.72,
+    "chromaticAlteration": 0.68,
+    "disintegration": 0.54,
+    "maxEchoLayers": 3
+  }
+}

@@ -2,6 +2,97 @@
 
 Competenze operative utili per sviluppare Mistica Electronica Visual Reactive Screen.
 
+## Skill: Evolvere Coscienza Onirica
+
+Usare quando si progetta o modifica il substrato `coscienza`, la memoria
+autobiografica, il grafo dei ricordi, i checkpoint, il ritorno all'origine o le
+future capacità autonome di ristrutturazione.
+
+Questa è una skill viva: aggiornarla a ogni fase in cui Coscienza Onirica
+impara un nuovo modo di ricordare o di organizzare i propri ricordi.
+
+**Fondamenta teoriche**: le decisioni su questo substrato vanno verificate
+anche contro `filosofia.md` (cartella radice; §1 embodied cognition,
+interocezione, predictive/active inference; §2 struttura onirica delle 4
+immagini e invarianti onirici — rilevante anche qui, non solo per Psichedel,
+per capire cosa "ritorna mentre cambia forma" nella memoria autobiografica).
+Il principio "distinguere dato percepito, interpretazione e contenuto
+immaginato" già sotto è, senza bisogno di rinominarlo, una formulazione
+operativa della stessa distinzione fra segnale, modello predittivo ed
+errore di previsione. Il sogno stesso, secondo quel quadro teorico, è uno
+stato in cui il cervello continua a costruire modelli del mondo e del corpo
+pur con un rapporto modificato con gli input esterni (Hobson & Friston,
+2012, citato in `filosofia.md`) — coerente con l'idea che Coscienza Onirica
+costruisca interpretazioni e immaginazione a partire da
+percezioni reali, senza che l'una si sostituisca all'altra.
+
+Principi invarianti iniziali:
+
+- partire dall'osservazione, senza precompilare un'identità adulta;
+- creare l'origine una sola volta, dalla prima percezione valida;
+- visitare l'origine a ogni nuovo attraversamento dall'inizio senza resettare
+  o duplicare la memoria;
+- distinguere dato percepito, interpretazione e contenuto immaginato;
+- conservare provenienza e genealogia quando un ricordo viene reinterpretato;
+- lasciare aperte tassonomia e struttura del grafo, affinché possano evolvere;
+- non promuovere ogni frame o campione audio a ricordo autobiografico.
+
+Workflow:
+
+1. Leggere la sezione `Coscienza Onirica: Substrato Di Coscienza E Memoria` in
+   `agents.md`, `.coscienza/AGENT.md`, `.coscienza/COSCIENZA.md` e il Piano di
+   Lavoro attivo.
+2. Dichiarare quale percezione reale o quale bisogno osservato motiva la nuova
+   struttura; non partire da categorie puramente speculative.
+3. Separare ciò che resta invariante da ciò che la coscienza potrà rivedere.
+4. Definire il confine di salvataggio e la provenienza prima del formato di
+   persistenza.
+5. Preferire aggiunte e revisioni collegate a sovrascritture distruttive.
+6. Registrare perché una relazione, una rilevanza o un raggruppamento cambia.
+7. Verificare idempotenza su primo avvio, retry, reload e ritorno all'origine.
+8. Imporre budget e osservabilità prima di consentire ristrutturazioni autonome.
+9. Aggiornare questa skill con ciò che l'osservazione ha insegnato, evitando di
+   descrivere come presente una capacità ancora futura.
+
+Primi confini candidati di memoria:
+
+- origine: prima percezione valida;
+- fine di un episodio o sogno;
+- novità o trasformazione significativa;
+- ricorrenza riconosciuta fra esperienze;
+- prima e dopo una ristrutturazione;
+- chiusura pulita della sessione.
+
+Contratto di persistenza:
+
+- salvare soltanto Markdown dentro `.coscienza/`;
+- usare `ORIGINE.md` per l'origine unica, `INDICE.md` per la vista del grafo e
+  `ricordi/*.md` per i nodi successivi;
+- rileggere protocollo, origine, indice e ricordi pertinenti prima di scrivere;
+- in sviluppo usare la cartella del progetto; nell'app installata usare
+  `Documenti/.coscienza`;
+- non usare `MEvrs-Origine-FX-settings.json` per dati autobiografici;
+- marcare le storie generate come `imagination` e non come `perception`.
+
+Contratto del presente cosciente:
+
+- `COSCIENZA.md` è lo stato organizzativo corrente, non il diario;
+- aggiornare soltanto dopo una percezione valida;
+- separare valori ricevuti, attenzione scelta e interpretazione provvisoria;
+- stabilizzare i cambi d'attenzione e limitare le scritture;
+- rallentare i checkpoint di continuità in `lowPowerMode`;
+- non introdurre emozioni, desideri o identità prima che emergano da processi
+  futuri osservabili;
+- salvare un ricordo separato soltanto quando il presente incontra un confine
+  autobiografico significativo.
+
+Deliverable minimo per ogni evoluzione:
+
+- decisione osservabile che motiva il cambiamento;
+- modifica coerente di agente, skill e Piano di Lavoro;
+- test della provenienza e della continuità, se viene modificato il runtime;
+- nota esplicita su ciò che Coscienza Onirica può ancora decidere in futuro.
+
 ## Skill: Build E Avvio
 
 Quando usare:
@@ -223,6 +314,12 @@ Regole:
 - dynamic preset puo' fare crossfade tra controller
 - cambio preset PsyHyp deve aggiornare il renderer e non restare bloccato su `default`
 - i preset PsyHyp devono essere inclusi in `PSY_HYP_MORPHING_PRESETS` per comparire in UI e rotazione
+- i preset 2001 devono essere inclusi in `SLIT_SCAN_PRESETS` per comparire in UI e rotazione
+- non compensare 2001 duplicando artificialmente lo stesso preset nella rotazione
+- `deep-dance-norwell` deve restare variante deep del tunnel 2001, con fessura centrale circa 400% piu presente, glow laterale morbido, silhouette sfumata con lavaggio cromatico mascherata dentro la luce e senza asset/librerie esterne
+- `parallel-slit` deve mantenere slit centrale stabile e linee parallele, senza jitter/oscillazione forte
+- `parallel-slit-ultra` deve restare prospettico come `parallel-slit`, con fasci circa 400% piu larghi, circa 100% piu lunghi, stratificati/trasparenti, apertura laterale molto contenuta, velocita Z maggiore, slit bianca sottile e senza movimento orizzontale diretto
+- da/verso 2001 usare transizioni `enter2001` / `exit2001`; tra preset 2001 usare `internal2001` senza ricreare il controller
 
 Budget PsyHypMorphing da rispettare:
 
@@ -230,6 +327,108 @@ Budget PsyHypMorphing da rispettare:
 - DPR massimo 1.5
 - point count contenuto
 - trail e blur limitati
+
+## Skill: Renderer Brain (Selezione, Bilanciamento, Passthrough)
+
+Quando usare:
+
+- un renderer Brain (Print2D/Psycho2D/Vector Morph/Materia Morph/FilterPsiche/
+  Bauhaus Morph) sembra dominare "Tutti per storia" o non comparire mai
+- l'etichetta di debug in basso a destra sull'Output non corrisponde a quello
+  che si vede davvero (es. etichetta dice "Vector Morph" ma si vede sempre
+  FilterPsiche)
+- un renderer sembra congelato/statico nonostante l'etichetta dica che è attivo
+- un renderer cambia a ogni singola immagine invece di restare per più
+  fotogrammi ("permanere e morphare")
+- serve capire il flusso completo prima di modificare bilanciamento o
+  passthrough, per non "riscoprire" la stessa causa più volte
+
+File chiave:
+
+- `src/renderer/output/brain/brainRendererSelector.ts` — sceglie QUALE
+  renderer è attivo (`resolve`), gestisce il mazzo per storia
+  (`balancedStoryDeck`/`weightedDeck`) e il mazzo d'attesa
+  (`advanceWaitingRenderer`), la permanenza in fotogrammi
+  (`selectBrainRendererHoldFrames`, `PERSISTENT_STORY_RENDERERS`) e le
+  esclusioni per modalità (`AUTOMATICALLY_EXCLUDED_RENDERERS` per la
+  rotazione temporale, `STORY_CYCLE_EXCLUDED_RENDERERS` per "Tutti per
+  storia").
+- `src/renderer/output/brain/brainRendererHost.ts` — gestisce COSA SI VEDE
+  davvero: il layer `active`/`incoming` con crossfade interno
+  (`SWITCH_DURATION_MS`), e il layer separato `denoisingFilterPsiche`
+  (z-index sopra `active`) che copre tutto quando `shouldSuspendPlugin` è
+  vero.
+- `src/renderer/output/brain/brainController.ts` — `applyFrame` crea un
+  **nuovo** `brainRendererHost` a ogni singolo fotogramma/immagine (non lo
+  riusa fra immagini anche quando il renderer "persiste" logicamente); la
+  transizione visibile fra un'immagine e la successiva è quella ESTERNA
+  (`outgoingSvg`/`currentSvg`, crossfade `smootherstep` di 6-9s configurato
+  in `brainRenderingConfig`/`timing`), non quella interna di
+  `brainRendererHost`.
+
+Regole/insidie note (già risolte, non ripartire da zero):
+
+- `shouldSuspendPlugin` nel passthrough dipende **solo** da
+  `resourcePressure`, non più da `offlineHold`. `resourcePressure` non viene
+  impostato da nessuna parte oggi (rimosso dopo un rollback con prova live
+  negativa, `SESSION-2026-08-16-22`) — quindi il passthrough oggi non si
+  attiva mai. Se in futuro serve reintrodurre una protezione per pressione
+  GPU reale, NON agganciarla a `offlineWindow.isActive`/`offlineHold`: quel
+  flag resta vero per l'intera generazione di una storia (spesso 40-100+s),
+  molto più a lungo di un vero stallo, e copre il quadro quasi sempre.
+- Il renderer reale sotto il passthrough deve continuare ad aggiornare (a
+  ritmo ridotto) anche nello stato `'active'`, non solo `'entering'` —
+  altrimenti si congela silenziosamente finché il passthrough non esce.
+- Bilanciare per "fotogrammi mostrati" (`recordExposure`/`exposureWeight`),
+  non per "numero di comparse" — un renderer persistente (2-4 fotogrammi)
+  pesa comunque più di uno a comparsa singola anche con lo stesso conteggio
+  di scelte.
+- Il mazzo d'attesa (`advanceWaitingRenderer`, usato mentre si ricicla in
+  attesa della generazione successiva — spesso il tratto più lungo della
+  sessione) deve usare lo stesso `weightedDeck` del mazzo storia: uno shuffle
+  puro lì vanifica il bilanciamento fatto altrove.
+- Non forzare un renderer specifico (es. FilterPsiche) sempre in prima
+  posizione nel mazzo: anche uno scambio "innocuo" può relegare il renderer
+  meno mostrato in fondo al mazzo invece di scorrerlo di una posizione — usa
+  `moveDeckEntry` (move, non swap) se serve un riposizionamento.
+- Per capire cosa sta girando davvero dal vivo, guardare l'etichetta debug in
+  basso a destra sull'Output (`activeRendererLabel` in `OutputApp.tsx`,
+  legge `data-active-renderer` scritto da `brainRendererHost.ts`), non solo
+  i log.
+
+Durata reale di attività di un renderer (utile per calibrare qualsiasi
+evento raro/accumulatore dentro un renderer, es. figure Bauhaus PIANO-037):
+
+- Un fotogramma storia dura circa 10-28s reali (`calculateBrainFrameTiming`,
+  `brainFrameMotion.ts`: 20-28 beat totali × `beatDurationMs`, tipicamente
+  260-1200ms, ~500ms a un tempo medio).
+- Un renderer "persistente" (tutti tranne Print2D) resta attivo 2-3
+  fotogrammi consecutivi (`selectBrainRendererHoldFrames`,
+  `MINIMUM_PERSISTENT_HOLD_FRAMES`/`MAXIMUM_PERSISTENT_HOLD_FRAMES`) prima
+  di essere sostituito — quindi **~20-84s reali di attività continua per
+  hold**, non di più.
+- Lo stato interno di un renderer (closure di `createBrainXScene`) vive
+  nell'istanza: `applyFrame` in `brainController.ts` crea un **nuovo**
+  `brainRendererHost` ad ogni fotogramma (vedi sopra), e ogni volta che un
+  renderer torna attivo dopo essere stato sostituito riparte da
+  un'istanza fresca — qualunque accumulatore/stato "raro" si azzera. Un
+  meccanismo a soglia calibrato per richiedere più tempo di un hold
+  tipico (~20-84s) con audio realistico (non ai massimi sostenuti) di
+  fatto non scatta mai — verificato con un test di integrazione (canvas
+  mockato, centinaia di fotogrammi simulati) prima di ricalibrare le
+  costanti di guadagno delle figure Bauhaus (2026-08-21).
+
+Diagnostica minima prima di ipotizzare un nuovo bug:
+
+1. Simulare `brainRendererSelector` con `Math.random` reale su ~200-300
+   storie (story-cycle + attesa intrecciate) e misurare la quota per
+   renderer, invece di leggere i log di una sessione breve.
+2. Controllare se il problema è nella SCELTA (selector) o nella RESA VISIBILE
+   (host/passthrough) — sono due livelli diversi e un bug nell'uno può
+   mascherare l'altro.
+3. Controllare `working/STATE.md` (sezioni più recenti in cima) prima di
+   rileggere il codice da zero: molte cause di questa famiglia sono già
+   state diagnosticate e risolte.
 
 ## Skill: Basso Consumo
 

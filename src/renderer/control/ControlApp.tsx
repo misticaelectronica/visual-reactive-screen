@@ -3,8 +3,11 @@ import './control.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppSettings, BandEnergies, MorphingAlgorithm } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
-import { MORPHING_PRESETS } from '@shared/morphingPresets'
-import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
+import {
+  morphingRotationCandidateFromSettings,
+  pickMorphingRotationCandidate,
+  type MorphingRotationCandidate,
+} from '@shared/morphingRotation'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
 import { AudioInputSelector } from './components/AudioInputSelector'
@@ -33,13 +36,6 @@ const PSY_HYP_MORPHING_MAX_MS = 85_000
 const NO_MORPHING_MIN_INTERVAL_MS = 180_000
 const NO_MORPHING_MAX_INTERVAL_MS = 420_000
 
-type DynamicMorphingCandidate = {
-  id: string
-  label: string
-  algorithm: 'none' | MorphingAlgorithm
-  presetId?: string
-}
-
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
@@ -63,82 +59,14 @@ function pickWeightedColorPreset(currentId: string | null | undefined) {
   return weighted[weighted.length - 1]?.preset ?? COLOR_PRESETS[0]
 }
 
-function buildDynamicMorphingCandidates(): DynamicMorphingCandidate[] {
-  return [
-    { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' },
-    ...MORPHING_PRESETS.map((preset) => ({
-      id: `liquid:${preset.id}`,
-      label: `Liquid Morphing - ${preset.name}`,
-      algorithm: 'liquid' as const,
-      presetId: preset.id,
-    })),
-    { id: 'oniric:default', label: 'Oniric Morphing - default', algorithm: 'oniric', presetId: 'default' },
-    ...MORPHING_PRESETS.map((preset) => ({
-      id: `oniric:${preset.id}`,
-      label: `Oniric Morphing - ${preset.name}`,
-      algorithm: 'oniric' as const,
-      presetId: preset.id,
-    })),
-    ...PSY_HYP_MORPHING_PRESETS.map((preset) => ({
-      id: `psy-hyp:${preset.id}`,
-      label: `PsyHypMorphing - ${preset.name}`,
-      algorithm: 'psy-hyp' as const,
-      presetId: preset.id,
-    })),
-  ]
-}
-
-function candidateFromSettings(settings: AppSettings): DynamicMorphingCandidate {
-  if (!settings.useMorphing) return { id: 'no-morphing', label: 'No Morphing', algorithm: 'none' }
-  return {
-    id: `${settings.morphingAlgorithm}:${settings.morphingPresetId}`,
-    label: `${settings.morphingAlgorithm} - ${settings.morphingPresetId}`,
-    algorithm: settings.morphingAlgorithm,
-    presetId: settings.morphingPresetId,
-  }
-}
-
-function pickDynamicMorphingCandidate(current: DynamicMorphingCandidate, forceNoMorphing: boolean): DynamicMorphingCandidate {
-  const candidates = buildDynamicMorphingCandidates()
-  if (forceNoMorphing) return candidates[0]
-
-  const pools = {
-    liquid: candidates.filter((candidate) => candidate.algorithm === 'liquid' && candidate.id !== current.id),
-    oniric: candidates.filter((candidate) => candidate.algorithm === 'oniric' && candidate.id !== current.id),
-    psyHyp: candidates.filter((candidate) => candidate.algorithm === 'psy-hyp' && candidate.id !== current.id),
-  }
-  const weightedFamilies = [
-    { family: 'liquid' as const, weight: pools.liquid.length > 0 ? 0.30 : 0 },
-    { family: 'oniric' as const, weight: pools.oniric.length > 0 ? 0.30 : 0 },
-    // PsyHyp has fewer preset families than Liquid/Oniric, so it keeps family-level compensation.
-    { family: 'psyHyp' as const, weight: pools.psyHyp.length > 0 ? 0.40 : 0 },
-  ]
-  const total = weightedFamilies.reduce((sum, item) => sum + item.weight, 0)
-  if (total <= 0) {
-    const fallback = candidates.filter((candidate) => candidate.id !== current.id && candidate.algorithm !== 'none')
-    return fallback[Math.floor(Math.random() * fallback.length) % fallback.length] ?? candidates[0]
-  }
-
-  let roll = Math.random() * total
-  for (const item of weightedFamilies) {
-    roll -= item.weight
-    if (roll <= 0) {
-      const pool = pools[item.family]
-      return pool[Math.floor(Math.random() * pool.length) % pool.length]
-    }
-  }
-  const pool = pools.psyHyp.length > 0 ? pools.psyHyp : pools.liquid.length > 0 ? pools.liquid : pools.oniric
-  return pool[Math.floor(Math.random() * pool.length) % pool.length]
-}
-
-function morphingRotationDelay(settings: AppSettings): number {
-  if (settings.useMorphing && settings.morphingAlgorithm === 'psy-hyp') {
+function morphingRotationDelay(useMorphing: boolean, morphingAlgorithm: MorphingAlgorithm): number {
+  if (useMorphing && morphingAlgorithm === 'psy-hyp') {
     return randomBetween(PSY_HYP_MORPHING_MIN_MS, PSY_HYP_MORPHING_MAX_MS)
   }
   return randomBetween(MORPHING_PRESET_MIN_MS, MORPHING_PRESET_MAX_MS)
 }
 
-function visibilityPatchForMorphing(candidate: DynamicMorphingCandidate): Partial<AppSettings> {
+function visibilityPatchForMorphing(candidate: MorphingRotationCandidate): Partial<AppSettings> {
   if (candidate.algorithm !== 'oniric') return {}
   return {
     morphingOpacity: 0.62,
@@ -163,6 +91,7 @@ export function ControlApp() {
   const morphingRotationTimerRef = useRef<number | null>(null)
   const nextNoMorphingDueAtRef = useRef(0)
   const visStateRef = useRef(createInitialVisualEngineState())
+  const telemetrySequenceRef = useRef(0)
   const lastMovingRef = useRef<BandEnergies>({
     low: 0.05,
     lowMid: 0.05,
@@ -247,9 +176,18 @@ export function ControlApp() {
         flashMode: output.flashMode,
         useMorphing: settings.useMorphing,
         bandEnergies,
+        movingAverages,
+        audioPrimed,
         settings,
         whiteMix: output.debug.whiteMix,
+        audioTimestampMs: performance.timeOrigin + t,
+        sequenceNumber: telemetrySequenceRef.current,
+        performanceTelemetry: {
+          sequence: telemetrySequenceRef.current,
+          sentAtEpochMs: performance.timeOrigin + t,
+        },
       })
+      telemetrySequenceRef.current += 1
 
       raf = requestAnimationFrame(loop)
     }
@@ -339,7 +277,7 @@ export function ControlApp() {
       morphingRotationTimerRef.current = null
     }
 
-    if (!settings.dynamicPresetEnabled || !settings.dynamicMorphingRotationEnabled) {
+    if (!settings.dynamicMorphingRotationEnabled || settings.useBrain || settings.alternateBrainWithMorphing) {
       nextNoMorphingDueAtRef.current = 0
       return
     }
@@ -349,19 +287,23 @@ export function ControlApp() {
       nextNoMorphingDueAtRef.current = now + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
     }
 
-    const scheduleMorphingRotation = () => {
-      const delay = morphingRotationDelay(settings)
+    const scheduleMorphingRotation = (isFirstRun: boolean = false) => {
+      const delay = isFirstRun ? 0 : morphingRotationDelay(settings.useMorphing, settings.morphingAlgorithm)
       morphingRotationTimerRef.current = window.setTimeout(() => {
         setSettings((current) => {
-          if (!current.dynamicPresetEnabled || !current.dynamicMorphingRotationEnabled) return current
+          if (!current.dynamicMorphingRotationEnabled) return current
           const nowInner = Date.now()
           const forceNoMorphing = nowInner >= nextNoMorphingDueAtRef.current
-          const candidate = pickDynamicMorphingCandidate(candidateFromSettings(current), forceNoMorphing)
+          const candidate = pickMorphingRotationCandidate(
+            morphingRotationCandidateFromSettings(current),
+            forceNoMorphing,
+          )
           if (candidate.algorithm === 'none') {
             nextNoMorphingDueAtRef.current =
               nowInner + randomBetween(NO_MORPHING_MIN_INTERVAL_MS, NO_MORPHING_MAX_INTERVAL_MS)
             return {
               ...current,
+              useBrain: false,
               useMorphing: false,
             }
           }
@@ -369,6 +311,7 @@ export function ControlApp() {
           return {
             ...current,
             ...visibilityPatchForMorphing(candidate),
+            useBrain: false,
             useMorphing: true,
             morphingAlgorithm: candidate.algorithm,
             morphingPresetId: candidate.presetId ?? 'default',
@@ -378,7 +321,7 @@ export function ControlApp() {
       }, delay)
     }
 
-    scheduleMorphingRotation()
+    scheduleMorphingRotation(true)
     return () => {
       if (morphingRotationTimerRef.current) {
         window.clearTimeout(morphingRotationTimerRef.current)
@@ -386,12 +329,29 @@ export function ControlApp() {
       }
     }
   }, [
-    settings.dynamicPresetEnabled,
     settings.dynamicMorphingRotationEnabled,
     settings.morphingAlgorithm,
-    settings.morphingPresetId,
     settings.useMorphing,
+    settings.useBrain,
+    settings.alternateBrainWithMorphing,
   ])
+
+  useEffect(() => {
+    if (!settings.alternateBrainWithMorphing) return
+    setSettings((current) => {
+      if (
+        current.useBrain &&
+        !current.useMorphing &&
+        current.brainRendererMode === 'story-cycle'
+      ) return current
+      return {
+        ...current,
+        useBrain: true,
+        useMorphing: false,
+        brainRendererMode: 'story-cycle',
+      }
+    })
+  }, [settings.alternateBrainWithMorphing])
 
   if (!api) {
     const inBrowser =
@@ -431,25 +391,25 @@ export function ControlApp() {
 
       <section className="warning">
         <strong>Avviso salute:</strong> luci intermittenti possono provocare fastidio o scatenare crisi in
-        persone con epilessia fotosensibile. Usa limiti di frequenza, cooldown, modalità soft e il pulsante
-        Panic/Off in caso di necessità. Questa app non fornisce valutazioni mediche.
+        persone con epilessia fotosensibile. Usa limiti di frequenza, intervallo minimo, modalità morbida e il pulsante
+        Emergenza/Spegni in caso di necessità. Questa app non fornisce valutazioni mediche.
       </section>
 
       <section className="toolbar">
         <button type="button" onClick={() => void openOutput()} disabled={outputOpen}>
-          Apri uscita fullscreen
+          Apri uscita a schermo intero
         </button>
         <button type="button" onClick={() => void closeOutput()} disabled={!outputOpen}>
           Chiudi uscita
         </button>
         <button type="button" onClick={onTestFlash}>
-          Test flash
+          Prova flash
         </button>
         <button type="button" className="danger" onClick={onPanic}>
-          Panic / Off
+          Emergenza / Spegni
         </button>
         <button type="button" onClick={onPanicRelease} disabled={!panic}>
-          Riprendi (rilascia panic)
+          Riprendi
         </button>
         <button type="button" onClick={() => void refreshDisplays()}>
           Aggiorna display

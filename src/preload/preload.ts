@@ -39,6 +39,42 @@ const outputApi: OutputApi = {
     ipcRenderer.on(IPC_CHANNELS.visualStatePush, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.visualStatePush, handler)
   },
+  sendVisualStateAck: (sequenceNumber) => {
+    ipcRenderer.send(IPC_CHANNELS.visualStateAck, { sequenceNumber })
+  },
+  notifyVisualStateReady: () => {
+    ipcRenderer.send(IPC_CHANNELS.visualStateAck, { ready: true })
+  },
+  vectorizeBrainImage: (bytes, options) =>
+    ipcRenderer.invoke(IPC_CHANNELS.vectorizeBrainImage, bytes, options) as ReturnType<
+      OutputApi['vectorizeBrainImage']
+    >,
+  readBrainConfigFile: (fileName) =>
+    ipcRenderer.invoke(IPC_CHANNELS.readBrainConfigFile, fileName) as Promise<string>,
+  saveConsciousnessMemory: (draft) =>
+    ipcRenderer.invoke(IPC_CHANNELS.saveConsciousnessMemory, draft) as ReturnType<
+      OutputApi['saveConsciousnessMemory']
+    >,
+  updateConsciousnessState: (snapshot) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateConsciousnessState, snapshot) as ReturnType<
+      OutputApi['updateConsciousnessState']
+    >,
+  suggestConsciousnessMotion: (query) =>
+    ipcRenderer.invoke(IPC_CHANNELS.suggestConsciousnessMotion, query) as ReturnType<
+      OutputApi['suggestConsciousnessMotion']
+    >,
+  saveDreamImage: (request) =>
+    ipcRenderer.invoke(IPC_CHANNELS.saveDreamImage, request) as ReturnType<
+      OutputApi['saveDreamImage']
+    >,
+  queryDreamImageEntries: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.queryDreamImageEntries) as ReturnType<
+      OutputApi['queryDreamImageEntries']
+    >,
+  loadDreamImages: (fileNames) =>
+    ipcRenderer.invoke(IPC_CHANNELS.loadDreamImages, fileNames) as ReturnType<
+      OutputApi['loadDreamImages']
+    >,
 }
 
 function isOutputEntry(): boolean {
