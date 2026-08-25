@@ -368,14 +368,41 @@ File chiave:
 
 Regole/insidie note (già risolte, non ripartire da zero):
 
-- `shouldSuspendPlugin` nel passthrough dipende **solo** da
-  `resourcePressure`, non più da `offlineHold`. `resourcePressure` non viene
-  impostato da nessuna parte oggi (rimosso dopo un rollback con prova live
-  negativa, `SESSION-2026-08-16-22`) — quindi il passthrough oggi non si
-  attiva mai. Se in futuro serve reintrodurre una protezione per pressione
-  GPU reale, NON agganciarla a `offlineWindow.isActive`/`offlineHold`: quel
-  flag resta vero per l'intera generazione di una storia (spesso 40-100+s),
-  molto più a lungo di un vero stallo, e copre il quadro quasi sempre.
+- **AGGIORNATO 2026-08-25 — la nota precedente era superata**:
+  `shouldSuspendPlugin` nel passthrough dipende **solo** da
+  `resourcePressure`, non da `offlineHold` (quel flag resta vero per
+  l'intera generazione di una storia, spesso 40-100+s, molto più a lungo
+  di un vero stallo — NON riagganciarlo lì se serve un'altra protezione).
+  `resourcePressure` oggi **è impostato attivamente** in
+  `brainController.ts` da tre fonti distinte, tutte confluenti nella
+  stessa variabile `visualPressurePulseUntil`: (1) reattivamente dal
+  `thermalScheduler` su un gap RAF reale già avvenuto; (2) **proattivamente**
+  prima di ogni chiamata GPU di `Psichedel.generate()`
+  (`armVisualPressureBeforeGpuLoad`, awaited PRIMA di iniziare
+  l'inferenza — non dopo lo stallo); (3) prima del moto di coscienza,
+  armato già quando il candidato viene messo in coda
+  (`consciousnessMotionLayer.offer()` accettato), non quando diventa
+  attivo — un margine reale fino a un'intera durata di beat. La
+  composizione flash+glitch+mix che questo segnale attiva ha un nome
+  condiviso con la Direzione VJ: **Varco Percettivo** (vedi il commento
+  di testa a `brainRendererHost.ts`).
+- Un renderer che fallisce il proprio controllo qualità interno
+  (`hasFailed()`, es. Vector Morph "meno di cinque forme riconoscibili")
+  non recupera da solo: la rete di sicurezza dell'host mostra un
+  passthrough (Print2D durante la Riattivazione, FilterPsiche altrimenti),
+  ma SENZA notificare il selettore quel passthrough resta in scena per
+  l'intera durata residua del fotogramma (fino a ~20s), non solo per il
+  tempo di preparare un renderer sostitutivo. Fix: `onRendererFailed`
+  (parametro dell'host) → `BrainRendererSelector.reportRendererFailure()`
+  fa avanzare subito il mazzo oltre l'entrata fallita.
+- Durante la Riattivazione (boost) il filtro pressione di
+  `storyCycleIds()` va **saltato del tutto**, non solo attenuato: la
+  Riattivazione stessa, cambiando renderer ogni 1-2 fotogrammi, genera
+  gap RAF che il thermalScheduler legge come pressione reale — un ciclo
+  che si autoalimenta ed esclude proprio i renderer pesanti nella fase
+  che deve garantirne la copertura completa. La generazione è comunque
+  sospesa durante la Riattivazione: non c'è vera contesa GPU da
+  proteggere in quella finestra.
 - Il renderer reale sotto il passthrough deve continuare ad aggiornare (a
   ritmo ridotto) anche nello stato `'active'`, non solo `'entering'` —
   altrimenti si congela silenziosamente finché il passthrough non esce.
@@ -429,6 +456,26 @@ Diagnostica minima prima di ipotizzare un nuovo bug:
 3. Controllare `working/STATE.md` (sezioni più recenti in cima) prima di
    rileggere il codice da zero: molte cause di questa famiglia sono già
    state diagnosticate e risolte.
+
+**Hash a bassa diffusione con indici piccoli e sequenziali** (lezione
+generale, non solo per il selettore): più renderer Brain usano un hash
+deterministico (`hashUnit`/simili) su un indice piccolo (oggetto in
+scena, punto di un campo, 0-11 circa) per dare varietà a un parametro
+(fase, verso di rotazione, offset). Un hash "buono" su valori sparsi o
+grandi può comunque avere pessima diffusione su un intervallo piccolo e
+sequenziale — verificato concretamente su Fractal Spiral Degeneration
+(PIANO-038, 2026-08-25): `hashUnit(index, costante, costante) < 0.5`
+restituiva lo stesso segno per TUTTI gli indici 0-5, il range più comune
+in pratica, nonostante il hash "funzionasse" su indici sparsi. Una prima
+correzione che riusava lo stesso `hashUnit` con costanti diverse è
+sembrata corretta a lettura del codice ma non ha risolto nulla dal vivo.
+**Prima di fidarsi di un hash per generare varietà su un range di indici
+piccolo, eseguirlo numericamente su quel range esatto (es. `node -e`) e
+controllare la distribuzione reale, non solo la formula.** Per un hash
+solido su interi piccoli e sequenziali, un avalanche a interi (variante
+Thomas Wang/splitmix, vedi `computeSpiralDirection` in
+`brainFractalSpiralCanvas.ts`) è più affidabile di combinare
+`hashUnit(x, costante, costante)`.
 
 ## Skill: Basso Consumo
 
