@@ -2,6 +2,34 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati alla Sessione 2026-08-25 (Varco Percettivo, hotfix spirali, release Beta)
+
+- [x] **`TASK-039-15`** `DONE`: Nome condiviso con la Direzione VJ per il
+  mix flash+glitch+passthrough — **Varco Percettivo** — registrato nel
+  commento di testa a `brainRendererHost.ts`.
+- [x] **`TASK-039-16`** `DONE`: Varco Percettivo armato anche prima del
+  moto di coscienza, in coda (`consciousnessMotionLayer.offer()`
+  accettato) non al fronte di salita dell'attivazione — margine reale
+  fino a un'intera durata di beat dopo che il primo tentativo si è
+  rivelato insufficiente dal vivo.
+- [x] **`TASK-039-17`** `DONE`: Hotfix — verso di avvolgimento delle
+  spirali di Fractal Spiral Degeneration ancora uniforme dopo la prima
+  correzione; causa reale (bassa diffusione di `hashUnit` su indici
+  piccoli) trovata numericamente, non per ipotesi. Nuova
+  `computeSpiralDirection` (avalanche intero).
+- [x] **`TASK-039-18`** `DONE`: Release **v1.0.0-beta.1** e hotfix
+  **v1.0.0-beta.2** — merge `feature/fractal-spiral-degeneration` →
+  `develop` → `main`, tag, push su origin (worktree separato per non
+  toccare sessioni parallele in corso sulla stessa directory di lavoro).
+- [x] **`TASK-039-19`** `DONE`: Documentazione aggiornata —
+  `skills.md` (sezione Renderer Brain corretta: `resourcePressure` è ora
+  impostato attivamente, non più inerte; nuova lezione sulla bassa
+  diffusione hash su indici piccoli), `working/STATE.md`,
+  `working/tasks/tasks-registry.md`.
+- [ ] **`TASK-039-20`** `TODO`: Verifica manuale dal vivo di Varco
+  Percettivo prima del moto di coscienza e del verso variabile delle
+  spirali.
+
 ## Task Collegati a `PIANO-039` (Print2D — Vita Interna)
 
 - [x] **`TASK-039-08`** `DONE`: Traduzione tecnica sezione-per-sezione del
