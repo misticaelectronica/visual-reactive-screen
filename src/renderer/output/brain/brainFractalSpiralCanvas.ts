@@ -194,6 +194,25 @@ function hashUnit(x: number, y: number, salt: number): number {
 }
 
 /**
+ * Verso di avvolgimento deterministico (±1) per indice piccolo (0-11
+ * circa: oggetti in scena, punti del campo di sfondo). Segnalato dal
+ * Capo Supremo (due volte: "girano tutte dalla stessa parte" anche dopo
+ * un primo tentativo con `hashUnit`) — `hashUnit(index, costante,
+ * costante)` non diffonde a sufficienza per indici piccoli e sequenziali
+ * (verificato numericamente: indici 0-5 restituivano tutti lo stesso
+ * segno). Questo hash a avalanche intero (Thomas Wang / variante
+ * splitmix) è pensato apposta per input piccoli e sequenziali, non solo
+ * per valori sparsi.
+ */
+export function computeSpiralDirection(index: number): 1 | -1 {
+  let x = index | 0
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b)
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b)
+  x ^= x >>> 16
+  return (x & 1) === 0 ? 1 : -1
+}
+
+/**
  * Posizioni deterministiche (stesso conteggio → stesso risultato) per i
  * generatori del campo di sfondo — una griglia leggermente irregolare,
  * non un pattern a scacchiera troppo meccanico.
@@ -212,7 +231,7 @@ export function computeBackgroundSpiralPoints(count: number): BackgroundSpiralPo
       x: clamp((column + 0.5 + jitterX) / columns),
       y: clamp((row + 0.5 + jitterY) / rows),
       phase: hashUnit(index, 3, 23) * TAU,
-      direction: hashUnit(index, 4, 29) < 0.5 ? -1 : 1,
+      direction: computeSpiralDirection(index),
     })
   }
   return points
@@ -633,7 +652,7 @@ export function createBrainFractalSpiralScene(
     // sull'indice, stesso principio di `computeSpiralFillPhase` per la
     // fase): ogni oggetto gira per conto suo, mai tutti nello stesso
     // verso come prima.
-    const objectDirection: 1 | -1 = hashUnit(objectIndex, 7, 41) < 0.5 ? -1 : 1
+    const objectDirection: 1 | -1 = computeSpiralDirection(objectIndex)
     bufferContext.lineCap = 'round'
     for (let arm = 0; arm < armBudget; arm += 1) {
       const reveal = computeLevelReveal(arm, degenerationProgress, armBudget, beatBump)
