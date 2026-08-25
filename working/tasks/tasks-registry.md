@@ -2,6 +2,27 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-039` (Print2D — Vita Interna)
+
+- [x] **`TASK-039-08`** `DONE`: Traduzione tecnica sezione-per-sezione del
+  brief VJ del Capo Supremo (`working/plans/piano-039-print2d-vita-interna.md`).
+- [x] **`TASK-039-09`** `DONE`: Layer contorno (`contourCore`/`contourFaint`)
+  baked a preparazione riusando il gradiente Sobel già calcolato per i
+  frammenti d'inchiostro.
+- [x] **`TASK-039-10`** `DONE`: Macchina a stati pura
+  vivo/freeze/impulso/decadimento (`advancePrintLifeState`/
+  `computePrintLifeEnvelope`), innescata dal flash globale esistente.
+- [x] **`TASK-039-11`** `DONE`: Respirazione del contorno silenzio-gated
+  (`advanceContourBreathingPhase`) + spessore/sdoppiamento
+  (`computeContourThickness`/`computeContourDoubling`).
+- [x] **`TASK-039-12`** `DONE`: Ampiezze macro delle lastre dimezzate
+  (`PLATE_MOTION_SCALE`), moiré e scia dei frammenti d'inchiostro,
+  passata condivisa sopra tutti e 7 i preset.
+- [x] **`TASK-039-13`** `DONE`: Test, typecheck, lint, build Vite — 467
+  test verdi.
+- [ ] **`TASK-039-14`** `TODO`: Verifica manuale dal vivo con audio reale
+  (contorno vivo, freeze percepibile, impulso, ritorno morbido).
+
 ## Task Collegati alla Sessione 2026-08-25 (Riattivazione, semaforo GPU, raster Fractal Spiral)
 
 - [x] **`TASK-039-01`** `DONE`: Diagnosi da log reali (non ipotesi) delle

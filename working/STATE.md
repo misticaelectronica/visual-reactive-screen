@@ -1,5 +1,50 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Print2D: vita interna, contorno vivo + freeze/impulso (PIANO-039) — 2026-08-25
+
+- Brief VJ del Capo Supremo indirizzato al "Capo degli Ingegneri di Brain":
+  spostare l'identità di Print2D da "lastre che si muovono" a "stampa che
+  prende vita internamente". Vedi
+  `working/plans/piano-039-print2d-vita-interna.md` per la traduzione
+  tecnica sezione-per-sezione del brief.
+- **Contorno vivo/respirazione**: nuovo layer contorno (`contourCore`/
+  `contourFaint`) baked a preparazione riusando lo STESSO gradiente Sobel
+  già calcolato per i frammenti d'inchiostro (zero analisi aggiuntiva) —
+  due soglie che a runtime si respirano (spessore/sdoppiamento) con un
+  inviluppo lento silenzio-gated (`advanceContourBreathingPhase`, stesso
+  pattern di `advanceBauhausAbstraction`).
+- **Freeze + impulso**: nuova macchina a stati pura
+  `vivo → freeze → impulso → decadimento → vivo`
+  (`advancePrintLifeState`/`computePrintLifeEnvelope`), innescata dal
+  fronte di salita del flash globale — l'evento significativo già
+  previsto dall'architettura di Brain (motore flash Control,
+  deliberatamente raro, non il beat), non una detection nuova. Durante il
+  freeze il motion smoother non avanza affatto (le lastre si bloccano
+  davvero, non solo visivamente); l'impulso spinge temporaneamente il
+  registro oltre il tetto ordinario, il decadimento lo riporta a zero con
+  smootherstep su ~620ms.
+- **Movimento delle lastre ridimensionato** (§9 del brief): ampiezze di
+  `depth/propagation/dislocation/chromaticPx` in
+  `calculateBrainPrint2dMotion` dimezzate (`PLATE_MOTION_SCALE = 0.5`) —
+  il disallineamento di registro resta (richiesto esplicitamente al §12)
+  ma non domina più la lettura; durante l'impulso lo stesso
+  disallineamento riceve uno scarto temporaneo marcato invece di una
+  danza continua.
+- **Moiré e frammenti d'inchiostro**: eco della lastra attiva a
+  scala/rotazione lievemente diverse per un'interferenza moiré reale
+  (§7); i frammenti d'inchiostro guadagnano una scia/sbavanza che cresce
+  con l'attività e l'impulso (§8), invece di un disegno secco isolato.
+- Passata condivisa applicata identicamente sopra a tutti e 7 i preset
+  esistenti (`BRAIN_PRINT2D_MODES`) — non un ottavo renderer, le
+  differenze estetiche fra i preset restano nella composizione di lastre
+  sotto (§12 del brief).
+- Nuovi test per la macchina a stati (`advancePrintLifeState`, incluso il
+  riarmo durante il decadimento), gli inviluppi
+  (`computePrintLifeEnvelope`), la respirazione silenzio-gated
+  (`advanceContourBreathingPhase`) e spessore/sdoppiamento del contorno.
+- Validazione: 58 file / 467 test, typecheck, lint e build Vite verdi.
+  Verifica dal vivo ancora da fare — non posso vedere lo schermo.
+
 ## Riattivazione: Print2D/Fractal Spiral, semaforo GPU, raster Fractal Spiral — 2026-08-25
 
 - **Diagnosi da log reali** (`session-2026-08-25-11-43-18.txt`, non ipotesi):

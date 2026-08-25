@@ -3,11 +3,17 @@ import { DEFAULT_SETTINGS } from '@shared/defaults'
 import type { BrainRhythmState } from './brainRhythm'
 import {
   BRAIN_PRINT2D_MODES,
+  advanceContourBreathingPhase,
+  advancePrintLifeState,
   buildPrint2dModeSequence,
   calculateBrainPrint2dBandDrives,
   calculateBrainPrint2dFrameInterval,
   calculateBrainPrint2dLayerMorph,
   calculateBrainPrint2dMotion,
+  computeContourDoubling,
+  computeContourThickness,
+  computePrintLifeEnvelope,
+  createInitialPrintLifeState,
   shouldRenderBrainPrint2dFrame,
 } from './brainPrint2dCanvas'
 
@@ -196,5 +202,78 @@ describe('Brain Print2D', () => {
     expect(end.scaleX).toBe(1)
     expect(end.scaleY).toBe(1)
     expect(end.alpha).toBe(1)
+  })
+})
+
+describe('Print2D — vita interna (PIANO-039)', () => {
+  it('resta vivo finché non arriva un fronte di salita del flash', () => {
+    let state = createInitialPrintLifeState(0)
+    state = advancePrintLifeState(state, false, 0, 100)
+    expect(state.phase).toBe('vivo')
+  })
+
+  it('attraversa la catena vivo → freeze → impulso → decadimento → vivo', () => {
+    let state = createInitialPrintLifeState(0)
+    state = advancePrintLifeState(state, true, 0.8, 0)
+    expect(state.phase).toBe('freeze')
+
+    // Durante il freeze un nuovo fronte di salita non riarma la sequenza.
+    state = advancePrintLifeState(state, true, 0.9, 50)
+    expect(state.phase).toBe('freeze')
+
+    state = advancePrintLifeState(state, false, 0, 131)
+    expect(state.phase).toBe('impulso')
+
+    state = advancePrintLifeState(state, false, 0, 302)
+    expect(state.phase).toBe('decadimento')
+
+    state = advancePrintLifeState(state, false, 0, 1_000)
+    expect(state.phase).toBe('vivo')
+  })
+
+  it('un fronte di salita durante il decadimento riarma subito il freeze', () => {
+    let state = createInitialPrintLifeState(0)
+    state = advancePrintLifeState(state, true, 0.5, 0)
+    state = advancePrintLifeState(state, false, 0, 131)
+    state = advancePrintLifeState(state, false, 0, 302)
+    expect(state.phase).toBe('decadimento')
+    state = advancePrintLifeState(state, true, 1, 400)
+    expect(state.phase).toBe('freeze')
+    expect(state.impulseIntensity).toBe(1)
+  })
+
+  it('il freeze azzera la respirazione, il decadimento la ripristina gradualmente', () => {
+    const freeze = computePrintLifeEnvelope({ phase: 'freeze', phaseStartedAt: 0, impulseIntensity: 0.7 }, 50)
+    expect(freeze.breathingGate).toBe(0)
+    expect(freeze.impulseDrive).toBe(0)
+
+    const impulse = computePrintLifeEnvelope({ phase: 'impulso', phaseStartedAt: 0, impulseIntensity: 0.7 }, 50)
+    expect(impulse.breathingGate).toBe(0)
+    expect(impulse.impulseDrive).toBe(0.7)
+
+    const decayStart = computePrintLifeEnvelope({ phase: 'decadimento', phaseStartedAt: 0, impulseIntensity: 0.7 }, 1)
+    const decayEnd = computePrintLifeEnvelope({ phase: 'decadimento', phaseStartedAt: 0, impulseIntensity: 0.7 }, 619)
+    expect(decayEnd.breathingGate).toBeGreaterThan(decayStart.breathingGate)
+    expect(decayEnd.impulseDrive).toBeLessThan(decayStart.impulseDrive)
+
+    const vivo = computePrintLifeEnvelope({ phase: 'vivo', phaseStartedAt: 0, impulseIntensity: 0 }, 999)
+    expect(vivo).toEqual({ breathingGate: 1, impulseDrive: 0 })
+  })
+
+  it('la respirazione del contorno avanza solo con attività reale (Check Silenzio)', () => {
+    expect(advanceContourBreathingPhase(0.4, 500, 0)).toBe(0.4)
+    expect(advanceContourBreathingPhase(0.4, 500, 0.6)).toBeGreaterThan(0.4)
+  })
+
+  it('spessore e sdoppiamento del contorno crescono con attività/beat/impulso', () => {
+    const quiet = computeContourThickness(0, 0, 0, 0)
+    const active = computeContourThickness(0.25, 0.8, 0.6, 0)
+    const impulse = computeContourThickness(0.25, 0.8, 0.6, 1)
+    expect(active).toBeGreaterThan(quiet)
+    expect(impulse).toBeGreaterThan(active)
+
+    const doublingQuiet = computeContourDoubling(0, 0, 0, 0)
+    const doublingImpulse = computeContourDoubling(0, 0.5, 0.5, 1)
+    expect(doublingImpulse).toBeGreaterThan(doublingQuiet)
   })
 })

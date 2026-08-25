@@ -6,7 +6,7 @@ import type { BrainSvgController } from './brainSvgScene'
 import { brainLog, brainWarn } from './brainLog'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
-import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import { BrainCanvasMotionSmoother, type BrainCanvasMotionTargets } from './brainCanvasMotionSmoother'
 
 /** Renderer serigrafico storico, distinto dalla regia a finestre Psycho2D. */
 const ANALYSIS_WIDTH = 240
@@ -73,6 +73,8 @@ type PreparedArtwork = {
   screenprintLayers: HTMLCanvasElement[]
   inkFragments: HTMLCanvasElement[]
   palette: string[]
+  contourCore: HTMLCanvasElement
+  contourFaint: HTMLCanvasElement
 }
 
 function clamp(value: number, min = 0, max = 1): number {
@@ -136,6 +138,16 @@ export function calculateBrainPrint2dBandDrives(
   }
 }
 
+// Brief VJ del Capo Supremo (PIANO-039, "vita interna"): l'identità di
+// Print2D non deve più essere dominata da lastre che si spostano/ruotano/
+// scalano in modo vistoso — il disallineamento di registro resta (§12,
+// esplicitamente richiesto), ma come tensione di sottofondo, non come
+// coreografia. Le ampiezze di spostamento/scala/skew delle lastre sono
+// scalate di questo fattore rispetto ai valori originali; la vivacità si
+// sposta sul layer contorno (vedi `computeContourThickness`/
+// `computeContourDoubling` più sotto) e sul colpo di `impulso`.
+const PLATE_MOTION_SCALE = 0.5
+
 /** Mappa drive, transienti e fase musicale su quattro gesti indipendenti. */
 export function calculateBrainPrint2dMotion(
   bands: BandEnergies,
@@ -166,29 +178,29 @@ export function calculateBrainPrint2dMotion(
       : 0.9
   const softness = settings.softMode ? 0.72 : 1
   const sensitivity = 0.76 + clamp(settings.sensitivity) * 0.44
-  const scale = profile * softness * sensitivity
+  const scale = profile * softness * sensitivity * PLATE_MOTION_SCALE
   const beatEnvelope = clamp(
     rhythm?.kickEnvelope ?? rhythm?.beatPulse ?? 0,
-  ) * activity * scale
+  ) * activity * (profile * softness * sensitivity)
   const depthPx = clamp(
-    (drives.low * 16 + transients.low * 6) * scale + beatEnvelope * 3.2,
+    (drives.low * 16 + transients.low * 6) * scale + beatEnvelope * 3.2 * PLATE_MOTION_SCALE,
     0,
-    19,
+    19 * PLATE_MOTION_SCALE,
   )
   const propagationPx = clamp(
     (drives.lowMid * 21 + transients.lowMid * 7) * scale,
     0,
-    23,
+    23 * PLATE_MOTION_SCALE,
   )
   const dislocationPx = clamp(
     (drives.mid * 16 + transients.mid * 8) * scale,
     0,
-    18,
+    18 * PLATE_MOTION_SCALE,
   )
   const chromaticPx = clamp(
     (drives.high * 11 + transients.high * 7) * scale,
     0,
-    13,
+    13 * PLATE_MOTION_SCALE,
   )
   const phase = rhythm?.beatPhase ?? 0
   const phaseRadians = phase * Math.PI * 2
@@ -222,6 +234,136 @@ export function calculateBrainPrint2dMotion(
     chromaticOffsetPx:
       chromaticPx * Math.sin(phaseRadians * 4 + Math.PI / 4),
   }
+}
+
+// --- PIANO-039: vita interna (contorno vivo + freeze/impulso) ---------
+
+/**
+ * Alternanza unica richiesta dal brief VJ del Capo Supremo — mai due
+ * preset separati, un'unica catena `vivo → freeze → impulso →
+ * decadimento → vivo`. Innescata dal fronte di salita del flash globale
+ * (già architettura esistente di Brain, §10 del brief: motore flash
+ * Control deliberatamente raro, non il beat — vedi `docs/pipeline-audio.md`
+ * §4), non da un evento nuovo.
+ */
+export type PrintLifePhase = 'vivo' | 'freeze' | 'impulso' | 'decadimento'
+
+export type PrintLifeState = {
+  phase: PrintLifePhase
+  phaseStartedAt: number
+  impulseIntensity: number
+}
+
+export function createInitialPrintLifeState(time = 0): PrintLifeState {
+  return { phase: 'vivo', phaseStartedAt: time, impulseIntensity: 0 }
+}
+
+const PRINT_FREEZE_HOLD_MS = 130
+const PRINT_IMPULSE_HOLD_MS = 170
+const PRINT_DECAY_MS = 620
+
+export function advancePrintLifeState(
+  state: PrintLifeState,
+  flashActive: boolean,
+  flashIntensity: number,
+  time: number,
+): PrintLifeState {
+  if (flashActive && state.phase !== 'freeze' && state.phase !== 'impulso') {
+    return { phase: 'freeze', phaseStartedAt: time, impulseIntensity: clamp(flashIntensity) }
+  }
+  const elapsed = time - state.phaseStartedAt
+  switch (state.phase) {
+    case 'freeze':
+      return elapsed >= PRINT_FREEZE_HOLD_MS
+        ? { ...state, phase: 'impulso', phaseStartedAt: time }
+        : state
+    case 'impulso':
+      return elapsed >= PRINT_IMPULSE_HOLD_MS
+        ? { ...state, phase: 'decadimento', phaseStartedAt: time }
+        : state
+    case 'decadimento':
+      return elapsed >= PRINT_DECAY_MS
+        ? { phase: 'vivo', phaseStartedAt: time, impulseIntensity: 0 }
+        : state
+    default:
+      return state
+  }
+}
+
+export type PrintLifeEnvelope = {
+  /** 0 durante il freeze (il contorno smette di respirare, le lastre si
+   * bloccano), risale gradualmente in decadimento, 1 a riposo. */
+  breathingGate: number
+  /** 0 a riposo, spinge al picco durante l'impulso, si smorza in
+   * decadimento — il "colpo interno alla stampa" del §4. */
+  impulseDrive: number
+}
+
+export function computePrintLifeEnvelope(
+  state: PrintLifeState,
+  time: number,
+): PrintLifeEnvelope {
+  const elapsed = time - state.phaseStartedAt
+  switch (state.phase) {
+    case 'freeze':
+      return { breathingGate: 0, impulseDrive: 0 }
+    case 'impulso':
+      return { breathingGate: 0, impulseDrive: state.impulseIntensity }
+    case 'decadimento': {
+      const progress = clamp(elapsed / PRINT_DECAY_MS)
+      const eased = progress * progress * (3 - 2 * progress)
+      return {
+        breathingGate: eased,
+        impulseDrive: state.impulseIntensity * (1 - eased),
+      }
+    }
+    default:
+      return { breathingGate: 1, impulseDrive: 0 }
+  }
+}
+
+/**
+ * Fase lenta di respirazione del contorno (spessore/sdoppiamento/densità,
+ * §2 del brief) — avanza SOLO con attività audio reale, mai un orologio
+ * libero (Check Silenzio), stesso pattern di `advanceBauhausAbstraction`.
+ */
+export function advanceContourBreathingPhase(
+  phase: number,
+  deltaMs: number,
+  activity: number,
+): number {
+  if (activity <= 0) return phase
+  const next = phase + (deltaMs / 1_000) * (0.12 + activity * 0.22)
+  return next % 1
+}
+
+/** Spessore del contorno: soffitto/pavimento fra `contourFaint` e
+ * `contourCore` — ispessisce con l'attività e il battito, mai fisso. */
+export function computeContourThickness(
+  breathingPhase: number,
+  activity: number,
+  beatEnvelope: number,
+  impulseDrive: number,
+): number {
+  const breathe = Math.sin(breathingPhase * Math.PI * 2) * 0.5 + 0.5
+  return clamp(
+    0.35 + activity * 0.28 + breathe * 0.16 * activity +
+    beatEnvelope * 0.14 + impulseDrive * 0.32,
+  )
+}
+
+/** Quanto il contorno si sdoppia (seconda copia leggermente spostata) —
+ * quasi assente a riposo, marcato durante l'impulso. */
+export function computeContourDoubling(
+  breathingPhase: number,
+  activity: number,
+  midDrive: number,
+  impulseDrive: number,
+): number {
+  const breathe = Math.cos(breathingPhase * Math.PI * 2 * 1.3) * 0.5 + 0.5
+  return clamp(
+    activity * 0.1 + breathe * midDrive * 0.3 + impulseDrive * 0.55,
+  )
 }
 
 function createLayerCanvas(): HTMLCanvasElement {
@@ -372,9 +514,59 @@ function prepareArtwork(
     )
     return canvas
   })
+
+  // Contorno vivo (PIANO-039): due soglie sullo STESSO gradiente Sobel già
+  // calcolato sopra per i frammenti — nessuna analisi aggiuntiva. `core`
+  // (soglia alta, solo i bordi più marcati, inchiostro scuro) e `faint`
+  // (soglia bassa, più bordi inclusi, tinta d'accento) si sovrappongono a
+  // runtime con opacità/scarto variabili per dare l'illusione di uno
+  // spessore che respira e si sdoppia, senza rianalizzare nulla per frame.
+  const contourCoreThreshold = threshold * 1.55
+  const contourFaintThreshold = threshold * 0.7
+  const [inkRed, inkGreen, inkBlue] = parseColor(palette[0])
+  const [accentRed, accentGreen, accentBlue] = parseColor(
+    palette[Math.floor(palette.length / 2) % palette.length],
+  )
+  const contourCoreData = new Uint8ClampedArray(ANALYSIS_WIDTH * ANALYSIS_HEIGHT * 4)
+  const contourFaintData = new Uint8ClampedArray(ANALYSIS_WIDTH * ANALYSIS_HEIGHT * 4)
+  for (let y = 1; y < ANALYSIS_HEIGHT - 1; y += 1) {
+    for (let x = 1; x < ANALYSIS_WIDTH - 1; x += 1) {
+      const pixel = y * ANALYSIS_WIDTH + x
+      const offset = pixel * 4
+      const magnitude = gradients[pixel]
+      if (magnitude >= contourCoreThreshold) {
+        contourCoreData[offset] = 20
+        contourCoreData[offset + 1] = 18
+        contourCoreData[offset + 2] = 24
+        contourCoreData[offset + 3] = 235
+      } else if (magnitude >= contourFaintThreshold) {
+        // Fascia intermedia: inchiostro leggero, non ancora la tinta
+        // d'accento del `faint` — evita un bordo doppio "a scalino".
+        contourCoreData[offset] = inkRed
+        contourCoreData[offset + 1] = inkGreen
+        contourCoreData[offset + 2] = inkBlue
+        contourCoreData[offset + 3] = 96
+      }
+      if (magnitude >= contourFaintThreshold) {
+        contourFaintData[offset] = accentRed
+        contourFaintData[offset + 1] = accentGreen
+        contourFaintData[offset + 2] = accentBlue
+        contourFaintData[offset + 3] = magnitude >= contourCoreThreshold ? 150 : 90
+      }
+    }
+  }
+  const contourCore = createLayerCanvas()
+  contourCore.getContext('2d')?.putImageData(
+    new ImageData(contourCoreData, ANALYSIS_WIDTH, ANALYSIS_HEIGHT), 0, 0,
+  )
+  const contourFaint = createLayerCanvas()
+  contourFaint.getContext('2d')?.putImageData(
+    new ImageData(contourFaintData, ANALYSIS_WIDTH, ANALYSIS_HEIGHT), 0, 0,
+  )
+
   source.width = 1
   source.height = 1
-  return { screenprintLayers, inkFragments, palette }
+  return { screenprintLayers, inkFragments, palette, contourCore, contourFaint }
 }
 
 function drawLayer(
@@ -486,6 +678,15 @@ export function createBrainPrint2dScene(
   let transitionProgress = 1
   let transitionRole: 'enter' | 'exit' = 'enter'
   let morphPattern: BrainFrameMorphPattern = 'marea'
+  // PIANO-039 (vita interna): alternanza vivo/freeze/impulso/decadimento
+  // e la respirazione lenta del contorno che la accompagna.
+  let lifeState: PrintLifeState = createInitialPrintLifeState()
+  let breathingPhase = 0
+  let flashWasActive = false
+  // Durante il freeze il motion smoother non avanza affatto (le lastre si
+  // bloccano davvero): l'ultimo snapshot va conservato per continuare a
+  // disegnare qualcosa mentre il tempo è sospeso.
+  let lastSmoothMotion: BrainCanvasMotionTargets | null = null
 
   void createImageBitmap(raster)
     .then((decoded) => {
@@ -537,7 +738,7 @@ export function createBrainPrint2dScene(
       transitionProgress = clamp(progress)
       transitionRole = role
     },
-    update(bands, settings, time, rhythm, movingAverages) {
+    update(bands, settings, time, rhythm, movingAverages, flash) {
       if (!artwork || !context || destroyed) return
       // Il beat va acquisito al ritmo del clock, non soltanto quando il canvas
       // ottiene il permesso di disegnare: altrimenti un impulso breve si perde.
@@ -545,6 +746,24 @@ export function createBrainPrint2dScene(
         previousBeatIndex = rhythm.beatIndex
         marchStep = (marchStep + 1) % LAYER_COUNT
       }
+      // PIANO-039: il fronte di salita del flash globale (già l'evento
+      // significativo previsto dall'architettura di Brain, §10 del brief
+      // — motore flash Control, deliberatamente raro) innesca la sequenza
+      // vivo → freeze → impulso → decadimento → vivo. Riusa lo stesso
+      // pattern `flashWasActive`/fronte di salita già in uso in
+      // Psycho2D, non una nuova detection.
+      const flashActive = flash?.active === true && (flash?.intensity ?? 0) > 0.04
+      const flashRisingEdge = flashActive && !flashWasActive
+      flashWasActive = flashActive
+      lifeState = advancePrintLifeState(
+        lifeState,
+        flashRisingEdge,
+        flash?.intensity ?? 0,
+        time,
+      )
+      const { breathingGate, impulseDrive } = computePrintLifeEnvelope(lifeState, time)
+      const frozen = lifeState.phase === 'freeze'
+
       const rawMotion = calculateBrainPrint2dMotion(
         bands,
         settings,
@@ -556,26 +775,44 @@ export function createBrainPrint2dScene(
       const motionElapsed = Number.isFinite(lastMotionAt)
         ? Math.max(0, time - lastMotionAt)
         : 16
-      lastMotionAt = time
-      const smoothMotion = motionSmoother.update(
-        {
-          low: clamp(rawMotion.depthPx / 19),
-          lowMid: clamp(rawMotion.propagationPx / 23),
-          mid: clamp(rawMotion.dislocationPx / 18),
-          high: clamp(rawMotion.chromaticPx / 13),
-          activity: rawMotion.activity,
-          beat: rawMotion.beatEnvelope,
-        },
-        motionElapsed,
-        rhythm?.beatDurationMs ?? 500,
-        rhythm?.active ?? (rawMotion.activity > 0),
-        settings.motionProfile,
-      )
+      // Durante il freeze il tempo del motion smoother resta sospeso: non
+      // avanza affatto, non solo "non cambia visivamente" — così quando il
+      // freeze finisce l'inerzia riparte da dove si era fermata, non da un
+      // salto temporale accumulato.
+      if (!frozen) {
+        lastMotionAt = time
+        breathingPhase = advanceContourBreathingPhase(
+          breathingPhase,
+          motionElapsed,
+          rawMotion.activity,
+        )
+      }
+      const smoothMotion = frozen && lastSmoothMotion
+        ? lastSmoothMotion
+        : motionSmoother.update(
+          {
+            low: clamp(rawMotion.depthPx / (19 * PLATE_MOTION_SCALE)),
+            lowMid: clamp(rawMotion.propagationPx / (23 * PLATE_MOTION_SCALE)),
+            mid: clamp(rawMotion.dislocationPx / (18 * PLATE_MOTION_SCALE)),
+            high: clamp(rawMotion.chromaticPx / (13 * PLATE_MOTION_SCALE)),
+            activity: rawMotion.activity,
+            beat: rawMotion.beatEnvelope,
+          },
+          motionElapsed,
+          rhythm?.beatDurationMs ?? 500,
+          rhythm?.active ?? (rawMotion.activity > 0),
+          settings.motionProfile,
+        )
+      if (!frozen) lastSmoothMotion = smoothMotion
+      // L'impulso spinge temporaneamente il registro oltre il tetto
+      // ordinario — il "colpo interno alla stampa" del §4, non una nuova
+      // danza continua: torna a scemare in decadimento.
+      const impulseBoost = 1 + impulseDrive * 1.7
       const phaseRadians = (rhythm?.beatPhase ?? 0) * Math.PI * 2
-      const depthPx = smoothMotion.low * 19
-      const propagationPx = smoothMotion.lowMid * 23
-      const dislocationPx = smoothMotion.mid * 18
-      const chromaticPx = smoothMotion.high * 13
+      const depthPx = smoothMotion.low * 19 * PLATE_MOTION_SCALE * impulseBoost
+      const propagationPx = smoothMotion.lowMid * 23 * PLATE_MOTION_SCALE * impulseBoost
+      const dislocationPx = smoothMotion.mid * 18 * PLATE_MOTION_SCALE * impulseBoost
+      const chromaticPx = smoothMotion.high * 13 * PLATE_MOTION_SCALE * impulseBoost
       const motion: BrainPrint2dMotion = {
         ...rawMotion,
         activity: smoothMotion.activity,
@@ -614,6 +851,10 @@ export function createBrainPrint2dScene(
         Math.round(motion.dislocationOffsetPx * 2),
         Math.round(motion.chromaticOffsetPx * 2),
         Math.round(motion.beatEnvelope * 12),
+        lifeState.phase,
+        Math.round(breathingGate * 20),
+        Math.round(impulseDrive * 20),
+        Math.round(breathingPhase * 20),
       ].join(':')
       if (!shouldRenderBrainPrint2dFrame(
         audioActive,
@@ -805,6 +1046,95 @@ export function createBrainPrint2dScene(
       }
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
+
+      // --- PIANO-039: "vita interna", passata condivisa sopra a qualunque
+      // preset — mai un ottavo renderer, un unico strato di contorno vivo/
+      // freeze/impulso applicato identicamente a tutti e sette (§12: le
+      // differenze estetiche fra i preset restano nella composizione delle
+      // lastre sopra, non qui).
+
+      // §1/§2 Contorno vivo/respirazione: due soglie dello stesso gradiente
+      // Sobel (baked a preparazione) che ispessiscono/assottigliano e si
+      // sdoppiano — mai l'intera lastra, solo la soglia fra le masse.
+      // `breathingGate` è 0 durante il freeze: il contorno smette di
+      // respirare esattamente quando le lastre si bloccano.
+      if (breathingGate > 0.01) {
+        const thickness = computeContourThickness(
+          breathingPhase, motion.activity, motion.beatEnvelope, impulseDrive,
+        ) * breathingGate
+        const doubling = computeContourDoubling(
+          breathingPhase, motion.activity, smoothMotion.mid, impulseDrive,
+        ) * breathingGate
+        context.save()
+        context.globalCompositeOperation = 'multiply'
+        context.globalAlpha = clamp(0.3 + thickness * 0.5)
+        context.drawImage(artwork.contourCore, 0, 0, canvas.width, canvas.height)
+        if (doubling > 0.02) {
+          context.globalCompositeOperation = 'screen'
+          context.globalAlpha = clamp(doubling * 0.7)
+          context.drawImage(
+            artwork.contourFaint,
+            chromaticMotion * 0.6 * (1 + impulseDrive),
+            depthMotion * 0.4 * (1 + impulseDrive),
+            canvas.width,
+            canvas.height,
+          )
+        }
+        context.restore()
+      }
+
+      // §7 Retino/moiré: eco della lastra attiva a scala/rotazione
+      // lievemente diverse — interferenza reale fra due retini periodici
+      // quasi sovrapposti, non un filtro posticcio. Quasi invisibile a
+      // riposo, marcata durante l'impulso.
+      if (breathingGate > 0.05) {
+        const moireDrive = clamp(motion.activity * 0.22 + impulseDrive * 0.85)
+        if (moireDrive > 0.04) {
+          context.save()
+          context.globalCompositeOperation = 'difference'
+          context.globalAlpha = clamp(moireDrive * 0.2) * breathingGate
+          context.translate(canvas.width / 2, canvas.height / 2)
+          context.rotate((0.006 + impulseDrive * 0.032) * direction)
+          const moireScale = 1 + 0.004 + impulseDrive * 0.022
+          context.scale(moireScale, moireScale)
+          context.drawImage(
+            screen[activeScreen],
+            -canvas.width / 2,
+            -canvas.height / 2,
+            canvas.width,
+            canvas.height,
+          )
+          context.restore()
+        }
+      }
+
+      // §8 Frammenti d'inchiostro: eco/scia del frammento attivo — una
+      // sbavatura che si stacca e viene riassorbita, non un secondo
+      // oggetto indipendente. Cresce marcatamente durante l'impulso
+      // ("piccolo bloom di pigmento").
+      if (breathingGate > 0.05) {
+        const bleed = clamp(motion.activity * 0.3 + impulseDrive * 0.9) * breathingGate
+        if (bleed > 0.03) {
+          context.save()
+          context.globalCompositeOperation = 'screen'
+          paint(
+            ink[activeInk],
+            activeInk,
+            INK_FRAGMENT_COUNT,
+            clamp(bleed * 0.55),
+            -chromaticMotion * 0.55,
+            dislocationMotion * 0.4,
+            1 + impulseDrive * 0.12,
+          )
+          context.restore()
+        }
+      }
+
+      context.globalCompositeOperation = 'source-over'
+      context.globalAlpha = 1
+      canvas.dataset.brainPrintLife = lifeState.phase
+      canvas.dataset.brainPrintBreathing = breathingGate.toFixed(3)
+      canvas.dataset.brainPrintImpulse = impulseDrive.toFixed(3)
       // Il pattern cambia solo l'ordine spaziale; non aggiunge moti temporali.
       canvas.dataset.brainPatternFamily = morphPattern
       brainPerformanceMetrics.recordCanvasFrame(
@@ -826,6 +1156,12 @@ export function createBrainPrint2dScene(
         layer.width = 1
         layer.height = 1
       })
+      if (artwork) {
+        artwork.contourCore.width = 1
+        artwork.contourCore.height = 1
+        artwork.contourFaint.width = 1
+        artwork.contourFaint.height = 1
+      }
       artwork = null
       canvas.remove()
     },
