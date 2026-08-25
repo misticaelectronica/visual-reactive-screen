@@ -15,6 +15,16 @@ import { brainLog, brainWarn } from './brainLog'
 
 const SWITCH_DURATION_MS = 1_800
 const SWITCH_TIMEOUT_MS = 15_000
+// **Varco Percettivo** — nome condiviso con la Direzione VJ (Capo Supremo
+// del Visual) per questa composizione di flash + strisce glitch + mix
+// passthrough FilterPsiche/Psycho2D: un breve "sipario sensoriale" che
+// segnala e maschera un momento in cui la visuale reale sta per
+// interrompersi (carico GPU da denoising, e — da PIANO-039bis, vedi
+// `brainController.ts` — anche l'inizio del moto di coscienza, che
+// congela la timeline della storia allo stesso modo). Stesso segnale
+// (`visualPressurePulseUntil`/`setResourcePressure`), trigger diversi:
+// non è un effetto nuovo per ogni occasione, è un unico linguaggio
+// riusato ovunque la continuità visiva stia per rompersi.
 // `resourcePressure` diventa vero SOLO dopo che il thermalScheduler ha già
 // rilevato un vero stallo (è reattivo, non predittivo): il salto visivo fra
 // l'ultimo fotogramma fermo di Bauhaus/Materia Morph e il passthrough

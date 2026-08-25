@@ -582,6 +582,12 @@ export function createBrainController(
   // momento dello stallo, non l'intera finestra di backoff — un impulso
   // breve, dedicato, distinto dalla finestra lunga di generazione.
   const VISUAL_PRESSURE_PULSE_MS = 2_500
+  // Varco Percettivo armato in coda per il moto di coscienza (vedi
+  // `requestConsciousnessInfluence`): da quando il candidato è "in coda"
+  // all'attivazione vera passa fino a un'intera durata di beat (il layer
+  // aspetta `rhythm.beat`, non un tempo fisso) — più lungo del breve
+  // impulso GPU, serve un margine che sopravviva a un beat irregolare.
+  const CONSCIOUSNESS_MOTION_PULSE_LEAD_MS = 4_000
   let visualPressurePulseUntil = 0
   const reportThermalEvent = (event: BrainThermalSchedulerEvent) => {
     if (event.type === 'long-frame') {
@@ -845,6 +851,17 @@ export function createBrainController(
         performance.now(),
       )
       if (!accepted) return null
+      // Varco Percettivo in anticipo reale (segnalato dal Capo Supremo:
+      // armarlo solo al fronte di salita dell'attivazione non basta, il
+      // blocco si vede comunque perché il crossfade parte troppo tardi).
+      // Da qui il candidato è "in coda": diventerà attivo al PROSSIMO
+      // beat rilevato (`consciousnessMotionLayer.update`, non prima) — un
+      // margine reale fino a un'intera durata di beat, non un singolo
+      // fotogramma. Si arma qui, non al momento dell'attivazione.
+      visualPressurePulseUntil = Math.max(
+        visualPressurePulseUntil,
+        performance.now() + CONSCIOUSNESS_MOTION_PULSE_LEAD_MS,
+      )
       consciousnessMotionMemoryIds.add(candidate.memoryId)
       brainLog('coscienza', 'moto di coscienza preparato', {
         storyId: story.id,
@@ -2030,6 +2047,15 @@ export function createBrainController(
     )
     if (motionState.active && consciousnessMotionPausedAt === null) {
       consciousnessMotionPausedAt = rhythmicNow
+      // Varco Percettivo (nome condiviso con la Direzione VJ, vedi
+      // `brainRendererHost.ts`): lo stesso flash+glitch+mix che maschera
+      // il carico GPU segnala anche qui — il fronte di salita del moto di
+      // coscienza congela la timeline della storia esattamente come un
+      // vero stallo, merita lo stesso segnale, non uno nuovo.
+      visualPressurePulseUntil = Math.max(
+        visualPressurePulseUntil,
+        performance.now() + VISUAL_PRESSURE_PULSE_MS,
+      )
     }
     if (motionState.completedPauseMs > 0) {
       frameStartedAt += motionState.completedPauseMs

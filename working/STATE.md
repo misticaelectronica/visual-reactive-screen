@@ -1,5 +1,37 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Nome condiviso "Varco Percettivo"; armato anche prima del moto di coscienza — 2026-08-25
+
+- **Nome condiviso con la Direzione VJ** (Capo Supremo del Visual, su sua
+  richiesta esplicita): la composizione flash + strisce glitch + mix
+  passthrough FilterPsiche/Psycho2D (già in uso per il carico GPU da
+  denoising, rinforzata in questa stessa sessione) si chiama ora
+  **Varco Percettivo** — un unico linguaggio visivo riusato ovunque la
+  continuità visiva stia per rompersi, non un effetto diverso per ogni
+  occasione. Nome registrato nel commento di testa a
+  `brainRendererHost.ts` (dove vive l'implementazione).
+- **Armato anche prima del moto di coscienza**: la timeline della storia
+  si congela all'inizio del moto di coscienza esattamente come durante
+  uno stallo GPU — stesso trattamento. **Prima correzione insufficiente**
+  (segnalato dal Capo Supremo dopo verifica dal vivo): armare il segnale
+  solo al fronte di salita dell'attivazione (`consciousnessMotionPausedAt`)
+  non lascia tempo al crossfade di entrare in scena — il blocco resta
+  visibile perché parte troppo tardi. **Fix**: il Varco Percettivo si
+  arma già quando il candidato viene messo "in coda"
+  (`consciousnessMotionLayer.offer()` accettato, dentro
+  `requestConsciousnessInfluence`), non quando diventa attivo — da lì
+  all'attivazione vera passa fino a un'intera durata di beat (il layer
+  aspetta `rhythm.beat`, non un timer fisso), un margine reale invece di
+  zero. Nuova costante dedicata `CONSCIOUSNESS_MOTION_PULSE_LEAD_MS =
+  4_000` (più generosa del breve impulso GPU, per sopravvivere a un beat
+  irregolare); il fronte di salita dell'attivazione resta comunque armato
+  come rete di sicurezza finale.
+- Nessuna modifica a `brainConsciousnessMotion.ts`: il trigger vive
+  interamente in `brainController.ts`, riusando `visualPressurePulseUntil`
+  già esistente — nessun sistema nuovo.
+- Validazione: 58 file / 467 test, typecheck, lint e build Vite verdi.
+  Verifica dal vivo ancora da fare — non posso vedere lo schermo.
+
 ## Print2D: vita interna, contorno vivo + freeze/impulso (PIANO-039) — 2026-08-25
 
 - Brief VJ del Capo Supremo indirizzato al "Capo degli Ingegneri di Brain":
