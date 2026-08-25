@@ -74,3 +74,47 @@ Funzioni pure nuove testate senza mock di canvas (`advancePrintLifeState`,
 `computePrintLifeEnvelope`, `advanceContourBreathingPhase`), stesso stile
 già in uso nel file per `calculateBrainPrint2dMotion`/
 `calculateBrainPrint2dLayerMorph`.
+
+## 4. Protocollo Obbligatorio Di Verifica Filosofia Visiva (`agents.md`)
+
+Verifica esplicita, non sulla carta — fatta a codice scritto, rileggendo
+ogni punto sull'implementazione reale:
+
+1. **Check Camera** — PASS. Nessuna trasformazione dell'intera
+   composizione/camera. L'unico punto vicino al limite è l'eco moiré
+   (§7): `translate/rotate/scale` applicati a UNA singola lastra colore
+   già composita (`screen[activeScreen]`), in `difference` a bassa
+   opacità, con rotazione max ~2.2° e scala max ~2.6% al picco
+   dell'impulso — un micro-disallineamento di una porzione di materia
+   sopra al quadro già disegnato, non il quadro stesso che ruota/scala.
+   Rientra esplicitamente nell'eccezione ammessa dal Check ("deformazioni
+   locali... micro-disallineamenti applicati a porzioni della materia").
+2. **Check Materia** — PASS. Contorno, respirazione, moiré e scia
+   d'inchiostro sono tutti trasformazioni di retino/soglia/opacità/
+   registro dentro la materia serigrafica esistente; il raster resta la
+   fonte diretta di ogni layer (screenprint/ink/contour derivano tutti
+   dallo stesso bitmap sorgente), mai rimpiazzato.
+3. **Check Silenzio** — PASS, verificato esplicitamente: in silenzio
+   totale `motion.activity = 0` e il motion smoother resetta tutti i
+   canali a zero; `breathingPhase` non avanza (gated su `activity > 0` in
+   `advanceContourBreathingPhase`) quindi il contorno resta STATICO (non
+   pulsa da solo), la doppiatura (`computeContourDoubling`) si azzera
+   (dipende da `activity`/`midDrive`/`impulseDrive`, tutti a zero). Resta
+   visibile ma immobile — esattamente quanto il Check permette
+   ("l'immagine e i suoi livelli possono restare visibili e stabili").
+   Il freeze/impulso stesso non può scattare in vero silenzio: il motore
+   flash Control richiede soglie energia+transiente reali per attivarsi.
+4. **Check Beatmatch** — PASS. `beatEnvelope`/`beatPulse` modulano
+   spessore/contrasto locali (ampiezza), `mid` guida solo la doppiatura
+   del contorno (dettaglio secondario) — nessuna banda muove il quadro.
+5. **Check Transizione** — PASS, invariato. La logica di transizione fra
+   immagini (`calculateBrainPrint2dLayerMorph`, stagger per lastra) non è
+   stata toccata da questo piano.
+6. **Check Alternanza** — N/A, non pertinente a questa modifica.
+7. **Check Costo** — PASS. `contourCore`/`contourFaint` riusano il
+   gradiente Sobel già calcolato per i frammenti d'inchiostro (zero
+   passate di analisi aggiuntive), baked una sola volta a preparazione
+   (non per frame). Il costo per fotogramma aggiunto è un numero fisso e
+   piccolo di `drawImage` extra (contorno core/faint, eco moiré, scia
+   d'inchiostro) alla stessa risoluzione già in uso — nessun nuovo
+   `getImageData`/loop per-pixel nel ciclo di rendering.
