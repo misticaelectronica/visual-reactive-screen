@@ -1,5 +1,72 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Fractal Spiral Degeneration: seconda correzione — il contenitore non ruota mai — 2026-08-24
+
+- **Segnalato dalla direzione artistica** (seconda lettera): la
+  correzione precedente faceva ancora ruotare l'oggetto (contro-rotato
+  rispetto alla spirale interna) — respinto: "gli oggetti del raster
+  devono restare fermi... la trasformazione avviene DENTRO l'oggetto."
+  Anche la spirale doveva smettere di essere una linea sottile:
+  "densa, corposa, cromatica, volumetrica... piena di colore."
+- **Corretto**: rimossa ogni rotazione del contenitore
+  (`computeObjectRotation` eliminata insieme a `computeSpiralNode`). Al
+  suo posto, dentro la sagoma sempre ferma (via `source-atop`): un
+  gradiente radiale colorato (massa che riempie il volume) più bracci
+  di spirale spessi (`computeSpiralArmPoints`, `lineWidth` proporzionale
+  al raggio dell'oggetto) in più colori della palette — è la materia
+  interna ad animarsi (`computeSpiralFillPhase`), mai il contenitore.
+  Anche il campo di sfondo è stato ispessito per "saturare
+  percettivamente" lo spazio come richiesto.
+- Validazione: 58 file / 454 test, typecheck, lint e build verdi.
+
+## Fractal Spiral Degeneration: corretta la direzione artistica — 2026-08-24
+
+- **Segnalato dalla direzione artistica** (lettera dettagliata): la
+  prima versione ritagliava un rettangolo per regione e ne disponeva
+  copie orbitanti attorno a un centro — leggibile come tasselli
+  rettangolari rotanti (linguaggio da collage/Psycho2D), non come una
+  spirale che vive dentro la materia dell'oggetto.
+- **Corretto**: oggetti ora ricalcati per sagoma vera (layer mascherato
+  pixel-per-pixel, stesso pattern di `regionLayers` in Bauhaus/Materia
+  Morph, non più un ritaglio a bounding box). La spirale frattale è ora
+  confinata DENTRO ciascun oggetto via `globalCompositeOperation =
+  'source-atop'` su un buffer offscreen riusato — strutturalmente
+  impossibile che esca dal contorno. Aggiunta la contro-rotazione
+  (`computeObjectRotation`, il contenitore gira in un senso, la spirale
+  interna nell'altro, `INNER_SPIRAL_DIRECTION = -1`) e un campo di
+  sfondo spiraliforme sempre presente (`computeBackgroundSpiralPoints`).
+- Il test di integrazione (canvas mockato, 600 fotogrammi) scritto
+  prima di dichiarare fatto ha trovato un vero bug nella riscrittura:
+  un deadlock fra `update()` e `prepare()` sul buffer di masking creato
+  troppo tardi (`update()` usciva subito su `!maskBuffer`, ma solo
+  `prepare()` lo creava, e `update()` non arrivava mai a chiamarlo).
+- Validazione: 58 file / 454 test, typecheck, lint e build verdi.
+
+## Nuovo renderer: Fractal Spiral Degeneration (PIANO-038) — 2026-08-21
+
+- Nono renderer Brain: il raster degenera progressivamente in una
+  struttura auto-simile, con copie ritagliate dalle regioni più salienti
+  del raster stesso che si ripetono a scale decrescenti lungo una
+  spirale discreta (raggio/scala che calano geometricamente per
+  livello, angolo guidato da `beatPhase`). Rotazione sempre locale al
+  singolo nodo (`save/translate/rotate/restore`, stesso schema di
+  `planePath()` in Bauhaus Morph) — mai il quadro (Check Camera).
+  Degenerazione e offset angolare entrambi silenzio-gated come
+  `advanceBauhausAbstraction`.
+- Nato da un brief di direzione artistica del "Capo Supremo dei DJ"
+  (regia visiva di Brain), deliberatamente privo di prescrizioni
+  tecniche — pianificato in Plan Mode con un agente Explore per
+  verificare i precedenti riusabili prima di scrivere codice.
+- Test di integrazione con Canvas2D mockato (600 fotogrammi simulati)
+  aggiunto PRIMA della build, non dopo un bug in produzione — lezione
+  diretta dalla sessione precedente (figure Bauhaus: test unitari verdi
+  ma la feature non compariva mai in pratica per soglie mal calibrate,
+  scoperto solo con un test di integrazione vero).
+- Vedi `working/plans/piano-038-fractal-spiral-degeneration.md` per la
+  traduzione tecnica sezione-per-sezione del brief.
+- Validazione: 58 file / 448 test, typecheck, lint e build verdi. Non
+  ancora verificato dal vivo con audio reale.
+
 ## Nuovo: figure Bauhaus indipendenti dal raster (PIANO-037) — 2026-08-21
 
 - Bauhaus Morph disegna ora, di tanto in tanto, una forma geometrica pura

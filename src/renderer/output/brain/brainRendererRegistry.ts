@@ -8,6 +8,7 @@ import { createBrainFilterPsicheScene } from './brainFilterPsicheCanvas'
 import { createBrainBauhausMorphScene } from './brainBauhausMorphCanvas'
 import { createBrainDreamSegmentationScene } from './brainDreamSegmentationCanvas'
 import { createBrainGlitchMorphScene } from './brainGlitchMorphCanvas'
+import { createBrainFractalSpiralScene } from './brainFractalSpiralCanvas'
 
 export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
   const registry = new BrainRendererRegistry()
@@ -98,6 +99,16 @@ export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
       lowPowerMode: true,
     },
     create: createBrainGlitchMorphScene,
+  })
+  registry.register({
+    id: 'fractal-spiral-degeneration',
+    label: 'Fractal Spiral Degeneration — ricorsivo',
+    capabilities: {
+      multipleImages: true,
+      semanticMetadata: false,
+      lowPowerMode: true,
+    },
+    create: createBrainFractalSpiralScene,
   })
   return registry
 }

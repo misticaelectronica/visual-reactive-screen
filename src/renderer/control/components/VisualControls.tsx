@@ -151,6 +151,7 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="bauhaus-morph">Bauhaus Morph — pittorico</option>
             <option value="dream-segmentation">Dream Segmentation — immaginazione</option>
             <option value="glitch-morph">Glitch Morph — contorno</option>
+            <option value="fractal-spiral-degeneration">Fractal Spiral Degeneration — ricorsivo</option>
           </select>
         </label>
         <label>

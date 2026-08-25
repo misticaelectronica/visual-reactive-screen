@@ -14,6 +14,7 @@ export type BrainRendererId =
   | 'bauhaus-morph'
   | 'dream-segmentation'
   | 'glitch-morph'
+  | 'fractal-spiral-degeneration'
 export type BrainRendererMode = 'manual' | 'rotation' | 'story-cycle'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
@@ -28,6 +29,7 @@ export const BRAIN_RENDERER_IDS: BrainRendererId[] = [
   'bauhaus-morph',
   'dream-segmentation',
   'glitch-morph',
+  'fractal-spiral-degeneration',
 ]
 export const BRAIN_RENDERER_MODES: BrainRendererMode[] = [
   'manual',

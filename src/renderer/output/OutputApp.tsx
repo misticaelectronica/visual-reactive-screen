@@ -36,6 +36,7 @@ const BRAIN_RENDERER_LABELS: Record<string, string> = {
   'bauhaus-morph': 'Bauhaus Morph',
   'dream-segmentation': 'Dream Segmentation',
   'glitch-morph': 'Glitch Morph',
+  'fractal-spiral-degeneration': 'Fractal Spiral Degeneration',
 }
 
 const MORPHING_ALGO_LABELS: Record<string, string> = {

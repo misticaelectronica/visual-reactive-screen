@@ -2,6 +2,17 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-038` (Nuovo Renderer Fractal Spiral Degeneration)
+
+- [x] **`TASK-038-01`** `DONE`: Ricerca (agente Explore) su primitive riusabili (crop per-regione, rotazione locale-alla-forma, motivo a raggio crescente) prima di scrivere codice.
+- [x] **`TASK-038-02`** `DONE`: Traduzione tecnica del brief artistico (nodo a spirale, degenerazione/reveal per livello, mappa bande, ricorsione economica con satelliti).
+- [x] **`TASK-038-03`** `DONE`: Implementazione renderer + 5 funzioni pure + registrazione (registry/selector/types/UI).
+- [x] **`TASK-038-04`** `DONE`: 17 test incluso un test di integrazione Canvas2D mockato (600 fotogrammi) — verificato PRIMA della build che la degenerazione avanzi davvero.
+- [x] **`TASK-038-05`** `DONE`: typecheck/lint/build verdi (448 test totali).
+- [ ] **`TASK-038-06`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
 ## Task Collegati a `PIANO-037` (Figure Bauhaus indipendenti dal raster)
 
 - [x] **`TASK-037-01`** `DONE`: Ricerca (agente Explore) + design (agente Plan) + due giri di chiarimento (comportamento non momento fisso; libreria curata non ML).

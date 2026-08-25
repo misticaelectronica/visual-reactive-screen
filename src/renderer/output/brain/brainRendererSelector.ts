@@ -19,10 +19,14 @@ const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
 // Dream Segmentation usa lo stesso pattern (createImageBitmap + analisi
 // pixel per sorgente, capabilities.multipleImages) e va trattato allo
 // stesso modo in via preventiva, non dopo aver osservato un freeze in log.
+// Fractal Spiral Degeneration usa lo stesso pattern (createImageBitmap +
+// analisi pixel per sorgente, ritagli per regione), stesso trattamento
+// preventivo degli altri renderer ad analisi multi-sorgente.
 const HEAVY_RENDERERS_UNDER_PRESSURE = new Set<BrainRendererId>([
   'bauhaus-morph',
   'material-morph',
   'dream-segmentation',
+  'fractal-spiral-degeneration',
 ])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
@@ -33,6 +37,7 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'bauhaus-morph',
   'dream-segmentation',
   'glitch-morph',
+  'fractal-spiral-degeneration',
 ])
 // Un renderer persistente è un invariante onirico (filosofia.md §2): deve
 // durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2
