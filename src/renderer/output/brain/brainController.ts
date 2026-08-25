@@ -1108,6 +1108,7 @@ export function createBrainController(
               )
             : 'print2d',
           () => revisionCycleActive,
+          (id, settings, now) => brainRendererSelector.reportRendererFailure(id, settings, now),
         )
       : createBrainSvgScene(
           svgHost,

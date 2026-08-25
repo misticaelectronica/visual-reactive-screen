@@ -72,6 +72,74 @@ describe('BrainRendererSelector — Riattivazione (boost)', () => {
     // un mazzo che si esaurisce dopo i primi ~5 renderer.
     expect(changes).toBeGreaterThan(ids.length)
   })
+
+  it('con boost il filtro pressione non esclude i renderer pesanti (copertura completa garantita)', () => {
+    // Segnalato dallo sviluppatore con log reali: durante la Riattivazione
+    // l'alternanza rapidissima genera gap RAF che il thermalScheduler legge
+    // come pressione reale, escludendo sistematicamente bauhaus-morph
+    // (pesante) dal mazzo — proprio nella fase che deve garantire che tutti
+    // i renderer compaiano almeno una volta.
+    const selector = new BrainRendererSelector(
+      ids, 'filter-psiche', Math.random, () => true, () => true,
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const visited = new Set([selector.resolve(settings, 0)])
+    for (let frame = 1; frame < 25; frame += 1) {
+      selector.advanceStoryRenderer('story-1', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    expect(visited.has('bauhaus-morph')).toBe(true)
+  })
+
+  it('senza boost il filtro pressione esclude ancora i renderer pesanti', () => {
+    const selector = new BrainRendererSelector(
+      ids, 'filter-psiche', Math.random, () => true, () => false,
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const visited = new Set([selector.resolve(settings, 0)])
+    for (let frame = 1; frame < 10; frame += 1) {
+      selector.advanceStoryRenderer('story-1', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    expect(visited.has('bauhaus-morph')).toBe(false)
+  })
+})
+
+describe('BrainRendererSelector — reportRendererFailure', () => {
+  const ids = ['print2d', 'filter-psiche', 'vector-morph', 'psycho2d', 'bauhaus-morph'] as const
+
+  it('fa avanzare subito il mazzo oltre il renderer attivo fallito', () => {
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random, () => false, () => true)
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const active = selector.resolve(settings, 0)
+    selector.reportRendererFailure(active, settings, 1)
+    expect(selector.resolve(settings, 1)).not.toBe(active)
+  })
+
+  it('non fa nulla se il renderer fallito non è più quello attivo', () => {
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random, () => false, () => true)
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const active = selector.resolve(settings, 0)
+    const stale = ids.find((id) => id !== active) ?? active
+    selector.reportRendererFailure(stale, settings, 1)
+    expect(selector.resolve(settings, 1)).toBe(active)
+  })
+
+  it('non fa nulla fuori dalla modalità story-cycle', () => {
+    const selector = new BrainRendererSelector(ids, 'filter-psiche', Math.random)
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      brainRendererMode: 'rotation' as const,
+      brainRendererId: 'filter-psiche' as const,
+    }
+    const active = selector.resolve(settings, 0)
+    selector.reportRendererFailure(active, settings, 1)
+    expect(selector.resolve(settings, 1)).toBe(active)
+  })
 })
 
 describe('Brain renderer selector', () => {

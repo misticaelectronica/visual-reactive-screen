@@ -1,5 +1,74 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Riattivazione: Print2D/Fractal Spiral, semaforo GPU, raster Fractal Spiral — 2026-08-25
+
+- **Diagnosi da log reali** (`session-2026-08-25-11-43-18.txt`, non ipotesi):
+  segnalato dallo sviluppatore che durante la Riattivazione Print2D si
+  vedeva troppo e Fractal Spiral Degeneration non compariva mai.
+  - **Fractal Spiral assente**: è in `HEAVY_RENDERERS_UNDER_PRESSURE`; il
+    filtro pressione di `storyCycleIds()` restava attivo anche durante la
+    Riattivazione, e l'alternanza rapidissima della Riattivazione stessa
+    (hold [1,2] fotogrammi) genera gap RAF che il thermalScheduler legge
+    come pressione reale — un ciclo che si autoalimenta escludendo proprio
+    i renderer pesanti nella fase che deve garantirne la copertura
+    completa. **Fix**: quando boosted, `storyCycleIds()` salta del tutto il
+    filtro pressione (la generazione è comunque sospesa durante la
+    Riattivazione, PIANO-034 — non c'è vera contesa GPU da denoising da
+    proteggere qui).
+  - **Print2D troppo presente**: Vector Morph fallisce spesso il proprio
+    controllo qualità ("meno di cinque forme riconoscibili" — 219 avvisi
+    nello stesso ciclo nel log). Ogni fallimento attiva la rete di
+    sicurezza (Print2D durante la Riattivazione, PIANO-034), ma il mazzo
+    del selettore restava fermo sull'entrata fallita per l'intera durata
+    residua del fotogramma (fino a ~20s) invece di avanzare. **Fix**:
+    nuovo `BrainRendererSelector.reportRendererFailure()`, chiamato da
+    `brainRendererHost.ts` (nuovo parametro `onRendererFailed`) nello
+    stesso punto in cui scatta la rete di sicurezza — azzera l'hold
+    residuo e fa avanzare subito il mazzo, così la rete di sicurezza
+    resta in scena solo per il tempo di preparare il prossimo renderer
+    reale, non per l'intero fotogramma.
+- **Flash+glitch della rete di sicurezza rinforzati** (richiesta esplicita
+  dello sviluppatore dopo verifica live del semaforo proattivo di ieri,
+  260ms di anticipo non bastavano a renderlo convincente):
+  `PRESSURE_FLASH_PEAK_OPACITY` 0.55→0.85, `PRESSURE_GLITCH_PEAK_OPACITY`
+  0.4→0.7, strisce glitch 4→7, offset massimo 14→26px, terza tinta
+  cromatica aggiunta (giallo) oltre a ciano/magenta.
+- **Fractal Spiral Degeneration: raster ancora poco visibile** (seconda
+  segnalazione sullo stesso punto, la prima alzata di `UNDERLAY_CEILING`
+  non bastava): il riempimento interno degli oggetti (massa + bracci a
+  spirale) sovrascriveva quasi del tutto il raster mascherato
+  (`object.layer`) anche a bassa `degenerationProgress`. **Fix**: alzato
+  ulteriormente `UNDERLAY_CEILING`/`UNDERLAY_FLOOR` (0.72/0.3→0.92/0.55) e
+  abbassati in parallelo i tetti di opacità del riempimento interno
+  (massa 0.55→0.32, bracci ~0.6-0.95→0.4-0.65) — la materia spiraliforme
+  deve convivere con il raster dentro l'oggetto, non sostituirlo.
+- Nuovi test: filtro pressione disattivato/attivo con e senza boost
+  (`brainRendererSelector.test.ts`), `reportRendererFailure` (mazzo
+  avanza solo se il fallito è ancora l'attivo, solo in story-cycle),
+  notifica `onRendererFailed` dall'host (`brainRendererHost.test.ts`).
+- Validazione: 58 file / 461 test, typecheck e lint (`src/`) verdi.
+  **Verifica dal vivo ancora da fare** per tutti e tre i punti — non posso
+  vedere lo schermo.
+
+## Semaforo proattivo prima del carico GPU denoising — 2026-08-25
+
+- Segnalato dallo sviluppatore: il passaggio al passthrough mix
+  FilterPsiche+Psycho2D restava percettibilmente in ritardo durante il
+  carico GPU. Causa: `visualPressurePulseUntil` veniva armato solo in
+  modo reattivo, dopo che il thermalScheduler misurava un gap RAF già
+  avvenuto — il passthrough scattava a stallo già in corso.
+- **Fix**: `Psichedel.generate()` chiama `onImageGenerationState(true)`
+  esattamente nel punto in cui sta per prendere la GPU per ogni
+  fotogramma (`runInference`, prima di `imageGenerator.generate`) — un
+  punto che controlliamo noi, non uno stallo da rilevare dopo. Quella
+  callback ora può restituire una Promise che `generate()` attende prima
+  di procedere: `brainController.ts` arma qui il passthrough
+  (flash+glitch+mix) e, se non era già attivo, attende ~260ms perché il
+  crossfade sia già in scena prima di dare il via libera all'inferenza.
+- **Verificato dal vivo lo stesso giorno**: insufficiente da solo — vedi
+  la voce sopra per il rinforzo di flash/glitch che ne è seguito.
+- Validazione: 58 file / 455 test, typecheck e lint (`src/`) verdi.
+
 ## Fractal Spiral Degeneration: seconda correzione — il contenitore non ruota mai — 2026-08-24
 
 - **Segnalato dalla direzione artistica** (seconda lettera): la

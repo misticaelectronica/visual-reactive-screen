@@ -64,11 +64,22 @@ const BACKGROUND_POINT_BUDGET_LOW_POWER = 6
 const BACKGROUND_POINT_BUDGET_PRESSURE = 4
 const MAX_REGIONS_FOR_ANALYSIS = 12
 
-// Alzato su richiesta dello sviluppatore ("rendi più visibile il
-// raster"): il contesto fotografico deve restare ben leggibile sotto
-// gli oggetti e la spirale, non solo intuibile.
-const UNDERLAY_CEILING = 0.72
-const UNDERLAY_FLOOR = 0.3
+// Alzato DI NUOVO su richiesta esplicita e ripetuta dello sviluppatore
+// (2026-08-25, "il raster deve essere più visibile e non si vede per
+// niente"): il primo aumento non bastava — il raster dentro gli oggetti
+// veniva comunque sovrascritto quasi del tutto dal riempimento a spirale
+// (vedi FILL_ALPHA_CEILING/ARM_ALPHA_CEILING più sotto, ridotti in
+// parallelo). Il contesto fotografico deve restare ben leggibile sotto
+// gli oggetti e la spirale per l'intera degenerazione, non solo
+// all'inizio.
+const UNDERLAY_CEILING = 0.92
+const UNDERLAY_FLOOR = 0.55
+// Tetti di opacità del riempimento interno (massa + bracci): abbassati in
+// parallelo all'alzata dell'underlay — la materia spiraliforme deve
+// convivere con il raster dentro l'oggetto, non sostituirlo.
+const FILL_ALPHA_CEILING = 0.32
+const ARM_ALPHA_BASE = 0.4
+const ARM_ALPHA_DETAIL = 0.25
 
 type RGB = readonly [number, number, number]
 
@@ -591,7 +602,7 @@ export function createBrainFractalSpiralScene(
       const gradient = bufferContext.createRadialGradient(
         centerX, centerY, 0, centerX, centerY, objectRadius,
       )
-      gradient.addColorStop(0, `rgba(${red},${green},${blue},${clamp(fillReveal * 0.55)})`)
+      gradient.addColorStop(0, `rgba(${red},${green},${blue},${clamp(fillReveal * FILL_ALPHA_CEILING)})`)
       gradient.addColorStop(1, `rgba(${red},${green},${blue},0)`)
       bufferContext.fillStyle = gradient
       bufferContext.globalAlpha = 1
@@ -618,7 +629,7 @@ export function createBrainFractalSpiralScene(
         rgbToCss(object.region.averageColor as RGB)
       bufferContext.strokeStyle = color
       bufferContext.lineWidth = armWidth
-      bufferContext.globalAlpha = clamp(reveal * (0.6 + motion.detail * 0.35))
+      bufferContext.globalAlpha = clamp(reveal * (ARM_ALPHA_BASE + motion.detail * ARM_ALPHA_DETAIL))
       bufferContext.beginPath()
       points.forEach((point, index) => {
         if (index === 0) bufferContext.moveTo(point.x, point.y)

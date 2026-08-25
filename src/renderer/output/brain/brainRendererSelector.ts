@@ -116,6 +116,16 @@ export class BrainRendererSelector {
     const excluded = boosted ? AUTOMATICALLY_EXCLUDED_RENDERERS : STORY_CYCLE_EXCLUDED_RENDERERS
     const enabled = this.availableIds.filter((id) => !excluded.has(id))
     const base = enabled.length > 0 ? enabled : this.automaticIds()
+    // Segnalato dallo sviluppatore (log reali): durante la Riattivazione il
+    // filtro pressione escludeva sistematicamente i renderer pesanti
+    // (incluso Fractal Spiral Degeneration), perché l'alternanza rapidissima
+    // della Riattivazione stessa (min/max hold 1-2 fotogrammi) genera gap RAF
+    // che il thermalScheduler legge come pressione reale — la generazione è
+    // comunque sospesa durante la Riattivazione (PIANO-034), quindi non c'è
+    // vera contesa GPU da denoising da proteggere qui. La garanzia di
+    // copertura completa (tutti i renderer visti almeno una volta) vale più
+    // del filtro pressione in questa fase.
+    if (boosted) return base
     if (!this.getPressureHint?.()) return base
     const light = base.filter((id) => !HEAVY_RENDERERS_UNDER_PRESSURE.has(id))
     return light.length > 0 ? light : base
@@ -262,6 +272,28 @@ export class BrainRendererSelector {
     this.recordExposure(this.activeId, this.waitingHoldRemaining + 1)
     this.switchedAt = now
     return true
+  }
+
+  // Segnalato dallo sviluppatore (log reali, Riattivazione 2026-08-25): un
+  // renderer che fallisce il proprio controllo qualità (es. Vector Morph,
+  // "meno di cinque forme riconoscibili") non recupera da solo — la rete di
+  // sicurezza di `brainRendererHost.ts` copre lo schermo, ma senza questo
+  // metodo il mazzo restava fermo sull'entrata fallita per l'intera durata
+  // residua del fotogramma (fino a ~20s), lasciando la rete di sicurezza
+  // (Print2D durante la Riattivazione) esposta molto più a lungo del
+  // previsto. Fa avanzare subito il mazzo, azzerando l'hold residuo, così
+  // la prossima `getRendererId` restituisce un nuovo renderer nel giro di
+  // pochi fotogrammi invece che al prossimo cambio immagine.
+  reportRendererFailure(
+    failedId: BrainRendererId,
+    settings: AppSettings,
+    now: number,
+  ): void {
+    if (settings.brainRendererMode !== 'story-cycle') return
+    if (this.activeId !== failedId) return
+    if (this.storyId === null) return
+    this.storyHoldRemaining = 0
+    this.advanceStoryRenderer(this.storyId, settings, now)
   }
 
   resolve(settings: AppSettings, now: number): BrainRendererId {

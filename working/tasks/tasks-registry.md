@@ -2,6 +2,27 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati alla Sessione 2026-08-25 (Riattivazione, semaforo GPU, raster Fractal Spiral)
+
+- [x] **`TASK-039-01`** `DONE`: Diagnosi da log reali (non ipotesi) delle
+  segnalazioni "Print2D troppo presente" / "Fractal Spiral assente" durante
+  la Riattivazione — trovate due cause distinte e verificabili nel log.
+- [x] **`TASK-039-02`** `DONE`: `storyCycleIds()` salta il filtro pressione
+  quando boosted (Riattivazione) — copertura completa renderer garantita.
+- [x] **`TASK-039-03`** `DONE`: `BrainRendererSelector.reportRendererFailure()`
+  + parametro `onRendererFailed` in `brainRendererHost.ts` — il mazzo
+  avanza subito oltre un renderer fallito invece di restare fermo per
+  l'intero fotogramma sulla rete di sicurezza.
+- [x] **`TASK-039-04`** `DONE`: Semaforo proattivo prima del carico GPU
+  (`Psichedel.generate` → `onImageGenerationState` awaitable) + flash/glitch
+  della rete di sicurezza rinforzati su richiesta esplicita.
+- [x] **`TASK-039-05`** `DONE`: Fractal Spiral Degeneration — raster più
+  visibile (seconda correzione sullo stesso punto): underlay e tetti di
+  opacità del riempimento interno ricalibrati.
+- [x] **`TASK-039-06`** `DONE`: Test, typecheck, lint — 461 test verdi.
+- [ ] **`TASK-039-07`** `TODO`: Verifica manuale dal vivo di tutti e tre i
+  punti durante una Riattivazione reale.
+
 ## Task Collegati a `PIANO-038` (Nuovo Renderer Fractal Spiral Degeneration)
 
 - [x] **`TASK-038-01`** `DONE`: Ricerca (agente Explore) su primitive riusabili (crop per-regione, rotazione locale-alla-forma, motivo a raggio crescente) prima di scrivere codice.

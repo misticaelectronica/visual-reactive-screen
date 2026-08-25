@@ -149,6 +149,43 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
+  it('notifica onRendererFailed quando il renderer attivo fallisce, cosí il selettore può saltare avanti', () => {
+    // Segnalato dallo sviluppatore: senza questa notifica la rete di
+    // sicurezza (Print2D durante la Riattivazione) restava in scena per
+    // l'intera durata residua del fotogramma invece di lasciare che il
+    // selettore avanzasse subito al prossimo renderer.
+    const registry = new BrainRendererRegistry()
+    const fixtures = registerSafetyNetFixtures(registry)
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const failures: BrainRendererId[] = []
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'vector-morph',
+      'vector-morph',
+      () => true,
+      (id) => failures.push(id),
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    fixtures.setVectorMorphFailed(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
+    expect(failures).toEqual(['vector-morph'])
+    host.destroy()
+  })
+
   it('mantiene il renderer corrente finché quello entrante è pronto', () => {
     const registry = new BrainRendererRegistry()
     const destroyed: BrainRendererId[] = []

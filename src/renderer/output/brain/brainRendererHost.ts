@@ -27,13 +27,21 @@ const SWITCH_TIMEOUT_MS = 15_000
 // solo sul fronte di salita di una pressione GPU reale rilevata, non su
 // base audio; l'inviluppo resta quello già in uso (tenuto al picco finché
 // il passthrough non è davvero pronto, non un tempo fisso).
-const PRESSURE_FLASH_ATTACK_MS = 24
-const PRESSURE_FLASH_DECAY_MS = 160
-const PRESSURE_FLASH_PEAK_OPACITY = 0.55
-const PRESSURE_GLITCH_SLICE_COUNT = 4
-const PRESSURE_GLITCH_MAX_OFFSET_PX = 14
-const PRESSURE_GLITCH_PEAK_OPACITY = 0.4
-const PRESSURE_GLITCH_TINTS = ['rgba(70,225,255,0.55)', 'rgba(255,70,195,0.5)'] as const
+// Rinforzato su richiesta esplicita dello sviluppatore ("Glitch+Flash più
+// evidenti", 2026-08-25): il mascheramento precedente restava troppo
+// discreto per coprire davvero il momento del carico, anche con il
+// semaforo proattivo che lo arma in anticipo.
+const PRESSURE_FLASH_ATTACK_MS = 32
+const PRESSURE_FLASH_DECAY_MS = 220
+const PRESSURE_FLASH_PEAK_OPACITY = 0.85
+const PRESSURE_GLITCH_SLICE_COUNT = 7
+const PRESSURE_GLITCH_MAX_OFFSET_PX = 26
+const PRESSURE_GLITCH_PEAK_OPACITY = 0.7
+const PRESSURE_GLITCH_TINTS = [
+  'rgba(70,225,255,0.75)',
+  'rgba(255,70,195,0.72)',
+  'rgba(255,225,70,0.6)',
+] as const
 
 type RendererLayer = {
   id: BrainRendererId
@@ -58,6 +66,7 @@ export function createBrainRendererHost(
   getRendererId: (settings: AppSettings, now: number) => BrainRendererId,
   initialRendererId: BrainRendererId,
   getBoostHint?: () => boolean,
+  onRendererFailed?: (id: BrainRendererId, settings: AppSettings, now: number) => void,
 ): BrainSceneRendererController {
   const root = document.createElement('div')
   Object.assign(root.style, {
@@ -462,6 +471,12 @@ export function createBrainRendererHost(
         })
         retryRendererAfter.set(active.id, time + 30_000)
         requestRenderer(safetyNetId, time)
+        // Fa avanzare subito il mazzo del selettore oltre l'entrata
+        // fallita, invece di lasciare la rete di sicurezza in scena per
+        // l'intera durata residua del fotogramma (segnalato dallo
+        // sviluppatore: Print2D restava troppo a lungo durante la
+        // Riattivazione a causa dei fallimenti ripetuti di Vector Morph).
+        onRendererFailed?.(active.id, settings, time)
       }
 
       active.controller.update(bands, settings, time, rhythm, movingAverages, flash)
