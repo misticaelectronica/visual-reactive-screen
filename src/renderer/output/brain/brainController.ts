@@ -591,6 +591,29 @@ export function createBrainController(
     }
     brainLog('thermal', `scheduler inferenza: ${event.type}`, event)
   }
+  // Semaforo davanti al carico GPU (segnalato dallo sviluppatore: il mix
+  // FilterPsiche+Psycho2D scattava sempre con lo stallo già in corso,
+  // perché `visualPressurePulseUntil` veniva armato solo REATTIVAMENTE,
+  // dopo che il thermalScheduler misurava un gap RAF già avvenuto). Qui
+  // siamo NOI a iniziare il carico (una singola chiamata GPU per
+  // fotogramma dentro `Psichedel.generate`, vedi `runInference`), quindi
+  // possiamo armare il passthrough PRIMA di prendere la GPU invece di
+  // reagire a stallo avvenuto: rosso (flash/glitch/mix armati) → breve
+  // attesa perché il crossfade sia già in scena → verde (si procede con
+  // l'inferenza). Se il passthrough è già attivo (fotogrammi ravvicinati
+  // della stessa storia) non si attende di nuovo — l'attesa serve solo al
+  // fronte di salita.
+  const PROACTIVE_PRESSURE_LEAD_MS = 260
+  const armVisualPressureBeforeGpuLoad = async (): Promise<void> => {
+    const now = performance.now()
+    const alreadyArmed = now < visualPressurePulseUntil
+    visualPressurePulseUntil = Math.max(
+      visualPressurePulseUntil,
+      now + PROACTIVE_PRESSURE_LEAD_MS + VISUAL_PRESSURE_PULSE_MS,
+    )
+    if (alreadyArmed) return
+    await new Promise<void>((resolve) => window.setTimeout(resolve, PROACTIVE_PRESSURE_LEAD_MS))
+  }
   const thermalScheduler = new BrainThermalScheduler({
     cooldownMs: BRAIN_CONFIG.imageInferenceCooldownMs,
     lowPowerCooldownMs: BRAIN_CONFIG.lowPowerImageInferenceCooldownMs,
@@ -607,7 +630,7 @@ export function createBrainController(
     undefined,
     showRawRaster,
     undefined,
-    (active) => {
+    async (active) => {
       brainPerformanceMetrics.setInference(active)
       // Ogni anteprima resta visibile mentre UNet prepara la successiva.
       rasterList.style.display = 'grid'
@@ -616,6 +639,7 @@ export function createBrainController(
         'data-brain-image-inference',
         active ? 'active' : 'idle',
       )
+      if (active) await armVisualPressureBeforeGpuLoad()
     },
     thermalScheduler,
   )

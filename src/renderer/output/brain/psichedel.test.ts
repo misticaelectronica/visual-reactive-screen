@@ -51,6 +51,36 @@ describe('downgradeModeUnderPressure', () => {
   })
 })
 
+describe('Psichedel — semaforo prima del carico GPU', () => {
+  it('attende la Promise di onImageGenerationState(true) prima di chiamare il generatore', async () => {
+    const order: string[] = []
+    const generator: PsychedelImageGenerator = {
+      async generate() {
+        order.push('generate')
+        return { blob: new Blob(['raster']), durationMs: 5, model: 'fake-model' }
+      },
+      async release() {},
+      destroy() {},
+    }
+    const psichedel = new Psichedel(
+      generator,
+      undefined,
+      undefined,
+      new HighQualityRenderScheduler(() => 0.99),
+      async (active) => {
+        if (!active) return
+        order.push('arm-start')
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+        order.push('arm-end')
+      },
+    )
+
+    await psichedel.generate(buildStory())
+
+    expect(order).toEqual(['arm-start', 'arm-end', 'generate'])
+  })
+})
+
 describe('Psichedel — riduzione sotto pressione reale', () => {
   it('usa il modo pianificato quando non c’è pressione', async () => {
     const generator = createRecordingGenerator()
