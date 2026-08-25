@@ -6,6 +6,7 @@ import {
   computeBackgroundSpiralPoints,
   computeLevelReveal,
   computeSpiralArmPoints,
+  computeSpiralDirection,
   computeSpiralFillPhase,
   computeUnderlayOpacity,
   createBrainFractalSpiralScene,
@@ -147,6 +148,39 @@ describe('computeSpiralArmPoints', () => {
   })
 })
 
+describe('computeSpiralDirection', () => {
+  it('è deterministico per lo stesso indice', () => {
+    expect(computeSpiralDirection(3)).toBe(computeSpiralDirection(3))
+  })
+
+  it('restituisce sempre 1 o -1', () => {
+    for (let index = 0; index < 30; index += 1) {
+      expect([1, -1]).toContain(computeSpiralDirection(index))
+    }
+  })
+
+  it('non produce lo stesso segno per tutti gli indici piccoli 0-11 (il range tipico del numero di oggetti in scena)', () => {
+    const directions = new Set(
+      Array.from({ length: 12 }, (_, index) => computeSpiralDirection(index)),
+    )
+    expect(directions.size).toBe(2)
+  })
+
+  it('non ha una sequenza di più di 4 indici consecutivi con lo stesso segno, nei primi 20', () => {
+    let run = 1
+    let maxRun = 1
+    for (let index = 1; index < 20; index += 1) {
+      if (computeSpiralDirection(index) === computeSpiralDirection(index - 1)) {
+        run += 1
+        maxRun = Math.max(maxRun, run)
+      } else {
+        run = 1
+      }
+    }
+    expect(maxRun).toBeLessThanOrEqual(4)
+  })
+})
+
 describe('computeSpiralFillPhase', () => {
   it('resta un valore contenuto anche a piena degenerazione (mai una rivoluzione libera)', () => {
     const motion = { torsion: 1, beat: 1 }
@@ -219,6 +253,15 @@ describe('computeBackgroundSpiralPoints', () => {
     const directions = new Set(points.map((point) => point.direction))
     expect(directions.has(1)).toBe(true)
     expect(directions.has(-1)).toBe(true)
+  })
+
+  it('i primi punti (pochi oggetti in scena) hanno già entrambi i versi', () => {
+    // Regressione: con la vecchia hashUnit(index, 4, 29) gli indici piccoli
+    // (0-5, il caso più comune per il numero di oggetti visibili) davano
+    // sempre lo stesso segno — segnalato due volte dal Capo Supremo.
+    const points = computeBackgroundSpiralPoints(6)
+    const directions = new Set(points.map((point) => point.direction))
+    expect(directions.size).toBe(2)
   })
 
   it('restituisce un array vuoto per conteggio zero o negativo', () => {

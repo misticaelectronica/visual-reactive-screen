@@ -1,5 +1,29 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Hotfix: Fractal Spiral Degeneration, la fix del verso non bastava — 2026-08-25
+
+- **Segnalato di nuovo dal Capo Supremo** (dopo il rilascio v1.0.0-beta.1):
+  "girano tutte allo stesso verso" — la correzione precedente
+  (`direction: 1 | -1` derivato da `hashUnit`) non risolveva il problema
+  dal vivo.
+- **Causa reale trovata numericamente**, non per ipotesi: `hashUnit(index,
+  costante, costante)` non diffonde a sufficienza per indici piccoli e
+  sequenziali. Verificato eseguendo la funzione per indice 0-11: gli
+  indici 0-5 (il range più comune per numero di oggetti in scena e primi
+  punti del campo di sfondo) restituivano TUTTI lo stesso segno — la
+  varietà esisteva solo a partire dall'indice 6 in su, quasi mai
+  raggiunto in pratica.
+- **Fix**: nuova funzione `computeSpiralDirection(index)`, un hash a
+  avalanche intero (variante Thomas Wang/splitmix, pensato apposta per
+  input piccoli e sequenziali, non per valori sparsi) — verificato che
+  gli indici 0-11 producano entrambi i segni e che non ci sia mai una
+  sequenza di più di 4 indici consecutivi con lo stesso verso nei primi
+  20. Sostituisce l'uso di `hashUnit` sia per il campo di sfondo sia per
+  gli oggetti in primo piano.
+- Nuovi test di regressione espliciti (verificano proprio il caso che
+  aveva ingannato la fix precedente: pochi indici piccoli).
+- Validazione: 58 file / 475 test, typecheck, lint e build Vite verdi.
+
 ## Fractal Spiral Degeneration: verso di avvolgimento variabile — 2026-08-25
 
 - **Segnalato dal Capo Supremo**: "le spirali girano tutte dalla stessa
