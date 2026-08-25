@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-008`  
 > **Data Creazione**: 2026-08-08  
 > **Stato**: `IN_PROGRESS`  
-> **Autore/Agente**: Codex / Sviluppatore  
+> **Autore/Agente**: Codex / Capo Supremo  
 
 ---
 

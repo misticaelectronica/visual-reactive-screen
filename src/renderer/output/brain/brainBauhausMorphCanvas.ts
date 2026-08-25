@@ -234,7 +234,7 @@ async function prepareArtwork(
 
 // Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
 // aveva la propria versione con drift casuale — 0.006/0.007/0.008,
-// 0.42/0.44 — segnalato dallo sviluppatore come "soglie a cazzo"): stessa
+// 0.42/0.44 — segnalato dal Capo Supremo come "soglie a cazzo"): stessa
 // formula, stessi numeri ovunque, leggermente più reattiva della media
 // osservata prima di questa unificazione.
 function bandDrive(value: number, average: number | undefined, transient: number): number {
@@ -314,7 +314,7 @@ export function advanceBauhausAbstraction(
 // riusa `interpolatedPlane`), mai la camera intera (Check Camera),
 // disabilitate sotto `resourcePressure` (Check Costo).
 const FIGURE_OUTLINE_POINTS = BAUHAUS_SILHOUETTE_POINT_COUNT
-// Frequenza: lo sviluppatore ha chiesto esplicitamente il cambio di
+// Frequenza: il Capo Supremo ha chiesto esplicitamente il cambio di
 // figura molto spesso (non più "raro, ogni tanto") — soglie di guadagno
 // alte e tempo minimo fra un innesco e l'altro breve, così una nuova
 // figura può comparire quasi subito dopo che la precedente si è spenta
@@ -1073,7 +1073,7 @@ export function createBrainBauhausMorphScene(
       // ricalcolare i piani abbinati due volte nello stesso giro. Se la
       // figura si allontana, `nearMs` si azzera: "diventare un oggetto"
       // resta condizionato, non garantito (non deve essere "ad ogni
-      // occasione", segnalato dallo sviluppatore).
+      // occasione", segnalato dal Capo Supremo).
       if (!resourcePressure && activeFigure?.becomeState === 'abstract') {
         const proximity = updateBauhausFigureProximity(
           activeFigure.plane.centerX,

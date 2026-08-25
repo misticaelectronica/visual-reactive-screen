@@ -12,14 +12,14 @@ import { brainLog, brainWarn } from './brainLog'
 
 // Raster a piena opacità e senza desaturazione, vettoriale più leggero
 // sopra: prima il raster risultava poco visibile sotto le forme
-// vettoriali (segnalato dallo sviluppatore) — Check Materia, il raster
+// vettoriali (segnalato dal Capo Supremo) — Check Materia, il raster
 // resta il livello di base, non oscurato dall'overlay.
 const RASTER_BACKGROUND_OPACITY = 1
 const VECTOR_FOREGROUND_OPACITY = 0.55
 // Con solo poche forme rilevate (3/4) il vettoriale legge come un errore
 // di vettorializzazione, non come una scena — va scartato come un
-// fallimento vero e proprio, non tenuto a schermo (segnalato dallo
-// sviluppatore). Riusa lo stesso meccanismo di `hasFailed`/fallback già
+// fallimento vero e proprio, non tenuto a schermo (segnalato dal
+// Capo Supremo). Riusa lo stesso meccanismo di `hasFailed`/fallback già
 // gestito da `brainRendererHost.ts` per gli altri casi di rigetto.
 export const MIN_VECTOR_SHAPES = 5
 

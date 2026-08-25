@@ -15,6 +15,16 @@ import { brainLog, brainWarn } from './brainLog'
 
 const SWITCH_DURATION_MS = 1_800
 const SWITCH_TIMEOUT_MS = 15_000
+// **Varco Percettivo** — nome condiviso con la Direzione VJ (Capo Supremo
+// del Visual) per questa composizione di flash + strisce glitch + mix
+// passthrough FilterPsiche/Psycho2D: un breve "sipario sensoriale" che
+// segnala e maschera un momento in cui la visuale reale sta per
+// interrompersi (carico GPU da denoising, e — da PIANO-039bis, vedi
+// `brainController.ts` — anche l'inizio del moto di coscienza, che
+// congela la timeline della storia allo stesso modo). Stesso segnale
+// (`visualPressurePulseUntil`/`setResourcePressure`), trigger diversi:
+// non è un effetto nuovo per ogni occasione, è un unico linguaggio
+// riusato ovunque la continuità visiva stia per rompersi.
 // `resourcePressure` diventa vero SOLO dopo che il thermalScheduler ha già
 // rilevato un vero stallo (è reattivo, non predittivo): il salto visivo fra
 // l'ultimo fotogramma fermo di Bauhaus/Materia Morph e il passthrough
@@ -22,18 +32,26 @@ const SWITCH_TIMEOUT_MS = 15_000
 // uno scheduling più furbo; si maschera con un flash + poche strisce
 // tagliate/sfalsate in stile glitch — tecnica VJ comune per far leggere un
 // taglio tecnico come un accento voluto invece che come un difetto
-// (segnalato dallo sviluppatore: il mix FilterPsiche/Psycho2D scattava a
+// (segnalato dal Capo Supremo: il mix FilterPsiche/Psycho2D scattava a
 // lag già iniziato). Non è reattività musicale (Check Silenzio): scatta
 // solo sul fronte di salita di una pressione GPU reale rilevata, non su
 // base audio; l'inviluppo resta quello già in uso (tenuto al picco finché
 // il passthrough non è davvero pronto, non un tempo fisso).
-const PRESSURE_FLASH_ATTACK_MS = 24
-const PRESSURE_FLASH_DECAY_MS = 160
-const PRESSURE_FLASH_PEAK_OPACITY = 0.55
-const PRESSURE_GLITCH_SLICE_COUNT = 4
-const PRESSURE_GLITCH_MAX_OFFSET_PX = 14
-const PRESSURE_GLITCH_PEAK_OPACITY = 0.4
-const PRESSURE_GLITCH_TINTS = ['rgba(70,225,255,0.55)', 'rgba(255,70,195,0.5)'] as const
+// Rinforzato su richiesta esplicita del Capo Supremo ("Glitch+Flash più
+// evidenti", 2026-08-25): il mascheramento precedente restava troppo
+// discreto per coprire davvero il momento del carico, anche con il
+// semaforo proattivo che lo arma in anticipo.
+const PRESSURE_FLASH_ATTACK_MS = 32
+const PRESSURE_FLASH_DECAY_MS = 220
+const PRESSURE_FLASH_PEAK_OPACITY = 0.85
+const PRESSURE_GLITCH_SLICE_COUNT = 7
+const PRESSURE_GLITCH_MAX_OFFSET_PX = 26
+const PRESSURE_GLITCH_PEAK_OPACITY = 0.7
+const PRESSURE_GLITCH_TINTS = [
+  'rgba(70,225,255,0.75)',
+  'rgba(255,70,195,0.72)',
+  'rgba(255,225,70,0.6)',
+] as const
 
 type RendererLayer = {
   id: BrainRendererId
@@ -58,6 +76,7 @@ export function createBrainRendererHost(
   getRendererId: (settings: AppSettings, now: number) => BrainRendererId,
   initialRendererId: BrainRendererId,
   getBoostHint?: () => boolean,
+  onRendererFailed?: (id: BrainRendererId, settings: AppSettings, now: number) => void,
 ): BrainSceneRendererController {
   const root = document.createElement('div')
   Object.assign(root.style, {
@@ -305,7 +324,7 @@ export function createBrainRendererHost(
       // pixel per pixel, tre varianti) può richiedere anche 1-2s — durante
       // quell'attesa il fotogramma bloccato del renderer attivo restava
       // visibile ben oltre il breve flash pensato per coprire un cambio
-      // istantaneo (segnalato dallo sviluppatore). Il flash ora resta al
+      // istantaneo (segnalato dal Capo Supremo). Il flash ora resta al
       // picco finché il passthrough non è davvero pronto, invece di
       // spegnersi dopo un tempo fisso troppo corto per l'attesa reale — non
       // costa nulla in più: usa lo stesso `ensureDenoisingFilterPsiche` già
@@ -450,7 +469,7 @@ export function createBrainRendererHost(
       // sfondo finché nessuno lo nota. Print2D è pensato come rete di
       // sicurezza semplice che non fallisce mai per lo stesso motivo, ma
       // Print2D deve girare SOLO durante la Riattivazione (PIANO-034,
-      // regressione segnalata dallo sviluppatore: usarlo qui sempre lo
+      // regressione segnalata dal Capo Supremo: usarlo qui sempre lo
       // faceva comparire anche fuori dal ciclo) — fuori dalla Riattivazione
       // la rete di sicurezza usa FilterPsiche, già impiegato altrove in
       // questo stesso file come passthrough leggero e affidabile.
@@ -462,6 +481,12 @@ export function createBrainRendererHost(
         })
         retryRendererAfter.set(active.id, time + 30_000)
         requestRenderer(safetyNetId, time)
+        // Fa avanzare subito il mazzo del selettore oltre l'entrata
+        // fallita, invece di lasciare la rete di sicurezza in scena per
+        // l'intera durata residua del fotogramma (segnalato dal
+        // Capo Supremo: Print2D restava troppo a lungo durante la
+        // Riattivazione a causa dei fallimenti ripetuti di Vector Morph).
+        onRendererFailed?.(active.id, settings, time)
       }
 
       active.controller.update(bands, settings, time, rhythm, movingAverages, flash)

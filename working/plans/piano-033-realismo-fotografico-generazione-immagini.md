@@ -5,14 +5,14 @@
 > **Data Creazione**: 2026-08-19
 > **Stato**: `BOZZA — SOLO PIANO, NON IMPLEMENTATO` (richiesto esplicitamente:
 > "fai solo il piano")
-> **Autore/Agente**: Agente AI / Sviluppatore
+> **Autore/Agente**: Agente AI / Capo Supremo
 
 ---
 
 ## 1. 🎯 Obiettivo del Piano
 
 Le figure umane generate da Brain (SD1.5/UNet locale) risultano troppo
-"anime"/stilizzate; lo sviluppatore vuole un aspetto più fotografico/
+"anime"/stilizzate; il Capo Supremo vuole un aspetto più fotografico/
 realistico, **tenendo conto delle performance** — questa sessione ha
 lavorato a lungo per ridurre la contesa GPU (step ridotti sotto pressione
 reale, cooldown fra generazioni, `MACRO-009` che dimezza il batch UNet
@@ -72,7 +72,7 @@ esplicitamente contro quel budget, non solo contro la qualità visiva.
   pregressa. Cambiarlo con un checkpoint SD1.5 fotorealistico (es. una
   famiglia tipo "Realistic Vision"/"epiCRealism" o equivalente, stesso
   formato ONNX fp16 con licenza compatibile con l'uso locale) va deciso
-  esplicitamente dallo sviluppatore, non assunto — è la leva col maggior
+  esplicitamente dal Capo Supremo, non assunto — è la leva col maggior
   impatto ma anche l'unica che tocca la policy di contenuto del progetto.
 - **Verifica**: confrontare visivamente 8-10 generazioni con lo stesso seed
   prima/dopo su un frame di riferimento, senza toccare step/CFG, per
@@ -124,12 +124,12 @@ diretto. Da scartare per questa richiesta.
 
 **Leva A (cambio checkpoint) come intervento principale**, eventualmente
 combinata con **Leva B (tag di stile)** come rifinitura a costo zero, se
-lo sviluppatore accetta l'eccezione alla politica "nessuna riscrittura".
+il Capo Supremo accetta l'eccezione alla politica "nessuna riscrittura".
 **Non toccare la Leva C** (prompt negativo/CFG) — costerebbe esattamente
 il tipo di regressione prestazionale che questa sessione ha speso per
 eliminare.
 
-## 5. ⚠️ Decisioni Che Servono Dallo Sviluppatore Prima Di Implementare
+## 5. ⚠️ Decisioni Che Servono Dal Capo Supremo Prima Di Implementare
 
 1. Quale checkpoint SD1.5 fotorealistico usare al posto di
    `stablediffusionapi/pornmaster` (nome/fonte specifico, formato ONNX

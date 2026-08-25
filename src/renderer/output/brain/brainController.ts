@@ -577,11 +577,17 @@ export function createBrainController(
   // RAF frequenti quella finestra resta quasi sempre estesa, e
   // propagarla a `setResourcePressure` degradava i renderer per la
   // maggior parte del tempo, non solo durante gli stalli reali
-  // (segnalato dallo sviluppatore: "ridotto mobilità e sensibilità
+  // (segnalato dal Capo Supremo: "ridotto mobilità e sensibilità
   // musicale"). Il passthrough/flash ha bisogno solo di coprire il
   // momento dello stallo, non l'intera finestra di backoff — un impulso
   // breve, dedicato, distinto dalla finestra lunga di generazione.
   const VISUAL_PRESSURE_PULSE_MS = 2_500
+  // Varco Percettivo armato in coda per il moto di coscienza (vedi
+  // `requestConsciousnessInfluence`): da quando il candidato è "in coda"
+  // all'attivazione vera passa fino a un'intera durata di beat (il layer
+  // aspetta `rhythm.beat`, non un tempo fisso) — più lungo del breve
+  // impulso GPU, serve un margine che sopravviva a un beat irregolare.
+  const CONSCIOUSNESS_MOTION_PULSE_LEAD_MS = 4_000
   let visualPressurePulseUntil = 0
   const reportThermalEvent = (event: BrainThermalSchedulerEvent) => {
     if (event.type === 'long-frame') {
@@ -590,6 +596,29 @@ export function createBrainController(
       return
     }
     brainLog('thermal', `scheduler inferenza: ${event.type}`, event)
+  }
+  // Semaforo davanti al carico GPU (segnalato dal Capo Supremo: il mix
+  // FilterPsiche+Psycho2D scattava sempre con lo stallo già in corso,
+  // perché `visualPressurePulseUntil` veniva armato solo REATTIVAMENTE,
+  // dopo che il thermalScheduler misurava un gap RAF già avvenuto). Qui
+  // siamo NOI a iniziare il carico (una singola chiamata GPU per
+  // fotogramma dentro `Psichedel.generate`, vedi `runInference`), quindi
+  // possiamo armare il passthrough PRIMA di prendere la GPU invece di
+  // reagire a stallo avvenuto: rosso (flash/glitch/mix armati) → breve
+  // attesa perché il crossfade sia già in scena → verde (si procede con
+  // l'inferenza). Se il passthrough è già attivo (fotogrammi ravvicinati
+  // della stessa storia) non si attende di nuovo — l'attesa serve solo al
+  // fronte di salita.
+  const PROACTIVE_PRESSURE_LEAD_MS = 260
+  const armVisualPressureBeforeGpuLoad = async (): Promise<void> => {
+    const now = performance.now()
+    const alreadyArmed = now < visualPressurePulseUntil
+    visualPressurePulseUntil = Math.max(
+      visualPressurePulseUntil,
+      now + PROACTIVE_PRESSURE_LEAD_MS + VISUAL_PRESSURE_PULSE_MS,
+    )
+    if (alreadyArmed) return
+    await new Promise<void>((resolve) => window.setTimeout(resolve, PROACTIVE_PRESSURE_LEAD_MS))
   }
   const thermalScheduler = new BrainThermalScheduler({
     cooldownMs: BRAIN_CONFIG.imageInferenceCooldownMs,
@@ -607,7 +636,7 @@ export function createBrainController(
     undefined,
     showRawRaster,
     undefined,
-    (active) => {
+    async (active) => {
       brainPerformanceMetrics.setInference(active)
       // Ogni anteprima resta visibile mentre UNet prepara la successiva.
       rasterList.style.display = 'grid'
@@ -616,6 +645,7 @@ export function createBrainController(
         'data-brain-image-inference',
         active ? 'active' : 'idle',
       )
+      if (active) await armVisualPressureBeforeGpuLoad()
     },
     thermalScheduler,
   )
@@ -821,6 +851,17 @@ export function createBrainController(
         performance.now(),
       )
       if (!accepted) return null
+      // Varco Percettivo in anticipo reale (segnalato dal Capo Supremo:
+      // armarlo solo al fronte di salita dell'attivazione non basta, il
+      // blocco si vede comunque perché il crossfade parte troppo tardi).
+      // Da qui il candidato è "in coda": diventerà attivo al PROSSIMO
+      // beat rilevato (`consciousnessMotionLayer.update`, non prima) — un
+      // margine reale fino a un'intera durata di beat, non un singolo
+      // fotogramma. Si arma qui, non al momento dell'attivazione.
+      visualPressurePulseUntil = Math.max(
+        visualPressurePulseUntil,
+        performance.now() + CONSCIOUSNESS_MOTION_PULSE_LEAD_MS,
+      )
       consciousnessMotionMemoryIds.add(candidate.memoryId)
       brainLog('coscienza', 'moto di coscienza preparato', {
         storyId: story.id,
@@ -1084,6 +1125,7 @@ export function createBrainController(
               )
             : 'print2d',
           () => revisionCycleActive,
+          (id, settings, now) => brainRendererSelector.reportRendererFailure(id, settings, now),
         )
       : createBrainSvgScene(
           svgHost,
@@ -1343,7 +1385,7 @@ export function createBrainController(
     root.dataset.revisionCycleActive = 'true'
     // Le sidebar laterali (testo/storia a sinistra, galleria raster a
     // destra) spariscono per tutta la Riattivazione — riappaiono da sole
-    // quando la produzione normale riprende (segnalato dallo sviluppatore).
+    // quando la produzione normale riprende (segnalato dal Capo Supremo).
     window.clearTimeout(storyPanelTimerId)
     storyPanelTimerId = 0
     storyElement.style.transition = 'opacity 600ms ease'
@@ -2005,6 +2047,15 @@ export function createBrainController(
     )
     if (motionState.active && consciousnessMotionPausedAt === null) {
       consciousnessMotionPausedAt = rhythmicNow
+      // Varco Percettivo (nome condiviso con la Direzione VJ, vedi
+      // `brainRendererHost.ts`): lo stesso flash+glitch+mix che maschera
+      // il carico GPU segnala anche qui — il fronte di salita del moto di
+      // coscienza congela la timeline della storia esattamente come un
+      // vero stallo, merita lo stesso segnale, non uno nuovo.
+      visualPressurePulseUntil = Math.max(
+        visualPressurePulseUntil,
+        performance.now() + VISUAL_PRESSURE_PULSE_MS,
+      )
     }
     if (motionState.completedPauseMs > 0) {
       frameStartedAt += motionState.completedPauseMs
@@ -2050,7 +2101,7 @@ export function createBrainController(
     // renderer interno di `brainRendererHost.ts`: lì la Riattivazione
     // alterna i renderer quasi ad ogni fotogramma tenuto, e sommare un
     // blend additivo ad ogni singolo micro-cambio si accumulava in un
-    // effetto "tutto glitchato" (segnalato dallo sviluppatore) invece di
+    // effetto "tutto glitchato" (segnalato dal Capo Supremo) invece di
     // una fusione leggibile. Un solo cambio di blend mode, mai un filtro
     // ricalcolato per frame: costo trascurabile.
     if (outgoingSvg) {

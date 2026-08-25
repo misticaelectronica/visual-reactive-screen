@@ -109,7 +109,7 @@ describe('Brain renderer host', () => {
     // renderer entrante (crossfade normale, non un taglio secco). Print2D
     // è escluso di proposito: gira solo durante la Riattivazione
     // (PIANO-034) — usarlo qui incondizionatamente era la regressione
-    // segnalata dallo sviluppatore.
+    // segnalata dal Capo Supremo.
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 4_500)
     expect(host.element.dataset.activeRenderer).toBe('filter-psiche')
     host.destroy()
@@ -146,6 +146,43 @@ describe('Brain renderer host', () => {
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 4_500)
     expect(host.element.dataset.activeRenderer).toBe('print2d')
+    host.destroy()
+  })
+
+  it('notifica onRendererFailed quando il renderer attivo fallisce, cosí il selettore può saltare avanti', () => {
+    // Segnalato dal Capo Supremo: senza questa notifica la rete di
+    // sicurezza (Print2D durante la Riattivazione) restava in scena per
+    // l'intera durata residua del fotogramma invece di lasciare che il
+    // selettore avanzasse subito al prossimo renderer.
+    const registry = new BrainRendererRegistry()
+    const fixtures = registerSafetyNetFixtures(registry)
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const failures: BrainRendererId[] = []
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'vector-morph',
+      'vector-morph',
+      () => true,
+      (id) => failures.push(id),
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    fixtures.setVectorMorphFailed(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
+    expect(failures).toEqual(['vector-morph'])
     host.destroy()
   })
 
@@ -466,7 +503,7 @@ describe('Brain renderer host', () => {
 
     // Ben oltre la normale finestra attacco+decadimento (200ms): senza la
     // tenuta al picco il flash sarebbe già spento qui, scoprendo il
-    // fotogramma bloccato del renderer attivo (segnalato dallo sviluppatore).
+    // fotogramma bloccato del renderer attivo (segnalato dal Capo Supremo).
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_500)
     expect(flashOpacity()).toBeGreaterThan(0.4)
 

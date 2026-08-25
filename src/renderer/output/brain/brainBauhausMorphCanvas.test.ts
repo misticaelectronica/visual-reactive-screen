@@ -136,8 +136,8 @@ describe('updateBauhausFigureAccumulator', () => {
     // skills.md "Renderer Brain") prima di essere sostituito, e lo stato
     // dell'accumulatore si azzera ad ogni nuova istanza — una soglia che
     // richiede più tempo di un hold tipico con audio realistico (non
-    // sostenuto ai massimi) di fatto non scatta mai (segnalato dallo
-    // sviluppatore: "raro sì ma non rarissimo").
+    // sostenuto ai massimi) di fatto non scatta mai (segnalato dal
+    // Capo Supremo: "raro sì ma non rarissimo").
     const moderateMotion = { activity: 0.4, beat: 0.15 }
     let state = { accumulator: 0, lastEventAt: Number.NEGATIVE_INFINITY }
     let triggered = false

@@ -2,6 +2,59 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-039` (Print2D — Vita Interna)
+
+- [x] **`TASK-039-08`** `DONE`: Traduzione tecnica sezione-per-sezione del
+  brief VJ del Capo Supremo (`working/plans/piano-039-print2d-vita-interna.md`).
+- [x] **`TASK-039-09`** `DONE`: Layer contorno (`contourCore`/`contourFaint`)
+  baked a preparazione riusando il gradiente Sobel già calcolato per i
+  frammenti d'inchiostro.
+- [x] **`TASK-039-10`** `DONE`: Macchina a stati pura
+  vivo/freeze/impulso/decadimento (`advancePrintLifeState`/
+  `computePrintLifeEnvelope`), innescata dal flash globale esistente.
+- [x] **`TASK-039-11`** `DONE`: Respirazione del contorno silenzio-gated
+  (`advanceContourBreathingPhase`) + spessore/sdoppiamento
+  (`computeContourThickness`/`computeContourDoubling`).
+- [x] **`TASK-039-12`** `DONE`: Ampiezze macro delle lastre dimezzate
+  (`PLATE_MOTION_SCALE`), moiré e scia dei frammenti d'inchiostro,
+  passata condivisa sopra tutti e 7 i preset.
+- [x] **`TASK-039-13`** `DONE`: Test, typecheck, lint, build Vite — 467
+  test verdi.
+- [ ] **`TASK-039-14`** `TODO`: Verifica manuale dal vivo con audio reale
+  (contorno vivo, freeze percepibile, impulso, ritorno morbido).
+
+## Task Collegati alla Sessione 2026-08-25 (Riattivazione, semaforo GPU, raster Fractal Spiral)
+
+- [x] **`TASK-039-01`** `DONE`: Diagnosi da log reali (non ipotesi) delle
+  segnalazioni "Print2D troppo presente" / "Fractal Spiral assente" durante
+  la Riattivazione — trovate due cause distinte e verificabili nel log.
+- [x] **`TASK-039-02`** `DONE`: `storyCycleIds()` salta il filtro pressione
+  quando boosted (Riattivazione) — copertura completa renderer garantita.
+- [x] **`TASK-039-03`** `DONE`: `BrainRendererSelector.reportRendererFailure()`
+  + parametro `onRendererFailed` in `brainRendererHost.ts` — il mazzo
+  avanza subito oltre un renderer fallito invece di restare fermo per
+  l'intero fotogramma sulla rete di sicurezza.
+- [x] **`TASK-039-04`** `DONE`: Semaforo proattivo prima del carico GPU
+  (`Psichedel.generate` → `onImageGenerationState` awaitable) + flash/glitch
+  della rete di sicurezza rinforzati su richiesta esplicita.
+- [x] **`TASK-039-05`** `DONE`: Fractal Spiral Degeneration — raster più
+  visibile (seconda correzione sullo stesso punto): underlay e tetti di
+  opacità del riempimento interno ricalibrati.
+- [x] **`TASK-039-06`** `DONE`: Test, typecheck, lint — 461 test verdi.
+- [ ] **`TASK-039-07`** `TODO`: Verifica manuale dal vivo di tutti e tre i
+  punti durante una Riattivazione reale.
+
+## Task Collegati a `PIANO-038` (Nuovo Renderer Fractal Spiral Degeneration)
+
+- [x] **`TASK-038-01`** `DONE`: Ricerca (agente Explore) su primitive riusabili (crop per-regione, rotazione locale-alla-forma, motivo a raggio crescente) prima di scrivere codice.
+- [x] **`TASK-038-02`** `DONE`: Traduzione tecnica del brief artistico (nodo a spirale, degenerazione/reveal per livello, mappa bande, ricorsione economica con satelliti).
+- [x] **`TASK-038-03`** `DONE`: Implementazione renderer + 5 funzioni pure + registrazione (registry/selector/types/UI).
+- [x] **`TASK-038-04`** `DONE`: 17 test incluso un test di integrazione Canvas2D mockato (600 fotogrammi) — verificato PRIMA della build che la degenerazione avanzi davvero.
+- [x] **`TASK-038-05`** `DONE`: typecheck/lint/build verdi (448 test totali).
+- [ ] **`TASK-038-06`** `TODO`: Verifica manuale dal vivo con audio reale.
+
+---
+
 ## Task Collegati a `PIANO-037` (Figure Bauhaus indipendenti dal raster)
 
 - [x] **`TASK-037-01`** `DONE`: Ricerca (agente Explore) + design (agente Plan) + due giri di chiarimento (comportamento non momento fisso; libreria curata non ML).
@@ -26,7 +79,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
 ## Task Collegati a `PIANO-035` (Nuovo Renderer Glitch Morph)
 
-- [x] **`TASK-035-01`** `DONE`: Analisi solo-design con anteprime Artifact iterative (raster attenuato, tinte per-riga, moto non uniforme) approvate dallo sviluppatore.
+- [x] **`TASK-035-01`** `DONE`: Analisi solo-design con anteprime Artifact iterative (raster attenuato, tinte per-riga, moto non uniforme) approvate dal Capo Supremo.
 - [x] **`TASK-035-02`** `DONE`: Profilo di luminanza per riga cacheato una volta alla preparazione (`buildGlitchProfile`) + seme deterministico per riga (`computeRowSeed`).
 - [x] **`TASK-035-03`** `DONE`: Ondulazione audio-gated (`computeLineWobble`, Check Silenzio) e tonalità per-riga indipendente dal tempo (`computeRowHue`).
 - [x] **`TASK-035-04`** `DONE`: Collegamento renderer id in tutti i punti (types, registry, selector — `PERSISTENT_STORY_RENDERERS`, label debug, select Control).
@@ -254,7 +307,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-006-16`** `DONE`: Chiusa la correzione Fase 3C senza iniziare la Fase 3D.
 
 **Stato `MACRO-006`**: `DONE`. Nessun task di implementazione aperto; il test
-manuale finale viene eseguito dallo sviluppatore.
+manuale finale viene eseguito dal Capo Supremo.
 
 ---
 
@@ -269,7 +322,7 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-010-04`** `DONE`: Approvare le decisioni aperte di `PIANO-009` e
   creare il piano esecutivo V1 senza interferire con `MACRO-009`.
 - [x] **`TASK-010-05`** `DONE`: Implementare V1 su autorizzazione
-  esplicita dello sviluppatore.
+  esplicita del Capo Supremo.
 - [x] **`TASK-010-06`** `DONE`: Introdurre plugin registry, renderer
   host e alternanza manuale/temporizzata durante l'esecuzione.
 - [ ] **`TASK-010-07`** `TODO`: Verificare dal vivo su Output fullscreen il

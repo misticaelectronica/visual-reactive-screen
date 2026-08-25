@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-009`  
 > **Data Creazione**: 2026-08-10  
 > **Stato**: `COMPLETATO COME PROTEZIONE VISIVA — NON SOLUZIONE LATENZA`  
-> **Autore/Agente**: Codex / Sviluppatore  
+> **Autore/Agente**: Codex / Capo Supremo  
 
 ---
 

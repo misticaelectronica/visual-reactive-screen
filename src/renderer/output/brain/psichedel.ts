@@ -266,7 +266,12 @@ export class Psichedel {
     _vectorizer?: PsychedelVectorizer,
     private readonly onRaster?: (preview: PsychedelRasterPreview) => void,
     private readonly renderScheduler: HighQualityRenderScheduler = new HighQualityRenderScheduler(),
-    private readonly onImageGenerationState?: (active: boolean) => void,
+    // Il ritorno di `active: true` può essere una Promise: il chiamante la
+    // usa come semaforo — arma il passthrough visivo (flash/glitch/mix) e
+    // attende che sia già in scena PRIMA che l'inferenza GPU parta
+    // davvero, invece di mascherare uno stallo già iniziato (segnalato
+    // dal Capo Supremo: il mix scattava sempre a lag già in corso).
+    private readonly onImageGenerationState?: (active: boolean) => void | Promise<void>,
     private readonly inferenceScheduler?: BrainInferenceScheduler,
   ) {}
 
@@ -403,7 +408,7 @@ export class Psichedel {
                 const remainingMs = Number.isFinite(deadlineAt)
                   ? Math.max(5_000, deadlineAt - performance.now())
                   : BRAIN_CONFIG.imageGenerationTimeoutMs
-                this.onImageGenerationState?.(true)
+                await this.onImageGenerationState?.(true)
                 try {
                   return await this.imageGenerator.generate(
                     prompt,

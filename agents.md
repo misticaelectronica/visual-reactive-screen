@@ -2,6 +2,13 @@
 
 Guida operativa per agenti e sviluppatori che lavorano su Mistica Electronica Visual Reactive Screen.
 
+## Team Di Sviluppo Prodotto Brain
+
+Ruoli con lettera di presentazione conservati in `team/`:
+
+- `team/capo-supremo-analisi-audio.md`: Capo Supremo dell'Analisi Audio / Sound Designer di Brain — responsabile della lettura audio-percettiva (feature, transient, stato nel tempo). Confina con la Direzione VJ (manifestazione visiva) e con il Capo Supremo degli Ingegneri (implementazione tecnica), senza sconfinare nelle loro autonomie.
+- `team/capo-supremo-designer-visual-vj.md`: Capo Supremo dei Designer/Visual VJ di Brain — responsabile dell'identità visiva, della grammatica dei renderer e delle trasformazioni/morph. Riceve la lettura audio-percettiva dal Capo Supremo dell'Analisi Audio e la traduce in linguaggio visivo, sempre nel rispetto del Protocollo Obbligatorio Di Verifica Filosofia Visiva più sotto in questo file.
+
 ## Missione Del Progetto
 
 App desktop Electron + TypeScript + React + Canvas 2D per generare un output fullscreen reattivo all'audio, pensato per live performance, proiettori, HDMI e contesti techno/ambient/rituali.

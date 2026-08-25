@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-003`  
 > **Data Creazione**: 2026-07-27  
 > **Stato**: `COMPLETATO`  
-> **Autore**: Sviluppatore / Agente AI  
+> **Autore**: Capo Supremo / Agente AI  
 
 ---
 

@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-010`  
 > **Data Creazione**: 2026-08-10  
 > **Stato**: `IN_PROGRESS`  
-> **Autore/Agente**: Codex / Sviluppatore
+> **Autore/Agente**: Codex / Capo Supremo
 
 ---
 
@@ -51,7 +51,7 @@ esistente, senza tagli istantanei.
 ### Fase 3: Verifica
 - [x] Testare ordine, assenza di ripetizioni e blocco della storia successiva.
 - [x] Eseguire test mirati, suite completa, typecheck, lint e build applicativo.
-- [ ] Affidare allo sviluppatore la verifica live di fluidità e temperatura.
+- [ ] Affidare al Capo Supremo la verifica live di fluidità e temperatura.
 
 ## 5. 🧪 Validation Plan
 

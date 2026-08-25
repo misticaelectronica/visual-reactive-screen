@@ -1,5 +1,240 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Fractal Spiral Degeneration: verso di avvolgimento variabile — 2026-08-25
+
+- **Segnalato dal Capo Supremo**: "le spirali girano tutte dalla stessa
+  parte". Causa reale: `computeSpiralArmPoints` calcolava sempre
+  `angle = t * turns * TAU + angleOffset` con `turns` sempre positivo —
+  ogni spirale, sia del campo di sfondo sia di ciascun oggetto in primo
+  piano, avvolgeva nello stesso verso, ovunque nella scena.
+- **Fix**: nuovo parametro `direction: 1 | -1` (default `1`, compatibile
+  con le chiamate esistenti) che inverte il segno di `turns` nella
+  formula dell'angolo. Il campo di sfondo (`BackgroundSpiralPoint`) ha
+  ora un verso proprio per punto, derivato deterministicamente da
+  `hashUnit` (stesso hash già usato per posizione/fase — stesso punto,
+  stesso verso sempre, nessun tremolio). Ogni oggetto in primo piano ha
+  analogamente un verso proprio derivato da `hashUnit(objectIndex, ...)`,
+  condiviso da tutti i suoi bracci (un oggetto resta coerente al suo
+  interno, la varietà è FRA oggetti diversi, non dentro lo stesso).
+- Nuovi test: inversione geometrica verificata (`direction` inverte il
+  segno della rotazione a parità di raggio), verso predefinito invariato
+  per compatibilità, campo di sfondo con entrambi i versi rappresentati.
+- Validazione: 58 file / 470 test, typecheck, lint e build Vite verdi.
+  Verifica dal vivo ancora da fare.
+
+## Nome condiviso "Varco Percettivo"; armato anche prima del moto di coscienza — 2026-08-25
+
+- **Nome condiviso con la Direzione VJ** (Capo Supremo del Visual, su sua
+  richiesta esplicita): la composizione flash + strisce glitch + mix
+  passthrough FilterPsiche/Psycho2D (già in uso per il carico GPU da
+  denoising, rinforzata in questa stessa sessione) si chiama ora
+  **Varco Percettivo** — un unico linguaggio visivo riusato ovunque la
+  continuità visiva stia per rompersi, non un effetto diverso per ogni
+  occasione. Nome registrato nel commento di testa a
+  `brainRendererHost.ts` (dove vive l'implementazione).
+- **Armato anche prima del moto di coscienza**: la timeline della storia
+  si congela all'inizio del moto di coscienza esattamente come durante
+  uno stallo GPU — stesso trattamento. **Prima correzione insufficiente**
+  (segnalato dal Capo Supremo dopo verifica dal vivo): armare il segnale
+  solo al fronte di salita dell'attivazione (`consciousnessMotionPausedAt`)
+  non lascia tempo al crossfade di entrare in scena — il blocco resta
+  visibile perché parte troppo tardi. **Fix**: il Varco Percettivo si
+  arma già quando il candidato viene messo "in coda"
+  (`consciousnessMotionLayer.offer()` accettato, dentro
+  `requestConsciousnessInfluence`), non quando diventa attivo — da lì
+  all'attivazione vera passa fino a un'intera durata di beat (il layer
+  aspetta `rhythm.beat`, non un timer fisso), un margine reale invece di
+  zero. Nuova costante dedicata `CONSCIOUSNESS_MOTION_PULSE_LEAD_MS =
+  4_000` (più generosa del breve impulso GPU, per sopravvivere a un beat
+  irregolare); il fronte di salita dell'attivazione resta comunque armato
+  come rete di sicurezza finale.
+- Nessuna modifica a `brainConsciousnessMotion.ts`: il trigger vive
+  interamente in `brainController.ts`, riusando `visualPressurePulseUntil`
+  già esistente — nessun sistema nuovo.
+- Validazione: 58 file / 467 test, typecheck, lint e build Vite verdi.
+  Verifica dal vivo ancora da fare — non posso vedere lo schermo.
+
+## Print2D: vita interna, contorno vivo + freeze/impulso (PIANO-039) — 2026-08-25
+
+- Brief VJ del Capo Supremo indirizzato al "Capo degli Ingegneri di Brain":
+  spostare l'identità di Print2D da "lastre che si muovono" a "stampa che
+  prende vita internamente". Vedi
+  `working/plans/piano-039-print2d-vita-interna.md` per la traduzione
+  tecnica sezione-per-sezione del brief.
+- **Contorno vivo/respirazione**: nuovo layer contorno (`contourCore`/
+  `contourFaint`) baked a preparazione riusando lo STESSO gradiente Sobel
+  già calcolato per i frammenti d'inchiostro (zero analisi aggiuntiva) —
+  due soglie che a runtime si respirano (spessore/sdoppiamento) con un
+  inviluppo lento silenzio-gated (`advanceContourBreathingPhase`, stesso
+  pattern di `advanceBauhausAbstraction`).
+- **Freeze + impulso**: nuova macchina a stati pura
+  `vivo → freeze → impulso → decadimento → vivo`
+  (`advancePrintLifeState`/`computePrintLifeEnvelope`), innescata dal
+  fronte di salita del flash globale — l'evento significativo già
+  previsto dall'architettura di Brain (motore flash Control,
+  deliberatamente raro, non il beat), non una detection nuova. Durante il
+  freeze il motion smoother non avanza affatto (le lastre si bloccano
+  davvero, non solo visivamente); l'impulso spinge temporaneamente il
+  registro oltre il tetto ordinario, il decadimento lo riporta a zero con
+  smootherstep su ~620ms.
+- **Movimento delle lastre ridimensionato** (§9 del brief): ampiezze di
+  `depth/propagation/dislocation/chromaticPx` in
+  `calculateBrainPrint2dMotion` dimezzate (`PLATE_MOTION_SCALE = 0.5`) —
+  il disallineamento di registro resta (richiesto esplicitamente al §12)
+  ma non domina più la lettura; durante l'impulso lo stesso
+  disallineamento riceve uno scarto temporaneo marcato invece di una
+  danza continua.
+- **Moiré e frammenti d'inchiostro**: eco della lastra attiva a
+  scala/rotazione lievemente diverse per un'interferenza moiré reale
+  (§7); i frammenti d'inchiostro guadagnano una scia/sbavanza che cresce
+  con l'attività e l'impulso (§8), invece di un disegno secco isolato.
+- Passata condivisa applicata identicamente sopra a tutti e 7 i preset
+  esistenti (`BRAIN_PRINT2D_MODES`) — non un ottavo renderer, le
+  differenze estetiche fra i preset restano nella composizione di lastre
+  sotto (§12 del brief).
+- Nuovi test per la macchina a stati (`advancePrintLifeState`, incluso il
+  riarmo durante il decadimento), gli inviluppi
+  (`computePrintLifeEnvelope`), la respirazione silenzio-gated
+  (`advanceContourBreathingPhase`) e spessore/sdoppiamento del contorno.
+- Validazione: 58 file / 467 test, typecheck, lint e build Vite verdi.
+  Verifica dal vivo ancora da fare — non posso vedere lo schermo.
+
+## Riattivazione: Print2D/Fractal Spiral, semaforo GPU, raster Fractal Spiral — 2026-08-25
+
+- **Diagnosi da log reali** (`session-2026-08-25-11-43-18.txt`, non ipotesi):
+  segnalato dal Capo Supremo che durante la Riattivazione Print2D si
+  vedeva troppo e Fractal Spiral Degeneration non compariva mai.
+  - **Fractal Spiral assente**: è in `HEAVY_RENDERERS_UNDER_PRESSURE`; il
+    filtro pressione di `storyCycleIds()` restava attivo anche durante la
+    Riattivazione, e l'alternanza rapidissima della Riattivazione stessa
+    (hold [1,2] fotogrammi) genera gap RAF che il thermalScheduler legge
+    come pressione reale — un ciclo che si autoalimenta escludendo proprio
+    i renderer pesanti nella fase che deve garantirne la copertura
+    completa. **Fix**: quando boosted, `storyCycleIds()` salta del tutto il
+    filtro pressione (la generazione è comunque sospesa durante la
+    Riattivazione, PIANO-034 — non c'è vera contesa GPU da denoising da
+    proteggere qui).
+  - **Print2D troppo presente**: Vector Morph fallisce spesso il proprio
+    controllo qualità ("meno di cinque forme riconoscibili" — 219 avvisi
+    nello stesso ciclo nel log). Ogni fallimento attiva la rete di
+    sicurezza (Print2D durante la Riattivazione, PIANO-034), ma il mazzo
+    del selettore restava fermo sull'entrata fallita per l'intera durata
+    residua del fotogramma (fino a ~20s) invece di avanzare. **Fix**:
+    nuovo `BrainRendererSelector.reportRendererFailure()`, chiamato da
+    `brainRendererHost.ts` (nuovo parametro `onRendererFailed`) nello
+    stesso punto in cui scatta la rete di sicurezza — azzera l'hold
+    residuo e fa avanzare subito il mazzo, così la rete di sicurezza
+    resta in scena solo per il tempo di preparare il prossimo renderer
+    reale, non per l'intero fotogramma.
+- **Flash+glitch della rete di sicurezza rinforzati** (richiesta esplicita
+  del Capo Supremo dopo verifica live del semaforo proattivo di ieri,
+  260ms di anticipo non bastavano a renderlo convincente):
+  `PRESSURE_FLASH_PEAK_OPACITY` 0.55→0.85, `PRESSURE_GLITCH_PEAK_OPACITY`
+  0.4→0.7, strisce glitch 4→7, offset massimo 14→26px, terza tinta
+  cromatica aggiunta (giallo) oltre a ciano/magenta.
+- **Fractal Spiral Degeneration: raster ancora poco visibile** (seconda
+  segnalazione sullo stesso punto, la prima alzata di `UNDERLAY_CEILING`
+  non bastava): il riempimento interno degli oggetti (massa + bracci a
+  spirale) sovrascriveva quasi del tutto il raster mascherato
+  (`object.layer`) anche a bassa `degenerationProgress`. **Fix**: alzato
+  ulteriormente `UNDERLAY_CEILING`/`UNDERLAY_FLOOR` (0.72/0.3→0.92/0.55) e
+  abbassati in parallelo i tetti di opacità del riempimento interno
+  (massa 0.55→0.32, bracci ~0.6-0.95→0.4-0.65) — la materia spiraliforme
+  deve convivere con il raster dentro l'oggetto, non sostituirlo.
+- Nuovi test: filtro pressione disattivato/attivo con e senza boost
+  (`brainRendererSelector.test.ts`), `reportRendererFailure` (mazzo
+  avanza solo se il fallito è ancora l'attivo, solo in story-cycle),
+  notifica `onRendererFailed` dall'host (`brainRendererHost.test.ts`).
+- Validazione: 58 file / 461 test, typecheck e lint (`src/`) verdi.
+  **Verifica dal vivo ancora da fare** per tutti e tre i punti — non posso
+  vedere lo schermo.
+
+## Semaforo proattivo prima del carico GPU denoising — 2026-08-25
+
+- Segnalato dal Capo Supremo: il passaggio al passthrough mix
+  FilterPsiche+Psycho2D restava percettibilmente in ritardo durante il
+  carico GPU. Causa: `visualPressurePulseUntil` veniva armato solo in
+  modo reattivo, dopo che il thermalScheduler misurava un gap RAF già
+  avvenuto — il passthrough scattava a stallo già in corso.
+- **Fix**: `Psichedel.generate()` chiama `onImageGenerationState(true)`
+  esattamente nel punto in cui sta per prendere la GPU per ogni
+  fotogramma (`runInference`, prima di `imageGenerator.generate`) — un
+  punto che controlliamo noi, non uno stallo da rilevare dopo. Quella
+  callback ora può restituire una Promise che `generate()` attende prima
+  di procedere: `brainController.ts` arma qui il passthrough
+  (flash+glitch+mix) e, se non era già attivo, attende ~260ms perché il
+  crossfade sia già in scena prima di dare il via libera all'inferenza.
+- **Verificato dal vivo lo stesso giorno**: insufficiente da solo — vedi
+  la voce sopra per il rinforzo di flash/glitch che ne è seguito.
+- Validazione: 58 file / 455 test, typecheck e lint (`src/`) verdi.
+
+## Fractal Spiral Degeneration: seconda correzione — il contenitore non ruota mai — 2026-08-24
+
+- **Segnalato dalla direzione artistica** (seconda lettera): la
+  correzione precedente faceva ancora ruotare l'oggetto (contro-rotato
+  rispetto alla spirale interna) — respinto: "gli oggetti del raster
+  devono restare fermi... la trasformazione avviene DENTRO l'oggetto."
+  Anche la spirale doveva smettere di essere una linea sottile:
+  "densa, corposa, cromatica, volumetrica... piena di colore."
+- **Corretto**: rimossa ogni rotazione del contenitore
+  (`computeObjectRotation` eliminata insieme a `computeSpiralNode`). Al
+  suo posto, dentro la sagoma sempre ferma (via `source-atop`): un
+  gradiente radiale colorato (massa che riempie il volume) più bracci
+  di spirale spessi (`computeSpiralArmPoints`, `lineWidth` proporzionale
+  al raggio dell'oggetto) in più colori della palette — è la materia
+  interna ad animarsi (`computeSpiralFillPhase`), mai il contenitore.
+  Anche il campo di sfondo è stato ispessito per "saturare
+  percettivamente" lo spazio come richiesto.
+- Validazione: 58 file / 454 test, typecheck, lint e build verdi.
+
+## Fractal Spiral Degeneration: corretta la direzione artistica — 2026-08-24
+
+- **Segnalato dalla direzione artistica** (lettera dettagliata): la
+  prima versione ritagliava un rettangolo per regione e ne disponeva
+  copie orbitanti attorno a un centro — leggibile come tasselli
+  rettangolari rotanti (linguaggio da collage/Psycho2D), non come una
+  spirale che vive dentro la materia dell'oggetto.
+- **Corretto**: oggetti ora ricalcati per sagoma vera (layer mascherato
+  pixel-per-pixel, stesso pattern di `regionLayers` in Bauhaus/Materia
+  Morph, non più un ritaglio a bounding box). La spirale frattale è ora
+  confinata DENTRO ciascun oggetto via `globalCompositeOperation =
+  'source-atop'` su un buffer offscreen riusato — strutturalmente
+  impossibile che esca dal contorno. Aggiunta la contro-rotazione
+  (`computeObjectRotation`, il contenitore gira in un senso, la spirale
+  interna nell'altro, `INNER_SPIRAL_DIRECTION = -1`) e un campo di
+  sfondo spiraliforme sempre presente (`computeBackgroundSpiralPoints`).
+- Il test di integrazione (canvas mockato, 600 fotogrammi) scritto
+  prima di dichiarare fatto ha trovato un vero bug nella riscrittura:
+  un deadlock fra `update()` e `prepare()` sul buffer di masking creato
+  troppo tardi (`update()` usciva subito su `!maskBuffer`, ma solo
+  `prepare()` lo creava, e `update()` non arrivava mai a chiamarlo).
+- Validazione: 58 file / 454 test, typecheck, lint e build verdi.
+
+## Nuovo renderer: Fractal Spiral Degeneration (PIANO-038) — 2026-08-21
+
+- Nono renderer Brain: il raster degenera progressivamente in una
+  struttura auto-simile, con copie ritagliate dalle regioni più salienti
+  del raster stesso che si ripetono a scale decrescenti lungo una
+  spirale discreta (raggio/scala che calano geometricamente per
+  livello, angolo guidato da `beatPhase`). Rotazione sempre locale al
+  singolo nodo (`save/translate/rotate/restore`, stesso schema di
+  `planePath()` in Bauhaus Morph) — mai il quadro (Check Camera).
+  Degenerazione e offset angolare entrambi silenzio-gated come
+  `advanceBauhausAbstraction`.
+- Nato da un brief di direzione artistica del "Capo Supremo dei DJ"
+  (regia visiva di Brain), deliberatamente privo di prescrizioni
+  tecniche — pianificato in Plan Mode con un agente Explore per
+  verificare i precedenti riusabili prima di scrivere codice.
+- Test di integrazione con Canvas2D mockato (600 fotogrammi simulati)
+  aggiunto PRIMA della build, non dopo un bug in produzione — lezione
+  diretta dalla sessione precedente (figure Bauhaus: test unitari verdi
+  ma la feature non compariva mai in pratica per soglie mal calibrate,
+  scoperto solo con un test di integrazione vero).
+- Vedi `working/plans/piano-038-fractal-spiral-degeneration.md` per la
+  traduzione tecnica sezione-per-sezione del brief.
+- Validazione: 58 file / 448 test, typecheck, lint e build verdi. Non
+  ancora verificato dal vivo con audio reale.
+
 ## Nuovo: figure Bauhaus indipendenti dal raster (PIANO-037) — 2026-08-21
 
 - Bauhaus Morph disegna ora, di tanto in tanto, una forma geometrica pura
@@ -8,13 +243,13 @@
   `motion.activity`/`beat` (stesso principio dell'accumulatore di
   sorpresa in Dream Segmentation, riadattato senza costruire un secondo
   sistema di profilo di banda), mai un timer fisso (Check Silenzio).
-- **Comportamento richiesto in un secondo momento dallo sviluppatore**:
+- **Comportamento richiesto in un secondo momento dal Capo Supremo**:
   se la figura resta vicina a un piano raster-derivato già presente per
   1-2s, prova a "diventare" una sagoma riconoscibile — scelta da una
   libreria curata a mano (`brainBauhausSilhouettes.ts`, 6 sagome in
   stile Bauhaus/Schlemmer: luna, foglia, bottiglia, uccello, stella,
   freccia), selezionata in base alle proporzioni del piano vicino, MAI
-  via ML (scelta esplicita dello sviluppatore dopo averla proposta come
+  via ML (scelta esplicita del Capo Supremo dopo averla proposta come
   alternativa in fase di piano). Il morph verso la sagoma riusa
   `interpolatedPlane` — già esistente, invariato — rappresentando sia la
   forma astratta di partenza sia le sagome curate come contorni a 8
@@ -27,7 +262,7 @@
 
 ## Trovato e corretto: rallentamento generale da filtro CSS blur ricalcolato ogni frame — 2026-08-21
 
-- **Segnalato dallo sviluppatore**: dopo il round precedente (morphing
+- **Segnalato dal Capo Supremo**: dopo il round precedente (morphing
   additivo durante la Riattivazione) l'app "lagga da morire", tutto
   fuori tempo. **Causa trovata rileggendo le modifiche appena fatte**: il
   morphing aggiunto per la Riattivazione applicava, oltre al blend mode
@@ -50,7 +285,7 @@
   precedente per il fallimento del renderer attivo (`brainRendererHost.ts`)
   passava sempre a Print2D, violando la regola "Print2D gira solo durante
   la Riattivazione" (PIANO-034) già richiesta esplicitamente in
-  precedenza — segnalato dallo sviluppatore come regressione. Fix: la
+  precedenza — segnalato dal Capo Supremo come regressione. Fix: la
   rete di sicurezza ora usa `getBoostHint` per scegliere Print2D solo
   durante la Riattivazione, FilterPsiche (già affidabile e usato altrove
   nello stesso file) in ogni altro momento.
@@ -63,7 +298,7 @@
   dell'altezza) che sale marcatamente ad ogni battito (`+0.16 × beat`),
   raster più visibile (opacità 64%), rimossa la frequenza indipendente
   per riga (frammentava la superficie in rumore scollegato dal raster,
-  segnalato dallo sviluppatore) sostituita da una velocità di
+  segnalato dal Capo Supremo) sostituita da una velocità di
   increspatura condivisa fra tutte le righe, aggiunto un indizio di
   profondità economico (righe in basso più spesse/opache) per la
   sensazione di rilievo 3D — nessuna libreria esterna, Canvas2D puro.
@@ -117,7 +352,7 @@
 
 ## Trovato e corretto: congelamento fino a 2m14s (non un bug di Dream Segmentation) — 2026-08-19
 
-- **Segnalato dallo sviluppatore**: Dream Segmentation "resta fissa per
+- **Segnalato dal Capo Supremo**: Dream Segmentation "resta fissa per
   minuti". **Verificato dai log** (`session-2026-08-19-23-08-00.txt`) che
   NON è un bug specifico del renderer: alle 21:10:36 è partito un "moto
   di coscienza" (`brainConsciousnessMotion.ts`, il pannello che richiama
@@ -140,8 +375,8 @@
 
 ## Dream Segmentation: contrasto più forte, scariche elettriche lungo la rete — 2026-08-19
 
-- **Contrasto rafforzato ulteriormente** (richiesta esplicita dello
-  sviluppatore, "fai quello che vuoi ma rendilo più visibile"): aggiunto
+- **Contrasto rafforzato ulteriormente** (richiesta esplicita del
+  Capo Supremo, "fai quello che vuoi ma rendilo più visibile"): aggiunto
   un livello di scurimento uniforme (`multiply`, ~0.32-0.44 di opacità
   legata alla tensione) su tutto il raster prima delle primitive, oltre
   al velo scuro già esistente per singola membrana — il raster resta
@@ -165,7 +400,7 @@
 
 ## Regressione trovata e corretta: mobilità/sensibilità musicale ridotta da resourcePressure troppo esteso — 2026-08-19
 
-- **Segnalato dallo sviluppatore** ("ridotto mobilità e sensibilità
+- **Segnalato dal Capo Supremo** ("ridotto mobilità e sensibilità
   musicale") dopo il lavoro di questa sessione sul passthrough
   FilterPsiche+Psycho2D/flash. **Causa reale trovata nei log**
   (`resourcePressureRatio` a 1.0 in più finestre consecutive,
@@ -233,7 +468,7 @@
   ancora chiamata "riconsolidamento"), 10 immagini, nessun doppione. La
   sessione è stata chiusa ~113s dopo (durata prevista 140s) prima della
   conclusione naturale — non un bug, solo l'app chiusa a metà ciclo.
-  Spiega perché lo sviluppatore non l'aveva mai notato: gira correttamente
+  Spiega perché il Capo Supremo non l'aveva mai notato: gira correttamente
   ma non c'era alcun segnale visibile.
 - **Rinominato "Ciclo di Revisione"/"Riconsolidamento" → "Riattivazione"**
   (titolo storia sintetica, log `pipeline`): "riconsolidamento" in
@@ -248,7 +483,7 @@
   usato per il nome del renderer e mostra una seconda riga arancione
   "Riattivazione attiva" nell'etichetta di debug in basso a destra,
   visibile solo quando il ciclo è davvero in corso.
-- **Bauhaus Morph troppo debole** (segnalato dallo sviluppatore): la
+- **Bauhaus Morph troppo debole** (segnalato dal Capo Supremo): la
   velocità di avanzamento dell'astrazione era troppo lenta rispetto alla
   durata tipica di visione — per la maggior parte del tempo lo sfondo
   restava al soffitto (0.35) e le forme non avevano ancora raggiunto la
@@ -256,7 +491,7 @@
   abbassato il soffitto dello sfondo (0.35→0.24) e anticipata la fase di
   dissolvenza (0.6→0.4 di progresso astrazione), alzata l'opacità di base
   delle forme (0.42→0.55).
-- **Dream Segmentation troppo debole** (segnalato dallo sviluppatore):
+- **Dream Segmentation troppo debole** (segnalato dal Capo Supremo):
   opacità di membrane/filamenti e ampiezza della respirazione erano
   tarate troppo basse fin dall'implementazione iniziale. Raddoppiata
   l'opacità delle membrane (~0.2→~0.42 base), aumentato il raggio
@@ -281,7 +516,7 @@
   sostituendo la prima). **Fix**: guardia sincrona
   `revisionCycleStarting` in `advanceToNextProduction`, impostata prima
   dell'await e liberata in `finally`.
-- **Bug separato trovato** (segnalato dallo sviluppatore, non legato al
+- **Bug separato trovato** (segnalato dal Capo Supremo, non legato al
   Riconsolidamento): Vector Morph "delle volte non parte, resta solo
   l'immagine di sfondo". Causa reale nei log: la vettorializzazione a
   volte viene respinta dal controllo qualità ("meno di cinque forme
@@ -300,8 +535,8 @@
   ri-registrato, spesso modificato) che corrisponde esattamente al
   meccanismo (le immagini ritornano deformate, non riprodotte identiche).
   Identificatori interni (`revisionCycle*`, `PIANO-034`,
-  `dreamRevisionCycle.ts`) invariati — solo l'etichetta rivolta allo
-  sviluppatore/ai log è cambiata.
+  `dreamRevisionCycle.ts`) invariati — solo l'etichetta rivolta al
+  Capo Supremo/ai log è cambiata.
 - Nuovo test in `brainRendererHost.test.ts` per il fallback di sicurezza
   su fallimento del renderer attivo. Nessun test dedicato per la guardia
   anti-doppio-innesco (stessa convenzione già in uso: `brainController.ts`
@@ -356,7 +591,7 @@
 
 - Aggiunto un settimo renderer Brain (`PIANO-032`,
   `working/plans/piano-032-dream-segmentation-renderer.md`), su
-  specifica filosofica dettagliata dello sviluppatore: rende visibile la
+  specifica filosofica dettagliata del Capo Supremo: rende visibile la
   distinzione fra **reattività** (locale, beat/transiente) ed **evento**
   (scarto tonale sostenuto che aggiorna lo "stato immaginativo" interno),
   con segmentazione dell'immagine come configurazione temporaneamente
@@ -398,8 +633,8 @@
   un livello secondario compositato sopra, mai l'unico contenuto.
 - Registrato come 7° renderer (`brainRendererRegistry.ts`), incluso in
   `PERSISTENT_STORY_RENDERERS`; aggiunto **preventivamente** a
-  `HEAVY_RENDERERS_UNDER_PRESSURE` (decisione esplicita dello
-  sviluppatore) perché usa lo stesso pattern `createImageBitmap` +
+  `HEAVY_RENDERERS_UNDER_PRESSURE` (decisione esplicita del
+  Capo Supremo) perché usa lo stesso pattern `createImageBitmap` +
   analisi pixel per sorgente che ha causato i freeze di cold-start di
   Bauhaus/Materia Morph risolti ieri — trattato allo stesso modo fin da
   subito, non dopo aver osservato un freeze in log.
@@ -465,7 +700,7 @@
 
 - Il fallback a catena di ieri (Bauhaus/Materia Morph) non basta da solo: i
   log restano con freeze fino a 30s su questi due renderer durante il
-  denoising attivo. Lo sviluppatore ha chiesto, non come mascheramento ma
+  denoising attivo. Il Capo Supremo ha chiesto, non come mascheramento ma
   come scheduling, di far girare FilterPsiche/Psycho2D al posto loro quando
   il sistema è sotto carico reale.
 - **Verifica preliminare**: Psycho2D ha `multipleImages: true` come
@@ -509,7 +744,7 @@
   più lavoro asincrono in coda rispetto a FilterPsiche/Print2D
   (`multipleImages: false`, una sola sorgente), quindi più esposti a uno
   stallo quando `createImageBitmap` rallenta per la GPU/decoder condivisi
-  con l'inferenza UNet. Coerente con la segnalazione dello sviluppatore:
+  con l'inferenza UNet. Coerente con la segnalazione del Capo Supremo:
   proprio questi due renderer sono i più critici sotto carico.
 - **Correzione** (`filosofia.md` §1 — "il sistema non cerca una
   rappresentazione definitiva... lascia emergere forme sufficientemente
@@ -524,7 +759,7 @@
   comportamento intenzionale già esistente (non introdotto ora): 2 dei 4
   fotogrammi per storia usano un profilo più leggero (`standard`/`interlude`),
   ora sempre includendo l'eco (fix di ieri). Non è un effetto collaterale
-  del lag. Segnalato allo sviluppatore per decidere se questo compromesso
+  del lag. Segnalato al Capo Supremo per decidere se questo compromesso
   va rivisto, dato che ora lo percepisce come una perdita, non solo come
   un risparmio accettabile.
 - Nessun nuovo test automatico per questo fix (cambia solo il fallback
@@ -571,7 +806,7 @@
   dettagliato (quando leggerlo, cosa contiene, come applicarlo) invece del
   contenuto integrale. Aggiornato anche il rimando in `skills.md`
   ("Skill: Evolvere Coscienza Onirica").
-- **Ottimizzazione**: lo sviluppatore ha chiesto di usare il principio
+- **Ottimizzazione**: il Capo Supremo ha chiesto di usare il principio
   onirico stesso come leva di performance contro i lag residui, evitando
   overengineering. `filosofia.md` §2 nota che l'ultima immagine di una
   storia ("eco/ritorno deformato") è per natura meno risolta della soglia
@@ -623,7 +858,7 @@
   locale sempre garantito, provenienza "collettiva" nella memoria di
   Coscienza Onirica) per delegare la generazione SD1.5 a macchine pari sulla
   LAN quando la macchina locale è sotto pressione reale.
-- **Non in corso**: lo sviluppatore ha scelto di provare prima
+- **Non in corso**: il Capo Supremo ha scelto di provare prima
   l'ottimizzazione locale più piccola descritta subito sotto. Il piano resta
   pronto per quando/se serve una soluzione più incisiva.
 
@@ -657,7 +892,7 @@
   "Tutti per storia", unica esclusione residua insieme a Print2D) e che
   FilterPsiche continua a sembrare più presente di tutti.
 - **Bauhaus**: rimosso da `STORY_CYCLE_EXCLUDED_RENDERERS` (resta escluso
-  solo Print2D, per scelta esplicita precedente dello sviluppatore); aggiunto
+  solo Print2D, per scelta esplicita precedente del Capo Supremo); aggiunto
   a `PERSISTENT_STORY_RENDERERS` (2-4 fotogrammi come gli altri, coerente con
   la richiesta "permanere e morphare"). Verificato che il suo rendering non
   viola la filosofia visiva (nessun movimento globale di camera, solo forme
@@ -669,7 +904,7 @@
   del passthrough (sessione precedente) — da confermare dal vivo con
   l'etichetta.
 - **Non reintrodotta** una sospensione per "sovraccarico" legata a
-  `resourcePressure`/basso consumo (suggerita come idea dallo sviluppatore):
+  `resourcePressure`/basso consumo (suggerita come idea dal Capo Supremo):
   quel meccanismo è stato già rimosso deliberatamente dopo una prova live
   negativa (`SESSION-2026-08-16-22`); va reintrodotto solo su richiesta
   esplicita e con validazione live, non come effetto collaterale di un fix
@@ -680,7 +915,7 @@
 
 ## Trovata la causa reale: FilterPsiche copriva tutto, renderer reale congelato — 2026-08-18
 
-- Lo sviluppatore ha usato l'etichetta appena aggiunta per confermare dal
+- Il Capo Supremo ha usato l'etichetta appena aggiunta per confermare dal
   vivo: l'etichetta mostrava Psycho2D/Materia Morph/Vector Morph a rotazione,
   ma visivamente si vedeva sempre FilterPsiche, e Materia Morph risultava
   fermo/statico. Individuata la causa esatta in `brainRendererHost.ts`.
@@ -718,7 +953,7 @@
   `data-active-renderer` scritto da `brainRendererHost.ts` sul proprio root.
 - Utile anche per verificare dal vivo se il crossfade fra fotogrammi (6-9s,
   già presente in `brainController.ts`) è effettivamente percepibile, dato
-  che lo sviluppatore continua a segnalare assenza di morphing sia fra
+  che il Capo Supremo continua a segnalare assenza di morphing sia fra
   renderer diversi sia fra immagini dello stesso renderer.
 - Validazione: 52 file / 314 test, typecheck, lint e build Vite verdi.
 
@@ -800,7 +1035,7 @@
   crossfade di Brain (`brainController.ts`) è un vero `smootherstep` da 6-9s
   con forme di controparte, non un taglio secco. Il refactor sui 6 plugin
   NON è stato eseguito: sarebbe stato basato su una diagnosi sbagliata.
-- **Richiesta finale dello sviluppatore**: concentrarsi solo su "Tutti per
+- **Richiesta finale del Capo Supremo**: concentrarsi solo su "Tutti per
   storia" e far girare tutti i renderer attivi in modo omogeneo, senza
   priorità a nessuno. Simulazione su 300 storie (con storia + attesa
   intrecciate): 24,6% / 25,9% / 24,8% / 24,8% fra Psycho2D, Vector Morph,
@@ -891,7 +1126,7 @@
   viene inserito in testa senza alterare l'ordine relativo degli altri.
 - Individuate anche due istanze Electron `pnpm dev` in esecuzione
   contemporaneamente (una da stanotte, una nuova) come possibile causa
-  ulteriore di contesa GPU; segnalato allo sviluppatore, nessuna azione presa
+  ulteriore di contesa GPU; segnalato al Capo Supremo, nessuna azione presa
   senza conferma.
 - Validazione: 52 file / 311 test, typecheck e lint verdi.
 
@@ -1195,14 +1430,14 @@
 ## 🚀 Prossimi Passi Immediati (Next Steps)
 
 1. [x] Creare il Piano di Lavoro `piano-003-coalescenza-ipc-interpolazione-ritmica.md` per la Fase 2 (Senza Esecuzione Codice).
-2. [x] Avvio dell'esecuzione del Piano di Lavoro `PIANO-003` su richiesta dello sviluppatore.
+2. [x] Avvio dell'esecuzione del Piano di Lavoro `PIANO-003` su richiesta del Capo Supremo.
 3. [x] Completare implementazione, audit, test, typecheck e build della Fase 2.
 4. [x] Eseguire una verifica live manuale con stallo WebGPU reale e controllare i contatori `[BrainMetrics]`.
 5. [x] Avviare la Fase 3A: scheduler termico e limite delle inferenze concorrenti.
 6. [x] Completare e validare `PIANO-004` senza iniziare il buffer immagini della Fase 3B.
-7. [x] Avviare la Fase 3B su nuovo prompt dello sviluppatore.
+7. [x] Avviare la Fase 3B su nuovo prompt del Capo Supremo.
 8. [x] Completare `PIANO-006` senza iniziare la prova live della Fase 3C.
-9. [x] Avviare la Fase 3C su nuovo prompt dello sviluppatore.
+9. [x] Avviare la Fase 3C su nuovo prompt del Capo Supremo.
 10. [x] Correggere il refill di `PIANO-007` perché la storia successiva sia pronta entro la finestra di 120–140 s, senza iniziare una Fase 3D.
 11. [ ] Correggere separatamente il `prefer-const` preesistente in `slitScanCanvas.ts:639` per riportare il lint globale a verde.
 12. [x] Definire ad alto livello origine, grafo dei ricordi e primi momenti di salvataggio di Coscienza Onirica in agente e skill.
@@ -1465,8 +1700,8 @@
   due immagini prima dell'avvio Canvas; con Print2D attivo i picchi sono scesi
   spesso a 249–276 ms, pur restando episodi termici da 383–450 ms.
 - Le immagini standard sono passate in genere da circa 10–11 s a 7–9 s. Il
-  candidato batch 1 resta attivo in attesa della conferma visiva dello
-  sviluppatore, perché rinuncia alla classifier-free guidance.
+  candidato batch 1 resta attivo in attesa della conferma visiva del
+  Capo Supremo, perché rinuncia alla classifier-free guidance.
 - La successiva prova 384×256 è stata negativa: sette gap denoising da 349,5 a
   391,8 ms e nessun guadagno affidabile. La geometria 448×256 è stata
   ripristinata per non perdere dettaglio.
@@ -1536,7 +1771,7 @@
 - L'implementazione non deve alterare la baseline `MACRO-009` prima del
   confronto controllato del secondo ciclo.
 
-Il test manuale finale di `MACRO-006` è affidato allo sviluppatore e non resta
+Il test manuale finale di `MACRO-006` è affidato al Capo Supremo e non resta
 registrato come task di implementazione aperto. Verificare soprattutto comparsa
 della seconda storia entro circa 120–140 s, continuità e temperatura.
 

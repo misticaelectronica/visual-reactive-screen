@@ -1213,7 +1213,7 @@ describe('Psichedel', () => {
       vectorizer(),
       undefined,
       new HighQualityRenderScheduler(() => 0.999),
-      (active) => lifecycle.push(active ? 'active' : 'idle'),
+      (active) => { lifecycle.push(active ? 'active' : 'idle') },
       inferenceScheduler,
     )
 
@@ -1286,7 +1286,7 @@ describe('Psichedel', () => {
       vectorizer(),
       undefined,
       new HighQualityRenderScheduler(() => 0),
-      (active) => inferenceStates.push(active),
+      (active) => { inferenceStates.push(active) },
     ).generate(story, performance.now() + 60_000)
 
     expect(modes).toHaveLength(4)

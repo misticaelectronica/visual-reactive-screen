@@ -243,8 +243,8 @@ async function prepareMaterialSource(
 }
 
 // Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
-// aveva la propria versione con drift casuale — segnalato dallo
-// sviluppatore come "soglie a cazzo"): stessa formula, stessi numeri
+// aveva la propria versione con drift casuale — segnalato dal
+// Capo Supremo come "soglie a cazzo"): stessa formula, stessi numeri
 // ovunque, leggermente più reattiva della media osservata prima.
 function bandDrive(
   value: number,
