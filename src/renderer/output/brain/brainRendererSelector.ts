@@ -116,7 +116,7 @@ export class BrainRendererSelector {
     const excluded = boosted ? AUTOMATICALLY_EXCLUDED_RENDERERS : STORY_CYCLE_EXCLUDED_RENDERERS
     const enabled = this.availableIds.filter((id) => !excluded.has(id))
     const base = enabled.length > 0 ? enabled : this.automaticIds()
-    // Segnalato dallo sviluppatore (log reali): durante la Riattivazione il
+    // Segnalato dal Capo Supremo (log reali): durante la Riattivazione il
     // filtro pressione escludeva sistematicamente i renderer pesanti
     // (incluso Fractal Spiral Degeneration), perché l'alternanza rapidissima
     // della Riattivazione stessa (min/max hold 1-2 fotogrammi) genera gap RAF
@@ -274,7 +274,7 @@ export class BrainRendererSelector {
     return true
   }
 
-  // Segnalato dallo sviluppatore (log reali, Riattivazione 2026-08-25): un
+  // Segnalato dal Capo Supremo (log reali, Riattivazione 2026-08-25): un
   // renderer che fallisce il proprio controllo qualità (es. Vector Morph,
   // "meno di cinque forme riconoscibili") non recupera da solo — la rete di
   // sicurezza di `brainRendererHost.ts` copre lo schermo, ma senza questo

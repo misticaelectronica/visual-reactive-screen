@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-009`  
 > **Data Creazione**: 2026-08-09  
 > **Stato**: `IN_PROGRESS`  
-> **Autore/Agente**: Codex / Sviluppatore
+> **Autore/Agente**: Codex / Capo Supremo
 
 ---
 
@@ -23,7 +23,7 @@ viene applicata prima di avere una traccia temporale completa.
   interna alla singola inferenza WebGPU.
 - L'ultima sessione osservata mostra gap RAF moderati di circa 383–392 ms
   durante il denoising.
-- I log precedenti vengono rimossi su richiesta dello sviluppatore; la memoria
+- I log precedenti vengono rimossi su richiesta del Capo Supremo; la memoria
   `.coscienza/` e le impostazioni non fanno parte della pulizia.
 
 ---
@@ -145,7 +145,7 @@ resa prestazionale affidabile.
   la cartella `log/` vuota senza intervenire su `.coscienza/`.
 - **2026-08-09**: avviata la baseline corrente; unico log
   `log/session-2026-08-09-23-39-06.txt`. In attesa dell'apertura dell'Output e
-  dell'attivazione del Brain da parte dello sviluppatore.
+  dell'attivazione del Brain da parte del Capo Supremo.
 - **2026-08-09**: sessione fermata su richiesta prima del completamento della
   produzione. Il piano viene archiviato senza conclusioni prestazionali; il
   lavoro torna a essere focalizzato su Coscienza Onirica.

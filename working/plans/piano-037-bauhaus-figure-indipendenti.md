@@ -2,7 +2,7 @@
 
 ## Origine
 
-Richiesta dello sviluppatore: "in bauhaus morph andrei a cercare di
+Richiesta del Capo Supremo: "in bauhaus morph andrei a cercare di
 disegnare delle figure ogni tanto, a prescindere dal raster, dammi una
 soluzione". Pianificato in Plan Mode con un agente Explore (lettura
 completa di `brainBauhausMorphCanvas.ts`) e un agente Plan (design della
@@ -16,7 +16,7 @@ il primo piano non coglieva:
 2. "quando una figura si avvicina ad una presente, dopo 1/2 secondi che
    ha aspetto e posizione, deve provare ad assumere una forma che possa
    ricordare un oggetto. il tema è ma come faccio a capire quale
-   oggetto?" — lo sviluppatore ha ipotizzato il machine learning; alla
+   oggetto?" — il Capo Supremo ha ipotizzato il machine learning; alla
    domanda diretta ha scelto esplicitamente una libreria curata a mano,
    NON il ML (troppo lontano dall'architettura Canvas2D-only di questo
    renderer, nessun precedente nel codebase per riconoscimento/sintesi

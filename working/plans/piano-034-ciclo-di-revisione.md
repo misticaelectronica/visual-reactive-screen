@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: nessuno (nuova funzionalità)
 > **Data Creazione**: 2026-08-19
 > **Stato**: `COMPLETATO`
-> **Autore/Agente**: Agente AI / Sviluppatore
+> **Autore/Agente**: Agente AI / Capo Supremo
 
 ---
 
@@ -132,7 +132,7 @@ già usato per `saveConsciousnessMemory`/`updateConsciousnessState`.
 
 ## 6. 📝 Note
 
-- **2026-08-19**: Piano progettato (con revisioni dello sviluppatore su
+- **2026-08-19**: Piano progettato (con revisioni del Capo Supremo su
   trigger a storie casuali 2-4, tag combinato, sospensione totale,
   filtro qualità in scrittura) e implementato per intero nella stessa
   sessione. Collisione di nome evitata: `'revision'` resta un

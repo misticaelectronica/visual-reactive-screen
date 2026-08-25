@@ -3,7 +3,7 @@
 ## Riattivazione: Print2D/Fractal Spiral, semaforo GPU, raster Fractal Spiral — 2026-08-25
 
 - **Diagnosi da log reali** (`session-2026-08-25-11-43-18.txt`, non ipotesi):
-  segnalato dallo sviluppatore che durante la Riattivazione Print2D si
+  segnalato dal Capo Supremo che durante la Riattivazione Print2D si
   vedeva troppo e Fractal Spiral Degeneration non compariva mai.
   - **Fractal Spiral assente**: è in `HEAVY_RENDERERS_UNDER_PRESSURE`; il
     filtro pressione di `storyCycleIds()` restava attivo anche durante la
@@ -28,7 +28,7 @@
     resta in scena solo per il tempo di preparare il prossimo renderer
     reale, non per l'intero fotogramma.
 - **Flash+glitch della rete di sicurezza rinforzati** (richiesta esplicita
-  dello sviluppatore dopo verifica live del semaforo proattivo di ieri,
+  del Capo Supremo dopo verifica live del semaforo proattivo di ieri,
   260ms di anticipo non bastavano a renderlo convincente):
   `PRESSURE_FLASH_PEAK_OPACITY` 0.55→0.85, `PRESSURE_GLITCH_PEAK_OPACITY`
   0.4→0.7, strisce glitch 4→7, offset massimo 14→26px, terza tinta
@@ -52,7 +52,7 @@
 
 ## Semaforo proattivo prima del carico GPU denoising — 2026-08-25
 
-- Segnalato dallo sviluppatore: il passaggio al passthrough mix
+- Segnalato dal Capo Supremo: il passaggio al passthrough mix
   FilterPsiche+Psycho2D restava percettibilmente in ritardo durante il
   carico GPU. Causa: `visualPressurePulseUntil` veniva armato solo in
   modo reattivo, dopo che il thermalScheduler misurava un gap RAF già
@@ -144,13 +144,13 @@
   `motion.activity`/`beat` (stesso principio dell'accumulatore di
   sorpresa in Dream Segmentation, riadattato senza costruire un secondo
   sistema di profilo di banda), mai un timer fisso (Check Silenzio).
-- **Comportamento richiesto in un secondo momento dallo sviluppatore**:
+- **Comportamento richiesto in un secondo momento dal Capo Supremo**:
   se la figura resta vicina a un piano raster-derivato già presente per
   1-2s, prova a "diventare" una sagoma riconoscibile — scelta da una
   libreria curata a mano (`brainBauhausSilhouettes.ts`, 6 sagome in
   stile Bauhaus/Schlemmer: luna, foglia, bottiglia, uccello, stella,
   freccia), selezionata in base alle proporzioni del piano vicino, MAI
-  via ML (scelta esplicita dello sviluppatore dopo averla proposta come
+  via ML (scelta esplicita del Capo Supremo dopo averla proposta come
   alternativa in fase di piano). Il morph verso la sagoma riusa
   `interpolatedPlane` — già esistente, invariato — rappresentando sia la
   forma astratta di partenza sia le sagome curate come contorni a 8
@@ -163,7 +163,7 @@
 
 ## Trovato e corretto: rallentamento generale da filtro CSS blur ricalcolato ogni frame — 2026-08-21
 
-- **Segnalato dallo sviluppatore**: dopo il round precedente (morphing
+- **Segnalato dal Capo Supremo**: dopo il round precedente (morphing
   additivo durante la Riattivazione) l'app "lagga da morire", tutto
   fuori tempo. **Causa trovata rileggendo le modifiche appena fatte**: il
   morphing aggiunto per la Riattivazione applicava, oltre al blend mode
@@ -186,7 +186,7 @@
   precedente per il fallimento del renderer attivo (`brainRendererHost.ts`)
   passava sempre a Print2D, violando la regola "Print2D gira solo durante
   la Riattivazione" (PIANO-034) già richiesta esplicitamente in
-  precedenza — segnalato dallo sviluppatore come regressione. Fix: la
+  precedenza — segnalato dal Capo Supremo come regressione. Fix: la
   rete di sicurezza ora usa `getBoostHint` per scegliere Print2D solo
   durante la Riattivazione, FilterPsiche (già affidabile e usato altrove
   nello stesso file) in ogni altro momento.
@@ -199,7 +199,7 @@
   dell'altezza) che sale marcatamente ad ogni battito (`+0.16 × beat`),
   raster più visibile (opacità 64%), rimossa la frequenza indipendente
   per riga (frammentava la superficie in rumore scollegato dal raster,
-  segnalato dallo sviluppatore) sostituita da una velocità di
+  segnalato dal Capo Supremo) sostituita da una velocità di
   increspatura condivisa fra tutte le righe, aggiunto un indizio di
   profondità economico (righe in basso più spesse/opache) per la
   sensazione di rilievo 3D — nessuna libreria esterna, Canvas2D puro.
@@ -253,7 +253,7 @@
 
 ## Trovato e corretto: congelamento fino a 2m14s (non un bug di Dream Segmentation) — 2026-08-19
 
-- **Segnalato dallo sviluppatore**: Dream Segmentation "resta fissa per
+- **Segnalato dal Capo Supremo**: Dream Segmentation "resta fissa per
   minuti". **Verificato dai log** (`session-2026-08-19-23-08-00.txt`) che
   NON è un bug specifico del renderer: alle 21:10:36 è partito un "moto
   di coscienza" (`brainConsciousnessMotion.ts`, il pannello che richiama
@@ -276,8 +276,8 @@
 
 ## Dream Segmentation: contrasto più forte, scariche elettriche lungo la rete — 2026-08-19
 
-- **Contrasto rafforzato ulteriormente** (richiesta esplicita dello
-  sviluppatore, "fai quello che vuoi ma rendilo più visibile"): aggiunto
+- **Contrasto rafforzato ulteriormente** (richiesta esplicita del
+  Capo Supremo, "fai quello che vuoi ma rendilo più visibile"): aggiunto
   un livello di scurimento uniforme (`multiply`, ~0.32-0.44 di opacità
   legata alla tensione) su tutto il raster prima delle primitive, oltre
   al velo scuro già esistente per singola membrana — il raster resta
@@ -301,7 +301,7 @@
 
 ## Regressione trovata e corretta: mobilità/sensibilità musicale ridotta da resourcePressure troppo esteso — 2026-08-19
 
-- **Segnalato dallo sviluppatore** ("ridotto mobilità e sensibilità
+- **Segnalato dal Capo Supremo** ("ridotto mobilità e sensibilità
   musicale") dopo il lavoro di questa sessione sul passthrough
   FilterPsiche+Psycho2D/flash. **Causa reale trovata nei log**
   (`resourcePressureRatio` a 1.0 in più finestre consecutive,
@@ -369,7 +369,7 @@
   ancora chiamata "riconsolidamento"), 10 immagini, nessun doppione. La
   sessione è stata chiusa ~113s dopo (durata prevista 140s) prima della
   conclusione naturale — non un bug, solo l'app chiusa a metà ciclo.
-  Spiega perché lo sviluppatore non l'aveva mai notato: gira correttamente
+  Spiega perché il Capo Supremo non l'aveva mai notato: gira correttamente
   ma non c'era alcun segnale visibile.
 - **Rinominato "Ciclo di Revisione"/"Riconsolidamento" → "Riattivazione"**
   (titolo storia sintetica, log `pipeline`): "riconsolidamento" in
@@ -384,7 +384,7 @@
   usato per il nome del renderer e mostra una seconda riga arancione
   "Riattivazione attiva" nell'etichetta di debug in basso a destra,
   visibile solo quando il ciclo è davvero in corso.
-- **Bauhaus Morph troppo debole** (segnalato dallo sviluppatore): la
+- **Bauhaus Morph troppo debole** (segnalato dal Capo Supremo): la
   velocità di avanzamento dell'astrazione era troppo lenta rispetto alla
   durata tipica di visione — per la maggior parte del tempo lo sfondo
   restava al soffitto (0.35) e le forme non avevano ancora raggiunto la
@@ -392,7 +392,7 @@
   abbassato il soffitto dello sfondo (0.35→0.24) e anticipata la fase di
   dissolvenza (0.6→0.4 di progresso astrazione), alzata l'opacità di base
   delle forme (0.42→0.55).
-- **Dream Segmentation troppo debole** (segnalato dallo sviluppatore):
+- **Dream Segmentation troppo debole** (segnalato dal Capo Supremo):
   opacità di membrane/filamenti e ampiezza della respirazione erano
   tarate troppo basse fin dall'implementazione iniziale. Raddoppiata
   l'opacità delle membrane (~0.2→~0.42 base), aumentato il raggio
@@ -417,7 +417,7 @@
   sostituendo la prima). **Fix**: guardia sincrona
   `revisionCycleStarting` in `advanceToNextProduction`, impostata prima
   dell'await e liberata in `finally`.
-- **Bug separato trovato** (segnalato dallo sviluppatore, non legato al
+- **Bug separato trovato** (segnalato dal Capo Supremo, non legato al
   Riconsolidamento): Vector Morph "delle volte non parte, resta solo
   l'immagine di sfondo". Causa reale nei log: la vettorializzazione a
   volte viene respinta dal controllo qualità ("meno di cinque forme
@@ -436,8 +436,8 @@
   ri-registrato, spesso modificato) che corrisponde esattamente al
   meccanismo (le immagini ritornano deformate, non riprodotte identiche).
   Identificatori interni (`revisionCycle*`, `PIANO-034`,
-  `dreamRevisionCycle.ts`) invariati — solo l'etichetta rivolta allo
-  sviluppatore/ai log è cambiata.
+  `dreamRevisionCycle.ts`) invariati — solo l'etichetta rivolta al
+  Capo Supremo/ai log è cambiata.
 - Nuovo test in `brainRendererHost.test.ts` per il fallback di sicurezza
   su fallimento del renderer attivo. Nessun test dedicato per la guardia
   anti-doppio-innesco (stessa convenzione già in uso: `brainController.ts`
@@ -492,7 +492,7 @@
 
 - Aggiunto un settimo renderer Brain (`PIANO-032`,
   `working/plans/piano-032-dream-segmentation-renderer.md`), su
-  specifica filosofica dettagliata dello sviluppatore: rende visibile la
+  specifica filosofica dettagliata del Capo Supremo: rende visibile la
   distinzione fra **reattività** (locale, beat/transiente) ed **evento**
   (scarto tonale sostenuto che aggiorna lo "stato immaginativo" interno),
   con segmentazione dell'immagine come configurazione temporaneamente
@@ -534,8 +534,8 @@
   un livello secondario compositato sopra, mai l'unico contenuto.
 - Registrato come 7° renderer (`brainRendererRegistry.ts`), incluso in
   `PERSISTENT_STORY_RENDERERS`; aggiunto **preventivamente** a
-  `HEAVY_RENDERERS_UNDER_PRESSURE` (decisione esplicita dello
-  sviluppatore) perché usa lo stesso pattern `createImageBitmap` +
+  `HEAVY_RENDERERS_UNDER_PRESSURE` (decisione esplicita del
+  Capo Supremo) perché usa lo stesso pattern `createImageBitmap` +
   analisi pixel per sorgente che ha causato i freeze di cold-start di
   Bauhaus/Materia Morph risolti ieri — trattato allo stesso modo fin da
   subito, non dopo aver osservato un freeze in log.
@@ -601,7 +601,7 @@
 
 - Il fallback a catena di ieri (Bauhaus/Materia Morph) non basta da solo: i
   log restano con freeze fino a 30s su questi due renderer durante il
-  denoising attivo. Lo sviluppatore ha chiesto, non come mascheramento ma
+  denoising attivo. Il Capo Supremo ha chiesto, non come mascheramento ma
   come scheduling, di far girare FilterPsiche/Psycho2D al posto loro quando
   il sistema è sotto carico reale.
 - **Verifica preliminare**: Psycho2D ha `multipleImages: true` come
@@ -645,7 +645,7 @@
   più lavoro asincrono in coda rispetto a FilterPsiche/Print2D
   (`multipleImages: false`, una sola sorgente), quindi più esposti a uno
   stallo quando `createImageBitmap` rallenta per la GPU/decoder condivisi
-  con l'inferenza UNet. Coerente con la segnalazione dello sviluppatore:
+  con l'inferenza UNet. Coerente con la segnalazione del Capo Supremo:
   proprio questi due renderer sono i più critici sotto carico.
 - **Correzione** (`filosofia.md` §1 — "il sistema non cerca una
   rappresentazione definitiva... lascia emergere forme sufficientemente
@@ -660,7 +660,7 @@
   comportamento intenzionale già esistente (non introdotto ora): 2 dei 4
   fotogrammi per storia usano un profilo più leggero (`standard`/`interlude`),
   ora sempre includendo l'eco (fix di ieri). Non è un effetto collaterale
-  del lag. Segnalato allo sviluppatore per decidere se questo compromesso
+  del lag. Segnalato al Capo Supremo per decidere se questo compromesso
   va rivisto, dato che ora lo percepisce come una perdita, non solo come
   un risparmio accettabile.
 - Nessun nuovo test automatico per questo fix (cambia solo il fallback
@@ -707,7 +707,7 @@
   dettagliato (quando leggerlo, cosa contiene, come applicarlo) invece del
   contenuto integrale. Aggiornato anche il rimando in `skills.md`
   ("Skill: Evolvere Coscienza Onirica").
-- **Ottimizzazione**: lo sviluppatore ha chiesto di usare il principio
+- **Ottimizzazione**: il Capo Supremo ha chiesto di usare il principio
   onirico stesso come leva di performance contro i lag residui, evitando
   overengineering. `filosofia.md` §2 nota che l'ultima immagine di una
   storia ("eco/ritorno deformato") è per natura meno risolta della soglia
@@ -759,7 +759,7 @@
   locale sempre garantito, provenienza "collettiva" nella memoria di
   Coscienza Onirica) per delegare la generazione SD1.5 a macchine pari sulla
   LAN quando la macchina locale è sotto pressione reale.
-- **Non in corso**: lo sviluppatore ha scelto di provare prima
+- **Non in corso**: il Capo Supremo ha scelto di provare prima
   l'ottimizzazione locale più piccola descritta subito sotto. Il piano resta
   pronto per quando/se serve una soluzione più incisiva.
 
@@ -793,7 +793,7 @@
   "Tutti per storia", unica esclusione residua insieme a Print2D) e che
   FilterPsiche continua a sembrare più presente di tutti.
 - **Bauhaus**: rimosso da `STORY_CYCLE_EXCLUDED_RENDERERS` (resta escluso
-  solo Print2D, per scelta esplicita precedente dello sviluppatore); aggiunto
+  solo Print2D, per scelta esplicita precedente del Capo Supremo); aggiunto
   a `PERSISTENT_STORY_RENDERERS` (2-4 fotogrammi come gli altri, coerente con
   la richiesta "permanere e morphare"). Verificato che il suo rendering non
   viola la filosofia visiva (nessun movimento globale di camera, solo forme
@@ -805,7 +805,7 @@
   del passthrough (sessione precedente) — da confermare dal vivo con
   l'etichetta.
 - **Non reintrodotta** una sospensione per "sovraccarico" legata a
-  `resourcePressure`/basso consumo (suggerita come idea dallo sviluppatore):
+  `resourcePressure`/basso consumo (suggerita come idea dal Capo Supremo):
   quel meccanismo è stato già rimosso deliberatamente dopo una prova live
   negativa (`SESSION-2026-08-16-22`); va reintrodotto solo su richiesta
   esplicita e con validazione live, non come effetto collaterale di un fix
@@ -816,7 +816,7 @@
 
 ## Trovata la causa reale: FilterPsiche copriva tutto, renderer reale congelato — 2026-08-18
 
-- Lo sviluppatore ha usato l'etichetta appena aggiunta per confermare dal
+- Il Capo Supremo ha usato l'etichetta appena aggiunta per confermare dal
   vivo: l'etichetta mostrava Psycho2D/Materia Morph/Vector Morph a rotazione,
   ma visivamente si vedeva sempre FilterPsiche, e Materia Morph risultava
   fermo/statico. Individuata la causa esatta in `brainRendererHost.ts`.
@@ -854,7 +854,7 @@
   `data-active-renderer` scritto da `brainRendererHost.ts` sul proprio root.
 - Utile anche per verificare dal vivo se il crossfade fra fotogrammi (6-9s,
   già presente in `brainController.ts`) è effettivamente percepibile, dato
-  che lo sviluppatore continua a segnalare assenza di morphing sia fra
+  che il Capo Supremo continua a segnalare assenza di morphing sia fra
   renderer diversi sia fra immagini dello stesso renderer.
 - Validazione: 52 file / 314 test, typecheck, lint e build Vite verdi.
 
@@ -936,7 +936,7 @@
   crossfade di Brain (`brainController.ts`) è un vero `smootherstep` da 6-9s
   con forme di controparte, non un taglio secco. Il refactor sui 6 plugin
   NON è stato eseguito: sarebbe stato basato su una diagnosi sbagliata.
-- **Richiesta finale dello sviluppatore**: concentrarsi solo su "Tutti per
+- **Richiesta finale del Capo Supremo**: concentrarsi solo su "Tutti per
   storia" e far girare tutti i renderer attivi in modo omogeneo, senza
   priorità a nessuno. Simulazione su 300 storie (con storia + attesa
   intrecciate): 24,6% / 25,9% / 24,8% / 24,8% fra Psycho2D, Vector Morph,
@@ -1027,7 +1027,7 @@
   viene inserito in testa senza alterare l'ordine relativo degli altri.
 - Individuate anche due istanze Electron `pnpm dev` in esecuzione
   contemporaneamente (una da stanotte, una nuova) come possibile causa
-  ulteriore di contesa GPU; segnalato allo sviluppatore, nessuna azione presa
+  ulteriore di contesa GPU; segnalato al Capo Supremo, nessuna azione presa
   senza conferma.
 - Validazione: 52 file / 311 test, typecheck e lint verdi.
 
@@ -1331,14 +1331,14 @@
 ## 🚀 Prossimi Passi Immediati (Next Steps)
 
 1. [x] Creare il Piano di Lavoro `piano-003-coalescenza-ipc-interpolazione-ritmica.md` per la Fase 2 (Senza Esecuzione Codice).
-2. [x] Avvio dell'esecuzione del Piano di Lavoro `PIANO-003` su richiesta dello sviluppatore.
+2. [x] Avvio dell'esecuzione del Piano di Lavoro `PIANO-003` su richiesta del Capo Supremo.
 3. [x] Completare implementazione, audit, test, typecheck e build della Fase 2.
 4. [x] Eseguire una verifica live manuale con stallo WebGPU reale e controllare i contatori `[BrainMetrics]`.
 5. [x] Avviare la Fase 3A: scheduler termico e limite delle inferenze concorrenti.
 6. [x] Completare e validare `PIANO-004` senza iniziare il buffer immagini della Fase 3B.
-7. [x] Avviare la Fase 3B su nuovo prompt dello sviluppatore.
+7. [x] Avviare la Fase 3B su nuovo prompt del Capo Supremo.
 8. [x] Completare `PIANO-006` senza iniziare la prova live della Fase 3C.
-9. [x] Avviare la Fase 3C su nuovo prompt dello sviluppatore.
+9. [x] Avviare la Fase 3C su nuovo prompt del Capo Supremo.
 10. [x] Correggere il refill di `PIANO-007` perché la storia successiva sia pronta entro la finestra di 120–140 s, senza iniziare una Fase 3D.
 11. [ ] Correggere separatamente il `prefer-const` preesistente in `slitScanCanvas.ts:639` per riportare il lint globale a verde.
 12. [x] Definire ad alto livello origine, grafo dei ricordi e primi momenti di salvataggio di Coscienza Onirica in agente e skill.
@@ -1601,8 +1601,8 @@
   due immagini prima dell'avvio Canvas; con Print2D attivo i picchi sono scesi
   spesso a 249–276 ms, pur restando episodi termici da 383–450 ms.
 - Le immagini standard sono passate in genere da circa 10–11 s a 7–9 s. Il
-  candidato batch 1 resta attivo in attesa della conferma visiva dello
-  sviluppatore, perché rinuncia alla classifier-free guidance.
+  candidato batch 1 resta attivo in attesa della conferma visiva del
+  Capo Supremo, perché rinuncia alla classifier-free guidance.
 - La successiva prova 384×256 è stata negativa: sette gap denoising da 349,5 a
   391,8 ms e nessun guadagno affidabile. La geometria 448×256 è stata
   ripristinata per non perdere dettaglio.
@@ -1672,7 +1672,7 @@
 - L'implementazione non deve alterare la baseline `MACRO-009` prima del
   confronto controllato del secondo ciclo.
 
-Il test manuale finale di `MACRO-006` è affidato allo sviluppatore e non resta
+Il test manuale finale di `MACRO-006` è affidato al Capo Supremo e non resta
 registrato come task di implementazione aperto. Verificare soprattutto comparsa
 della seconda storia entro circa 120–140 s, continuità e temperatura.
 

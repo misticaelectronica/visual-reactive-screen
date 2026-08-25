@@ -64,7 +64,7 @@ const BACKGROUND_POINT_BUDGET_LOW_POWER = 6
 const BACKGROUND_POINT_BUDGET_PRESSURE = 4
 const MAX_REGIONS_FOR_ANALYSIS = 12
 
-// Alzato DI NUOVO su richiesta esplicita e ripetuta dello sviluppatore
+// Alzato DI NUOVO su richiesta esplicita e ripetuta del Capo Supremo
 // (2026-08-25, "il raster deve essere più visibile e non si vede per
 // niente"): il primo aumento non bastava — il raster dentro gli oggetti
 // veniva comunque sovrascritto quasi del tutto dal riempimento a spirale

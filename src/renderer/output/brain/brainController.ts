@@ -577,7 +577,7 @@ export function createBrainController(
   // RAF frequenti quella finestra resta quasi sempre estesa, e
   // propagarla a `setResourcePressure` degradava i renderer per la
   // maggior parte del tempo, non solo durante gli stalli reali
-  // (segnalato dallo sviluppatore: "ridotto mobilità e sensibilità
+  // (segnalato dal Capo Supremo: "ridotto mobilità e sensibilità
   // musicale"). Il passthrough/flash ha bisogno solo di coprire il
   // momento dello stallo, non l'intera finestra di backoff — un impulso
   // breve, dedicato, distinto dalla finestra lunga di generazione.
@@ -591,7 +591,7 @@ export function createBrainController(
     }
     brainLog('thermal', `scheduler inferenza: ${event.type}`, event)
   }
-  // Semaforo davanti al carico GPU (segnalato dallo sviluppatore: il mix
+  // Semaforo davanti al carico GPU (segnalato dal Capo Supremo: il mix
   // FilterPsiche+Psycho2D scattava sempre con lo stallo già in corso,
   // perché `visualPressurePulseUntil` veniva armato solo REATTIVAMENTE,
   // dopo che il thermalScheduler misurava un gap RAF già avvenuto). Qui
@@ -1368,7 +1368,7 @@ export function createBrainController(
     root.dataset.revisionCycleActive = 'true'
     // Le sidebar laterali (testo/storia a sinistra, galleria raster a
     // destra) spariscono per tutta la Riattivazione — riappaiono da sole
-    // quando la produzione normale riprende (segnalato dallo sviluppatore).
+    // quando la produzione normale riprende (segnalato dal Capo Supremo).
     window.clearTimeout(storyPanelTimerId)
     storyPanelTimerId = 0
     storyElement.style.transition = 'opacity 600ms ease'
@@ -2075,7 +2075,7 @@ export function createBrainController(
     // renderer interno di `brainRendererHost.ts`: lì la Riattivazione
     // alterna i renderer quasi ad ogni fotogramma tenuto, e sommare un
     // blend additivo ad ogni singolo micro-cambio si accumulava in un
-    // effetto "tutto glitchato" (segnalato dallo sviluppatore) invece di
+    // effetto "tutto glitchato" (segnalato dal Capo Supremo) invece di
     // una fusione leggibile. Un solo cambio di blend mode, mai un filtro
     // ricalcolato per frame: costo trascurabile.
     if (outgoingSvg) {

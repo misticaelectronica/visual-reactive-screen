@@ -74,7 +74,7 @@ describe('BrainRendererSelector — Riattivazione (boost)', () => {
   })
 
   it('con boost il filtro pressione non esclude i renderer pesanti (copertura completa garantita)', () => {
-    // Segnalato dallo sviluppatore con log reali: durante la Riattivazione
+    // Segnalato dal Capo Supremo con log reali: durante la Riattivazione
     // l'alternanza rapidissima genera gap RAF che il thermalScheduler legge
     // come pressione reale, escludendo sistematicamente bauhaus-morph
     // (pesante) dal mazzo — proprio nella fase che deve garantire che tutti

@@ -24,7 +24,7 @@ import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
 // Dream Segmentation rappresenta visivamente come Brain costruisce,
 // mantiene e trasforma uno stato immaginativo durante l'ascolto (vedi
 // working/plans/piano-032-dream-segmentation-renderer.md per la filosofia
-// completa fornita dallo sviluppatore). Un "segmento" (regione) è una
+// completa fornita dal Capo Supremo). Un "segmento" (regione) è una
 // configurazione temporaneamente stabile; la sequenza deve produrre
 // persistenza → destabilizzazione → trasformazione → nuova
 // stabilizzazione, mai un taglio secco fra due immagini indipendenti.
@@ -352,8 +352,8 @@ export function computeRegionBreathing(
 }
 
 // Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
-// aveva la propria versione con drift casuale — segnalato dallo
-// sviluppatore come "soglie a cazzo"): stessa formula, stessi numeri
+// aveva la propria versione con drift casuale — segnalato dal
+// Capo Supremo come "soglie a cazzo"): stessa formula, stessi numeri
 // ovunque, leggermente più reattiva della media osservata prima.
 function bandDrive(value: number, average: number | undefined, transient: number): number {
   const baseline = Math.max(0.018, average ?? value * 0.82)
@@ -504,7 +504,7 @@ function focalRegionOf(field: CachedDreamField | null): MaterialRegion | null {
 // Un velo scuro sotto la membrana (in 'multiply', prima del 'lighter')
 // affossa localmente il raster: senza, il colore additivo della membrana
 // si perde contro le zone chiare dell'immagine e resta poco leggibile
-// (segnalato dallo sviluppatore) — con il velo il contrasto regge anche
+// (segnalato dal Capo Supremo) — con il velo il contrasto regge anche
 // su fondali chiari, senza sostituire il raster (Check Materia: resta
 // sempre visibile sotto, solo scurito localmente).
 function drawDarkeningVeil(
@@ -1018,7 +1018,7 @@ export function createBrainDreamSegmentationScene(
       // Livello di contrasto: scurisce leggermente e uniformemente il
       // raster prima delle primitive, così il colore additivo di
       // membrane/filamenti/scariche resta leggibile anche su fondali
-      // chiari (segnalato dallo sviluppatore) — il raster resta sempre
+      // chiari (segnalato dal Capo Supremo) — il raster resta sempre
       // riconoscibile sotto (Check Materia), solo con meno contrasto
       // locale, non sostituito.
       context.globalCompositeOperation = 'multiply'
@@ -1110,7 +1110,7 @@ export function createBrainDreamSegmentationScene(
           // Il respiro si vede anche in luminosità, non solo in dimensione:
           // la stessa espansione che allarga il raggio schiarisce la
           // membrana, altrimenti su regioni piccole la sola scala resta
-          // impercettibile (segnalato dallo sviluppatore).
+          // impercettibile (segnalato dal Capo Supremo).
           drawMembrane(
             context, x, y, radius, region.averageColor,
             clamp(0.42 + motion.tension * 0.3 + (scale - 1) * 0.45),

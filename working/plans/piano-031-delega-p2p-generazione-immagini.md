@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-026` (correlato — vedi sotto)
 > **Data Creazione**: 2026-08-18
 > **Stato**: `BOZZA — CONSERVATO PER RIFERIMENTO FUTURO, NON IN CORSO`
-> **Autore/Agente**: Agente AI + sviluppatore
+> **Autore/Agente**: Agente AI + Capo Supremo
 
 ---
 
@@ -27,7 +27,7 @@ con provenienza esplicita "collettiva", seguendo lo stesso protocollo già
 esistente per i "moti di coscienza" in `.coscienza/AGENT.md` (episodio raro,
 non ogni fotogramma, nomina sempre la fonte).
 
-**Perché è "conservato per riferimento" e non in corso**: lo sviluppatore ha
+**Perché è "conservato per riferimento" e non in corso**: il Capo Supremo ha
 scelto di provare prima un'ottimizzazione locale più piccola e meno rischiosa
 (riduzione adattiva degli step UNet sotto pressione reale, vedi
 `working/STATE.md` 2026-08-18 e il codice in `psichedel.ts`/
@@ -89,7 +89,7 @@ Questo piano costruisce quella conclusione mai realizzata.
 
 ## 4. 🛠️ Fasi di Implementazione e Checklist Task
 
-### Vincolo architetturale chiave (verificato con lo sviluppatore)
+### Vincolo architetturale chiave (verificato con il Capo Supremo)
 
 Electron ha due tipi di processo con permessi diversi: il **main** (Node)
 può aprire un server che ascolta connessioni in entrata; il **renderer**
@@ -194,10 +194,10 @@ Direzione "chiedo": mio renderer (pressione reale rilevata)
 
 ## 6. 📝 Note e Registro Avanzamento
 
-- **2026-08-18**: piano discusso e disegnato con lo sviluppatore (scelte
+- **2026-08-18**: piano discusso e disegnato con il Capo Supremo (scelte
   chiuse: solo immagini SD1.5, solo sotto pressione reale, provenienza
   "collettiva" solo per chi riceve). Chiarito il vincolo main/renderer e la
-  scelta HTTP su WebSocket/UDP dopo domande dello sviluppatore. Conservato
-  per riferimento futuro; lo sviluppatore ha scelto di procedere prima con
+  scelta HTTP su WebSocket/UDP dopo domande del Capo Supremo. Conservato
+  per riferimento futuro; il Capo Supremo ha scelto di procedere prima con
   un'ottimizzazione locale più piccola (`PIANO` riduzione adattiva step UNet,
   vedi `working/STATE.md` 2026-08-18).

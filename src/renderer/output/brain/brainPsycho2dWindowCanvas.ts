@@ -435,7 +435,7 @@ export function createBrainPsycho2dWindowScene(
       const beatPhase = rhythm?.beatPhase ?? lastBeatPhase
       // Scala di genere unificata con gli altri renderer Brain (in
       // precedenza ogni file aveva la propria versione con drift casuale
-      // — segnalato dallo sviluppatore come "soglie a cazzo").
+      // — segnalato dal Capo Supremo come "soglie a cazzo").
       const kickProfileScale = settings.motionProfile === 'ambient'
         ? 0.6
         : settings.motionProfile === 'techno'
@@ -626,7 +626,7 @@ export function createBrainPsycho2dWindowScene(
 
       // Scala di genere unificata con gli altri renderer Brain (in
       // precedenza ogni file aveva la propria versione con drift casuale
-      // — segnalato dallo sviluppatore come "soglie a cazzo").
+      // — segnalato dal Capo Supremo come "soglie a cazzo").
       const profileScale = settings.motionProfile === 'ambient'
         ? 0.6
         : settings.motionProfile === 'techno'

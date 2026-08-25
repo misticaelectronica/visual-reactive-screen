@@ -118,8 +118,8 @@ export function calculateBrainPrint2dBandDrives(
   movingAverages?: BandEnergies,
 ): BrainPrint2dBandDrives {
   // Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
-  // aveva la propria versione con drift casuale — segnalato dallo
-  // sviluppatore come "soglie a cazzo"): stessi numeri di baseline/soglia
+  // aveva la propria versione con drift casuale — segnalato dal
+  // Capo Supremo come "soglie a cazzo"): stessi numeri di baseline/soglia
   // di `bandDrive` usato altrove, leggermente più reattiva di prima.
   const drive = (band: keyof BandEnergies): number => {
     const value = clamp(bands[band])

@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: `MACRO-XXX`  
 > **Data Creazione**: YYYY-MM-DD  
 > **Stato**: `[ BOZZA | APPROVATO | IN_PROGRESS | COMPLETATO | ARCHIVIATO ]`  
-> **Autore/Agente**: Agente AI / Sviluppatore  
+> **Autore/Agente**: Agente AI / Capo Supremo  
 
 ---
 

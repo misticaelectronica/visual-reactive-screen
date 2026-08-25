@@ -13,7 +13,7 @@ import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
 // Glitch Morph: contorni di luminanza che ridisegnano il raster con linee
 // sottili, iridescenti, il cui spostamento verticale segue il profilo di
 // luminanza dell'immagine (vedi working/plans/piano-035-glitch-morph-renderer.md
-// per l'analisi e l'anteprima interattiva approvate dallo sviluppatore).
+// per l'analisi e l'anteprima interattiva approvate dal Capo Supremo).
 // Check Materia: il raster resta SEMPRE il livello di base, attenuato ma
 // visibile fra una linea e l'altra — non sostituito da un fondo nero.
 
@@ -32,7 +32,7 @@ const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 // tracciato per frame più altrettante allocazioni di oggetti {x,y} — un
 // carico sul thread principale abbastanza pesante da far percepire
 // rallentato/meno reattivo l'intero programma, non solo questo renderer
-// (segnalato dallo sviluppatore). Check Costo.
+// (segnalato dal Capo Supremo). Check Costo.
 const NORMAL_ROWS = 30
 const LOW_POWER_ROWS = 20
 const PRESSURE_ROWS = 14
@@ -48,7 +48,7 @@ const FRINGE_MAX_PX = 1.6
 // resta moderata per restare leggibile come contorno del raster; il
 // termine `TERRAIN_BEAT_RATIO` la fa sollevare marcatamente ad ogni
 // battito, così il rilievo è visibilmente sincronizzato con la musica
-// (segnalato dallo sviluppatore: "non ha sync con il beat").
+// (segnalato dal Capo Supremo: "non ha sync con il beat").
 const TERRAIN_BASE_RATIO = 0.09
 const TERRAIN_BEAT_RATIO = 0.16
 // Indizio di profondità economico (nessuna libreria 3D, solo Canvas2D
@@ -198,8 +198,8 @@ async function prepareGlitchSource(
 }
 
 // Soglie unificate fra tutti i renderer Brain (in precedenza ogni file
-// aveva la propria versione con drift casuale — segnalato dallo
-// sviluppatore come "soglie a cazzo"): stessa formula, stessi numeri
+// aveva la propria versione con drift casuale — segnalato dal
+// Capo Supremo come "soglie a cazzo"): stessa formula, stessi numeri
 // ovunque, leggermente più reattiva della media osservata prima.
 function bandDrive(value: number, average: number | undefined, transient: number): number {
   const baseline = Math.max(0.018, average ?? value * 0.82)
@@ -249,7 +249,7 @@ export function shouldRenderGlitchFrame(
  * riga — abbastanza per non sembrare un'unica onda rigida, non abbastanza
  * da rompere la coerenza della superficie (una frequenza indipendente per
  * riga faceva leggere il rilievo come rumore scollegato dal raster,
- * segnalato dallo sviluppatore). Check Silenzio: senza audio attivo la
+ * segnalato dal Capo Supremo). Check Silenzio: senza audio attivo la
  * linea resta ferma sul contorno di luminanza puro.
  */
 export function computeLineWobble(

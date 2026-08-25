@@ -2,7 +2,7 @@
 
 ## Origine
 
-Brief di direzione artistica fornito dallo sviluppatore ("Capo Supremo
+Brief di direzione artistica fornito dal Capo Supremo ("Capo Supremo
 dei DJ", la regia visiva di Brain) per un nono renderer: il raster entra
 in una degenerazione strutturale progressiva e rivela una struttura
 frattale auto-simile, organizzata da un avvitamento a spirale interno

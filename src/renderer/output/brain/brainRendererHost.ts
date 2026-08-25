@@ -22,12 +22,12 @@ const SWITCH_TIMEOUT_MS = 15_000
 // uno scheduling più furbo; si maschera con un flash + poche strisce
 // tagliate/sfalsate in stile glitch — tecnica VJ comune per far leggere un
 // taglio tecnico come un accento voluto invece che come un difetto
-// (segnalato dallo sviluppatore: il mix FilterPsiche/Psycho2D scattava a
+// (segnalato dal Capo Supremo: il mix FilterPsiche/Psycho2D scattava a
 // lag già iniziato). Non è reattività musicale (Check Silenzio): scatta
 // solo sul fronte di salita di una pressione GPU reale rilevata, non su
 // base audio; l'inviluppo resta quello già in uso (tenuto al picco finché
 // il passthrough non è davvero pronto, non un tempo fisso).
-// Rinforzato su richiesta esplicita dello sviluppatore ("Glitch+Flash più
+// Rinforzato su richiesta esplicita del Capo Supremo ("Glitch+Flash più
 // evidenti", 2026-08-25): il mascheramento precedente restava troppo
 // discreto per coprire davvero il momento del carico, anche con il
 // semaforo proattivo che lo arma in anticipo.
@@ -314,7 +314,7 @@ export function createBrainRendererHost(
       // pixel per pixel, tre varianti) può richiedere anche 1-2s — durante
       // quell'attesa il fotogramma bloccato del renderer attivo restava
       // visibile ben oltre il breve flash pensato per coprire un cambio
-      // istantaneo (segnalato dallo sviluppatore). Il flash ora resta al
+      // istantaneo (segnalato dal Capo Supremo). Il flash ora resta al
       // picco finché il passthrough non è davvero pronto, invece di
       // spegnersi dopo un tempo fisso troppo corto per l'attesa reale — non
       // costa nulla in più: usa lo stesso `ensureDenoisingFilterPsiche` già
@@ -459,7 +459,7 @@ export function createBrainRendererHost(
       // sfondo finché nessuno lo nota. Print2D è pensato come rete di
       // sicurezza semplice che non fallisce mai per lo stesso motivo, ma
       // Print2D deve girare SOLO durante la Riattivazione (PIANO-034,
-      // regressione segnalata dallo sviluppatore: usarlo qui sempre lo
+      // regressione segnalata dal Capo Supremo: usarlo qui sempre lo
       // faceva comparire anche fuori dal ciclo) — fuori dalla Riattivazione
       // la rete di sicurezza usa FilterPsiche, già impiegato altrove in
       // questo stesso file come passthrough leggero e affidabile.
@@ -473,8 +473,8 @@ export function createBrainRendererHost(
         requestRenderer(safetyNetId, time)
         // Fa avanzare subito il mazzo del selettore oltre l'entrata
         // fallita, invece di lasciare la rete di sicurezza in scena per
-        // l'intera durata residua del fotogramma (segnalato dallo
-        // sviluppatore: Print2D restava troppo a lungo durante la
+        // l'intera durata residua del fotogramma (segnalato dal
+        // Capo Supremo: Print2D restava troppo a lungo durante la
         // Riattivazione a causa dei fallimenti ripetuti di Vector Morph).
         onRendererFailed?.(active.id, settings, time)
       }

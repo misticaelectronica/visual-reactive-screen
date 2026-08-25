@@ -287,8 +287,8 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 ### `SESSION-2026-08-08-09`
 - **Data**: 08 Agosto 2026 (CEST)
 - **Agente / Dev**: Codex
-- **Obiettivo**: Chiudere i task performance prima del test manuale dello
-  sviluppatore.
+- **Obiettivo**: Chiudere i task performance prima del test manuale del
+  Capo Supremo.
 - **Attività Svolte**:
   1. Verificato che `TASK-006-01`–`TASK-006-16` siano tutti `DONE`.
   2. Confermata la chiusura di `PIANO-004`, `PIANO-006` e `PIANO-007`.
@@ -298,8 +298,8 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   5. Preservati gli aggiornamenti paralleli di `MACRO-008`.
 - **Validazione Disponibile**: 200/200 test, typecheck, lint mirato, build
   Vite/Electron e `git diff --check` superati nella sessione precedente.
-- **Stato Finale**: 🟢 `MACRO-006` chiuso. Prossimo passo: test manuale dello
-  sviluppatore.
+- **Stato Finale**: 🟢 `MACRO-006` chiuso. Prossimo passo: test manuale del
+  Capo Supremo.
 
 ### `SESSION-2026-08-08-10`
 - **Data**: 08 Agosto 2026 (CEST)
@@ -1271,7 +1271,7 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 ### `SESSION-2026-08-17-01`
 - **Data**: 17 Agosto 2026 (CEST)
 - **Obiettivo**: Correggere l'esclusione di Print2D e verificare lo stato di
-  Psycho2D dopo richiesta esplicita dello sviluppatore.
+  Psycho2D dopo richiesta esplicita del Capo Supremo.
 - **Correzione**: `AUTOMATICALLY_EXCLUDED_RENDERERS` svuotato in
   `brainRendererSelector.ts`; Print2D torna nella rotazione temporale generale
   e nel ciclo d'attesa, restando escluso soltanto da `STORY_CYCLE_EXCLUDED_RENDERERS`
@@ -1312,8 +1312,8 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   del mazzo.
 - **Nota collaterale**: individuate due istanze Electron `pnpm dev` attive
   contemporaneamente (una aperta questa notte all'1:19, una nuova) come
-  possibile ulteriore causa di contesa GPU/thermal; segnalato allo
-  sviluppatore senza intervenire.
+  possibile ulteriore causa di contesa GPU/thermal; segnalato al
+  Capo Supremo senza intervenire.
 - **Test aggiunti**: nuovo test di regressione in
   `brainRendererSelector.test.ts` che riproduce lo scenario diagnosticato e
   verifica che il renderer meno mostrato riceva il suo turno in ogni storia.

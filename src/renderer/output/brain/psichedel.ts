@@ -270,7 +270,7 @@ export class Psichedel {
     // usa come semaforo — arma il passthrough visivo (flash/glitch/mix) e
     // attende che sia già in scena PRIMA che l'inferenza GPU parta
     // davvero, invece di mascherare uno stallo già iniziato (segnalato
-    // dallo sviluppatore: il mix scattava sempre a lag già in corso).
+    // dal Capo Supremo: il mix scattava sempre a lag già in corso).
     private readonly onImageGenerationState?: (active: boolean) => void | Promise<void>,
     private readonly inferenceScheduler?: BrainInferenceScheduler,
   ) {}

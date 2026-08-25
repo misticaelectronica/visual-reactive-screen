@@ -87,7 +87,7 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
   interludio, riuso del buffer e refill distribuito nella finestra di 120 s.
 - **Moduli Coinvolti**: `src/main/`, `src/preload/`, `src/shared/brain/`,
   `src/renderer/control/`, `src/renderer/output/brain/`
-- **Stato**: 🟢 COMPLETED — test manuale finale affidato allo sviluppatore
+- **Stato**: 🟢 COMPLETED — test manuale finale affidato al Capo Supremo
 - **Piani di Lavoro**: `working/plans/piano-004-scheduler-termico-fase-3a.md`,
   `working/plans/piano-006-buffer-quattro-immagini-fase-3b.md`,
   `working/plans/piano-007-validazione-live-fase-3c.md`

@@ -58,7 +58,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
 ## Task Collegati a `PIANO-035` (Nuovo Renderer Glitch Morph)
 
-- [x] **`TASK-035-01`** `DONE`: Analisi solo-design con anteprime Artifact iterative (raster attenuato, tinte per-riga, moto non uniforme) approvate dallo sviluppatore.
+- [x] **`TASK-035-01`** `DONE`: Analisi solo-design con anteprime Artifact iterative (raster attenuato, tinte per-riga, moto non uniforme) approvate dal Capo Supremo.
 - [x] **`TASK-035-02`** `DONE`: Profilo di luminanza per riga cacheato una volta alla preparazione (`buildGlitchProfile`) + seme deterministico per riga (`computeRowSeed`).
 - [x] **`TASK-035-03`** `DONE`: Ondulazione audio-gated (`computeLineWobble`, Check Silenzio) e tonalità per-riga indipendente dal tempo (`computeRowHue`).
 - [x] **`TASK-035-04`** `DONE`: Collegamento renderer id in tutti i punti (types, registry, selector — `PERSISTENT_STORY_RENDERERS`, label debug, select Control).
@@ -286,7 +286,7 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 - [x] **`TASK-006-16`** `DONE`: Chiusa la correzione Fase 3C senza iniziare la Fase 3D.
 
 **Stato `MACRO-006`**: `DONE`. Nessun task di implementazione aperto; il test
-manuale finale viene eseguito dallo sviluppatore.
+manuale finale viene eseguito dal Capo Supremo.
 
 ---
 
@@ -301,7 +301,7 @@ manuale finale viene eseguito dallo sviluppatore.
 - [x] **`TASK-010-04`** `DONE`: Approvare le decisioni aperte di `PIANO-009` e
   creare il piano esecutivo V1 senza interferire con `MACRO-009`.
 - [x] **`TASK-010-05`** `DONE`: Implementare V1 su autorizzazione
-  esplicita dello sviluppatore.
+  esplicita del Capo Supremo.
 - [x] **`TASK-010-06`** `DONE`: Introdurre plugin registry, renderer
   host e alternanza manuale/temporizzata durante l'esecuzione.
 - [ ] **`TASK-010-07`** `TODO`: Verificare dal vivo su Output fullscreen il

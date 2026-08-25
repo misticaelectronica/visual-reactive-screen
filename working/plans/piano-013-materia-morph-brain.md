@@ -381,7 +381,7 @@ nel primo renderer.
   definiti dati, morph, mapping audio, silenzio, transizione, budget e rischi.
   Nessun codice runtime implementato, in osservanza della richiesta di
   produrre prima l'analisi funzionale e tecnica.
-- **2026-08-15**: architettura approvata dallo sviluppatore; avviata la V1 con
+- **2026-08-15**: architettura approvata dal Capo Supremo; avviata la V1 con
   integrazione obbligatoria in manuale, rotazione e “Tutti per storia”, più
   propagazione di resource pressure/background, low power e flash.
 - **2026-08-15**: V1 implementata come quarto plugin `material-morph`.

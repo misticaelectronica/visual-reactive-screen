@@ -4,7 +4,7 @@
 > **Macrotask di Riferimento**: Rotazione/varietà renderer Brain
 > **Data Creazione**: 2026-08-19
 > **Stato**: `COMPLETATO`
-> **Autore/Agente**: Agente AI / Sviluppatore
+> **Autore/Agente**: Agente AI / Capo Supremo
 
 ---
 
@@ -18,7 +18,7 @@ esplicitamente **reattività** (locale, beat/transiente) da **evento**
 segmentazione dell'immagine come rappresentazione di configurazioni
 temporaneamente stabili.
 
-## 2. 📋 Filosofia Fornita Dallo Sviluppatore (Design Brief, Verbatim)
+## 2. 📋 Filosofia Fornita Dal Capo Supremo (Design Brief, Verbatim)
 
 Questa è la specifica completa fornita per il renderer — vive qui, non in
 `filosofia.md` (che resta la filosofia generale di Brain) né in
@@ -286,7 +286,7 @@ interno.
 - [x] `src/shared/types.ts` — nuovo id `dream-segmentation`.
 - [x] `brainRendererRegistry.ts` (+ test) — settimo renderer registrato.
 - [x] `brainRendererSelector.ts` — incluso in `PERSISTENT_STORY_RENDERERS`
-  e (decisione dello sviluppatore) in `HEAVY_RENDERERS_UNDER_PRESSURE`
+  e (decisione del Capo Supremo) in `HEAVY_RENDERERS_UNDER_PRESSURE`
   fin da subito, stesso trattamento preventivo di Bauhaus/Materia Morph.
 - [x] `OutputApp.tsx` (etichetta debug) e `VisualControls.tsx` (select
   Control window).

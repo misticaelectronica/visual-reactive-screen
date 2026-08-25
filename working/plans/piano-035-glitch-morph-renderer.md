@@ -3,18 +3,18 @@
 ## Origine
 
 Discussione a partire da un'idea generica "glitch+morph" (typo iniziale
-"cgli+morph"). Analisi solo-design richiesta esplicitamente dallo
-sviluppatore ("prima solo analisi"), con tre giri di iterazione prima
+"cgli+morph"). Analisi solo-design richiesta esplicitamente dal Capo
+Supremo ("prima solo analisi"), con tre giri di iterazione prima
 dell'implementazione:
 
 1. Proposte di 3 varianti (ibrida edge-aware / pura a scanline /
    region-based onirica) — anteprima animata pubblicata come Artifact.
-2. Lo sviluppatore ha scelto la variante "pura" ma ha poi interrotto la
+2. Il Capo Supremo ha scelto la variante "pura" ma ha poi interrotto la
    discussione con un'immagine di riferimento diversa e più specifica:
    glitch art olografica — dense linee di contorno orizzontali che
    seguono la luminanza/i bordi dell'immagine sottostante, con frangia
    cromatica iridescente, su sfondo nero.
-3. Lo sviluppatore ha rifiutato lo sfondo nero puro del riferimento
+3. Il Capo Supremo ha rifiutato lo sfondo nero puro del riferimento
    ("ma tra le linee possiamo vedere il raster sotto dai") e poi anche
    la proposta di raster a piena opacità ("a piena opacità anche no") —
    il raster doveva restare visibile ma attenuato, non protagonista.
