@@ -147,6 +147,16 @@ coverage/
 # versionato — stesso principio di .coscienza/ sopra.
 dream-images/
 
+# brainPhrases.txt è il file che Brain legge e riscrive davvero a runtime
+# (raccolto della sessione pubblica quando aperta, copia della base curata
+# quando chiusa) — mai lo stato da versionare, solo il risultato di un
+# reset locale. Si versiona solo il set curato eterno in
+# config/brainPhrasesBaseStory.txt. Gli scarti di sessione manuale
+# (config/brainPhrases.session-*.txt) sono materiale di test locale, mai
+# da committare.
+config/brainPhrases.txt
+config/brainPhrases.session-*.txt
+
 # Local-only source weights and ONNX conversion work area. Browser-ready
 # artifacts are published separately only after the WebGPU prototype passes.
 .model-conversion/
