@@ -234,7 +234,8 @@ sequenza (soglia = pieno carico; eco = leggera per natura, non solo per
 necessità tecnica) — un caso in cui il principio artistico e il risparmio
 computazionale puntano nella stessa direzione, senza bisogno di un
 meccanismo nuovo: usare la struttura della storia stessa come segnale per le
-leve di qualità già esistenti (`ImageRenderMode` in `psichedel.ts`), invece
+leve di qualità già esistenti (`ImageRenderMode` in
+[`psichedel.ts`](src/renderer/output/brain/psichedel.ts)), invece
 di scegliere a caso o uniformemente quali fotogrammi sono "leggeri".
 (Implementato: `selectLowQualityFrameIndices` include sempre l'ultimo
 fotogramma/eco nel budget leggero, non più a caso.)
@@ -249,7 +250,7 @@ invariante onirico: la materia visiva resta la stessa mentre l'immagine
 sottostante si trasforma.
 
 Da qui due vincoli operativi per la permanenza (`selectBrainRendererHoldFrames`,
-`brainRendererSelector.ts`):
+[`brainRendererSelector.ts`](src/renderer/output/brain/brainRendererSelector.ts)):
 
 - **Minimo**: un invariante deve durare abbastanza da farsi riconoscere come
   tale — un solo fotogramma non è sufficiente perché non c'è "ritorno" da
