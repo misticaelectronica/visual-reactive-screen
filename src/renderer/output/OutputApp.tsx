@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import {
   isMorphingAlgorithm,
   type AppSettings,
   type MorphingAlgorithm,
   type MorphingTransitionState,
+  type PublicSessionStatus,
   type VisualStatePayload,
 } from '@shared/types'
 import {
@@ -26,6 +28,9 @@ import {
   createAlternateBrainStorySettings,
   createAlternateMorphingSettings,
 } from './brain/brainStoryAlternation'
+
+/** Lato più piccolo ancora leggibile da un telefono a distanza ravvicinata. */
+const PUBLIC_SESSION_QR_SIZE_PX = 84
 
 const BRAIN_RENDERER_LABELS: Record<string, string> = {
   print2d: 'Print2D',
@@ -302,6 +307,8 @@ export function OutputApp() {
   const [lastColor, setLastColor] = useState<string>('—')
   const [activeRendererLabel, setActiveRendererLabel] = useState<string>('—')
   const [revisionCycleActive, setRevisionCycleActive] = useState(false)
+  const [publicSessionActive, setPublicSessionActive] = useState(false)
+  const [publicSessionQrDataUrl, setPublicSessionQrDataUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -329,6 +336,24 @@ export function OutputApp() {
       }
     }, 250)
     return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const api = window.fxOutput
+    if (!api) return
+
+    const offStatus = api.onPublicSessionStatus((status: PublicSessionStatus) => {
+      setPublicSessionActive(status.active)
+      if (!status.active || !status.formUrl) {
+        setPublicSessionQrDataUrl(null)
+        return
+      }
+      QRCode.toDataURL(status.formUrl, { width: PUBLIC_SESSION_QR_SIZE_PX, margin: 1 })
+        .then(setPublicSessionQrDataUrl)
+        .catch(() => setPublicSessionQrDataUrl(null))
+    })
+
+    return offStatus
   }, [])
 
   useEffect(() => {
@@ -732,6 +757,22 @@ export function OutputApp() {
           </>
         )}
       </div>
+      {publicSessionActive && publicSessionQrDataUrl ? (
+        <img
+          src={publicSessionQrDataUrl}
+          alt="QR sessione pubblica"
+          style={{
+            position: 'fixed',
+            bottom: 8,
+            left: 8,
+            zIndex: 9999,
+            width: PUBLIC_SESSION_QR_SIZE_PX,
+            height: PUBLIC_SESSION_QR_SIZE_PX,
+            borderRadius: 4,
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
     </div>
   )
 }

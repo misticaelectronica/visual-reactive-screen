@@ -1,5 +1,48 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Campionamento delle frasi: finestra scorrevole + residuo online, v1.0.0-beta.3 — 2026-08-27
+
+- **Brief filosofico del Capo Supremo**: le storie ordinarie non devono più
+  nascere da un pool casuale — Brain applica la continuità onirica dentro
+  la storia ma non fra una storia e l'altra. Sostituito `sampleBrainPhrases`
+  (casuale, con esclusione di freschezza) con `sampleBrainPhraseWindow`
+  (traversata sequenziale con sovrapposizione parziale, passo minore del
+  conteggio).
+- **Due correttivi del Capo Supremo dopo discussione**, prima ancora
+  dell'ascolto: il residuo online non ha tetto in nessuna direzione (né
+  minimo garantito alla base né massimo all'online — il sogno diventa
+  collettivo quando il pubblico scrive), e l'unico presidio richiesto è la
+  distribuzione temporale del campionamento del memo, non una quota.
+- **Bug trovato al primo ascolto dal vivo (grave, precede la taratura)**:
+  con un pool ridotto a due righe (sessione pubblica appena aperta) la
+  finestra poteva coincidere con l'intero pool — qualunque cursore
+  restituiva le stesse righe, solo riordinate. Fix strutturale (non un
+  parametro): la finestra non chiede mai più di `length - 1` righe quando
+  il pool ne ha più di una.
+- **Osservabilità aggiunta**: log che dichiara, per ogni seme, se e perché
+  il residuo online non è scattato in quel turno, e con quale criterio è
+  stato scelto quando rientra.
+- **Analisi consegnata, non ancora risolta**: sull'unica sessione osservata
+  (contaminata dal bug sopra — stesso seme degenerato su tutte e tre le
+  storie), il fallback locale ha sostituito Qwen nel 100% dei casi. Di due
+  risposte apparentemente scartate "per formato", una era davvero
+  recuperabile (cancelletti markdown `#`/`##`/`###` non gestiti dallo
+  stripping esistente, che rimuove solo `*`/backtick), l'altra aveva
+  formato corretto ma contenuto troppo corto (2 frasi contro le 4-6
+  richieste) — non un problema di normalizzazione. Il log del catch più
+  esterno ("generazione Qwen fallita") sovrascrive messaggi già corretti e
+  più specifici, attribuendo sempre la causa a Qwen anche quando è stata la
+  validazione a scartare. Nessun intervento di codice ancora fatto su
+  questi tre punti — richiede un piano dedicato.
+- Validazione del campionamento: 61 file / 506 test, typecheck e lint
+  puliti sui file toccati. Criterio di chiusura del brief (ascolto di un
+  giro completo di cursore) sospeso finché il fallback narrativo non è
+  risolto.
+- Brief in `team/briefs/brief-campionamento-frasi-filo-onirico.md` e
+  `brief-campionamento-correttivo.md`; meccanismo in
+  `docs/campionamento-brainphrases.md`; sottoversione in
+  `working/release-notes/v1.0.0-beta.3-brief.md`.
+
 ## Hotfix: Fractal Spiral Degeneration, la fix del verso non bastava — 2026-08-25
 
 - **Segnalato di nuovo dal Capo Supremo** (dopo il rilascio v1.0.0-beta.1):

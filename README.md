@@ -22,11 +22,17 @@ L'app ha due finestre:
 - Modalita **Brain**, alternativa al morphing standard: CoscienzaOnirica scrive una storia,
   Psichedel genera raster originali con PornMaster SD 1.5 Explicit ONNX, VTracer li converte in SVG a colori e
   un controllo qualita rifiuta composizioni povere o troppo pesanti prima del rendering.
-  La configurazione dei modelli, i filtri Hugging Face e i parametri della pipeline sono
+  Introduzione al sottoprogetto, filosofia e riferimenti in
+  [`introduzione-brain.md`](introduzione-brain.md). La configurazione dei modelli,
+  i filtri Hugging Face e i parametri della pipeline sono
   descritti in [`docs/brain-ai-pipeline.md`](docs/brain-ai-pipeline.md). La migrazione
   browser verso il singolo modello Explicit, ora usato come generatore standard in
   sviluppo, è documentata in
   [`docs/psychedel-explicit-v1.md`](docs/psychedel-explicit-v1.md).
+- **Sessione pubblica**: il pubblico scrive frasi da telefono via QR (Google Form);
+  ogni frase genera una storia dedicata e, per la durata della sessione, alimenta
+  anche `config/brainPhrases.txt` (che torna al set curato alla chiusura). Setup e
+  uso in [`sessione-pubblica-brain.md`](sessione-pubblica-brain.md).
 - Tre algoritmi morphing Canvas 2D:
   - **Liquid Morphing**
   - **Oniric Morphing**

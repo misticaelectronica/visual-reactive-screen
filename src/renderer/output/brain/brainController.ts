@@ -40,7 +40,7 @@ import {
 } from './psichedel'
 import {
   loadBrainPhrases,
-  sampleBrainPhrases,
+  sampleBrainPhraseWindow,
   selectBrainPhraseCount,
 } from './brainPhrases'
 import {
@@ -103,7 +103,9 @@ const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
 const PROCESS_DATA_KEYS = [
   'phrases',
-  'randomPhrases',
+  'windowPhrases',
+  'onlineResiduePhrase',
+  'criterio',
   'italian',
   'english',
   'title',
@@ -125,22 +127,49 @@ const PROCESS_DATA_KEYS = [
   'pct',
 ] as const
 
-function updateSessionMemoLocally(
-  previousMemo: SessionMemo | null,
-  story: BrainProduction['story'],
-): SessionMemo {
-  const latest = `${story.title}: ${story.synopsis}`.slice(0, 420)
-  if (previousMemo) {
-    return [previousMemo[1], previousMemo[2], latest]
+function buildDreamMemorySummary(story: BrainProduction['story']): string {
+  return `${story.title}: ${story.synopsis}`.slice(0, 420)
+}
+
+/** Accumula, senza rinfrescare a ogni storia: la memoria lunga del sogno
+ * deve restare a una scala nettamente più ampia della sovrapposizione fra
+ * finestre consecutive (vedi brainConfig.ts:dreamMemoryBufferCapacity). */
+function pushDreamMemoryEntry(buffer: string[], entry: string): void {
+  buffer.push(entry)
+  if (buffer.length > BRAIN_CONFIG.dreamMemoryBufferCapacity) {
+    buffer.shift()
   }
-  const moments = story.frames
-    .slice(0, 3)
-    .map((frame) => `${story.title}: ${frame.description}`.slice(0, 420))
-  return [
-    moments[0] ?? latest,
-    moments[1] ?? latest,
-    moments[2] ?? latest,
-  ]
+}
+
+/** Tre voci distribuite nel tempo (non le ultime tre): altrimenti il memo
+ * ripete alla coscienza ciò che la finestra scorrevole le sta già dando. */
+function sampleDistributedDreamMemo(buffer: readonly string[]): SessionMemo {
+  const last = buffer.length - 1
+  return [buffer[0], buffer[Math.floor(last / 2)], buffer[last]]
+}
+
+/**
+ * Il residuo online non ha soglia di freschezza: la ripetizione di una riga
+ * appena usata non è un difetto, è il meccanismo del frammento che torna e
+ * deforma il resto. 'rotate' lo fa tornare a rotazione uniforme;
+ * 'recencyWeighted' fa invecchiare il residuo, privilegiando le righe più
+ * recenti mano a mano che la serata avanza.
+ */
+function pickOnlineResiduePhrase(
+  phrases: readonly string[],
+  cursor: number,
+  aging: 'rotate' | 'recencyWeighted',
+  random: () => number = Math.random,
+): { phrase: string; nextCursor: number } {
+  if (aging === 'recencyWeighted') {
+    const biasedIndex = Math.max(
+      0,
+      phrases.length - 1 - Math.floor(random() ** 2 * phrases.length),
+    )
+    return { phrase: phrases[biasedIndex], nextCursor: cursor }
+  }
+  const index = cursor % phrases.length
+  return { phrase: phrases[index], nextCursor: cursor + 1 }
 }
 
 function compactProcessValue(value: unknown, depth = 0): string {
@@ -304,6 +333,21 @@ export function createBrainController(
     letterSpacing: '0.02em',
     opacity: '0.46',
   })
+  const onlineInputElement = document.createElement('div')
+  Object.assign(onlineInputElement.style, {
+    display: 'none',
+    maxHeight: '22%',
+    minHeight: '0',
+    marginTop: '9px',
+    paddingTop: '7px',
+    overflow: 'hidden',
+    borderTop: '1px solid rgba(87, 221, 110, 0.16)',
+    color: '#4f9c63',
+    fontSize: '0.74em',
+    lineHeight: '1.3',
+    letterSpacing: '0.02em',
+    opacity: '0.4',
+  })
   const processMonitor = document.createElement('div')
   processMonitor.setAttribute('aria-live', 'polite')
   processMonitor.dataset.brainProcessMonitor = 'true'
@@ -342,6 +386,7 @@ export function createBrainController(
   storyElement.append(
     italianStoryElement,
     englishStoryElement,
+    onlineInputElement,
     processMonitor,
   )
   const statusElement = document.createElement('div')
@@ -450,6 +495,36 @@ export function createBrainController(
       entry.level === 'warn' ? '#e6b66f' : '#9dffac'
     processBody.textContent = processMonitorText(entry)
   })
+  // Un input online arriva in qualsiasi momento dello show: gli si dedica
+  // subito una storia, prioritaria sulle storie casuali non ancora mostrate.
+  brainLog('pipeline', 'sottoscrizione input online', {
+    apiDisponibile: typeof window.fxOutput?.onPublicOnlinePhrase === 'function',
+  })
+  const unsubscribeOnlinePhrase =
+    typeof window.fxOutput?.onPublicOnlinePhrase === 'function'
+      ? window.fxOutput.onPublicOnlinePhrase((text) => {
+          brainLog('pipeline', 'evento publicOnlinePhrase ricevuto dal main', {
+            preview: text.slice(0, 200),
+            destroyed,
+          })
+          if (destroyed) return
+          pendingOnlinePhrases.push(text)
+          // Oltre alla storia dedicata una tantum, la riga resta disponibile
+          // per rientrare nel seme delle storie ordinarie successive.
+          onlinePhrasesSeen.push(text)
+          storyQueue.length = 0
+          brainLog('pipeline', 'input online ricevuto: storia dedicata in coda prioritaria', {
+            preview: text.slice(0, 200),
+          })
+          void generateNext()
+        })
+      : (() => {
+          brainWarn(
+            'pipeline',
+            'onPublicOnlinePhrase non disponibile nel preload: input online disattivato — riavvia completamente pnpm dev/electron',
+          )
+          return () => {}
+        })()
 
   const rasterUrls = new Set<string>()
   const rasterPreviewBlobs = new Map<string, Blob>()
@@ -658,6 +733,12 @@ export function createBrainController(
   let storyPanelTimerId = 0
   let visibleStoryPanelId: string | null = null
   const storyQueue: BrainProduction['story'][] = []
+  // Un input online in coda ha priorità sulla prossima generazione: gli
+  // spetta una storia tutta sua, non solo un contributo al campionamento
+  // casuale. Le storie già in coda ma non ancora mostrate vengono scartate
+  // per farlo emergere subito dopo quella in corso, senza interrompere la
+  // storia attualmente visibile.
+  const pendingOnlinePhrases: string[] = []
   let recyclingStoryFrames = false
   let generating = false
   let frameIndex = 0
@@ -699,7 +780,20 @@ export function createBrainController(
   )
   let transitionCounterpartShapes: BrainMorphShape[] = []
   let latestPayload: VisualStatePayload | null = null
-  let recentPhrases: string[] = []
+  // Cursore della traversata sequenziale sulla base curata: azzerato insieme
+  // a tutto lo stato narrativo a ogni ricreazione del controller (cambio
+  // renderer, reload Output, riavvio app) — nessuna persistenza a parte.
+  let phraseCursor = 0
+  // Memoria lunga del sogno: una voce per storia ordinaria andata in onda,
+  // campionata in modo distribuito (non le ultime) per popolare sessionMemo
+  // ai cicli periodici "Questo sogno". Vedi dreamMemoryBufferCapacity.
+  const dreamMemoryBuffer: string[] = []
+  // Ogni riga raccolta dal pubblico durante una sessione aperta, tenuta per
+  // il suo "diritto di rientro" nel seme delle storie ordinarie successive
+  // — indipendente dal cursore sulla base e senza soglia di freschezza.
+  const onlinePhrasesSeen: string[] = []
+  let onlineResidueCursor = 0
+  let onlineResidueTurn = 0
   let recentStories: DreamStoryMemory[] = []
   let nextContinuityPhrase: string | null = null
   let recentBridges: string[] = []
@@ -997,6 +1091,14 @@ export function createBrainController(
           .filter(Boolean)
           .join('\n')
       : ''
+    // Solo per le storie nate da un input online (non da un rimescolamento
+    // delle brainPhrases): un'anteprima dei primi 200 caratteri, in un verde
+    // meno evidente rispetto al testo principale della storia.
+    const onlinePreview = story.onlineSourceText?.slice(0, 200) ?? null
+    onlineInputElement.style.display = onlinePreview ? 'block' : 'none'
+    onlineInputElement.textContent = onlinePreview
+      ? `INPUT ONLINE >\n${onlinePreview}`
+      : ''
   }
 
   const applyFrame = (
@@ -1219,6 +1321,16 @@ export function createBrainController(
       )
     })
     currentProduction = production
+    // Il residuo di una storia dedicata a un input online entra nella
+    // memoria lunga solo ora, alla messa in onda — non alla generazione: il
+    // sogno ricorda di aver sognato, non di aver ricevuto.
+    if (production.story.onlineSourceText) {
+      pushDreamMemoryEntry(dreamMemoryBuffer, buildDreamMemorySummary(production.story))
+      brainLog('memoria', 'residuo online entrato in memoria lunga alla messa in onda', {
+        storyId: production.story.id,
+        dreamMemoryBufferSize: dreamMemoryBuffer.length,
+      })
+    }
     recyclingStoryFrames = false
     completedStoryRendererPasses = 0
     storyStartedAt = performance.now()
@@ -1482,36 +1594,91 @@ export function createBrainController(
         await loadBrainPhrases()
         const previousStory = recentStories.at(-1) ?? null
         const continuityPhrase = nextContinuityPhrase
-        const sessionSynthesis =
-          sessionMemo !== null &&
-          ordinaryStoriesSinceSynthesis >= nextSessionSynthesisAt
-        const requestedPhraseCount = sessionSynthesis
-          ? BRAIN_CONFIG.phraseSampleMaxCount
-          : selectBrainPhraseCount()
-        const memoPhrases: readonly string[] =
-          sessionSynthesis && sessionMemo ? sessionMemo : []
-        const randomPhraseCount = Math.max(
-          1,
-          requestedPhraseCount -
-            memoPhrases.length,
-        )
-        const randomPhrases = sampleBrainPhrases(randomPhraseCount, recentPhrases)
-        const phrases = [...randomPhrases, ...memoPhrases]
-        recentPhrases = [...recentPhrases, ...randomPhrases].slice(
-          -BRAIN_CONFIG.phraseMemoryCount,
-        )
-        brainLog('pipeline', 'nuova associazione casuale inviata a CoscienzaOnirica', {
-          batchAttempt: attempts,
-          requested: requestedPhraseCount,
-          randomPhrases,
-          continuityPhrase,
-          previousStoryId: previousStory?.title ?? null,
-          sessionMemo,
-          sessionSynthesis,
-          ordinaryStoriesSinceSynthesis,
-          nextSessionSynthesisAt,
-          phrases,
-        })
+        const onlineSourceText = pendingOnlinePhrases.shift() ?? null
+        let phrases: string[]
+        let sessionSynthesis = false
+        let synthesizedMemo: SessionMemo | null = null
+        if (onlineSourceText !== null) {
+          phrases = [onlineSourceText]
+          brainLog('pipeline', 'storia dedicata a un input online', {
+            batchAttempt: attempts,
+            continuityPhrase,
+            previousStoryId: previousStory?.title ?? null,
+            preview: onlineSourceText.slice(0, 200),
+          })
+        } else {
+          sessionSynthesis =
+            dreamMemoryBuffer.length > 0 &&
+            ordinaryStoriesSinceSynthesis >= nextSessionSynthesisAt
+          if (sessionSynthesis) {
+            synthesizedMemo = sampleDistributedDreamMemo(dreamMemoryBuffer)
+          }
+          const requestedPhraseCount = sessionSynthesis
+            ? BRAIN_CONFIG.phraseSampleMaxCount
+            : selectBrainPhraseCount()
+          const memoPhrases: readonly string[] = synthesizedMemo ?? []
+          // Il residuo online non ha soglia né quota: quando è di turno
+          // occupa uno slot del seme a scapito della finestra sulla base
+          // curata, mai della memoria lunga. Nessuna esclusione di
+          // freschezza — vedi pickOnlineResiduePhrase.
+          const onlineResidueDue =
+            onlinePhrasesSeen.length > 0 &&
+            onlineResidueTurn % BRAIN_CONFIG.phraseWindowOnlineResidueIntervalStories === 0
+          onlineResidueTurn += 1
+          let onlineResiduePhrase: string | null = null
+          if (onlineResidueDue) {
+            const picked = pickOnlineResiduePhrase(
+              onlinePhrasesSeen,
+              onlineResidueCursor,
+              BRAIN_CONFIG.phraseWindowOnlineResidueAging,
+            )
+            onlineResiduePhrase = picked.phrase
+            onlineResidueCursor = picked.nextCursor
+          }
+          const windowCount = Math.max(
+            1,
+            requestedPhraseCount -
+              memoPhrases.length -
+              (onlineResiduePhrase ? 1 : 0),
+          )
+          const windowResult = sampleBrainPhraseWindow(phraseCursor, windowCount)
+          phraseCursor = windowResult.nextCursor
+          phrases = [
+            ...windowResult.phrases,
+            ...memoPhrases,
+            ...(onlineResiduePhrase ? [onlineResiduePhrase] : []),
+          ]
+          // Dichiarazione esplicita per ogni seme, non solo quando il
+          // residuo rientra: in collaudo deve essere leggibile dal log se e
+          // perché il meccanismo non è scattato in questo turno, non solo
+          // quando scatta.
+          brainLog('pipeline', 'nuova finestra della base curata inviata a CoscienzaOnirica', {
+            batchAttempt: attempts,
+            requested: requestedPhraseCount,
+            windowPhrases: windowResult.phrases,
+            onlineResidueDue,
+            onlineResidueTurn: onlineResidueTurn - 1,
+            onlineResidueIntervalStories: BRAIN_CONFIG.phraseWindowOnlineResidueIntervalStories,
+            onlineResidueAging: BRAIN_CONFIG.phraseWindowOnlineResidueAging,
+            onlinePhrasesSeenCount: onlinePhrasesSeen.length,
+            onlineResiduePhrase,
+            continuityPhrase,
+            previousStoryId: previousStory?.title ?? null,
+            sessionMemo,
+            sessionSynthesis,
+            ordinaryStoriesSinceSynthesis,
+            nextSessionSynthesisAt,
+            phrases,
+          })
+          if (onlineResiduePhrase) {
+            brainLog('memoria', 'residuo online rientrato nel seme di una storia ordinaria', {
+              batchAttempt: attempts,
+              onlineResiduePhrase,
+              criterio: BRAIN_CONFIG.phraseWindowOnlineResidueAging,
+              onlinePhrasesSeenCount: onlinePhrasesSeen.length,
+            })
+          }
+        }
         try {
           const coscienza = new CoscienzaOnirica(
             storyAi,
@@ -1527,6 +1694,7 @@ export function createBrainController(
             recentBridges,
             consciousnessInfluence,
           })
+          story.onlineSourceText = onlineSourceText
           nextContinuityPhrase = story.bridge
           recentBridges = story.bridge
             ? [...recentBridges, story.bridge].slice(
@@ -1578,15 +1746,14 @@ export function createBrainController(
               },
             )
           }
-          sessionMemo = updateSessionMemoLocally(sessionMemo, story)
-          story.sessionMemo = sessionMemo
-          brainLog(
-            'memoria',
-            'memo aggiornato localmente senza occupare il modello narrativo',
-            { storyId: story.id, sessionMemo },
-          )
-          rememberStory(story, sessionMemo)
-          if (sessionSynthesis) {
+          // Le storie ordinarie entrano nella memoria lunga subito; il
+          // residuo di una storia dedicata a un input online entra invece
+          // solo alla messa in onda, in startProduction — vedi lì.
+          if (onlineSourceText === null) {
+            pushDreamMemoryEntry(dreamMemoryBuffer, buildDreamMemorySummary(story))
+          }
+          if (sessionSynthesis && synthesizedMemo) {
+            sessionMemo = synthesizedMemo
             ordinaryStoriesSinceSynthesis = 0
             nextSessionSynthesisAt = selectSessionSynthesisInterval()
             brainLog('memoria', 'storia periodica “Questo sogno” completata', {
@@ -1597,6 +1764,13 @@ export function createBrainController(
           } else {
             ordinaryStoriesSinceSynthesis += 1
           }
+          story.sessionMemo = sessionMemo ?? undefined
+          brainLog(
+            'memoria',
+            'memo aggiornato localmente senza occupare il modello narrativo',
+            { storyId: story.id, sessionMemo, dreamMemoryBufferSize: dreamMemoryBuffer.length },
+          )
+          rememberStory(story, sessionMemo ?? [])
           storyQueue.push(story)
           recentStories = [
             ...recentStories,
@@ -2193,6 +2367,7 @@ export function createBrainController(
       brainPerformanceMetrics.report()
       thermalScheduler.destroy()
       unsubscribeProcessMonitor()
+      unsubscribeOnlinePhrase()
       cancelAnimationFrame(rafId)
       window.clearTimeout(retryTimerId)
       window.clearTimeout(generationCooldownTimerId)

@@ -15,6 +15,7 @@ import { BandMeters } from './components/BandMeters'
 import { ThresholdControls } from './components/ThresholdControls'
 import { VisualControls } from './components/VisualControls'
 import { SafetyControls } from './components/SafetyControls'
+import { PublicSessionPanel } from './components/PublicSessionPanel'
 import { COLOR_PRESETS, PresetsSelector } from './components/PresetsSelector'
 import { useAudioAnalyzer } from './hooks/useAudioAnalyzer'
 import { useDisplays } from './hooks/useDisplays'
@@ -451,6 +452,7 @@ export function ControlApp() {
       <ThresholdControls settings={settings} onChange={patchSettings} />
       <VisualControls settings={settings} onChange={patchSettings} />
       <SafetyControls settings={settings} onChange={patchSettings} />
+      <PublicSessionPanel settings={settings} onChange={patchSettings} />
 
       <section className="toolbar">
         <button
