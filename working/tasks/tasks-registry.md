@@ -2,6 +2,39 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati alla Sessione 2026-08-27 (Campionamento frasi, sessione pubblica, v1.0.0-beta.3)
+
+- [x] **`DONE`**: Brief filosofico del Capo Supremo recepito — finestra
+  scorrevole con sovrapposizione al posto del campionamento casuale
+  uniforme (`sampleBrainPhraseWindow` sostituisce `sampleBrainPhrases`).
+- [x] **`DONE`**: Due correttivi del Capo Supremo recepiti — nessun tetto
+  al residuo online in nessuna direzione, unico presidio la distribuzione
+  temporale del campionamento del memo.
+- [x] **`DONE`**: Bug trovato al primo ascolto dal vivo — finestra che
+  poteva coincidere con l'intero pool su un pool piccolo (sessione
+  pubblica appena aperta), stessa storia due volte con i ponti invertiti.
+  Fix strutturale in `sampleBrainPhraseWindow`, non un parametro.
+- [x] **`DONE`**: Osservabilità del residuo online nel log di generazione
+  (dichiara per ogni seme se e perché il residuo non è scattato, o con
+  quale criterio è rientrato).
+- [ ] **`TODO`**: Fallback narrativo al 100% osservato nell'unica sessione
+  disponibile (contaminata dal bug del passo nullo) — analisi consegnata
+  (cancelletti markdown non gestiti dallo stripping, log del catch esterno
+  che attribuisce sempre la causa a Qwen anche quando è la validazione a
+  scartare, un caso di contenuto troppo corto non risolvibile con
+  normalizzazione), nessun intervento di codice ancora pianificato.
+- [ ] **`TODO`**: Ripetere il collaudo del criterio di chiusura del brief
+  campionamento (ascolto di un giro completo di cursore, sessione chiusa e
+  sessione pubblica) con seed non degenerati, dopo il fix del punto sopra.
+- [x] **`DONE`**: Consolidata in commit la sessione pubblica (Google
+  Form/Sheet → storie dedicate), già implementata ma mai committata.
+- [x] **`DONE`**: Consolidata in commit la documentazione di squadra in
+  sospeso (architettura plugin renderer, livello bio-percettivo,
+  introduzione a Brain, lettera del Capo Supremo degli Ingegneri, regola
+  generale del Varco Percettivo).
+- [x] **`DONE`**: Release **v1.0.0-beta.3** — commit organizzati per
+  argomento su `feature/fractal-spiral-degeneration`, push su origin.
+
 ## Task Collegati alla Sessione 2026-08-25 (Varco Percettivo, hotfix spirali, release Beta)
 
 - [x] **`TASK-039-15`** `DONE`: Nome condiviso con la Direzione VJ per il
