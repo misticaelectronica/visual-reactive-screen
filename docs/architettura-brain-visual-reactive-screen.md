@@ -89,13 +89,13 @@ Brain riceve:
 
 - lo snapshot `VisualStatePayload`: bande, medie, `audioPrimed`, flash e impostazioni;
 - `BrainRhythmState` proiettato dall'unico `OutputRhythmClock`: impulso, indice e fase del beat, posizione musicale, inviluppo kick e transienti per banda;
-- frasi e configurazione da `config/brainPhrases.txt` e `config/brainRendering.json`;
+- frasi e configurazione da [`config/brainPhrases.txt`](../config/brainPhrases.txt) e [`config/brainRendering.json`](../config/brainRendering.json);
 - eventuali suggerimenti dall'archivio della coscienza nel main process;
 - risultati dei modelli testuali e del generatore immagini.
 
 ### Stato mantenuto
 
-`brainController.ts` mantiene direttamente lo stato operativo della pipeline:
+[`brainController.ts`](../src/renderer/output/brain/brainController.ts) mantiene direttamente lo stato operativo della pipeline:
 
 - produzione corrente e successiva, storia pending e coda;
 - frame corrente, tempi di hold/transizione, riciclo durante l'attesa;
@@ -148,7 +148,7 @@ Esiste quindi un livello intermedio, ma è **interno e legato al DOM/Canvas/SVG*
 
 ### Coscienza e persistenza
 
-Il nucleo `coscienzaCore.ts` separa percezione, attenzione e interpretazione provvisoria. Il main serializza salvataggi e aggiornamenti in una coda Promise e scrive atomicamente file Markdown in `.coscienza/` durante lo sviluppo o in `<Documenti>/.coscienza/` nell'app installata. Questa memoria è separata dal JSON delle impostazioni.
+Il nucleo [`coscienzaCore.ts`](../src/renderer/output/brain/coscienzaCore.ts) separa percezione, attenzione e interpretazione provvisoria. Il main serializza salvataggi e aggiornamenti in una coda Promise e scrive atomicamente file Markdown in `.coscienza/` durante lo sviluppo o in `<Documenti>/.coscienza/` nell'app installata. Questa memoria è separata dal JSON delle impostazioni.
 
 ## 5. Preset e impostazioni
 
@@ -156,7 +156,7 @@ Il nucleo `coscienzaCore.ts` separa percezione, attenzione e interpretazione pro
 
 Non esiste un'unica entità “Preset”. Il codice usa quattro famiglie indipendenti:
 
-1. **Preset UI audio/colore**, locali a `PresetsSelector.tsx`:
+1. **Preset UI audio/colore**, locali a [`PresetsSelector.tsx`](../src/renderer/control/components/PresetsSelector.tsx):
 
    ```ts
    interface Preset {
@@ -168,9 +168,9 @@ Non esiste un'unica entità “Preset”. Il codice usa quattro famiglie indipen
 
    L'attivazione esegue uno shallow merge della patch nel corrente `AppSettings`.
 
-2. **Liquid/Oniric**, definiti come `MorphingPreset` in `src/shared/types.ts` e catalogati in `morphingPresets.ts`. Contengono geometria, blur, opacità, velocità, deformazione, scala, `GlobalCompositeOperation` e quantità di mapping per bande/flash.
+2. **Liquid/Oniric**, definiti come `MorphingPreset` in [`src/shared/types.ts`](../src/shared/types.ts) e catalogati in [`morphingPresets.ts`](../src/shared/morphingPresets.ts). Contengono geometria, blur, opacità, velocità, deformazione, scala, `GlobalCompositeOperation` e quantità di mapping per bande/flash.
 
-3. **PsyHyp**, con schema proprio `{ id, name, shapes: PsyHypShapeDefinition[] }` in `psyHypMorphingShapes.ts`.
+3. **PsyHyp**, con schema proprio `{ id, name, shapes: PsyHypShapeDefinition[] }` in [`psyHypMorphingShapes.ts`](../src/shared/psyHypMorphingShapes.ts).
 
 4. **2001**, con `SlitScanPreset`: moltiplicatori di linee, alpha, luminosità, glow, spessore e profondità, più orientamento ed eventuale risposta EQ.
 
@@ -178,7 +178,7 @@ La selezione del renderer Brain (`brainRendererId` e `brainRendererMode`) è una
 
 ### Caricamento, modifica e persistenza
 
-`AppSettings` è il modello condiviso che contiene audio, colori, display/input selezionati, modalità Brain, algoritmo/preset morphing e controlli visuali. I default sono in `src/shared/defaults.ts`.
+`AppSettings` è il modello condiviso che contiene audio, colori, display/input selezionati, modalità Brain, algoritmo/preset morphing e controlli visuali. I default sono in [`src/shared/defaults.ts`](../src/shared/defaults.ts).
 
 - I cataloghi preset sono array TypeScript compilati nell'app; non vengono caricati da file esterni.
 - La UI modifica `AppSettings` tramite patch; i controller ricevono il nuovo snapshot nel payload successivo.
@@ -227,7 +227,7 @@ ONNX Runtime Web usa WebGPU per text encoder, UNet e VAE decoder del generatore 
 - API: Web Media Capture + Web Audio (`getUserMedia`, `AudioContext`, `AnalyserNode`).
 - Vincoli input: echo cancellation, noise suppression e automatic gain control disabilitati.
 - FFT: `fftSize` configurabile da 256 a 8192; default 1024.
-- Bande in `frequencyBands.ts`:
+- Bande in [`frequencyBands.ts`](../src/shared/frequencyBands.ts):
   - `low`: 40–160 Hz;
   - `lowMid`: 160–400 Hz;
   - `mid`: 400–2000 Hz;
@@ -237,7 +237,7 @@ ONNX Runtime Web usa WebGPU per text encoder, UNet e VAE decoder del generatore 
 
 ### Mapping
 
-`visualEngine.ts` usa le bande per soglie, colore, intensità e trigger flash. Il trigger può leggere una banda di frequenze personalizzata, calcola il transiente rispetto alla media e applica inibizione per dominanza low, cooldown e limite di flash al secondo.
+[`visualEngine.ts`](../src/shared/visualEngine.ts) usa le bande per soglie, colore, intensità e trigger flash. Il trigger può leggere una banda di frequenze personalizzata, calcola il transiente rispetto alla media e applica inibizione per dominanza low, cooldown e limite di flash al secondo.
 
 `OutputRhythmClock` deriva e mantiene un riferimento condiviso. I renderer ricevono:
 
@@ -360,7 +360,7 @@ da `lowPowerMode`, che riduce anche complessità e qualità visuale.
 
 ### Misure già registrate nel progetto
 
-`brainPerformanceMetrics.ts` emette ogni 10 secondi percentili p50/p95/max di gap RAF, FPS Canvas, costo render, preparazione artwork, pacchetti e latenza IPC, oltre ai rapporti di generazione/inferenza e al passthrough.
+[`brainPerformanceMetrics.ts`](../src/renderer/output/brain/brainPerformanceMetrics.ts) emette ogni 10 secondi percentili p50/p95/max di gap RAF, FPS Canvas, costo render, preparazione artwork, pacchetti e latenza IPC, oltre ai rapporti di generazione/inferenza e al passthrough.
 
 Le sessioni di prova conservate in `working/` riportano:
 
@@ -389,7 +389,7 @@ Il frame time GPU isolato non viene misurato ed è **non determinabile dall'impl
 
 ### Brain ↔ renderer
 
-- `brainController.ts` crea registry, host e controller e ne chiama direttamente `update`, `setTransition`, `setOpacity` e `destroy`.
+- [`brainController.ts`](../src/renderer/output/brain/brainController.ts) crea registry, host e controller e ne chiama direttamente `update`, `setTransition`, `setOpacity` e `destroy`.
 - Il contratto plugin limita la conoscenza delle singole implementazioni, ma espone `HTMLElement`, `SVGSVGElement`, `Blob`, `PsychedelScene` e forme di morphing: non è indipendente dal browser né dal modello grafico corrente.
 - Vector Morph dipende dall'IPC, dal client nel main e dal Worker Node
   vettoriale; non è autosufficiente nel renderer.

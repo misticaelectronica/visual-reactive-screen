@@ -32,6 +32,8 @@ export type DreamStory = {
     title: string
     relevanceReason: string
   }
+  /** Testo grezzo dell'input online che ha generato questa storia, se dedicata. */
+  onlineSourceText?: string | null
 }
 
 export type PsychedelScene = {

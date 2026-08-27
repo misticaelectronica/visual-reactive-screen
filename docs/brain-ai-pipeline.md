@@ -55,14 +55,14 @@ File principali:
 
 | Responsabilità | File |
 | --- | --- |
-| Configurazione condivisa | `src/shared/brain/brainConfig.ts` |
-| Client e Worker dei modelli testuali | `src/renderer/output/brain/brainAiClient.ts`, `brainAiWorker.ts` |
-| Storie, memo e piano visivo | `src/renderer/output/brain/coscienzaOnirica.ts` |
-| Prompt, tentativi e orchestrazione immagini | `src/renderer/output/brain/psichedel.ts` |
-| Caricamento dei modelli text-to-image | `src/renderer/output/brain/psychedelImageGenerator.ts` |
-| Vettorializzazione VTracer | `src/main/brainVectorizer.ts` |
-| Controllo qualità SVG | `src/renderer/output/brain/brainVectorQuality.ts` |
-| Rendering e movimento SVG | `src/renderer/output/brain/brainSvgScene.ts` |
+| Configurazione condivisa | [`src/shared/brain/brainConfig.ts`](../src/shared/brain/brainConfig.ts) |
+| Client e Worker dei modelli testuali | [`src/renderer/output/brain/brainAiClient.ts`](../src/renderer/output/brain/brainAiClient.ts), [`brainAiWorker.ts`](../src/renderer/output/brain/brainAiWorker.ts) |
+| Storie, memo e piano visivo | [`src/renderer/output/brain/coscienzaOnirica.ts`](../src/renderer/output/brain/coscienzaOnirica.ts) |
+| Prompt, tentativi e orchestrazione immagini | [`src/renderer/output/brain/psichedel.ts`](../src/renderer/output/brain/psichedel.ts) |
+| Caricamento dei modelli text-to-image | [`src/renderer/output/brain/psychedelImageGenerator.ts`](../src/renderer/output/brain/psychedelImageGenerator.ts) |
+| Vettorializzazione VTracer | [`src/main/brainVectorizer.ts`](../src/main/brainVectorizer.ts) |
+| Controllo qualità SVG | [`src/renderer/output/brain/brainVectorQuality.ts`](../src/renderer/output/brain/brainVectorQuality.ts) |
+| Rendering e movimento SVG | [`src/renderer/output/brain/brainSvgScene.ts`](../src/renderer/output/brain/brainSvgScene.ts) |
 
 ## Modelli attivi
 
@@ -95,12 +95,12 @@ I modelli non vengono scaricati a ogni storia:
 - Worker testuale e sessione immagine restano residenti finché Brain rimane attivo;
 - le sessioni vengono rilasciate quando Brain viene disattivato o distrutto.
 
-All’avvio di Brain, `brainModelCache.ts` confronta i repository presenti nella cache
-con gli ID di `brainConfig.ts`. Conserva gli artefatti ancora configurati e cancella
+All’avvio di Brain, [`brainModelCache.ts`](../src/renderer/output/brain/brainModelCache.ts) confronta i repository presenti nella cache
+con gli ID di [`brainConfig.ts`](../src/shared/brain/brainConfig.ts). Conserva gli artefatti ancora configurati e cancella
 soltanto le risorse Hugging Face dei modelli rimossi dalla configurazione. I file
 runtime locali e WASM non vengono coinvolti.
 
-Cambiare un ID in `brainConfig.ts` produce quindi questo comportamento:
+Cambiare un ID in [`brainConfig.ts`](../src/shared/brain/brainConfig.ts) produce quindi questo comportamento:
 
 1. il vecchio modello viene eliminato dalla cache persistente;
 2. il nuovo modello viene scaricato al primo utilizzo;
@@ -125,6 +125,9 @@ principale accetta esclusivamente nomi di configurazione autorizzati e legge:
 Righe vuote e commenti che iniziano con `#` vengono ignorati. Un file mancante o
 senza frasi valide produce un errore esplicito e impedisce la generazione con dati
 vecchi incorporati nel compilato.
+
+Come vengono scelte le frasi per ogni storia (in revisione):
+[`campionamento-brainphrases.md`](campionamento-brainphrases.md).
 
 ### Come leggere i log delle prestazioni
 
@@ -263,7 +266,7 @@ Le due strategie corrette sono:
    - `generate`;
    - `unload`;
    - `purgeCache`.
-5. Pubblicare o collegare il fork nel `package.json`.
+5. Pubblicare o collegare il fork nel [`package.json`](../package.json).
 6. Aggiornare `BRAIN_CONFIG`.
 7. Verificare build e pacchetti Electron su tutte le piattaforme richieste.
 
@@ -309,7 +312,7 @@ Stable Diffusion, SDXL, FLUX o altri modelli.
 
 ## Parametri text-to-image
 
-I parametri centralizzati sono in `src/shared/brain/brainConfig.ts`.
+I parametri centralizzati sono in [`src/shared/brain/brainConfig.ts`](../src/shared/brain/brainConfig.ts).
 
 | Parametro | Valore attuale | Effetto |
 | --- | ---: | --- |
@@ -337,7 +340,7 @@ Attenzione:
 ## Come modificare i prompt immagine
 
 Il prompt finale è costruito da `buildPsychedelImagePrompt()` in
-`src/renderer/output/brain/psichedel.ts`.
+[`src/renderer/output/brain/psichedel.ts`](../src/renderer/output/brain/psichedel.ts).
 
 Il comportamento corrente è volutamente letterale:
 
@@ -380,7 +383,7 @@ In `Psichedel.generate()`:
 ```
 
 quindi seleziona un render HQ ogni 2–5 immagini. Per cambiare la frequenza bisogna
-modificare `nextInterval()` e i relativi test in `brainPipeline.test.ts`.
+modificare `nextInterval()` e i relativi test in [`brainPipeline.test.ts`](../src/renderer/output/brain/brainPipeline.test.ts).
 
 ## Vettorializzazione
 
@@ -499,7 +502,7 @@ pesanti e `lowPowerMode` mantengono limiti più bassi.
 
 ## Parametri dei modelli testuali
 
-In `brainConfig.ts`:
+In [`brainConfig.ts`](../src/shared/brain/brainConfig.ts):
 
 | Parametro | Uso |
 | --- | --- |

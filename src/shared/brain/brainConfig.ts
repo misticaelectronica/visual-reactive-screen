@@ -2,7 +2,22 @@ export const BRAIN_CONFIG = {
   pipelineRevision: 'qwen25-snic-contours-v89',
   phraseSampleMinCount: 4,
   phraseSampleMaxCount: 5,
-  phraseMemoryCount: 12,
+  // Righe condivise fra due finestre consecutive della base curata (vedi
+  // brainPhrases.ts:sampleBrainPhraseWindow). Valore alto = più continuità
+  // ma rischio di storie ridondanti; da confrontare all'ascolto con 1.
+  phraseWindowOverlapCount: 2,
+  // Ogni N-esima storia ordinaria riprende una riga già raccolta dal
+  // pubblico nel proprio seme (2 = alternata, 1 = ogni storia). Da tarare
+  // all'ascolto — la raccomandazione di partenza è l'alternanza.
+  phraseWindowOnlineResidueIntervalStories: 2,
+  // 'rotate': le righe online tornano a rotazione uniforme, quella più
+  // vecchia quanto la più nuova. 'recencyWeighted': le righe più recenti
+  // tornano più spesso, il residuo invecchia durante la serata. Da
+  // confrontare all'ascolto in entrambe le forme.
+  phraseWindowOnlineResidueAging: 'rotate' as 'rotate' | 'recencyWeighted',
+  // Capacità della memoria lunga del sogno, dell'ordine di un giro completo
+  // del cursore sulla base curata (35 righe, passo ~2-3 → ~14 storie).
+  dreamMemoryBufferCapacity: 14,
   storyMemoryCount: 6,
   storyQueueTarget: 1,
   sessionSynthesisMinStories: 3,
