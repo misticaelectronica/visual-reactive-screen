@@ -7,6 +7,7 @@ import {
   registerBrainModelScheme,
 } from './brainModelProtocol'
 import { closeSessionLogger, installSessionLogger } from './sessionLogger'
+import { resetBrainPhrasesToBaseIfPossible } from './brainConfigFiles'
 
 installSessionLogger()
 app.commandLine.appendSwitch('disable-background-timer-throttling')
@@ -60,6 +61,10 @@ app.whenReady().then(async () => {
   configureMediaPermissions()
   configureBrainModelProtocol()
   await requestMacMicrophonePermission()
+  // Nessuna sessione online può essere aperta appena l'app parte: riporta
+  // brainPhrases.txt al set curato in caso un avvio precedente l'avesse
+  // lasciato con dentro frasi raccolte online (es. crash prima dello stop).
+  await resetBrainPhrasesToBaseIfPossible()
   registerIpcHandlers()
   createControlWindow()
 })

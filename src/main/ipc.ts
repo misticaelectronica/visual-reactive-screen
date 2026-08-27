@@ -22,6 +22,7 @@ import {
 } from './windows'
 import { vectorizeBrainImageOffMainThread } from './brainVectorizerClient'
 import { readBrainConfigFile } from './brainConfigFiles'
+import { startPublicPhraseSession, stopPublicPhraseSession } from './publicPhraseSession'
 import {
   saveConsciousnessMemory,
   suggestConsciousnessMotion,
@@ -104,4 +105,12 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.loadDreamImages,
     (_event, fileNames: string[]) => loadDreamImages(fileNames),
   )
+
+  ipcMain.handle(
+    IPC_CHANNELS.publicSessionStart,
+    (_event, csvUrl: string, formUrl: string) =>
+      startPublicPhraseSession(csvUrl, formUrl),
+  )
+
+  ipcMain.handle(IPC_CHANNELS.publicSessionStop, () => stopPublicPhraseSession())
 }

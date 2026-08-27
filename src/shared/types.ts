@@ -113,6 +113,10 @@ export interface AppSettings {
   dynamicPresetEnabled: boolean
   dynamicColorRotationEnabled: boolean
   dynamicMorphingRotationEnabled: boolean
+  /** URL del Google Form pubblico (codificato nel QR di sessione). */
+  publicSessionFormUrl: string
+  /** URL del CSV pubblicato del Google Sheet collegato al Form. */
+  publicSessionCsvUrl: string
 }
 
 export interface DisplayInfo {
@@ -197,6 +201,12 @@ export const IPC_CHANNELS = {
   saveDreamImage: 'fx:save-dream-image',
   queryDreamImageEntries: 'fx:query-dream-image-entries',
   loadDreamImages: 'fx:load-dream-images',
+  publicSessionStart: 'fx:public-session-start',
+  publicSessionStop: 'fx:public-session-stop',
+  /** Main → control/output: stato della sessione pubblica dopo ogni polling. */
+  publicSessionStatus: 'fx:public-session-status',
+  /** Main → output: un nuovo input online, da trasformare in una storia dedicata. */
+  publicOnlinePhrase: 'fx:public-online-phrase',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -423,6 +433,15 @@ export interface MorphingPreset {
   flashEdgeAmount: number
 }
 
+export type PublicSessionStatus = {
+  active: boolean
+  startedAtIso: string | null
+  collectedCount: number
+  lastError: string | null
+  /** URL del Form pubblico corrente, per disegnare il QR anche sull'uscita. */
+  formUrl: string | null
+}
+
 export interface ControlApi {
   getDisplays: () => Promise<DisplayInfo[]>
   openOutput: (displayId: number) => Promise<{ ok: boolean; error?: string }>
@@ -431,6 +450,12 @@ export interface ControlApi {
   loadSettings: () => Promise<AppSettings | null>
   sendVisualState: (state: VisualStatePayload) => void
   onOutputClosed: (cb: () => void) => () => void
+  startPublicSession: (
+    csvUrl: string,
+    formUrl: string,
+  ) => Promise<{ ok: boolean; error?: string }>
+  stopPublicSession: () => Promise<void>
+  onPublicSessionStatus: (cb: (status: PublicSessionStatus) => void) => () => void
 }
 
 export interface OutputApi {
@@ -454,4 +479,6 @@ export interface OutputApi {
   saveDreamImage: (request: SaveDreamImageRequest) => Promise<{ ok: boolean }>
   queryDreamImageEntries: () => Promise<DreamImageArchiveEntry[]>
   loadDreamImages: (fileNames: string[]) => Promise<LoadedDreamImage[]>
+  onPublicSessionStatus: (cb: (status: PublicSessionStatus) => void) => () => void
+  onPublicOnlinePhrase: (cb: (text: string) => void) => () => void
 }

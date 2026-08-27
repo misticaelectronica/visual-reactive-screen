@@ -53,4 +53,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dynamicPresetEnabled: false,
   dynamicColorRotationEnabled: true,
   dynamicMorphingRotationEnabled: true,
+  publicSessionFormUrl: '',
+  publicSessionCsvUrl: '',
 }

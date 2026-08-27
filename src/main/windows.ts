@@ -2,6 +2,7 @@ import path from 'node:path'
 import { app, BrowserWindow, screen } from 'electron'
 import {
   IPC_CHANNELS,
+  type PublicSessionStatus,
   type VisualStateAck,
   type VisualStatePayload,
 } from '@shared/types'
@@ -242,4 +243,28 @@ export function broadcastVisualState(payload: VisualStatePayload): void {
   }
   if (!outputRendererReady) return
   visualStateCoalescer.enqueue(payload)
+}
+
+export function pushPublicSessionStatus(status: PublicSessionStatus): void {
+  if (controlWindow && !controlWindow.isDestroyed()) {
+    controlWindow.webContents.send(IPC_CHANNELS.publicSessionStatus, status)
+  }
+  if (outputWindow && !outputWindow.isDestroyed()) {
+    outputWindow.webContents.send(IPC_CHANNELS.publicSessionStatus, status)
+  }
+}
+
+/** Un nuovo input online: Brain gli dedica subito una storia (vedi brainController.ts). */
+export function pushPublicOnlinePhrase(text: string): void {
+  if (!outputWindow || outputWindow.isDestroyed()) {
+    console.warn(
+      '[windows] pushPublicOnlinePhrase: nessuna finestra di uscita aperta, input online perso',
+      { preview: text.slice(0, 80) },
+    )
+    return
+  }
+  console.log('[windows] pushPublicOnlinePhrase inviato alla finestra di uscita', {
+    preview: text.slice(0, 80),
+  })
+  outputWindow.webContents.send(IPC_CHANNELS.publicOnlinePhrase, text)
 }

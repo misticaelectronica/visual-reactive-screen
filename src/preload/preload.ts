@@ -5,6 +5,7 @@ import {
   type ControlApi,
   type DisplayInfo,
   type OutputApi,
+  type PublicSessionStatus,
   type VisualStatePayload,
 } from '@shared/types'
 
@@ -26,6 +27,19 @@ const controlApi: ControlApi = {
   onOutputClosed: (cb: () => void) => {
     const channel = IPC_CHANNELS.outputClosed
     const handler = () => cb()
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
+  startPublicSession: (csvUrl: string, formUrl: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.publicSessionStart, csvUrl, formUrl) as Promise<{
+      ok: boolean
+      error?: string
+    }>,
+  stopPublicSession: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.publicSessionStop) as Promise<void>,
+  onPublicSessionStatus: (cb: (status: PublicSessionStatus) => void) => {
+    const channel = IPC_CHANNELS.publicSessionStatus
+    const handler = (_event: unknown, status: PublicSessionStatus) => cb(status)
     ipcRenderer.on(channel, handler)
     return () => ipcRenderer.removeListener(channel, handler)
   },
@@ -75,6 +89,18 @@ const outputApi: OutputApi = {
     ipcRenderer.invoke(IPC_CHANNELS.loadDreamImages, fileNames) as ReturnType<
       OutputApi['loadDreamImages']
     >,
+  onPublicSessionStatus: (cb: (status: PublicSessionStatus) => void) => {
+    const channel = IPC_CHANNELS.publicSessionStatus
+    const handler = (_event: unknown, status: PublicSessionStatus) => cb(status)
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
+  onPublicOnlinePhrase: (cb: (text: string) => void) => {
+    const channel = IPC_CHANNELS.publicOnlinePhrase
+    const handler = (_event: unknown, text: string) => cb(text)
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
 }
 
 function isOutputEntry(): boolean {
