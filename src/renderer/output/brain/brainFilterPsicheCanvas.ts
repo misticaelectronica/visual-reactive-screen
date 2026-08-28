@@ -12,6 +12,7 @@ import type {
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
 
 const NORMAL_WIDTH = 480
 const NORMAL_HEIGHT = 270
@@ -43,6 +44,17 @@ export type FilterPsicheMotion = {
   contrast: number
   highColorMix: number
   phaseDirection: number
+}
+
+const SILENT_FILTER_PSICHE_MOTION: FilterPsicheMotion = {
+  activity: 0,
+  beat: 0,
+  flash: 0,
+  inverseMix: 0,
+  alternateMix: 0,
+  contrast: 0,
+  highColorMix: 0,
+  phaseDirection: 0,
 }
 
 export type FilterPsicheColorDynamics = {
@@ -223,29 +235,121 @@ export function calculateFilterPsicheMotion(
   }
 }
 
+// PIANO-040, correzione dal collaudo live del 2026-08-28: attenuare soltanto
+// hue e overlay non basta. `artwork.base` è già una variante psichedelica
+// della palette; con saturazione sempre >=1 e brightness/contrast invariati
+// anche DECOMPRESSIONE restava verde/ciano, luminosa e lattiginosa.
+//
+// I profili bassi usano quindi lo stesso `context.filter` già presente, ma
+// ne definiscono anche i valori di base: possono desaturare e abbassare la
+// luminosità realmente, mentre mantengono contrasto sufficiente a preservare
+// corpo e riconoscibilità del raster. Nessun nuovo layer o effetto; cambia
+// soltanto la parametrizzazione della materia esistente.
+type FilterPsicheRegimeProfile = {
+  hueSwingMultiplier: number
+  contrastBase: number
+  contrastDriveMultiplier: number
+  saturationBase: number
+  saturationDriveMultiplier: number
+  brightnessBase: number
+  brightnessDriveMultiplier: number
+  alternateAlphaMultiplier: number
+  inverseAlphaMultiplier: number
+}
+const DEFAULT_FILTER_PSICHE_REGIME_PROFILE: FilterPsicheRegimeProfile = {
+  hueSwingMultiplier: 1,
+  contrastBase: 1.06,
+  contrastDriveMultiplier: 1,
+  saturationBase: 1.15,
+  saturationDriveMultiplier: 1,
+  brightnessBase: 1,
+  brightnessDriveMultiplier: 1,
+  alternateAlphaMultiplier: 1,
+  inverseAlphaMultiplier: 1,
+}
+// `respiro-alto` (brief Visual "due assi", 2026-08-28, §8): "Filter-Psiche
+// pieno" — psichedelia evidente, hue movement, maggiore contrasto —
+// coincide letteralmente col comportamento di sempre (nessun ramo
+// affievolito è mai esistito prima di questo brief): riusa il profilo di
+// default, zero codice nuovo.
+const FILTER_PSICHE_REGIME_PROFILE: Record<BrainBioRegime, FilterPsicheRegimeProfile> = {
+  pressurized: DEFAULT_FILTER_PSICHE_REGIME_PROFILE,
+  unresolved: DEFAULT_FILTER_PSICHE_REGIME_PROFILE,
+  'respiro-alto': DEFAULT_FILTER_PSICHE_REGIME_PROFILE,
+  decompression: {
+    hueSwingMultiplier: 0.22,
+    contrastBase: 1.08,
+    contrastDriveMultiplier: 0.35,
+    saturationBase: 0.68,
+    saturationDriveMultiplier: 0.18,
+    brightnessBase: 0.88,
+    brightnessDriveMultiplier: 0.15,
+    alternateAlphaMultiplier: 0.16,
+    inverseAlphaMultiplier: 0.18,
+  },
+  'respiro-profondo': {
+    hueSwingMultiplier: 0.08,
+    contrastBase: 1.04,
+    contrastDriveMultiplier: 0.2,
+    saturationBase: 0.52,
+    saturationDriveMultiplier: 0.1,
+    brightnessBase: 0.78,
+    brightnessDriveMultiplier: 0.08,
+    alternateAlphaMultiplier: 0.04,
+    inverseAlphaMultiplier: 0.06,
+  },
+}
+
+function filterPsicheRegimeProfile(regime: BrainBioRegime | null): FilterPsicheRegimeProfile {
+  return regime ? FILTER_PSICHE_REGIME_PROFILE[regime] ?? DEFAULT_FILTER_PSICHE_REGIME_PROFILE
+    : DEFAULT_FILTER_PSICHE_REGIME_PROFILE
+}
+
 export function calculateFilterPsicheColorDynamics(
   motion: FilterPsicheMotion,
+  regime: BrainBioRegime | null = null,
 ): FilterPsicheColorDynamics {
+  const profile = filterPsicheRegimeProfile(regime)
   const phaseEnergy = clamp(motion.activity * 1.8 + motion.beat * 0.65)
   return {
     hueDegrees: motion.phaseDirection * phaseEnergy * (
       motion.alternateMix * 34 + motion.highColorMix * 42 + motion.beat * 20
-    ),
-    contrast: 1.06 + motion.contrast * 0.72 + motion.beat * 0.16,
-    saturation: 1.15 + motion.alternateMix * 0.92 +
-      motion.highColorMix * 0.88 + motion.beat * 0.24,
-    brightness: 1 + motion.beat * 0.14 + motion.inverseMix * 0.035,
+    ) * profile.hueSwingMultiplier,
+    contrast: profile.contrastBase + (
+      motion.contrast * 0.72 + motion.beat * 0.16
+    ) * profile.contrastDriveMultiplier,
+    saturation: profile.saturationBase + (
+      motion.alternateMix * 0.92 + motion.highColorMix * 0.88 + motion.beat * 0.24
+    ) * profile.saturationDriveMultiplier,
+    brightness: profile.brightnessBase + (
+      motion.beat * 0.14 + motion.inverseMix * 0.035
+    ) * profile.brightnessDriveMultiplier,
     alternateAlpha: clamp(
       motion.alternateMix * 0.5 + motion.highColorMix * 0.24,
       0,
       0.62,
-    ),
+    ) * profile.alternateAlphaMultiplier,
     inverseAlpha: clamp(
       motion.inverseMix * 0.68 + motion.beat * 0.08,
       0,
       0.76,
-    ),
+    ) * profile.inverseAlphaMultiplier,
   }
+}
+
+export function filterPsicheFallbackFilter(regime: BrainBioRegime | null): string {
+  if (regime !== 'decompression' && regime !== 'respiro-profondo') {
+    return 'invert(0.3) saturate(2.5) contrast(1.42) hue-rotate(38deg)'
+  }
+  const dynamics = calculateFilterPsicheColorDynamics(SILENT_FILTER_PSICHE_MOTION, regime)
+  const invert = regime === 'respiro-profondo' ? 0.02 : regime === 'decompression' ? 0.08 : 0.3
+  return [
+    `invert(${invert})`,
+    `hue-rotate(${dynamics.hueDegrees.toFixed(2)}deg)`,
+    `contrast(${dynamics.contrast.toFixed(3)})`,
+    `saturate(${dynamics.saturation.toFixed(3)})`,
+    `brightness(${dynamics.brightness.toFixed(3)})`,
+  ].join(' ')
 }
 
 export function shouldRenderFilterPsicheFrame(
@@ -336,7 +440,7 @@ export function createBrainFilterPsicheScene(
     width: '100%',
     height: '100%',
     objectFit: 'cover',
-    filter: 'invert(0.3) saturate(2.5) contrast(1.42) hue-rotate(38deg)',
+    filter: filterPsicheFallbackFilter(null),
   })
   const output = document.createElement('canvas')
   output.dataset.brainRenderer = 'filter-psiche'
@@ -368,6 +472,7 @@ export function createBrainFilterPsicheScene(
   let lastSignature = ''
   let lastMotionAt = Number.NaN
   const motionSmoother = new BrainCanvasMotionSmoother()
+  let latestPerception: BrainBioPerceptionState | null = null
 
   const prepare = (lowPowerMode: boolean): void => {
     if (preparationStarted || destroyed) return
@@ -423,6 +528,10 @@ export function createBrainFilterPsicheScene(
     setResourcePressure(active) {
       resourcePressure = active
       output.dataset.brainResourcePressure = active ? 'true' : 'false'
+    },
+    setPerception(state) {
+      latestPerception = state
+      fallback.style.filter = filterPsicheFallbackFilter(state.regime)
     },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
@@ -482,6 +591,7 @@ export function createBrainFilterPsicheScene(
         rhythm?.beatIndex ?? 0,
         settings.lowPowerMode ? 1 : 0,
         resourcePressure ? 1 : 0,
+        latestPerception?.regime ?? 'none',
       ].join(':')
       const signatureChanged = signature !== lastSignature
       if (!shouldRenderFilterPsicheFrame(motion, transitionChanged, signatureChanged)) return
@@ -503,7 +613,10 @@ export function createBrainFilterPsicheScene(
 
       const width = output.width
       const height = output.height
-      const colorDynamics = calculateFilterPsicheColorDynamics(motion)
+      const colorDynamics = calculateFilterPsicheColorDynamics(
+        motion,
+        latestPerception?.regime ?? null,
+      )
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
       context.filter = [

@@ -4,6 +4,7 @@ import type { BrainRhythmState } from './brainRhythm'
 import {
   calculateBrainMaterialMotion,
   createBrainMaterialMorphScene,
+  materialGeometryScaleForRegime,
   shouldRenderBrainMaterialFrame,
 } from './brainMaterialMorphCanvas'
 
@@ -22,6 +23,15 @@ describe('Materia Morph motion', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it('calma il moto locale in decompressione e ancora di più nel respiro profondo', () => {
+    const normal = materialGeometryScaleForRegime('pressurized')
+    const decompression = materialGeometryScaleForRegime('decompression')
+    const deepBreath = materialGeometryScaleForRegime('respiro-profondo')
+    expect(normal).toBe(1)
+    expect(decompression).toBeLessThan(normal)
+    expect(deepBreath).toBeLessThan(decompression)
   })
 
   it('resta geometricamente immobile in silenzio', () => {

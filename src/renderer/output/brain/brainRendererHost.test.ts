@@ -149,6 +149,42 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
+  it('PIANO-040 §4/§6.1/§17.1: durante la Riattivazione in regime basso, il regime vince — la rete di sicurezza resta FilterPsiche, non Print2D', () => {
+    const registry = new BrainRendererRegistry()
+    const fixtures = registerSafetyNetFixtures(registry)
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'vector-morph',
+      'vector-morph',
+      () => true, // boosted (Riattivazione)
+      undefined,
+      () => 'respiro-profondo', // regime basso: Print2D non eleggibile, il regime vince
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(host.element.dataset.activeRenderer).toBe('vector-morph')
+
+    fixtures.setVectorMorphFailed(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 4_500)
+    expect(host.element.dataset.activeRenderer).toBe('filter-psiche')
+    host.destroy()
+  })
+
   it('notifica onRendererFailed quando il renderer attivo fallisce, cosí il selettore può saltare avanti', () => {
     // Segnalato dal Capo Supremo: senza questa notifica la rete di
     // sicurezza (Print2D durante la Riattivazione) restava in scena per
@@ -428,6 +464,7 @@ describe('Brain renderer host', () => {
     // La prima vera pressione crea finalmente i layer di passthrough: sia
     // FilterPsiche sia Psycho2D (il "mix" richiesto durante il denoising).
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('entering')
+    expect(host.isResourcePressureReady?.()).toBe(false)
     expect(container.querySelector('[data-brain-denoising-filter-psiche="true"]')).not.toBeNull()
     expect(container.querySelector('[data-brain-denoising-psycho2d="true"]')).not.toBeNull()
     expect(updates).toHaveLength(3)
@@ -437,11 +474,13 @@ describe('Brain renderer host', () => {
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_000)
     host.update({ low: 1, lowMid: 1, mid: 1, high: 1 }, DEFAULT_SETTINGS, 10_100)
     expect(host.element.dataset.brainDenoisingFilterPsiche).toBe('active')
+    expect(host.isResourcePressureReady?.()).toBe(true)
     // Anche in stato "active" il renderer reale sotto il passthrough continua
     // ad aggiornare (al ritmo ridotto), non resta congelato.
     expect(updates[0]).toBeGreaterThan(2)
 
     host.setResourcePressure(false)
+    expect(host.isResourcePressureReady?.()).toBe(false)
     host.setOfflineHold?.(false)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 11_000)
     expect(host.element.dataset.brainOfflineHold).toBe('idle')
@@ -515,6 +554,79 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
+  it('brief braccio destro punto 3: nel RESPIRO PROFONDO il flash va a zero, resta solo un glitch minimo', () => {
+    const registry = new BrainRendererRegistry()
+    for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
+      registry.register({
+        id,
+        label: id,
+        capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update() {},
+            destroy() { element.remove() },
+          }
+        },
+      })
+    }
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const buildHost = (getBioRegime?: () => 'respiro-profondo') => createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'print2d',
+      'print2d',
+      undefined,
+      undefined,
+      getBioRegime,
+    )
+    const flashOpacity = (root: HTMLElement | SVGSVGElement) => Number(
+      root.querySelector<HTMLDivElement>('[data-brain-pressure-flash="true"]')?.style.opacity ?? '0',
+    )
+
+    // Fuori dal respiro: comportamento invariato, il flash raggiunge il picco.
+    const normalHost = buildHost()
+    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    normalHost.setResourcePressure(true)
+    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_010)
+    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_030)
+    expect(flashOpacity(normalHost.element)).toBeGreaterThan(0)
+    normalHost.destroy()
+
+    // Nel respiro stabile: stesso stallo tecnico, ma il flash resta a zero
+    // per l'intera finestra attacco+decadimento — non un ritardo, un vero
+    // azzeramento (la richiesta esplicita del braccio destro).
+    const breathHost = buildHost(() => 'respiro-profondo')
+    breathHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    breathHost.setResourcePressure(true)
+    breathHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_010)
+    breathHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_030)
+    expect(flashOpacity(breathHost.element)).toBe(0)
+    breathHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_100)
+    expect(flashOpacity(breathHost.element)).toBe(0)
+    breathHost.destroy()
+  })
+
   it('sovrappone Psycho2D a FilterPsiche in "lighten" e a opacità ridotta durante il passthrough', () => {
     const registry = new BrainRendererRegistry()
     for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
@@ -547,6 +659,7 @@ describe('Brain renderer host', () => {
     }
     const container = document.createElement('div')
     const raster = new Blob(['raster'])
+    let regime: 'pressurized' | 'respiro-profondo' = 'pressurized'
     const host = createBrainRendererHost(
       container,
       registry,
@@ -563,6 +676,9 @@ describe('Brain renderer host', () => {
       },
       () => 'print2d',
       'print2d',
+      undefined,
+      undefined,
+      () => regime,
     )
     host.setResourcePressure(true)
     host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
@@ -585,6 +701,17 @@ describe('Brain renderer host', () => {
     expect(filterPsicheOpacity).toBeGreaterThan(0)
     expect(psycho2dOpacity).toBeGreaterThan(0)
     expect(psycho2dOpacity).toBeLessThan(filterPsicheOpacity)
+
+    // Anche un layer già creato nel regime precedente deve sparire appena
+    // il regime basso diventa autoritativo: l'evento tecnico non lo bypassa.
+    regime = 'respiro-profondo'
+    host.update(
+      { low: 0, lowMid: 0, mid: 0, high: 0 },
+      DEFAULT_SETTINGS,
+      2_000 + BRAIN_CONFIG.denoisingPassthroughCrossfadeMs,
+    )
+    expect(psycho2dLayer?.style.opacity).toBe('0')
+    expect(Number(filterPsicheLayer?.style.opacity)).toBeGreaterThan(0)
     host.destroy()
   })
 
@@ -743,6 +870,73 @@ describe('Brain renderer host', () => {
       { low: 0.24, flash: 0 },
     ])
     expect(received[0]).toHaveLength(2)
+    host.destroy()
+  })
+
+  it('inoltra la DECOMPRESSIONE al renderer attivo e al FilterPsiche creato dal Varco', () => {
+    const registry = new BrainRendererRegistry()
+    const received = new Map<BrainRendererId, string[]>()
+    for (const id of ['dream-segmentation', 'filter-psiche'] as const) {
+      received.set(id, [])
+      registry.register({
+        id,
+        label: id,
+        capabilities: { multipleImages: true, semanticMetadata: false, lowPowerMode: true },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setPerception(state) { received.get(id)?.push(state.regime) },
+            setTransition() {},
+            update() {},
+            destroy() { element.remove() },
+          }
+        },
+      })
+    }
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'dream-segmentation',
+      'dream-segmentation',
+      undefined,
+      undefined,
+      () => 'decompression',
+    )
+    host.setPerception?.({
+      regime: 'decompression',
+      signals: {
+        persistence: 0.8,
+        change: 0.1,
+        residual: 0.9,
+        perceptualPressure: 0.4,
+        pressureTrend: 'falling',
+      },
+    })
+    expect(received.get('dream-segmentation')).toEqual(['decompression'])
+
+    host.setResourcePressure(true)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(received.get('filter-psiche')).toEqual(['decompression'])
     host.destroy()
   })
 })

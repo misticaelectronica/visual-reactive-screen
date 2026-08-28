@@ -16,6 +16,7 @@ import {
   pickRevisionImageCount,
   pickStoriesUntilNextRevisionCycle,
   selectRevisionPool,
+  shouldStartRevisionCycleAtBoundary,
   type DreamImageArchiveEntry,
 } from '@shared/brain/dreamRevisionCycle'
 import type {
@@ -58,6 +59,7 @@ import { BrainOfflineGenerationWindow } from './brainOfflineWindow'
 import { BrainRendererSelector } from './brainRendererSelector'
 import type { BrainRendererImageSource } from './brainRendererPlugin'
 import type { BrainRhythmState } from './brainRhythm'
+import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
 import {
   brainLog,
   brainWarn,
@@ -246,6 +248,9 @@ export type BrainStoryCycleCompletion = {
 export type BrainControllerOptions = {
   onStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void
   rhythmSource?: () => BrainRhythmState
+  // PIANO-040: stato bio-percettivo, aggiornato lato Output a bassa frequenza
+  // (brief §10/§17.3) — stesso pattern di `rhythmSource`, non un canale nuovo.
+  bioPerceptionSource?: () => BrainBioPerceptionState
 }
 
 export function createBrainController(
@@ -672,28 +677,49 @@ export function createBrainController(
     }
     brainLog('thermal', `scheduler inferenza: ${event.type}`, event)
   }
-  // Semaforo davanti al carico GPU (segnalato dal Capo Supremo: il mix
-  // FilterPsiche+Psycho2D scattava sempre con lo stallo già in corso,
-  // perché `visualPressurePulseUntil` veniva armato solo REATTIVAMENTE,
-  // dopo che il thermalScheduler misurava un gap RAF già avvenuto). Qui
-  // siamo NOI a iniziare il carico (una singola chiamata GPU per
-  // fotogramma dentro `Psichedel.generate`, vedi `runInference`), quindi
-  // possiamo armare il passthrough PRIMA di prendere la GPU invece di
-  // reagire a stallo avvenuto: rosso (flash/glitch/mix armati) → breve
-  // attesa perché il crossfade sia già in scena → verde (si procede con
-  // l'inferenza). Se il passthrough è già attivo (fotogrammi ravvicinati
-  // della stessa storia) non si attende di nuovo — l'attesa serve solo al
-  // fronte di salita.
-  const PROACTIVE_PRESSURE_LEAD_MS = 260
+  // Semaforo davanti al carico GPU: il precedente anticipo fisso di 260ms
+  // scadeva mentre il passthrough poteva essere ancora in preparazione
+  // (createImageBitmap + filtri richiedono talvolta 1-2s). Ora non stimiamo
+  // il tempo: il Renderer Host concede la GPU soltanto quando FilterPsiche è
+  // completamente `active`, cioè siamo già DENTRO il Varco. Durante l'attesa
+  // il medesimo impulso viene mantenuto vivo; nessun secondo gate.
   const armVisualPressureBeforeGpuLoad = async (): Promise<void> => {
     const now = performance.now()
-    const alreadyArmed = now < visualPressurePulseUntil
     visualPressurePulseUntil = Math.max(
       visualPressurePulseUntil,
-      now + PROACTIVE_PRESSURE_LEAD_MS + VISUAL_PRESSURE_PULSE_MS,
+      now + VISUAL_PRESSURE_PULSE_MS,
     )
-    if (alreadyArmed) return
-    await new Promise<void>((resolve) => window.setTimeout(resolve, PROACTIVE_PRESSURE_LEAD_MS))
+    const getPressureHosts = (): BrainSvgController[] =>
+      [currentSvg, outgoingSvg].filter(
+        (controller): controller is BrainSvgController =>
+          controller?.isResourcePressureReady !== undefined,
+      )
+    if (getPressureHosts().length === 0) return
+    await new Promise<void>((resolve) => {
+      const waitForVarco = (): void => {
+        if (destroyed) {
+          resolve()
+          return
+        }
+        visualPressurePulseUntil = Math.max(
+          visualPressurePulseUntil,
+          performance.now() + VISUAL_PRESSURE_PULSE_MS,
+        )
+        const pressureHosts = getPressureHosts()
+        // Se nel frattempo il fotogramma è cambiato, interroghiamo i nuovi
+        // host visibili: non restiamo appesi a un controller già distrutto.
+        if (pressureHosts.length === 0) {
+          resolve()
+          return
+        }
+        if (pressureHosts.every((controller) => controller.isResourcePressureReady?.() === true)) {
+          resolve()
+          return
+        }
+        window.requestAnimationFrame(waitForVarco)
+      }
+      window.requestAnimationFrame(waitForVarco)
+    })
   }
   const thermalScheduler = new BrainThermalScheduler({
     cooldownMs: BRAIN_CONFIG.imageInferenceCooldownMs,
@@ -771,14 +797,23 @@ export function createBrainController(
     new BrainVectorizer(),
     BRAIN_CONFIG.renderFrameCount * 2,
   )
+  // PIANO-040 (brief §17): regime bio-percettivo derivato lato Output,
+  // iniettato come callback — stesso pattern di `getPressureHint`/
+  // `getBoostHint` qui sotto, non un nuovo meccanismo di trasporto.
+  // `'unresolved'` di fallback se la sorgente non è ancora disponibile
+  // (avvio, o Brain usato senza `bioPerceptionSource`, es. nei test).
+  const getBioRegime = (): BrainBioRegime => options.bioPerceptionSource?.().regime ?? 'unresolved'
   const brainRendererSelector = new BrainRendererSelector(
     brainRendererRegistry.ids(),
     undefined,
     undefined,
     () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
     () => revisionCycleActive,
+    getBioRegime,
   )
   let transitionCounterpartShapes: BrainMorphShape[] = []
+  let lastSentPerceptionState: BrainBioPerceptionState | null = null
+  let lastLoggedBioRegime: BrainBioRegime | null = null
   let latestPayload: VisualStatePayload | null = null
   // Cursore della traversata sequenziale sulla base curata: azzerato insieme
   // a tutto lo stato narrativo a ogni ricreazione del controller (cambio
@@ -1228,6 +1263,7 @@ export function createBrainController(
             : 'print2d',
           () => revisionCycleActive,
           (id, settings, now) => brainRendererSelector.reportRendererFailure(id, settings, now),
+          getBioRegime,
         )
       : createBrainSvgScene(
           svgHost,
@@ -1239,6 +1275,12 @@ export function createBrainController(
             frameCount: currentProduction.story.frames.length,
           },
         )
+    // Un nuovo controller non ha mai ricevuto lo stato bio-percettivo
+    // corrente: forza il prossimo `render()` a inviarglielo anche se il
+    // valore non è cambiato rispetto all'ultimo invio al controller
+    // precedente (§17.3 del brief: "solo quando cambia" si riferisce al
+    // valore, non deve mai significare "mai per un renderer appena creato").
+    lastSentPerceptionState = null
     currentSvg.element.style.zIndex = '3'
     currentSvg.setOfflineHold?.(offlineWindow.isActive)
     currentSvg.setMorphPattern(currentFrameMorphPattern)
@@ -1454,7 +1496,7 @@ export function createBrainController(
   }
 
   const beginRevisionCycle = async (
-    realNextProduction: BrainProduction,
+    realNextProduction: BrainProduction | null,
     beatDurationMs: number,
     beatIndex: number,
   ): Promise<void> => {
@@ -1470,11 +1512,27 @@ export function createBrainController(
         frameIndex > 0 ? referenceStory?.frames[frameIndex - 1]?.energy ?? null : null,
       )
       : 'quiete'
+    // Il cache viene aggiornato in background a ogni salvataggio, ma il
+    // confine della Riattivazione non deve dipendere da quale Promise abbia
+    // terminato per ultima: rilettura puntuale dello stesso archivio esistente.
+    if (api) {
+      cachedDreamImageEntries = await api.queryDreamImageEntries()
+        .catch(() => cachedDreamImageEntries)
+      if (destroyed) return
+    }
     const pool = api ? selectRevisionPool(cachedDreamImageEntries, currentPhase, currentState) : null
+    const continueWithoutRevision = (): void => {
+      if (realNextProduction) {
+        startProduction(realNextProduction, beatDurationMs, beatIndex)
+        return
+      }
+      recycleCurrentStoryFrame(beatDurationMs, beatIndex)
+      if (!generating) void generateNext()
+    }
     if (!api || !pool) {
       // Archivio vuoto o bridge non disponibile: si salta silenziosamente
       // il ciclo, la storia successiva parte normalmente.
-      startProduction(realNextProduction, beatDurationMs, beatIndex)
+      continueWithoutRevision()
       return
     }
     const chosen = pickRevisionEntries(pool.entries, pickRevisionImageCount())
@@ -1482,14 +1540,18 @@ export function createBrainController(
       .catch(() => [])
     if (destroyed) return
     if (loaded.length === 0) {
-      startProduction(realNextProduction, beatDurationMs, beatIndex)
+      continueWithoutRevision()
       return
     }
     const entriesByFileName = new Map(chosen.map((entry) => [entry.fileName, entry]))
-    const palette = currentProduction?.story.palette ?? realNextProduction.story.palette
+    const palette = currentProduction?.story.palette ?? realNextProduction?.story.palette
+    if (!palette) {
+      continueWithoutRevision()
+      return
+    }
     const revisionProduction = buildRevisionProduction(loaded, entriesByFileName, palette)
     if (!revisionProduction) {
-      startProduction(realNextProduction, beatDurationMs, beatIndex)
+      continueWithoutRevision()
       return
     }
     pendingProductionAfterRevisionCycle = realNextProduction
@@ -1514,6 +1576,22 @@ export function createBrainController(
     startProduction(revisionProduction, beatDurationMs, beatIndex)
   }
 
+  const requestRevisionCycleAtBoundary = (
+    realNextProduction: BrainProduction | null,
+    beatDurationMs: number,
+    beatIndex: number,
+  ): boolean => {
+    if (!shouldStartRevisionCycleAtBoundary(
+      storiesUntilNextRevisionCycle,
+      revisionCycleActive,
+      revisionCycleStarting,
+    )) return false
+    revisionCycleStarting = true
+    void beginRevisionCycle(realNextProduction, beatDurationMs, beatIndex)
+      .finally(() => { revisionCycleStarting = false })
+    return true
+  }
+
   const advanceToNextProduction = (
     readyNextProduction: BrainProduction,
     beatDurationMs: number,
@@ -1524,10 +1602,7 @@ export function createBrainController(
       startProduction(readyNextProduction, beatDurationMs, beatIndex)
       return
     }
-    if (revisionCycleStarting || revisionCycleActive) return
-    revisionCycleStarting = true
-    void beginRevisionCycle(readyNextProduction, beatDurationMs, beatIndex)
-      .finally(() => { revisionCycleStarting = false })
+    requestRevisionCycleAtBoundary(readyNextProduction, beatDurationMs, beatIndex)
   }
 
   // ---------------------------------------------------------------------
@@ -2108,6 +2183,13 @@ export function createBrainController(
     if (!beatAligned && storyCycle) return
     if (!beatAligned && elapsed < activeFrameTiming.totalMs + 2_000) return
     if (recyclingStoryFrames) {
+      // La Riattivazione è autonoma dalla generazione: se il suo contatore è
+      // scaduto, entra anche mentre la storia successiva non è ancora pronta.
+      if (requestRevisionCycleAtBoundary(
+        nextProduction,
+        beatDurationMs,
+        beatIndex,
+      )) return
       if (nextProduction) {
         brainLog('pipeline', 'nuova storia pronta; uscita dal ricircolo leggero', {
           previousStoryId: currentProduction.story.id,
@@ -2170,6 +2252,13 @@ export function createBrainController(
       options.onStoryCycleComplete(completion)
       return
     }
+    // Stesso invariante al primo confine della storia: non serve entrare nel
+    // ricircolo e attendere WebGPU prima di poter riattivare l'archivio.
+    if (requestRevisionCycleAtBoundary(
+      nextProduction,
+      beatDurationMs,
+      beatIndex,
+    )) return
     if (nextProduction) {
       brainLog('pipeline', 'storia terminata; morphing SVG verso la storia successiva', {
         storyId: currentProduction.story.id,
@@ -2263,6 +2352,34 @@ export function createBrainController(
     const resourcePressureActive = now < visualPressurePulseUntil
     currentSvg?.setResourcePressure?.(resourcePressureActive)
     outgoingSvg?.setResourcePressure?.(resourcePressureActive)
+    // PIANO-040 (brief §17.3): stato bio-percettivo, propagato solo quando
+    // cambia davvero — `bioPerceptionSource` aggiorna il proprio riferimento
+    // solo all'ingest di un nuovo campione audio (OutputApp.tsx), molto più
+    // rado del RAF, quindi il confronto di identità qui basta a non chiamare
+    // `setPerception` ad ogni fotogramma per nulla. Opzionale come
+    // `capabilities`: i renderer che non lo implementano lo ignorano.
+    const perceptionState = options.bioPerceptionSource?.()
+    if (perceptionState && perceptionState !== lastSentPerceptionState) {
+      currentSvg?.setPerception?.(perceptionState)
+      outgoingSvg?.setPerception?.(perceptionState)
+      lastSentPerceptionState = perceptionState
+    }
+    // Osservabilità (brief §10/§12, PIANO-040 Task 2.6): un solo log per
+    // cambio di regime, non per fotogramma — un cambio di regime è per
+    // costruzione un evento raro (isteresi a due letture separate da almeno
+    // `mid`, §17), coerente con lo stile event-driven degli altri `brainLog`
+    // di questo file. I cinque segnali grezzi accompagnano il log per poter
+    // rileggere, a collaudo, con quali valori è avvenuta la transizione —
+    // non serve un overlay dedicato per questo giro (nessuno rimane attivo
+    // in produzione, regola in `agents.md`).
+    if (perceptionState && perceptionState.regime !== lastLoggedBioRegime) {
+      brainLog('perception', `regime bio-percettivo: ${perceptionState.regime}`, {
+        previousRegime: lastLoggedBioRegime,
+        signals: perceptionState.signals,
+        activeRenderer: currentSvg?.element.dataset.activeRenderer,
+      })
+      lastLoggedBioRegime = perceptionState.regime
+    }
     currentSvg?.setTransition(
       transition,
       'enter',

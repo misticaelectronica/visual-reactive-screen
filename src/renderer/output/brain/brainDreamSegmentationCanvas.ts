@@ -20,6 +20,7 @@ import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
 
 // Dream Segmentation rappresenta visivamente come Brain costruisce,
 // mantiene e trasforma uno stato immaginativo durante l'ascolto (vedi
@@ -66,6 +67,115 @@ const MINIMUM_TRANSFORMATION_MS = 3_200
 const GHOST_HISTORY_LIMIT = 2
 const GHOST_LIFESPAN_MS = 32_000
 
+export type DreamRegimeProfile = {
+  timingMultiplier: number
+  densityMultiplier: number
+  darkeningAdd: number
+  colorBrightness: number
+  motionMultiplier: number
+  // Brief definitivo §8 (già firmato, mai implementato finora — trovato
+  // rileggendo il brief dopo la segnalazione dal vivo del Capo Supremo):
+  // "il vocabolario neuronale ed elettrico è sospeso durante il respiro e
+  // torna quando si esce dal regime basso". Non è densità ridotta come le
+  // altre voci: è sospensione — 0 in `decompression`/`respiro-profondo`, non
+  // solo un valore più basso. Gate esplicito, non un ennesimo uso di
+  // `densityMultiplier` (che resta per regioni/filamenti "buoni" — membrane,
+  // condensazione — sempre identitari in ogni regime per lo stesso §8).
+  neuronalMultiplier: number
+}
+
+const DEFAULT_DREAM_REGIME_PROFILE: DreamRegimeProfile = {
+  timingMultiplier: 1,
+  densityMultiplier: 1,
+  darkeningAdd: 0,
+  colorBrightness: 1,
+  motionMultiplier: 1,
+  neuronalMultiplier: 1,
+}
+
+// Brief collettivo pragmatico: il respiro resta vivo. I vecchi 1.4/2.0
+// congelavano dwell, morph e ghost; ora i tempi si dilatano appena, mentre
+// apertura, oscuramento e colore agiscono dentro la materia già esistente.
+//
+// `respiro-alto` (brief Audio/Visual "due assi", 2026-08-28): stasi
+// strutturale ad alta pressione — "Brain va a mille", tempi corti,
+// densità alta, movimento serrato. `colorBrightness` resta 1 (il
+// pavimento di `computeDreamRegimeColor` è già "pieno", non esiste un
+// ramo "sopra 1" nella formula esistente — introdurne uno sarebbe
+// comportamento nuovo non richiesto esplicitamente: la scelta più
+// semplice è che l'alto sia semplicemente il colore pieno di sempre, non
+// più acceso di quanto già sia). `neuronalMultiplier` resta 1 (vocabolario
+// pieno) — nessuna indicazione del Visual per rinforzarlo oltre.
+const REGIME_PROFILE: Record<BrainBioRegime, DreamRegimeProfile> = {
+  pressurized: DEFAULT_DREAM_REGIME_PROFILE,
+  unresolved: DEFAULT_DREAM_REGIME_PROFILE,
+  'respiro-alto': {
+    timingMultiplier: 0.8,
+    densityMultiplier: 1.25,
+    darkeningAdd: 0,
+    colorBrightness: 1,
+    motionMultiplier: 1.3,
+    neuronalMultiplier: 1,
+  },
+  decompression: {
+    timingMultiplier: 1.1,
+    densityMultiplier: 0.9,
+    darkeningAdd: 0.05,
+    colorBrightness: 0.86,
+    motionMultiplier: 0.84,
+    neuronalMultiplier: 0,
+  },
+  'respiro-profondo': {
+    timingMultiplier: 1.25,
+    densityMultiplier: 0.78,
+    darkeningAdd: 0.1,
+    colorBrightness: 0.72,
+    motionMultiplier: 0.68,
+    neuronalMultiplier: 0,
+  },
+}
+
+// `residual` (brief Audio 2026-08-28, punto 1 della nota di trasmissione:
+// "riportare la via più breve per far consumare a Dream-Segmentation almeno
+// un segnale continuo oltre al regime") modula quanto del profilo del
+// regime è effettivamente applicato — 0 = comportamento di default
+// (`DEFAULT_DREAM_REGIME_PROFILE`), 1 = profilo pieno del regime. `regime`
+// resta la sola sorgente di *quale* profilo raggiungere (whitelist, dark
+// branch, moltiplicatori — decisioni già firmate), `residual` decide
+// *quanto* di quel profilo è già presente in questo istante: la stessa
+// memoria a decadimento asimmetrico che tiene viva la sensazione di
+// apertura anche a `decompression` appena iniziata, senza dover attendere
+// che il regime discreto si aggiorni. Default 1 per non alterare il
+// comportamento di chi chiama senza passare `residual` (retrocompatibile
+// con i test esistenti).
+function lerp(from: number, to: number, blend: number): number {
+  return from + (to - from) * blend
+}
+
+export function calculateDreamRegimeProfile(
+  regime: BrainBioRegime | null,
+  residual = 1,
+): DreamRegimeProfile {
+  const target = regime ? REGIME_PROFILE[regime] ?? DEFAULT_DREAM_REGIME_PROFILE : DEFAULT_DREAM_REGIME_PROFILE
+  const blend = clamp(residual)
+  return {
+    timingMultiplier: lerp(DEFAULT_DREAM_REGIME_PROFILE.timingMultiplier, target.timingMultiplier, blend),
+    densityMultiplier: lerp(DEFAULT_DREAM_REGIME_PROFILE.densityMultiplier, target.densityMultiplier, blend),
+    darkeningAdd: lerp(DEFAULT_DREAM_REGIME_PROFILE.darkeningAdd, target.darkeningAdd, blend),
+    colorBrightness: lerp(DEFAULT_DREAM_REGIME_PROFILE.colorBrightness, target.colorBrightness, blend),
+    motionMultiplier: lerp(DEFAULT_DREAM_REGIME_PROFILE.motionMultiplier, target.motionMultiplier, blend),
+    // Nei regimi che sospendono il vocabolario neuronale lo zero è un gate
+    // semantico assoluto, non una quantità da interpolare col residuo.
+    neuronalMultiplier: target.neuronalMultiplier === 0
+      ? 0
+      : lerp(DEFAULT_DREAM_REGIME_PROFILE.neuronalMultiplier, target.neuronalMultiplier, blend),
+  }
+}
+
+export function calculateDreamRegimeMultiplier(regime: BrainBioRegime | null, residual = 1): number {
+  return calculateDreamRegimeProfile(regime, residual).timingMultiplier
+}
+
 type CachedDreamField = {
   source: BrainRendererImageSource
   field: MaterialField
@@ -105,6 +215,26 @@ export type DreamMotion = {
   beat: number
   tension: number
   flash: number
+}
+
+export function computeDreamRegimeColor(
+  color: readonly [number, number, number],
+  regime: BrainBioRegime | null,
+  motion: Pick<DreamMotion, 'activity' | 'tension'>,
+  residual = 1,
+): readonly [number, number, number] {
+  const profile = calculateDreamRegimeProfile(regime, residual)
+  if (profile.colorBrightness === 1) return color
+  // Variazione lenta e locale: usa inviluppi audio già smussati, non un
+  // clock autonomo. In silenzio activity/tension=0 e il colore resta scuro
+  // ma fermo; con musica i tre canali respirano con pesi differenti.
+  const activity = clamp(motion.activity)
+  const tension = clamp(motion.tension)
+  return [
+    Math.round(clamp(profile.colorBrightness + activity * 0.06, 0, 1) * color[0]),
+    Math.round(clamp(profile.colorBrightness + tension * 0.08, 0, 1) * color[1]),
+    Math.round(clamp(profile.colorBrightness + (activity + tension) * 0.035, 0, 1) * color[2]),
+  ]
 }
 
 export type CondensationPair = {
@@ -216,6 +346,10 @@ export function updateDreamSurpriseAccumulator(
   elapsedMs: number,
   now: number,
   active: boolean,
+  // PIANO-040: unico punto di contatto col regime bio-percettivo per questa
+  // funzione — modula SOLO la soglia di dwell, mai gain/decay/threshold
+  // dell'accumulatore sopra (invariante §6, default = comportamento odierno).
+  minimumDwellMs: number = MINIMUM_DWELL_MS,
 ): { state: DreamSurpriseState; triggered: boolean } {
   // Check Silenzio: senza audio attivo nessun evento può scattare, punto.
   if (!active) {
@@ -224,7 +358,7 @@ export function updateDreamSurpriseAccumulator(
   const elapsed = Math.max(0, elapsedMs)
   const decayed = Math.max(0, state.accumulator - SURPRISE_DECAY_PER_MS * elapsed)
   const nextAccumulator = decayed + distance * SURPRISE_GAIN_PER_MS * elapsed
-  const dwellElapsed = now - state.lastEventAt >= MINIMUM_DWELL_MS
+  const dwellElapsed = now - state.lastEventAt >= minimumDwellMs
   if (dwellElapsed && nextAccumulator >= SURPRISE_THRESHOLD) {
     return { state: { accumulator: 0, lastEventAt: now }, triggered: true }
   }
@@ -241,9 +375,10 @@ export function computeLocalMorphProgress(
   hostProgress: number,
   elapsedMs: number,
   transforming: boolean,
+  minimumTransformationMs: number = MINIMUM_TRANSFORMATION_MS,
 ): number {
   if (!transforming) return currentProgress
-  const maxDelta = Math.max(0, elapsedMs) / MINIMUM_TRANSFORMATION_MS
+  const maxDelta = Math.max(0, elapsedMs) / minimumTransformationMs
   const target = clamp(hostProgress)
   const delta = target - currentProgress
   const step = Math.sign(delta) * Math.min(Math.abs(delta), maxDelta)
@@ -688,10 +823,11 @@ function drawGhostResidue(
   height: number,
   now: number,
   budget: number,
+  ghostLifespanMs: number = GHOST_LIFESPAN_MS,
 ): void {
   const age = now - ghost.startedAt
-  if (age >= GHOST_LIFESPAN_MS) return
-  const opacity = clamp(1 - age / GHOST_LIFESPAN_MS) * 0.16
+  if (age >= ghostLifespanMs) return
+  const opacity = clamp(1 - age / ghostLifespanMs) * 0.16
   if (opacity <= 0.002) return
   const regions = ghost.regions.slice(0, budget)
   for (const region of regions) {
@@ -730,6 +866,11 @@ export function createBrainDreamSegmentationScene(
   let destroyed = false
   let failed = false
   let resourcePressure = false
+  // PIANO-040 (brief §11): primo consumer del livello bio-percettivo. `null`
+  // finché `setPerception` non è mai stato chiamato — stesso stato di un
+  // regime `pressurized` ai fini di `calculateDreamRegimeMultiplier`
+  // (moltiplicatore 1.0, invariante §6).
+  let latestPerception: BrainBioPerceptionState | null = null
   let preparationStarted = false
   let transitionProgress = 1
   let previousTransitionProgress = Number.NaN
@@ -866,6 +1007,10 @@ export function createBrainDreamSegmentationScene(
       resourcePressure = active
       outputCanvas.dataset.brainResourcePressure = active ? 'true' : 'false'
     },
+    setPerception(state) {
+      latestPerception = state
+      outputCanvas.dataset.brainBioRegime = state.regime
+    },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -916,12 +1061,25 @@ export function createBrainDreamSegmentationScene(
       const profile = computeBandProfile(bands)
       baselineProfile = updateBaselineProfile(baselineProfile, profile, motionElapsed)
       const distance = computeProfileDistance(profile, baselineProfile)
+      // PIANO-040 (brief §11): unico punto di lettura del regime per frame —
+      // il moltiplicatore modula le tre soglie di tempo sotto, mai
+      // l'accumulatore stesso (gain/decay/threshold restano quelli sopra).
+      const bioRegime = latestPerception?.regime ?? null
+      // Brief Audio 2026-08-28 (nota di trasmissione, punto 1): `residual`
+      // consumato come segnale continuo, non solo il regime discreto —
+      // pesa quanto del profilo del regime è già in vigore. Un default a 1
+      // per `latestPerception` assente mantiene il comportamento invariato
+      // finché il primo campione non arriva.
+      const regimeResidual = latestPerception?.signals.residual ?? 1
+      const regimeProfile = calculateDreamRegimeProfile(bioRegime, regimeResidual)
+      const regimeMultiplier = regimeProfile.timingMultiplier
       const surpriseResult = updateDreamSurpriseAccumulator(
         surpriseState,
         distance,
         motionElapsed,
         time,
         audioActive,
+        MINIMUM_DWELL_MS * regimeMultiplier,
       )
       surpriseState = surpriseResult.state
 
@@ -946,6 +1104,7 @@ export function createBrainDreamSegmentationScene(
           transitionProgress,
           motionElapsed,
           true,
+          MINIMUM_TRANSFORMATION_MS * regimeMultiplier,
         )
         if (transformState.localProgress >= 1) settleTransformation(time)
       }
@@ -964,6 +1123,10 @@ export function createBrainDreamSegmentationScene(
         rhythm?.beatIndex ?? 0,
         settings.lowPowerMode ? 1 : 0,
         resourcePressure ? 1 : 0,
+        bioRegime ?? 'none',
+        // Passi grossolani (5%): `residual` è continuo e cambierebbe la
+        // firma quasi a ogni campione, vanificando il gate di rendering.
+        Math.round(regimeResidual * 20),
       ].join(':')
       const signatureChanged = signature !== lastSignature
       if (!shouldRenderDreamFrame(
@@ -993,13 +1156,22 @@ export function createBrainDreamSegmentationScene(
       const height = outputCanvas.height
       context.clearRect(0, 0, width, height)
 
-      const regionBudget = resourcePressure
+      const baseRegionBudget = resourcePressure
         ? PRESSURE_REGION_BUDGET
         : settings.lowPowerMode
           ? LOW_POWER_REGION_BUDGET
           : NORMAL_REGION_BUDGET
-      const filamentBudget = resourcePressure ? PRESSURE_MAX_FILAMENTS : MAX_FILAMENTS
-      const pressureBias = resourcePressure ? 0.55 : settings.lowPowerMode ? 0.75 : 1
+      const regionBudget = Math.max(4, Math.round(baseRegionBudget * regimeProfile.densityMultiplier))
+      const baseFilamentBudget = resourcePressure ? PRESSURE_MAX_FILAMENTS : MAX_FILAMENTS
+      // Brief definitivo §8: il vocabolario neuronale (filamenti, scariche)
+      // è sospeso nel regime basso, non solo diradato — nessun floor
+      // minimo di 4 qui, a differenza del budget regioni: sospeso significa
+      // zero, non "un po' meno".
+      const filamentBudget = Math.round(
+        baseFilamentBudget * regimeProfile.densityMultiplier * regimeProfile.neuronalMultiplier,
+      )
+      const pressureBias = (resourcePressure ? 0.55 : settings.lowPowerMode ? 0.75 : 1) *
+        regimeProfile.motionMultiplier
 
       // Check Materia: il raster resta sempre il livello di base, mai
       // rimpiazzato dalle primitive geometriche sopra.
@@ -1022,7 +1194,7 @@ export function createBrainDreamSegmentationScene(
       // riconoscibile sotto (Check Materia), solo con meno contrasto
       // locale, non sostituito.
       context.globalCompositeOperation = 'multiply'
-      context.globalAlpha = clamp(0.32 + motion.tension * 0.12)
+      context.globalAlpha = clamp(0.32 + regimeProfile.darkeningAdd + motion.tension * 0.12)
       context.fillStyle = '#05050a'
       context.fillRect(0, 0, width, height)
       context.globalAlpha = 1
@@ -1030,7 +1202,15 @@ export function createBrainDreamSegmentationScene(
 
       // Memoria: residui della configurazione precedente, sotto il resto.
       for (const ghost of ghosts) {
-        drawGhostResidue(context, ghost, width, height, time, Math.ceil(regionBudget / 2))
+        drawGhostResidue(
+          context,
+          ghost,
+          width,
+          height,
+          time,
+          Math.ceil(regionBudget / 2),
+          GHOST_LIFESPAN_MS * regimeMultiplier,
+        )
       }
 
       context.globalCompositeOperation = 'lighter'
@@ -1057,11 +1237,12 @@ export function createBrainDreamSegmentationScene(
           context.globalCompositeOperation = 'multiply'
           drawDarkeningVeil(context, x, y, radius * 1.1, 0.4 + motion.tension * 0.12)
           context.globalCompositeOperation = 'lighter'
+          const regimeColor = computeDreamRegimeColor(blend.color, bioRegime, motion, regimeResidual)
           drawMembrane(
-            context, x, y, radius, blend.color,
+            context, x, y, radius, regimeColor,
             clamp(0.42 + motion.tension * 0.3 + (scale - 1) * 0.45),
           )
-          filamentNodes.push({ x, y, color: blend.color, salience: to.salience })
+          filamentNodes.push({ x, y, color: regimeColor, salience: to.salience })
         }
         for (const pair of condensationPairs) {
           if (!condensationTargets.has(pair.intoToRegionId)) continue
@@ -1070,12 +1251,13 @@ export function createBrainDreamSegmentationScene(
           if (!from || !to) continue
           const blend = computeCondensationBlend(from, to, transformState.localProgress)
           const radius = Math.sqrt(blend.areaRatio) * width * 0.42
+          const regimeColor = computeDreamRegimeColor(blend.color, bioRegime, motion, regimeResidual)
           drawMembrane(
             context,
             blend.centroidX * width,
             blend.centroidY * height,
             radius,
-            blend.color,
+            regimeColor,
             0.16 * Math.sin(Math.PI * clamp(transformState.localProgress)),
           )
         }
@@ -1111,11 +1293,12 @@ export function createBrainDreamSegmentationScene(
           // la stessa espansione che allarga il raggio schiarisce la
           // membrana, altrimenti su regioni piccole la sola scala resta
           // impercettibile (segnalato dal Capo Supremo).
+          const regimeColor = computeDreamRegimeColor(region.averageColor, bioRegime, motion, regimeResidual)
           drawMembrane(
-            context, x, y, radius, region.averageColor,
+            context, x, y, radius, regimeColor,
             clamp(0.42 + motion.tension * 0.3 + (scale - 1) * 0.45),
           )
-          filamentNodes.push({ x, y, color: region.averageColor, salience: region.salience })
+          filamentNodes.push({ x, y, color: regimeColor, salience: region.salience })
         }
       }
 
@@ -1138,6 +1321,12 @@ export function createBrainDreamSegmentationScene(
       outputCanvas.dataset.brainDreamTransforming = transformState.transforming ? 'true' : 'false'
       outputCanvas.dataset.brainDreamTransition =
         `${transitionRole}-${transitionProgress.toFixed(3)}`
+      // PIANO-040: sola lettura diagnostica — l'overlay in OutputApp.tsx la
+      // legge dal DOM (stesso pattern già in uso per `data-active-renderer`),
+      // nessun nuovo canale di trasporto.
+      outputCanvas.dataset.brainRegimeMultiplier = regimeMultiplier.toFixed(2)
+      outputCanvas.dataset.brainDreamDensityMultiplier = regimeProfile.densityMultiplier.toFixed(2)
+      outputCanvas.dataset.brainDreamColorBrightness = regimeProfile.colorBrightness.toFixed(2)
       brainPerformanceMetrics.recordCanvasFrame(
         time,
         resourcePressure,

@@ -1,5 +1,10 @@
 # Mistica Electronica Visual Reactive Screen
 
+> **Versione corrente: 1.0.0-rc.1** — candidata al rilascio, con funzionalità
+> congelate e collaudo fullscreen finale ancora richiesto. Novità in
+> [`CHANGELOG.md`](CHANGELOG.md), checklist in
+> [`docs/release-candidate.md`](docs/release-candidate.md).
+
 Desktop app **Electron + TypeScript + React + Canvas 2D** per generare una uscita visiva fullscreen reattiva all'audio, pensata per performance live, proiezioni, schermi HDMI e contesti techno/ambient/rituali.
 
 L'app ha due finestre:
@@ -33,10 +38,17 @@ L'app ha due finestre:
   ogni frase genera una storia dedicata e, per la durata della sessione, alimenta
   anche `config/brainPhrases.txt` (che torna al set curato alla chiusura). Setup e
   uso in [`sessione-pubblica-brain.md`](sessione-pubblica-brain.md).
-- Tre algoritmi morphing Canvas 2D:
+- Quattro algoritmi morphing Canvas 2D:
   - **Liquid Morphing**
   - **Oniric Morphing**
   - **PsyHypMorphing**
+  - **2001 Slit-Scan Morphing**
+- Nove renderer Brain a plugin: Print2D, Psycho2D, Vector Morph, Materia Morph,
+  FilterPsiche, Bauhaus Morph, Dream Segmentation, Glitch Morph e Fractal
+  Spiral Degeneration.
+- Stato bio-percettivo condiviso fra tutti i renderer Brain: Pressurizzazione,
+  Decompressione, Respiro Alto e Respiro Profondo. Architettura e collaudo in
+  [`docs/stato-bio-percettivo-brief.md`](docs/stato-bio-percettivo-brief.md).
 - Controlli dedicati al morphing onirico: opacita, luminanza, glow, contrasto, scala, morbidezza bordo e oscuramento sfondo.
 - Test Flash manuale indipendente da audio/soglie/cooldown.
 - Panic / Off per mandare subito l'output in stato sicuro.
@@ -126,11 +138,11 @@ Il build normale resta `pnpm build`. La build Mac Intel/x64 e' un passaggio extr
 pnpm exec electron-builder --mac --x64
 ```
 
-Output tipici:
+Output tipici (il numero di versione segue `package.json`):
 
 - `release/mac/`: app x64 non compressa
-- `release/Mistica Electronica Visual Reactive Screen-0.1.0.dmg`: DMG x64
-- `release/Mistica Electronica Visual Reactive Screen-0.1.0-mac.zip`: ZIP x64
+- `release/Mistica Electronica Visual Reactive Screen-<versione>.dmg`: DMG x64
+- `release/Mistica Electronica Visual Reactive Screen-<versione>-mac.zip`: ZIP x64
 
 La build macOS include `NSMicrophoneUsageDescription` nel plist, necessario per far comparire correttamente la richiesta di permesso microfono.
 

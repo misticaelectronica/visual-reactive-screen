@@ -96,6 +96,12 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-031`: Release Candidate 1
+- **Descrizione**: consolidare il lavoro bio-percettivo, Varco e Riattivazione
+  come `1.0.0-rc.1`, produrre la documentazione di rilascio e integrare su develop.
+- **Stato**: 🟡 IN PROGRESS — documentazione pronta; commit, merge e verifica in corso
+- **Piano di Lavoro**: `working/plans/piano-041-release-candidate-rc1.md`
+
 ### `MACRO-020`: Isolamento Inferenza Immagini
 - **Descrizione**: Spostare caricamento e inferenza ONNX/WebGPU di Psichedel
   fuori dal thread JavaScript dell'Output, consegnando al renderer raster pronti.

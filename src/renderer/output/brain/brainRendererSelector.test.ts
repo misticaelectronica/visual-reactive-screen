@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
+import { BRAIN_RENDERER_IDS } from '@shared/types'
 import {
   BrainRendererSelector,
   selectBrainRendererHoldFrames,
@@ -619,5 +620,161 @@ describe('Brain renderer selector', () => {
     }
     expect(everVisited.has('bauhaus-morph')).toBe(true)
     expect(everVisited.has('material-morph')).toBe(true)
+  })
+})
+
+describe('selectBrainRendererHoldFrames — hold per regime durante Riattivazione (PIANO-040 §17.1)', () => {
+  it('pressurized in boost resta nel range [1,2] (invariato)', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, true, 'pressurized')
+      expect(value).toBeGreaterThanOrEqual(1)
+      expect(value).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('decompression in boost è sempre 2 fisso', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, true, 'decompression')
+      expect(value).toBe(2)
+    }
+  })
+
+  it('respiro-profondo in boost torna al range ordinario [2,3] (la Riattivazione rallenta fino a mimetizzarsi)', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, true, 'respiro-profondo')
+      expect(value).toBeGreaterThanOrEqual(2)
+      expect(value).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('regime non passato o unresolved: nessuna regressione, comportamento di oggi [1,2]', () => {
+    for (let index = 0; index < 20; index += 1) {
+      expect(selectBrainRendererHoldFrames('vector-morph', () => index / 20, true)).toBeLessThanOrEqual(2)
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, true, 'unresolved')
+      expect(value).toBeGreaterThanOrEqual(1)
+      expect(value).toBeLessThanOrEqual(2)
+    }
+  })
+})
+
+describe('BrainRendererSelector — esclusione per regime (PIANO-040 §4/§17.1)', () => {
+  const ids = BRAIN_RENDERER_IDS
+  const lowPool = new Set([
+    'filter-psiche',
+    'vector-morph',
+    'material-morph',
+    'bauhaus-morph',
+    'dream-segmentation',
+  ])
+
+  it('in decompression/respiro-profondo compare soltanto la whitelist normativa di cinque renderer', () => {
+    for (const regime of ['decompression', 'respiro-profondo'] as const) {
+      for (const boosted of [false, true]) {
+        const selector = new BrainRendererSelector(
+          ids, 'filter-psiche', Math.random, () => false, () => boosted, () => regime,
+        )
+        const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+        selector.beginStory(`story-${regime}-${boosted}`, settings)
+        const visited = new Set([selector.resolve(settings, 0)])
+        for (let frame = 1; frame < 20; frame += 1) {
+          selector.advanceStoryRenderer(`story-${regime}-${boosted}`, settings, frame)
+          visited.add(selector.resolve(settings, frame))
+        }
+        for (const id of visited) expect(lowPool.has(id)).toBe(true)
+        expect(visited.has('glitch-morph')).toBe(false)
+      }
+    }
+  })
+
+  it('il regime vince sempre sull\'evento tecnico: la Riattivazione (boost) NON riabilita Print2D in regime basso', () => {
+    // Stesso scenario del test "con boost tutti i renderer compaiono, incluso
+    // Print2D" sopra, ma con un regime basso: qui Print2D deve restare fuori
+    // nonostante il boost, a differenza del filtro pressione GPU.
+    const selector = new BrainRendererSelector(
+      ids, 'filter-psiche', Math.random, () => false, () => true, () => 'respiro-profondo',
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-1', settings)
+    const visited = new Set([selector.resolve(settings, 0)])
+    for (let frame = 1; frame < 25; frame += 1) {
+      selector.advanceStoryRenderer('story-1', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    expect(visited.has('print2d')).toBe(false)
+  })
+
+  it('in pressurized/unresolved il pool resta ampio come oggi', () => {
+    for (const regime of ['pressurized', 'unresolved', undefined] as const) {
+      const selector = new BrainRendererSelector(
+        ids, 'filter-psiche', Math.random, () => false, () => true, regime ? () => regime : undefined,
+      )
+      const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+      selector.beginStory(`story-${regime}`, settings)
+      const visited = new Set([selector.resolve(settings, 0)])
+      for (let frame = 1; frame < 25; frame += 1) {
+        selector.advanceStoryRenderer(`story-${regime}`, settings, frame)
+        visited.add(selector.resolve(settings, frame))
+      }
+      expect(visited.has('print2d')).toBe(true)
+    }
+  })
+
+  it('un cambio a respiro-profondo invalida subito Psycho2D attivo e gli ID già accodati nel vecchio mazzo', () => {
+    let regime: 'pressurized' | 'respiro-profondo' = 'pressurized'
+    const selector = new BrainRendererSelector(
+      ids,
+      'psycho2d',
+      () => 0.99,
+      () => false,
+      () => true,
+      () => regime,
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-regime-change', settings)
+    let active = selector.resolve(settings, 0)
+    for (let frame = 1; frame < 30 && active !== 'psycho2d'; frame += 1) {
+      selector.advanceStoryRenderer('story-regime-change', settings, frame)
+      active = selector.resolve(settings, frame)
+    }
+    expect(active).toBe('psycho2d')
+
+    regime = 'respiro-profondo'
+    const visited = new Set([selector.resolve(settings, 100)])
+    for (let frame = 101; frame < 130; frame += 1) {
+      selector.advanceStoryRenderer('story-regime-change', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    expect(visited.has('psycho2d')).toBe(false)
+    expect(visited.has('fractal-spiral-degeneration')).toBe(false)
+    expect(visited.has('print2d')).toBe(false)
+  })
+
+  it('un cambio a respiro-profondo espelle subito Glitch Morph attivo e accodato', () => {
+    let regime: 'pressurized' | 'respiro-profondo' = 'pressurized'
+    const selector = new BrainRendererSelector(
+      ids,
+      'glitch-morph',
+      () => 0.99,
+      () => false,
+      () => false,
+      () => regime,
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('story-glitch-regime-change', settings)
+    let active = selector.resolve(settings, 0)
+    for (let frame = 1; frame < 40 && active !== 'glitch-morph'; frame += 1) {
+      selector.advanceStoryRenderer('story-glitch-regime-change', settings, frame)
+      active = selector.resolve(settings, frame)
+    }
+    expect(active).toBe('glitch-morph')
+
+    regime = 'respiro-profondo'
+    const visited = new Set([selector.resolve(settings, 100)])
+    for (let frame = 101; frame < 130; frame += 1) {
+      selector.advanceStoryRenderer('story-glitch-regime-change', settings, frame)
+      visited.add(selector.resolve(settings, frame))
+    }
+    expect(visited.has('glitch-morph')).toBe(false)
+    for (const id of visited) expect(lowPool.has(id)).toBe(true)
   })
 })

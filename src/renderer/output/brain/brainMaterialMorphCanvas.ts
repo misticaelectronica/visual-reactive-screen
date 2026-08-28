@@ -18,6 +18,8 @@ import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 
 const NORMAL_WIDTH = 320
 const NORMAL_HEIGHT = 180
@@ -48,6 +50,14 @@ export type BrainMaterialMotion = {
   flash: number
   phaseX: number
   phaseY: number
+}
+
+// Riusa il moto locale già esistente e ne riduce soltanto l'ampiezza nei
+// regimi bassi. Non altera il morph fra immagini, il flash o la camera.
+export function materialGeometryScaleForRegime(
+  regime: BrainBioRegime | null | undefined,
+): number {
+  return brainBioLocalMotionScale(regime)
 }
 
 const materialCache = new WeakMap<
@@ -409,6 +419,7 @@ export function createBrainMaterialMorphScene(
   let lastSignature = ''
   let lastMotionAt = Number.NaN
   const motionSmoother = new BrainCanvasMotionSmoother()
+  let latestPerception: BrainBioPerceptionState | null = null
   const prepared = new Map<string, CachedMaterial>()
   let currentSource: BrainRendererImageSource | null = null
   let previousSource: BrainRendererImageSource | null = null
@@ -496,6 +507,10 @@ export function createBrainMaterialMorphScene(
       resourcePressure = active
       outputCanvas.dataset.brainResourcePressure = active ? 'true' : 'false'
     },
+    setPerception(state) {
+      latestPerception = state
+      outputCanvas.dataset.brainBioRegime = state.regime
+    },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -555,6 +570,7 @@ export function createBrainMaterialMorphScene(
         phaseX: directionalActivity > 0.001 ? Math.cos(phase) * directionalActivity : 0,
         phaseY: directionalActivity > 0.001 ? Math.sin(phase) * directionalActivity : 0,
       }
+      const geometryScale = materialGeometryScaleForRegime(latestPerception?.regime)
       const from = transitionRole === 'enter'
         ? preparedFor(previousSource) ?? current
         : current
@@ -576,6 +592,7 @@ export function createBrainMaterialMorphScene(
         rhythm?.beatIndex ?? 0,
         settings.lowPowerMode ? 1 : 0,
         resourcePressure ? 1 : 0,
+        latestPerception?.regime ?? 'none',
       ].join(':')
       const signatureChanged = signature !== lastSignature
       if (!shouldRenderBrainMaterialFrame(
@@ -626,13 +643,20 @@ export function createBrainMaterialMorphScene(
         if (!layer) return
         const phase = index * 1.618 + (rhythm?.beatPhase ?? 0) * Math.PI * 2
         const localScale = 1 +
-          motion.pressure * (0.006 + region.areaRatio * 0.032) +
-          motion.beat * (0.012 + region.salience * 0.018)
+          (
+            motion.pressure * (0.006 + region.areaRatio * 0.032) +
+            motion.beat * (0.012 + region.salience * 0.018)
+          ) * geometryScale
         const offsetX =
-          Math.cos(phase) * motion.fusion * 2.4 + motion.phaseX * (index % 2 ? -1 : 1)
+          (
+            Math.cos(phase) * motion.fusion * 2.4 +
+            motion.phaseX * (index % 2 ? -1 : 1)
+          ) * geometryScale
         const offsetY =
-          Math.sin(phase * 0.83) * motion.structure * 1.6 +
-          motion.phaseY * (index % 3 === 0 ? -0.7 : 0.7)
+          (
+            Math.sin(phase * 0.83) * motion.structure * 1.6 +
+            motion.phaseY * (index % 3 === 0 ? -0.7 : 0.7)
+          ) * geometryScale
         const centerX = region.centroidX * width
         const centerY = region.centroidY * height
         context.save()

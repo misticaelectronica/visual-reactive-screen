@@ -1,14 +1,46 @@
 import {
+  BRAIN_RENDERER_IDS,
   isBrainRendererId,
   type AppSettings,
   type BrainRendererId,
 } from '@shared/types'
+import type { BrainBioRegime } from './brainBioPerception'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
 const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>([])
 const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
   'print2d',
 ])
+// PIANO-040 (brief collettivo, terzo collaudo; rinominato per il brief
+// "due assi" del 2026-08-28): il regime basso (`decompression`/
+// `respiro-profondo`) è una whitelist, non una blacklist. Solo questi
+// cinque renderer sono eleggibili. A differenza del filtro pressione GPU
+// (`getPressureHint`), **non viene mai bypassata da `boosted`**: il regime
+// vince sempre sull'evento tecnico (brief §13/§14 della nota Visual —
+// "l'esclusione per regime deve rimanere attiva durante la Riattivazione").
+const LOW_REGIME_RENDERERS = new Set<BrainRendererId>([
+  'vector-morph',
+  'material-morph',
+  'bauhaus-morph',
+  'dream-segmentation',
+  'filter-psiche',
+])
+const REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(
+  BRAIN_RENDERER_IDS.filter((id) => !LOW_REGIME_RENDERERS.has(id)),
+)
+
+// `respiro-alto`/`pressurized`: nessuna esclusione, come già `pressurized`
+// prima di questo brief. Il brief Visual §5 elenca una preferenza
+// "prioritari/compatibili" per Respiro Alto, non un'esclusione — non
+// implementata come peso di selezione in questo giro (nessun meccanismo
+// di priorità esiste oggi nel selettore; aggiungerne uno per una
+// preferenza qualitativa non vincolante sarebbe la sovrastrutturazione
+// che la regola vieta finché non richiesto in modo stringente).
+function excludedForRegime(regime: BrainBioRegime): ReadonlySet<BrainRendererId> {
+  return regime === 'decompression' || regime === 'respiro-profondo'
+    ? REGIME_EXCLUDED_RENDERERS
+    : AUTOMATICALLY_EXCLUDED_RENDERERS
+}
 // Bauhaus Morph e Materia Morph preparano il materiale visivo analizzando
 // pixel/maschere di più sorgenti immagine per fotogramma (capabilities
 // multipleImages, brainRendererRegistry.ts): sotto pressione GPU reale
@@ -53,15 +85,33 @@ const MAXIMUM_PERSISTENT_HOLD_FRAMES = 3
 // stringe a min 1/max 2.
 const MINIMUM_BOOSTED_HOLD_FRAMES = 1
 const MAXIMUM_BOOSTED_HOLD_FRAMES = 2
+// PIANO-040 (brief §17.1, tabella): durante la Riattivazione (`boosted`) la
+// velocità dell'alternanza dipende dal regime, non solo dal flag tecnico —
+// PRESSURIZZATO resta 1-2 (invariato, "può dichiararsi pienamente");
+// DECOMPRESSIONE rallenta a 2 fisso ("leggibile ma contenuta"); RESPIRO
+// PROFONDO torna al range ordinario 2-3 ("deve mimetizzarsi"). Un regime
+// sconosciuto o `unresolved` usa il comportamento oggi esistente (1-2),
+// nessuna regressione per chi non passa il nuovo parametro.
+const DECOMPRESSION_BOOSTED_HOLD_FRAMES = 2
 
 export function selectBrainRendererHoldFrames(
   rendererId: BrainRendererId,
   random: () => number = Math.random,
   boosted = false,
+  regime?: BrainBioRegime,
 ): number {
   if (!PERSISTENT_STORY_RENDERERS.has(rendererId)) return 1
-  const minimum = boosted ? MINIMUM_BOOSTED_HOLD_FRAMES : MINIMUM_PERSISTENT_HOLD_FRAMES
-  const maximum = boosted ? MAXIMUM_BOOSTED_HOLD_FRAMES : MAXIMUM_PERSISTENT_HOLD_FRAMES
+  if (boosted && regime === 'decompression') {
+    return DECOMPRESSION_BOOSTED_HOLD_FRAMES
+  }
+  // Brief Visual "due assi" (2026-08-28), §4/§5: Respiro Alto vuole "tempi
+  // corti" — la stessa stretta 1-2 già usata dalla Riattivazione, ma qui
+  // attiva anche fuori boost, perché è la stasi stessa a chiederlo, non
+  // un evento tecnico. Respiro Profondo resta l'unico caso che torna al
+  // range ordinario anche sotto boost ("deve mimetizzarsi").
+  const useShortRange = regime === 'respiro-alto' || (boosted && regime !== 'respiro-profondo')
+  const minimum = useShortRange ? MINIMUM_BOOSTED_HOLD_FRAMES : MINIMUM_PERSISTENT_HOLD_FRAMES
+  const maximum = useShortRange ? MAXIMUM_BOOSTED_HOLD_FRAMES : MAXIMUM_PERSISTENT_HOLD_FRAMES
   const span = maximum - minimum + 1
   return minimum + Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
 }
@@ -86,6 +136,7 @@ export class BrainRendererSelector {
     private readonly random: () => number = Math.random,
     private readonly getPressureHint?: () => boolean,
     private readonly getBoostHint?: () => boolean,
+    private readonly getRegime?: () => BrainBioRegime,
   ) {
     this.activeId = availableIds.includes(initialId)
       ? initialId
@@ -102,10 +153,49 @@ export class BrainRendererSelector {
   }
 
   private automaticIds(): BrainRendererId[] {
+    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
     const enabled = this.availableIds.filter(
-      (id) => !AUTOMATICALLY_EXCLUDED_RENDERERS.has(id),
+      (id) => !AUTOMATICALLY_EXCLUDED_RENDERERS.has(id) && !regimeExcluded.has(id),
     )
     return enabled.length > 0 ? enabled : [...this.availableIds]
+  }
+
+  private regimeAllows(id: BrainRendererId): boolean {
+    return !excludedForRegime(this.getRegime?.() ?? 'unresolved').has(id)
+  }
+
+  /**
+   * Un mazzo può essere stato costruito nel regime precedente. Perciò il
+   * filtro non vive soltanto in `storyCycleIds()`: viene riapplicato al
+   * punto d'uso e sostituisce subito anche l'attivo diventato ineleggibile.
+   * Il boost non partecipa alla decisione: il regime resta l'autorità finale.
+   */
+  private reconcileCurrentRegime(now: number): boolean {
+    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    if (regimeExcluded.size === 0) return false
+
+    this.waitingDeck = this.waitingDeck.filter((id) => !regimeExcluded.has(id))
+    this.rotationDeck = this.rotationDeck.filter((id) => !regimeExcluded.has(id))
+    if (this.storyDeck.length > 0) {
+      const consumed = this.storyDeck.slice(0, this.storyDeckIndex + 1)
+      const remaining = this.storyDeck
+        .slice(this.storyDeckIndex + 1)
+        .filter((id) => !regimeExcluded.has(id))
+      this.storyDeck = [...consumed, ...remaining]
+    }
+    if (this.regimeAllows(this.activeId)) return false
+
+    if (this.mode === 'story-cycle') {
+      this.storyDeck = this.balancedStoryDeck(this.activeId)
+      this.storyDeckIndex = 0
+      this.activeId = this.storyDeck[0] ?? FILTER_PSICHE_ID
+      this.storyHoldRemaining = this.storyHoldForActive()
+    } else {
+      this.activeId = this.automaticIds()[0] ?? FILTER_PSICHE_ID
+      this.rotationDeck = []
+    }
+    this.switchedAt = now
+    return true
   }
 
   private storyCycleIds(): BrainRendererId[] {
@@ -113,7 +203,12 @@ export class BrainRendererSelector {
     // la Riattivazione (PIANO-034) deve girare — è l'unico momento in cui
     // compare, per costruzione, non per eccezione occasionale.
     const boosted = this.getBoostHint?.() ?? false
-    const excluded = boosted ? AUTOMATICALLY_EXCLUDED_RENDERERS : STORY_CYCLE_EXCLUDED_RENDERERS
+    const storyCycleExcluded = boosted ? AUTOMATICALLY_EXCLUDED_RENDERERS : STORY_CYCLE_EXCLUDED_RENDERERS
+    // L'esclusione per regime NON dipende da `boosted`: il regime vince
+    // sempre sull'evento tecnico (brief §13/§14 della nota Visual), a
+    // differenza del filtro pressione GPU qui sotto.
+    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const excluded = new Set<BrainRendererId>([...storyCycleExcluded, ...regimeExcluded])
     const enabled = this.availableIds.filter((id) => !excluded.has(id))
     const base = enabled.length > 0 ? enabled : this.automaticIds()
     // Segnalato dal Capo Supremo (log reali): durante la Riattivazione il
@@ -195,10 +290,12 @@ export class BrainRendererSelector {
       this.activeId,
       this.random,
       this.getBoostHint?.() ?? false,
+      this.getRegime?.(),
     ) - 1
   }
 
   private nextRotationId(): BrainRendererId {
+    this.rotationDeck = this.rotationDeck.filter((id) => this.regimeAllows(id))
     if (this.rotationDeck.length === 0) {
       const candidates = this.automaticIds().filter((id) => id !== this.activeId)
       this.rotationDeck = this.shuffled(candidates)
@@ -230,6 +327,7 @@ export class BrainRendererSelector {
   ): boolean {
     if (settings.brainRendererMode !== 'story-cycle') return false
     if (this.storyId !== storyId) this.beginStory(storyId, settings)
+    if (this.reconcileCurrentRegime(now)) return true
     if (this.storyDeck.length === 0) this.beginDeckWith(this.activeId)
     if (this.storyHoldRemaining > 0) {
       this.storyHoldRemaining -= 1
@@ -253,6 +351,7 @@ export class BrainRendererSelector {
 
   advanceWaitingRenderer(settings: AppSettings, now: number): boolean {
     if (settings.brainRendererMode !== 'story-cycle') return false
+    if (this.reconcileCurrentRegime(now)) return true
     const automaticIds = this.storyCycleIds()
     if (automaticIds.length <= 1) return false
     if (this.waitingHoldRemaining > 0) {
@@ -311,6 +410,8 @@ export class BrainRendererSelector {
       }
       return this.activeId
     }
+
+    this.reconcileCurrentRegime(now)
 
     if (this.mode === 'story-cycle') {
       if (this.storyDeck.length === 0) {
