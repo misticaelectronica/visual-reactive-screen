@@ -2012,3 +2012,16 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   Elettronici`). Nessun push su `develop`.
 - **Validazione**: HTTP 200 e HTTPS attivo; hash SHA-256 della risposta Pages
   identico all'allegato (`369e0e86fcdf63a60e968eab9d5893ca44eed558f4b2364d4177ad00a1d4ec53`).
+
+### `SESSION-2026-08-28-29`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: fare scorrere con la pagina il blocco “03 / processo
+  condiviso”, segnalato come apparentemente fisso.
+- **Causa**: CSS `position: sticky; top: 38px`; nessun errore JavaScript.
+- **Correzione**: rimossi soltanto `position: sticky` e `top`, mantenendo
+  layout, contenuti, animazioni e comportamento mobile invariati.
+- **Validazione**: posizione calcolata `static`; a uno scroll di 480,5 px il
+  blocco si sposta di −480,5 px; nessun warning/errore browser. Build pubblica
+  verificata senza più alcuna regola sticky.
+- **Git**: commit pubblico `310cca5` sul branch `gh-pages`; nessun push su
+  `develop`.

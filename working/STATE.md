@@ -15,6 +15,9 @@
   28 agosto è stato pubblicato senza alterazioni come nuovo `index.html`;
   impronta SHA-256 locale e pubblica coincidente
   (`369e0e86fcdf63a60e968eab9d5893ca44eed558f4b2364d4177ad00a1d4ec53`).
+- **Fix scroll processo condiviso**: rimosso `position: sticky` dal blocco
+  `03 / processo condiviso`; ora segue il normale flusso della pagina. Commit
+  pubblico `310cca5`, verificato localmente e sulla build Pages.
 
 ## PIANO-041 — Release Candidate 1 e merge su develop — 2026-08-28
 

@@ -748,3 +748,6 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **`TASK-PAGES-02`** `DONE`: Sostituire integralmente `index.html` con il
   nuovo file ricevuto, senza modificarlo, pubblicare `gh-pages` e verificare
   l'identità byte-per-byte fra allegato e risposta HTTPS pubblica.
+- [x] **`TASK-PAGES-03`** `DONE`: Rimuovere il comportamento sticky dal blocco
+  “03 / processo condiviso”, verificare che il suo spostamento coincida con lo
+  scroll e pubblicare il fix su GitHub Pages.
