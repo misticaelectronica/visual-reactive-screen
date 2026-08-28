@@ -10,7 +10,13 @@
 - **Git**: sorgente `feature/fractal-spiral-degeneration`; destinazione locale
   `develop`, avanti di sette commit. Previsti commit feature, merge `--no-ff` e
   validazione completa post-merge; nessun push/tag remoto implicito.
-- **Stato**: documentazione e bump completati; merge e verifica post-merge in corso.
+- **Integrazione completata**: commit feature `04a0e36`, merge `--no-ff` senza
+  conflitti su `develop` (`eb244d8`). Nessun push o tag remoto eseguito.
+- **Validazione post-merge**: typecheck/lint puliti, **63 file / 574 test
+  verdi**, build completa riuscita. Prodotti DMG arm64 (247 MB), ZIP arm64
+  (238 MB) e rispettive blockmap con versione `1.0.0-rc.1`.
+- **Stato**: RC pronta per il collaudo manuale Go/No-Go descritto in
+  `docs/release-candidate.md`; promozione a stabile non ancora autorizzata.
 
 ## PIANO-040 — Contratto bio-visivo esteso a TUTTI i renderer — 2026-08-28
 

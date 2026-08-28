@@ -1973,3 +1973,19 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   nessun nuovo effetto o costo GPU.
 - **Validazione**: typecheck e lint puliti, **63 file / 574 test verdi**, build
   completa riuscita con app, DMG, ZIP e blockmap. Resta prova live fullscreen.
+
+### `SESSION-2026-08-28-26`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: preparare tutta la documentazione di Release Candidate e
+  integrare il lavoro completo su `develop`.
+- **Release**: versione portata da `1.0.0-beta.3` a `1.0.0-rc.1`; creati
+  `CHANGELOG.md`, note RC, checklist installazione/smoke/live, matrice
+  piattaforme, problemi noti, criteri Go/No-Go e procedura verso `1.0.0`.
+- **Git**: consolidamento feature nel commit `04a0e36`; merge locale `--no-ff`
+  su `develop` nel commit `eb244d8`, senza conflitti. Nessun push o tag remoto.
+- **Validazione post-merge**: typecheck e lint puliti, suite completa **63 file /
+  574 test verdi**, build Electron riuscita. Generati DMG arm64 247 MB, ZIP
+  arm64 238 MB e relative blockmap con nome `1.0.0-rc.1`.
+- **Stato finale**: RC tecnicamente pronta; rimane il collaudo manuale
+  fullscreen/microfono/Varco/regimi/Riattivazione/sessione pubblica prima della
+  promozione alla versione stabile.

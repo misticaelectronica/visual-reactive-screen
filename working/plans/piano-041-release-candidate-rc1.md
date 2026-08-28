@@ -3,7 +3,7 @@
 > **ID Piano**: `PIANO-041`  
 > **Macrotask di Riferimento**: `MACRO-031`  
 > **Data Creazione**: 2026-08-28  
-> **Stato**: `IN_PROGRESS`  
+> **Stato**: `COMPLETATO`
 > **Autore/Agente**: Agente AI / Capo Supremo  
 
 ---
@@ -52,16 +52,17 @@ committare lo stato verificato della feature e integrarlo localmente in
 
 ### Fase 2: Commit e merge
 
-- [ ] Task 2.1: validare e committare lo stato completo sulla feature.
-- [ ] Task 2.2: passare a `develop` e integrare con merge `--no-ff`.
-- [ ] Task 2.3: risolvere eventuali conflitti senza perdere modifiche di develop.
+- [x] Task 2.1: validare e committare lo stato completo sulla feature.
+- [x] Task 2.2: passare a `develop` e integrare con merge `--no-ff`.
+- [x] Task 2.3: risolvere eventuali conflitti senza perdere modifiche di develop
+  (merge riuscito senza conflitti).
 
 ### Fase 3: Verifica post-merge
 
-- [ ] Task 3.1: eseguire `pnpm typecheck`, `pnpm lint`, `pnpm test`.
-- [ ] Task 3.2: eseguire `pnpm build` e verificare DMG/ZIP/blockmap.
-- [ ] Task 3.3: verificare branch, working tree, log e diff check.
-- [ ] Task 3.4: registrare esito finale in STATE, registry e session history.
+- [x] Task 3.1: eseguire `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+- [x] Task 3.2: eseguire `pnpm build` e verificare DMG/ZIP/blockmap.
+- [x] Task 3.3: verificare branch, working tree, log e diff check.
+- [x] Task 3.4: registrare esito finale in STATE, registry e session history.
 
 ---
 
@@ -82,3 +83,7 @@ committare lo stato verificato della feature e integrarlo localmente in
 
 - **2026-08-28**: piano creato; documentazione RC avviata dopo build completa
   e suite 63 file / 574 test verdi sulla feature.
+- **2026-08-28**: commit feature `04a0e36`; merge senza conflitti su `develop`
+  con commit `eb244d8`. Validazione post-merge: typecheck/lint puliti, 63 file /
+  574 test, build completa e artefatti RC arm64 prodotti. Piano completato;
+  restano i collaudi manuali indicati nella checklist RC prima della stabile.

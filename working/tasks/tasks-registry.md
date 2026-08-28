@@ -8,9 +8,9 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
   versione a `1.0.0-rc.1`.
 - [x] **`TASK-041-02`** `DONE`: creare changelog, note RC, checklist di
   collaudo, matrice piattaforme, problemi noti e criteri Go/No-Go.
-- [ ] **`TASK-041-03`** `IN_PROGRESS`: committare la feature e integrarla
+- [x] **`TASK-041-03`** `DONE`: committare la feature e integrarla
   localmente in `develop` con merge esplicito.
-- [ ] **`TASK-041-04`** `TODO`: validare typecheck, lint, suite, build e
+- [x] **`TASK-041-04`** `DONE`: validare typecheck, lint, suite, build e
   artefatti RC sul commit risultante in `develop`.
 
 ## Task Collegati a `PIANO-040` — brief collettivo pragmatico
