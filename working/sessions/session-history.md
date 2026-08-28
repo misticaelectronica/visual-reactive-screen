@@ -1989,3 +1989,15 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Stato finale**: RC tecnicamente pronta; rimane il collaudo manuale
   fullscreen/microfono/Varco/regimi/Riattivazione/sessione pubblica prima della
   promozione alla versione stabile.
+
+### `SESSION-2026-08-28-27`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: pubblicare la pagina autonoma “Sogni Elettronici” su GitHub
+  Pages con il video demo e il riferimento contatti richiesto.
+- **Implementazione**: creato il branch orfano `gh-pages` con `index.html`,
+  `demo-1.mp4` e `.nojekyll`; aggiunto nel footer il link cliccabile
+  `mailto:misticaelectronica@libero.it`.
+- **Separazione**: nessun file dell'app Electron è stato incluso nel branch del
+  sito e nessun commit applicativo è stato pubblicato.
+- **Validazione**: controllo locale desktop/mobile, assenza di errori browser,
+  Pages `built`, HTTPS attivo, pagina e MP4 verificati sugli URL pubblici.

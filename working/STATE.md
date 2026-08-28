@@ -1,5 +1,17 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## MACRO-032 — Sogni Elettronici su GitHub Pages — 2026-08-28
+
+- **Pubblicazione**: pagina statica e video demo pubblicati sul branch orfano
+  `gh-pages`, separato dal codice applicativo e senza modifiche al contenuto di
+  `develop`.
+- **Contatti**: footer aggiornato con il link
+  `mailto:misticaelectronica@libero.it`.
+- **Verifica**: sito pubblico HTTPS raggiungibile, 16 slide caricate, nessun
+  errore browser, layout senza overflow a 390 px e video servito come
+  `video/mp4`.
+- **URL**: `https://misticaelectronica.github.io/visual-reactive-screen/`.
+
 ## PIANO-041 — Release Candidate 1 e merge su develop — 2026-08-28
 
 - **Versione candidata**: `1.0.0-rc.1`, funzionalità congelate; ammessi fino

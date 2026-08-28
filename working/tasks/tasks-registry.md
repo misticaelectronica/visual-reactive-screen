@@ -737,3 +737,11 @@ manuale finale viene eseguito dal Capo Supremo.
   sagome, assi, colori e texture derivati dalle regioni reali dell'immagine.
 - [ ] **`TASK-017-13`** `IN_PROGRESS`: Confrontare live riconoscibilità e stile
   Bauhaus su volti, corpi, architetture e paesaggi.
+
+---
+
+## Task Collegati a `MACRO-032` (Sogni Elettronici su GitHub Pages)
+
+- [x] **`TASK-032-01`** `DONE`: Preparare `index.html`, aggiungere il contatto
+  `misticaelectronica@libero.it`, includere `demo-1.mp4`, verificare desktop e
+  mobile, pubblicare il branch `gh-pages` e controllare sito e video pubblici.

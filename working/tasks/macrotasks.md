@@ -6,6 +6,12 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟢 Macrotask Completati (Passati)
 
+### `MACRO-032`: Sogni Elettronici su GitHub Pages
+- **Descrizione**: pubblicare la pagina autonoma Sogni Elettronici con il video
+  demo e il contatto ufficiale, mantenendola separata dal codice Electron.
+- **Stato**: 🟢 COMPLETED — branch `gh-pages` pubblico e verificato via HTTPS
+- **URL**: `https://misticaelectronica.github.io/visual-reactive-screen/`
+
 ### `MACRO-031`: Release Candidate 1
 - **Descrizione**: consolidare il lavoro bio-percettivo, Varco e Riattivazione
   come `1.0.0-rc.1`, produrre la documentazione di rilascio e integrare su develop.
