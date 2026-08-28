@@ -2001,3 +2001,14 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   sito e nessun commit applicativo è stato pubblicato.
 - **Validazione**: controllo locale desktop/mobile, assenza di errori browser,
   Pages `built`, HTTPS attivo, pagina e MP4 verificati sugli URL pubblici.
+
+### `SESSION-2026-08-28-28`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: sostituire la pagina pubblica con il nuovo file
+  `sogni-elettronici (1).html` caricato dall'utente, conservandolo integralmente.
+- **Pubblicazione**: il file è stato copiato senza modifiche come `index.html`
+  sul branch `gh-pages`; `demo-1.mp4` e `.nojekyll` sono rimasti invariati.
+- **Git**: commit pubblico `36d4504` (`site: aggiorna integralmente Sogni
+  Elettronici`). Nessun push su `develop`.
+- **Validazione**: HTTP 200 e HTTPS attivo; hash SHA-256 della risposta Pages
+  identico all'allegato (`369e0e86fcdf63a60e968eab9d5893ca44eed558f4b2364d4177ad00a1d4ec53`).

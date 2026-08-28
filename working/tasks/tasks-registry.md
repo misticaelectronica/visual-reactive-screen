@@ -745,3 +745,6 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **`TASK-032-01`** `DONE`: Preparare `index.html`, aggiungere il contatto
   `misticaelectronica@libero.it`, includere `demo-1.mp4`, verificare desktop e
   mobile, pubblicare il branch `gh-pages` e controllare sito e video pubblici.
+- [x] **`TASK-PAGES-02`** `DONE`: Sostituire integralmente `index.html` con il
+  nuovo file ricevuto, senza modificarlo, pubblicare `gh-pages` e verificare
+  l'identità byte-per-byte fra allegato e risposta HTTPS pubblica.

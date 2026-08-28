@@ -11,6 +11,10 @@
   errore browser, layout senza overflow a 390 px e video servito come
   `video/mp4`.
 - **URL**: `https://misticaelectronica.github.io/visual-reactive-screen/`.
+- **Aggiornamento integrale**: il file `sogni-elettronici (1).html` ricevuto il
+  28 agosto è stato pubblicato senza alterazioni come nuovo `index.html`;
+  impronta SHA-256 locale e pubblica coincidente
+  (`369e0e86fcdf63a60e968eab9d5893ca44eed558f4b2364d4177ad00a1d4ec53`).
 
 ## PIANO-041 — Release Candidate 1 e merge su develop — 2026-08-28
 
