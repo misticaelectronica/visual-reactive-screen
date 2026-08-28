@@ -2025,3 +2025,17 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   verificata senza più alcuna regola sticky.
 - **Git**: commit pubblico `310cca5` sul branch `gh-pages`; nessun push su
   `develop`.
+
+### `SESSION-2026-08-28-30`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: impedire il taglio della parola `ELETTRONICI` nel titolo
+  principale sui telefoni.
+- **Causa**: la scala mobile `19vw` produceva un titolo largo 402 px a 390 px
+  di viewport e 332 px a 320 px; `.page { overflow-x: hidden; }` nascondeva la
+  parte eccedente.
+- **Correzione**: sostituita la sola regola mobile con
+  `clamp(50px, 15.8vw, 92px)`.
+- **Validazione**: 20 px esatti di margine destro a 320 e 390 px, nessun
+  overflow orizzontale e nessun errore browser; build Pages verificata online.
+- **Git**: commit pubblico `de113ec` sul branch `gh-pages`; nessun push su
+  `develop`.

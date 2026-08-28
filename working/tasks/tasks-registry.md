@@ -751,3 +751,5 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **`TASK-PAGES-03`** `DONE`: Rimuovere il comportamento sticky dal blocco
   “03 / processo condiviso”, verificare che il suo spostamento coincida con lo
   scroll e pubblicare il fix su GitHub Pages.
+- [x] **`TASK-PAGES-04`** `DONE`: Ridurre la scala responsive del titolo
+  principale, verificare `ELETTRONICI` a 320/390 px e pubblicare il fix mobile.

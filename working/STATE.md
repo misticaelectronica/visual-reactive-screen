@@ -18,6 +18,9 @@
 - **Fix scroll processo condiviso**: rimosso `position: sticky` dal blocco
   `03 / processo condiviso`; ora segue il normale flusso della pagina. Commit
   pubblico `310cca5`, verificato localmente e sulla build Pages.
+- **Fix titolo mobile**: la parola `ELETTRONICI` superava il viewport a causa
+  di `19vw`; la scala mobile è ora `clamp(50px, 15.8vw, 92px)`, con 20 px di
+  margine destro verificati a 320 e 390 px. Commit pubblico `de113ec`.
 
 ## PIANO-041 — Release Candidate 1 e merge su develop — 2026-08-28
 
