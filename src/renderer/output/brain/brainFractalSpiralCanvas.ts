@@ -18,6 +18,8 @@ import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 
 // Fractal Spiral Degeneration (PIANO-038): il raster perde progressivamente
 // la propria organizzazione e rivela una struttura auto-simile organizzata
@@ -463,6 +465,7 @@ export function createBrainFractalSpiralScene(
   let destroyed = false
   let failed = false
   let resourcePressure = false
+  let bioPerception: BrainBioPerceptionState | null = null
   let preparationStarted = false
   let transitionProgress = 1
   let previousTransitionProgress = Number.NaN
@@ -699,6 +702,10 @@ export function createBrainFractalSpiralScene(
       resourcePressure = active
       outputCanvas.dataset.brainResourcePressure = active ? 'true' : 'false'
     },
+    setPerception(state) {
+      bioPerception = state
+      outputCanvas.dataset.brainBioRegime = state.regime
+    },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -727,14 +734,15 @@ export function createBrainFractalSpiralScene(
         rhythm?.active ?? (rawMotion.activity > 0),
         settings.motionProfile,
       )
+      const regimeMotionScale = brainBioLocalMotionScale(bioPerception?.regime)
       const motion: FractalSpiralMotion = {
         ...rawMotion,
-        activity: smoothMotion.activity,
-        macro: smoothMotion.low,
-        torsion: smoothMotion.lowMid,
-        density: smoothMotion.mid,
-        detail: smoothMotion.high,
-        beat: Math.max(rawMotion.beat, smoothMotion.beat),
+        activity: smoothMotion.activity * regimeMotionScale,
+        macro: smoothMotion.low * regimeMotionScale,
+        torsion: smoothMotion.lowMid * regimeMotionScale,
+        density: smoothMotion.mid * regimeMotionScale,
+        detail: smoothMotion.high * regimeMotionScale,
+        beat: Math.max(rawMotion.beat, smoothMotion.beat) * regimeMotionScale,
       }
       degenerationProgress = advanceDegenerationProgress(
         degenerationProgress, previousMusicalPosition, rhythm, motion,
@@ -825,7 +833,7 @@ export function createBrainFractalSpiralScene(
       // `beatPulse` come evento strutturale: rivela temporaneamente un
       // braccio di spirale un po' in anticipo, mai una pulsazione del
       // quadro.
-      const beatBump = (rhythm?.beatPulse ?? 0) * 0.12
+      const beatBump = (rhythm?.beatPulse ?? 0) * 0.12 * regimeMotionScale
 
       // Oggetti ricalcati (sagoma vera, sempre ferma) riempiti dalla
       // loro materia spiraliforme interna. §18: durante la transizione

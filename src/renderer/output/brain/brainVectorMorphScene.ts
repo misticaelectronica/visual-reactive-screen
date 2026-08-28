@@ -9,6 +9,7 @@ import {
   type BrainSceneRendererController,
 } from './brainSvgScene'
 import { brainLog, brainWarn } from './brainLog'
+import type { BrainBioPerceptionState } from './brainBioPerception'
 
 // Raster a piena opacità e senza desaturazione, vettoriale più leggero
 // sopra: prima il raster risultava poco visibile sotto le forme
@@ -69,6 +70,7 @@ export function createBrainVectorMorphScene(
   let opacity = 1
   let morphPattern: BrainFrameMorphPattern = 'marea'
   let resourcePressure = false
+  let bioPerception: BrainBioPerceptionState | null = null
   let transitionProgress = 1
   let transitionRole: 'enter' | 'exit' = 'enter'
   let transitionCounterparts: BrainMorphShape[] = []
@@ -101,6 +103,7 @@ export function createBrainVectorMorphScene(
     inner.element.style.backgroundColor = 'transparent'
     inner.setMorphPattern(morphPattern)
     inner.setResourcePressure(resourcePressure)
+    if (bioPerception) inner.setPerception?.(bioPerception)
     inner.setTransition(
       transitionProgress,
       transitionRole,
@@ -139,6 +142,11 @@ export function createBrainVectorMorphScene(
     setResourcePressure(active) {
       resourcePressure = active
       inner?.setResourcePressure(active)
+    },
+    setPerception(state) {
+      bioPerception = state
+      root.dataset.brainBioRegime = state.regime
+      inner?.setPerception?.(state)
     },
     setTransition(progress, role, counterpartShapes = []) {
       transitionProgress = progress

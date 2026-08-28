@@ -13,6 +13,7 @@ import {
   pickStoriesUntilNextRevisionCycle,
   pruneArchiveEntriesForTag,
   selectRevisionPool,
+  shouldStartRevisionCycleAtBoundary,
   type DreamImageArchiveEntry,
 } from './dreamRevisionCycle'
 
@@ -78,6 +79,16 @@ describe('pickStoriesUntilNextRevisionCycle', () => {
       expect(value).toBeGreaterThanOrEqual(REVISION_CYCLE_MIN_STORIES)
       expect(value).toBeLessThanOrEqual(REVISION_CYCLE_MAX_STORIES)
     }
+  })
+})
+
+describe('shouldStartRevisionCycleAtBoundary', () => {
+  it('autorizza la Riattivazione dal solo contatore, senza dipendere dalla prossima produzione', () => {
+    expect(shouldStartRevisionCycleAtBoundary(0, false, false)).toBe(true)
+    expect(shouldStartRevisionCycleAtBoundary(-1, false, false)).toBe(true)
+    expect(shouldStartRevisionCycleAtBoundary(1, false, false)).toBe(false)
+    expect(shouldStartRevisionCycleAtBoundary(0, true, false)).toBe(false)
+    expect(shouldStartRevisionCycleAtBoundary(0, false, true)).toBe(false)
   })
 })
 

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import {
   advanceBauhausAbstraction,
+  bauhausGeometryScaleForRegime,
   calculateBauhausMotion,
   computeBauhausFigureEnvelope,
   computeBauhausUnderlayOpacity,
@@ -32,6 +33,15 @@ function rhythm(overrides: Partial<BrainRhythmState> = {}): BrainRhythmState {
 }
 
 describe('Bauhaus Morph motion', () => {
+  it('calma il moto locale in decompressione e ancora di più nel respiro profondo', () => {
+    const normal = bauhausGeometryScaleForRegime('pressurized')
+    const decompression = bauhausGeometryScaleForRegime('decompression')
+    const deepBreath = bauhausGeometryScaleForRegime('respiro-profondo')
+    expect(normal).toBe(1)
+    expect(decompression).toBeLessThan(normal)
+    expect(deepBreath).toBeLessThan(decompression)
+  })
+
   it('mantiene progresso e moto fermi nel silenzio', () => {
     const stoppedRhythm = rhythm({ active: false, musicalPosition: 12 })
     const motion = calculateBauhausMotion(

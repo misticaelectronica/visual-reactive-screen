@@ -16,6 +16,8 @@ import {
 } from './brainFrameMotion'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { BrainPerceptionEngine } from './brainPerception'
+import type { BrainBioPerceptionState } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 import { BrainLiquidMotionClock } from './brainLiquidMotion'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -313,7 +315,14 @@ export type BrainSceneRendererController = {
   getMorphShapes: () => BrainMorphShape[]
   setMorphPattern: (pattern: BrainFrameMorphPattern) => void
   setResourcePressure: (active: boolean) => void
+  // Il Renderer Host espone quando il passthrough del Varco Percettivo è
+  // completamente entrato. I renderer semplici non lo implementano.
+  isResourcePressureReady?: () => boolean
   setOfflineHold?: (active: boolean) => void
+  // PIANO-040: opzionale per compatibilità con controller esterni, ma tutti
+  // i renderer registrati in Brain lo implementano. Chiamato a bassa
+  // frequenza, solo quando lo stato bio-percettivo cambia davvero.
+  setPerception?: (state: BrainBioPerceptionState) => void
   setTransition: (
     progress: number,
     role: 'enter' | 'exit',
@@ -441,6 +450,7 @@ export function createBrainSvgScene(
   let globalRhythmicEnvelope = 0
   const smoothedEchoOpacities = echoLayers.map(() => 0)
   let resourcePressure = false
+  let bioPerception: BrainBioPerceptionState | null = null
   let adaptivePressureUntil = 0
   let lastPerformanceWarningAt = Number.NEGATIVE_INFINITY
   const perception = new BrainPerceptionEngine()
@@ -666,6 +676,10 @@ export function createBrainSvgScene(
           index === 1 ? 'screen' : 'soft-light'
       })
     },
+    setPerception(state) {
+      bioPerception = state
+      svg.setAttribute('data-brain-bio-regime', state.regime)
+    },
     setTransition(progress, role, counterpartShapes = []) {
       const value = clamp(progress)
       transitionProgress = value
@@ -769,12 +783,13 @@ export function createBrainSvgScene(
       const highDrive = clamp(
         smoothedBands.high * 0.5 + bandTransients.high * 0.9,
       )
+      const regimeMotionScale = brainBioLocalMotionScale(bioPerception?.regime)
       const motionActivity = clamp(
         lowDrive * 0.3 +
           lowMidDrive * 0.26 +
           midDrive * 0.24 +
           highDrive * 0.2,
-      )
+      ) * regimeMotionScale
       const liquidMotion = liquidMotionClock.update(
         smoothedBands,
         rhythm,
@@ -788,7 +803,7 @@ export function createBrainSvgScene(
             lowDrive,
             presetTuning.kickScale * globalMotion.intensity,
             constrainedRendering ? globalMotion.resourcePressureBoost : 1,
-          )
+          ) * regimeMotionScale
         : 0
       svg.setAttribute(
         'data-brain-rhythmic-envelope',
@@ -855,9 +870,9 @@ export function createBrainSvgScene(
       const sceneCenterY = (viewBox[1] ?? 0) + sceneHeight / 2
       const cameraMultiplier = renderingConfig.motion.cameraMultiplier
       const cameraTravelX =
-        camera.x * sceneWidth * 0.024 * cameraMultiplier
+        camera.x * sceneWidth * 0.024 * cameraMultiplier * regimeMotionScale
       const cameraTravelY =
-        camera.y * sceneHeight * 0.018 * cameraMultiplier
+        camera.y * sceneHeight * 0.018 * cameraMultiplier * regimeMotionScale
       // Vietata ogni traslazione coordinata del quadro, anche mentre l’UNet
       // è attiva: può essere percepita come oscillazione della camera.
       if (content.hasAttribute('transform')) {
@@ -1145,7 +1160,8 @@ export function createBrainSvgScene(
                 transformationConfig.disintegration *
                 0.48) *
             (1 + globalImpulse * globalMotion.deformationBoost) *
-            localMotionScale
+            localMotionScale *
+            regimeMotionScale
           const pattern = (index + morphPatternIndex) % 4
           const flowMultiplier =
             1 + globalImpulse * globalMotion.flowBoost
@@ -1159,7 +1175,8 @@ export function createBrainSvgScene(
             (1.1 + pressure * 2.4) *
             presetTuning.movementScale *
             flowMultiplier *
-            localMotionScale
+            localMotionScale *
+            regimeMotionScale
           const flowY =
             Math.cos(
               musicalPhase * 0.75 -
@@ -1170,7 +1187,8 @@ export function createBrainSvgScene(
             (0.9 + articulation * 2.2) *
             presetTuning.movementScale *
             flowMultiplier *
-            localMotionScale
+            localMotionScale *
+            regimeMotionScale
           const points = target.points.map((targetPoint, pointIndex) => {
             const sourcePoint = source.points[pointIndex] ?? targetPoint
             const radialX = targetPoint.x - target.anchor.x
@@ -1212,7 +1230,8 @@ export function createBrainSvgScene(
               time / 1_000,
               depthProfiles[index].depth,
               renderingConfig.motion.microMovement *
-                (0.025 + motionActivity * 0.975),
+                (0.025 + motionActivity * 0.975) *
+                regimeMotionScale,
             )
             // Struttura armonica di Liquid Morphing applicata ai punti già
             // esistenti: il beat muove, la fase lenta cambia continuamente

@@ -24,10 +24,18 @@ import {
 } from './brain/brainController'
 import { OutputRhythmClock, type BrainRhythmState } from './brain/brainRhythm'
 import {
+  BrainBioPerceptionClock,
+  type BrainBioPerceptionState,
+  type BrainBioPressureTrend,
+  type BrainBioRegime,
+  type BrainBioRegimeDiagnostics,
+} from './brain/brainBioPerception'
+import {
   calculateStoryMorphingInterludeMs,
   createAlternateBrainStorySettings,
   createAlternateMorphingSettings,
 } from './brain/brainStoryAlternation'
+import { brainLog } from './brain/brainLog'
 
 /** Lato più piccolo ancora leggibile da un telefono a distanza ravvicinata. */
 const PUBLIC_SESSION_QR_SIZE_PX = 84
@@ -42,6 +50,60 @@ const BRAIN_RENDERER_LABELS: Record<string, string> = {
   'dream-segmentation': 'Dream Segmentation',
   'glitch-morph': 'Glitch Morph',
   'fractal-spiral-degeneration': 'Fractal Spiral Degeneration',
+}
+
+// PIANO-040: overlay diagnostico del livello bio-percettivo — solo
+// formattazione per la lettura a schermo, nessuna logica.
+const BIO_TREND_ARROWS: Record<BrainBioPressureTrend, string> = {
+  rising: '↑',
+  stable: '→',
+  falling: '↓',
+}
+
+function formatBioSignal(value: number | undefined): string {
+  return typeof value === 'number' ? value.toFixed(2) : '—'
+}
+
+// PIANO-040, brief finale Audio/Visual "due assi" (2026-08-28): la forma
+// (stasi/trasformazione) è `reference.phase`, non più una conferma a
+// tempo sul regime — `diagnostics.transforming` la espone direttamente.
+// Il livello (alto/profondo) usa mediana/dispersione come puro contesto
+// (§6 del brief), con isteresi già applicata in `diagnostics.level`.
+function formatBioRegimeDiagnostics(diagnostics: BrainBioRegimeDiagnostics | null): string {
+  if (!diagnostics) return 'pressione: — | rif.: —\nblocco: dati non ancora disponibili'
+  const referenceLabel = diagnostics.referencePressure.toFixed(2)
+  const medianLabel = Number.isNaN(diagnostics.pressureMedian)
+    ? '—'
+    : diagnostics.pressureMedian.toFixed(2)
+  const dispersionLabel = diagnostics.pressureDispersion.toFixed(2)
+  const distanceLabel = `${diagnostics.pressureDistance >= 0 ? '+' : ''}${diagnostics.pressureDistance.toFixed(2)}`
+  const position = [
+    `pressione ${diagnostics.currentPressure.toFixed(2)} | rif. ${referenceLabel}`,
+    `Δrif ${distanceLabel}`,
+    `mediana ${medianLabel} (disp ${dispersionLabel}, contesto)`,
+  ].join(' | ')
+  if (diagnostics.silenceNearZero && !diagnostics.silenceAuthorized) {
+    return `${position}\nblocco: silenzio non ancora confermato (${Math.round(diagnostics.silenceConfirmationProgress * 100)}%)`
+  }
+  if (diagnostics.silenceAuthorized) {
+    return `${position}\nautorizzato: silenzio confermato`
+  }
+  if (diagnostics.transforming) {
+    return `${position}\nin trasformazione — ${diagnostics.pressureTrend === 'falling' ? 'DECOMPRESSIONE' : 'PRESSURIZZAZIONE'}`
+  }
+  return `${position}\nstasi strutturale — livello ${diagnostics.level ?? 'non ancora determinato'}`
+}
+
+// Nomi visibili (brief Visual "due assi", 2026-08-28, §2/§23): `PRESSURIZED`
+// resta l'id tecnico interno, ma overlay/documentazione/comunicazione
+// artistica devono mostrare "PRESSURIZZAZIONE" — descrive un processo, non
+// uno stato già stabilizzato.
+const BIO_REGIME_DISPLAY_NAMES: Record<BrainBioRegime, string> = {
+  unresolved: 'NON RISOLTO',
+  pressurized: 'PRESSURIZZAZIONE',
+  decompression: 'DECOMPRESSIONE',
+  'respiro-alto': 'RESPIRO ALTO',
+  'respiro-profondo': 'RESPIRO PROFONDO',
 }
 
 const MORPHING_ALGO_LABELS: Record<string, string> = {
@@ -168,12 +230,14 @@ function createMorphingController(
   state: VisualStatePayload,
   onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
   rhythmSource?: () => BrainRhythmState,
+  bioPerceptionSource?: () => BrainBioPerceptionState,
 ): MorphingController | null {
   if (!visualModeActive(state) || !state.settings) return null
   if (state.settings.useBrain) {
     const controller: MorphingController = createBrainController(container, {
       onStoryCycleComplete: onBrainStoryCycleComplete,
       rhythmSource,
+      bioPerceptionSource,
     })
     controller.__algo = 'brain'
     controller.__key = morphingKey(state)
@@ -202,6 +266,7 @@ function beginMorphingTransition(
   onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
   preserveFrom = false,
   rhythmSource?: () => BrainRhythmState,
+  bioPerceptionSource?: () => BrainBioPerceptionState,
 ): MorphingTransition {
   const fromKey = from?.__key ?? 'none'
   const toKey = morphingKey(state)
@@ -221,6 +286,7 @@ function beginMorphingTransition(
       state,
       onBrainStoryCycleComplete,
       rhythmSource,
+      bioPerceptionSource,
     ),
     durationMs,
     active: true,
@@ -303,12 +369,46 @@ export function OutputApp() {
   const surfaceRef = useRef<ReturnType<typeof createVisualSurface> | null>(null)
   const morphingRef = useRef<MorphingController | null>(null)
   const morphingTransitionRef = useRef<MorphingTransition | null>(null)
+  const previousBioRegimeRef = useRef<BrainBioRegime | null>(null)
+  const bioRegimeFlashTimeoutRef = useRef<number | null>(null)
+  const bioOverlayVisibleRef = useRef(false)
+  const lastBioSessionSampleAtRef = useRef(Number.NEGATIVE_INFINITY)
   const [msgCount, setMsgCount] = useState(0)
   const [lastColor, setLastColor] = useState<string>('—')
   const [activeRendererLabel, setActiveRendererLabel] = useState<string>('—')
   const [revisionCycleActive, setRevisionCycleActive] = useState(false)
   const [publicSessionActive, setPublicSessionActive] = useState(false)
   const [publicSessionQrDataUrl, setPublicSessionQrDataUrl] = useState<string | null>(null)
+  // PIANO-040: overlay diagnostico del livello bio-percettivo — richiesto dal
+  // Capo Supremo per l'ascolto dal vivo (Task 4.4), non un dato per la
+  // performance. Disattivato di default (mai attivo in produzione live senza
+  // azione esplicita), si accende/spegne con Maiusc+B.
+  const [bioOverlayVisible, setBioOverlayVisible] = useState(false)
+  const [bioOverlayState, setBioOverlayState] = useState<BrainBioPerceptionState | null>(null)
+  const [bioRegimeChangedAtLabel, setBioRegimeChangedAtLabel] = useState<string>('—')
+  const [bioRegimeChangeCount, setBioRegimeChangeCount] = useState(0)
+  const [bioRegimeJustChanged, setBioRegimeJustChanged] = useState(false)
+  const [bioDreamMultiplier, setBioDreamMultiplier] = useState<string>('—')
+  // Richiesto dal braccio destro (2026-08-27): non solo il regime attuale,
+  // anche cosa lo blocca — quale transizione è in attesa e quanto manca
+  // alla conferma.
+  const [bioRegimePending, setBioRegimePending] = useState<BrainBioRegimeDiagnostics | null>(null)
+
+  // La scorciatoia diagnostica delimita anche la registrazione dettagliata.
+  // Il session logger del Main cattura questi eventi dal renderer nel file
+  // `log/session-*.txt`; fuori dal collaudo non aggiungiamo traffico a 1 Hz.
+  useEffect(() => {
+    const wasVisible = bioOverlayVisibleRef.current
+    bioOverlayVisibleRef.current = bioOverlayVisible
+    if (bioOverlayVisible && !wasVisible) {
+      lastBioSessionSampleAtRef.current = Number.NEGATIVE_INFINITY
+      brainLog('perception-session', 'registrazione bio-percettiva avviata', {
+        sampleIntervalMs: 1_000,
+      })
+    } else if (!bioOverlayVisible && wasVisible) {
+      brainLog('perception-session', 'registrazione bio-percettiva conclusa')
+    }
+  }, [bioOverlayVisible])
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -334,8 +434,46 @@ export function OutputApp() {
         setActiveRendererLabel('—')
         setRevisionCycleActive(false)
       }
+      // PIANO-040: moltiplicatore di regime letto dal DOM, stesso pattern di
+      // `data-active-renderer` sopra — sola lettura diagnostica, nessun canale
+      // di trasporto nuovo. Presente solo quando Dream-Segmentation ha
+      // effettivamente disegnato almeno un fotogramma.
+      const dreamMultiplier = rootRef.current
+        ?.querySelector<HTMLElement>('[data-brain-dream-segmentation]')
+        ?.dataset.brainRegimeMultiplier
+      setBioDreamMultiplier(dreamMultiplier ?? '—')
     }, 250)
     return () => window.clearInterval(id)
+  }, [])
+
+  // PIANO-040: overlay diagnostico, disattivato di default — Maiusc+B lo
+  // accende/spegne. Strumento di collaudo (brief §10/§12), mai attivo in
+  // produzione live senza che qualcuno lo accenda esplicitamente.
+  //
+  // BUG segnalato dal Capo Supremo ("non vedo nulla a video") e corretto:
+  // un `keydown` sul solo renderer Output non basta — nella configurazione
+  // reale a due finestre l'Output è fullscreen sul proiettore e quasi mai
+  // ha il fuoco della tastiera, chi opera il set preme il tasto guardando
+  // Control. La scorciatoia vera è registrata a livello OS in
+  // `src/main/windows.ts` (`globalShortcut`) e arriva qui via IPC — il
+  // listener locale resta solo come fallback innocuo per quando l'Output
+  // ha davvero il fuoco (es. sviluppo con una sola finestra).
+  useEffect(() => {
+    const api = window.fxOutput
+    if (!api) return
+    const off = api.onToggleBioOverlay(() => {
+      setBioOverlayVisible((visible) => !visible)
+    })
+    return off
+  }, [])
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.shiftKey && event.key.toLowerCase() === 'b') {
+        setBioOverlayVisible((visible) => !visible)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   useEffect(() => {
@@ -376,6 +514,15 @@ export function OutputApp() {
       performance.timeOrigin + performance.now(),
     )
     const rhythmSource = () => rhythmState
+    // Stato bio-percettivo (PIANO-040, brief team/briefs/brief-stato-bio-percettivo-
+    // definitivo.md §10/§17.3): calcolato lato Output accanto al clock ritmico, non
+    // dentro. Alimentato allo stesso ingest delle bande (sotto), letto da
+    // `createBrainController` via `bioPerceptionSource` — stesso pattern di
+    // `rhythmSource`, aggiornato a bassa frequenza (il clock stesso decide quando il
+    // valore cambia davvero, non ad ogni frame RAF).
+    const bioPerceptionClock = new BrainBioPerceptionClock()
+    let bioPerceptionState = bioPerceptionClock.getState()
+    const bioPerceptionSource = () => bioPerceptionState
     let rhythmRafId = 0
     const projectRhythm = (now: number) => {
       rhythmState = rhythmClock.projectState(performance.timeOrigin + now)
@@ -435,6 +582,62 @@ export function OutputApp() {
         // Non proiettare qui: projectState consuma il latch `beat`. Il solo RAF
         // Output pubblica il fronte, così tutti i renderer osservano lo stesso
         // stato per l'intero frame visuale.
+        //
+        // Stato bio-percettivo: alimentato allo stesso ingest, non nel RAF di
+        // proiezione — è una memoria multi-secondo, non ha bisogno di essere
+        // ricalcolata a ogni frame (§10/§17.3 del brief). `rhythmState.bandTransients`
+        // è l'ultima proiezione disponibile (leggermente in ritardo rispetto a questo
+        // campione): tollerabile; il regime applica comunque 3 s di conferma.
+        bioPerceptionState = bioPerceptionClock.ingestSample(
+          inputState.bandEnergies,
+          inputState.audioTimestampMs ?? receivedAt,
+          rhythmState.bandTransients,
+        )
+        // PIANO-040: overlay diagnostico — solo lettura, nessun effetto sul
+        // comportamento. `previousBioRegimeRef` distingue "primo valore mai
+        // visto" (non è un cambio, è l'arrivo del primo dato) da un cambio
+        // di regime vero, che è invece l'evento che il Capo Supremo ha
+        // chiesto di rendere visibile ("se resta bloccato sullo stesso
+        // valore per tutto il set, quello è il dato che serve").
+        const bioDiagnostics = bioPerceptionClock.getRegimeDiagnostics()
+        setBioOverlayState(bioPerceptionState)
+        setBioRegimePending(bioDiagnostics)
+        const bioSampleAt = inputState.audioTimestampMs ?? receivedAt
+        if (
+          bioOverlayVisibleRef.current &&
+          bioSampleAt - lastBioSessionSampleAtRef.current >= 1_000
+        ) {
+          lastBioSessionSampleAtRef.current = bioSampleAt
+          const activeRenderer = rootRef.current
+            ?.querySelector<HTMLElement>('[data-active-renderer]')
+            ?.dataset.activeRenderer ?? null
+          brainLog('perception-session', 'campione bio-percettivo 1 Hz', {
+            audioTimestampMs: bioSampleAt,
+            sequenceNumber: inputState.sequenceNumber,
+            bands: inputState.bandEnergies,
+            transients: rhythmState.bandTransients,
+            signals: bioPerceptionState.signals,
+            diagnostics: bioDiagnostics,
+            regime: bioPerceptionState.regime,
+            activeRenderer,
+          })
+        }
+        if (
+          previousBioRegimeRef.current !== null &&
+          previousBioRegimeRef.current !== bioPerceptionState.regime
+        ) {
+          setBioRegimeChangedAtLabel(new Date().toLocaleTimeString())
+          setBioRegimeChangeCount((count) => count + 1)
+          setBioRegimeJustChanged(true)
+          if (bioRegimeFlashTimeoutRef.current !== null) {
+            window.clearTimeout(bioRegimeFlashTimeoutRef.current)
+          }
+          bioRegimeFlashTimeoutRef.current = window.setTimeout(() => {
+            setBioRegimeJustChanged(false)
+            bioRegimeFlashTimeoutRef.current = null
+          }, 2_500)
+        }
+        previousBioRegimeRef.current = bioPerceptionState.regime
       }
       latestInputState = inputState
       const alternationEnabled = inputState.settings?.alternateBrainWithMorphing === true
@@ -555,6 +758,7 @@ export function OutputApp() {
               onBrainStoryCycleComplete,
               false,
               rhythmSource,
+              bioPerceptionSource,
             )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
@@ -577,6 +781,7 @@ export function OutputApp() {
               state,
               onBrainStoryCycleComplete,
               rhythmSource,
+              bioPerceptionSource,
             )
             morphingRef.current?.setOpacity?.(1)
           }
@@ -634,6 +839,7 @@ export function OutputApp() {
               onBrainStoryCycleComplete,
               preserveBrain,
               rhythmSource,
+              bioPerceptionSource,
             )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
@@ -750,6 +956,17 @@ export function OutputApp() {
         }}
       >
         {activeRendererLabel}
+        {bioOverlayState && bioOverlayState.regime !== 'unresolved' && (
+          // Brief del braccio destro (punto 2) + brief Visual "due assi"
+          // §23: etichetta di stato accanto al tipo di morphing, sempre
+          // visibile senza dover aprire l'overlay di collaudo Maiusc+B —
+          // ora mostra lo stato reale (i quattro nomi visibili), non più
+          // solo un flag binario "respiro sì/no".
+          <>
+            <br />
+            <span style={{ color: '#7fd1ff' }}>{BIO_REGIME_DISPLAY_NAMES[bioOverlayState.regime]}</span>
+          </>
+        )}
         {revisionCycleActive && (
           <>
             <br />
@@ -757,6 +974,54 @@ export function OutputApp() {
           </>
         )}
       </div>
+      {bioOverlayVisible ? (
+        <div
+          style={{
+            position: 'fixed',
+            top: 8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            background: bioRegimeJustChanged ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.78)',
+            color: bioRegimeJustChanged ? '#000' : '#fff',
+            fontFamily: 'monospace',
+            fontSize: 20,
+            lineHeight: 1.5,
+            padding: '10px 16px',
+            borderRadius: 6,
+            border: bioRegimeJustChanged ? '3px solid #fff' : '1px solid rgba(255,255,255,0.35)',
+            pointerEvents: 'none',
+            minWidth: 720,
+          }}
+        >
+          <div style={{ fontSize: 14, opacity: 0.75, letterSpacing: 1 }}>
+            BIO-PERCETTIVO — strumento di collaudo (Maiusc+B per nascondere)
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 'bold', margin: '4px 0' }}>
+            {bioOverlayState ? BIO_REGIME_DISPLAY_NAMES[bioOverlayState.regime] : '—'}
+          </div>
+          <div>persistence&nbsp;&nbsp;{formatBioSignal(bioOverlayState?.signals.persistence)}</div>
+          <div>change&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{formatBioSignal(bioOverlayState?.signals.change)}</div>
+          <div>residual&nbsp;&nbsp;&nbsp;&nbsp;{formatBioSignal(bioOverlayState?.signals.residual)}</div>
+          <div>pressure&nbsp;&nbsp;&nbsp;&nbsp;{formatBioSignal(bioOverlayState?.signals.perceptualPressure)}</div>
+          <div>
+            trend&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            {bioOverlayState
+              ? `${BIO_TREND_ARROWS[bioOverlayState.signals.pressureTrend]} ${bioOverlayState.signals.pressureTrend}`
+              : '—'}
+          </div>
+          <div style={{ marginTop: 8, opacity: 0.85 }}>
+            renderer: {activeRendererLabel}
+            {bioDreamMultiplier !== '—' ? ` (×${bioDreamMultiplier})` : ''}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 14, opacity: 0.75 }}>
+            ultimo cambio regime: {bioRegimeChangedAtLabel} — cambi finora: {bioRegimeChangeCount}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 16, opacity: 0.9, whiteSpace: 'pre-line' }}>
+            {formatBioRegimeDiagnostics(bioRegimePending)}
+          </div>
+        </div>
+      ) : null}
       {publicSessionActive && publicSessionQrDataUrl ? (
         <img
           src={publicSessionQrDataUrl}

@@ -12,6 +12,7 @@ import type {
   BrainRendererRegistry,
 } from './brainRendererPlugin'
 import { brainLog, brainWarn } from './brainLog'
+import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
 
 const SWITCH_DURATION_MS = 1_800
 const SWITCH_TIMEOUT_MS = 15_000
@@ -25,25 +26,38 @@ const SWITCH_TIMEOUT_MS = 15_000
 // (`visualPressurePulseUntil`/`setResourcePressure`), trigger diversi:
 // non è un effetto nuovo per ogni occasione, è un unico linguaggio
 // riusato ovunque la continuità visiva stia per rompersi.
-// `resourcePressure` diventa vero SOLO dopo che il thermalScheduler ha già
-// rilevato un vero stallo (è reattivo, non predittivo): il salto visivo fra
-// l'ultimo fotogramma fermo di Bauhaus/Materia Morph e il passthrough
-// leggero arriva quindi sempre a stallo già avvenuto. Non eliminabile con
-// uno scheduling più furbo; si maschera con un flash + poche strisce
-// tagliate/sfalsate in stile glitch — tecnica VJ comune per far leggere un
-// taglio tecnico come un accento voluto invece che come un difetto
-// (segnalato dal Capo Supremo: il mix FilterPsiche/Psycho2D scattava a
-// lag già iniziato). Non è reattività musicale (Check Silenzio): scatta
-// solo sul fronte di salita di una pressione GPU reale rilevata, non su
-// base audio; l'inviluppo resta quello già in uso (tenuto al picco finché
-// il passthrough non è davvero pronto, non un tempo fisso).
+// Il controller può armare `resourcePressure` prima del carico noto e ora
+// interroga `isResourcePressureReady`: la GPU non parte finché FilterPsiche
+// non è completamente dentro il Varco. Gli stalli imprevedibili restano
+// coperti dal medesimo segnale reattivo. Non è reattività musicale (Check
+// Silenzio): nasce soltanto da pressione GPU, mai dall'audio.
 // Rinforzato su richiesta esplicita del Capo Supremo ("Glitch+Flash più
 // evidenti", 2026-08-25): il mascheramento precedente restava troppo
 // discreto per coprire davvero il momento del carico, anche con il
 // semaforo proattivo che lo arma in anticipo.
+//
+// AGGIORNAMENTO (brief del braccio destro, punto 3): quel rinforzo resta
+// valido per uno stallo GPU reale in qualunque regime — non è in
+// contraddizione. Ma nel RESPIRO PROFONDO il flash pieno leggerebbe come un
+// nuovo scatto di attenzione dentro una fase che deve restare bassa e
+// aperta (Check Silenzio): lì il flash va a zero, resta solo il glitch a
+// intensità minima — sufficiente a non far leggere il taglio tecnico come
+// un blocco, senza produrre un accento visivo che il respiro non deve
+// avere. Fuori dal respiro stabile nessun cambiamento: intensità piena
+// come sempre.
 const PRESSURE_FLASH_ATTACK_MS = 32
 const PRESSURE_FLASH_DECAY_MS = 220
 const PRESSURE_FLASH_PEAK_OPACITY = 0.85
+const STABLE_BREATH_FLASH_MULTIPLIER = 0
+const STABLE_BREATH_GLITCH_MULTIPLIER = 0.25
+function pressureFlashRegimeMultipliers(
+  regime: BrainBioRegime | undefined,
+): { flash: number; glitch: number } {
+  if (regime === 'respiro-profondo') {
+    return { flash: STABLE_BREATH_FLASH_MULTIPLIER, glitch: STABLE_BREATH_GLITCH_MULTIPLIER }
+  }
+  return { flash: 1, glitch: 1 }
+}
 const PRESSURE_GLITCH_SLICE_COUNT = 7
 const PRESSURE_GLITCH_MAX_OFFSET_PX = 26
 const PRESSURE_GLITCH_PEAK_OPACITY = 0.7
@@ -77,6 +91,11 @@ export function createBrainRendererHost(
   initialRendererId: BrainRendererId,
   getBoostHint?: () => boolean,
   onRendererFailed?: (id: BrainRendererId, settings: AppSettings, now: number) => void,
+  // PIANO-040 (brief §4/§17.1): regime bio-percettivo corrente — usato solo
+  // per scegliere la rete di sicurezza (sotto). Opzionale, retrocompatibile:
+  // senza di esso il comportamento resta quello di sempre (`print2d` durante
+  // la Riattivazione).
+  getBioRegime?: () => BrainBioRegime,
 ): BrainSceneRendererController {
   const root = document.createElement('div')
   Object.assign(root.style, {
@@ -95,6 +114,7 @@ export function createBrainRendererHost(
   let transitionProgress = 1
   let transitionRole: 'enter' | 'exit' = 'enter'
   let switchStartedAt: number | null = null
+  let latestPerception: BrainBioPerceptionState | null = null
   const retryRendererAfter = new Map<BrainRendererId, number>()
 
   let pressureFlashOverlay: HTMLDivElement | null = null
@@ -185,6 +205,7 @@ export function createBrainRendererHost(
     const controller = plugin.create({ ...pluginContext, container: layerRoot })
     controller.setMorphPattern(morphPattern)
     controller.setResourcePressure(resourcePressure)
+    if (latestPerception) controller.setPerception?.(latestPerception)
     controller.setTransition(transitionProgress, transitionRole)
     return { id: plugin.id, root: layerRoot, controller, requestedAt: now }
   }
@@ -294,6 +315,16 @@ export function createBrainRendererHost(
       active.controller.setResourcePressure(activePressure)
       incoming?.controller.setResourcePressure(activePressure)
     },
+    isResourcePressureReady() {
+      return resourcePressure && passthroughState === 'active'
+    },
+    setPerception(state) {
+      latestPerception = state
+      active.controller.setPerception?.(state)
+      incoming?.controller.setPerception?.(state)
+      denoisingFilterPsiche?.controller.setPerception?.(state)
+      denoisingPsycho2d?.controller.setPerception?.(state)
+    },
     setOfflineHold(activeHold) {
       if (offlineHold === activeHold) return
       offlineHold = activeHold
@@ -348,11 +379,14 @@ export function createBrainRendererHost(
               ? 1
               : 1 - (elapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
           const clamped = clamp(intensity)
+          const regimeMultipliers = pressureFlashRegimeMultipliers(getBioRegime?.())
           if (pressureFlashOverlay) {
-            pressureFlashOverlay.style.opacity = String(clamped * PRESSURE_FLASH_PEAK_OPACITY)
+            pressureFlashOverlay.style.opacity =
+              String(clamped * PRESSURE_FLASH_PEAK_OPACITY * regimeMultipliers.flash)
           }
           pressureGlitchSlices.forEach((slice, index) => {
-            slice.style.opacity = String(clamped * PRESSURE_GLITCH_PEAK_OPACITY)
+            slice.style.opacity =
+              String(clamped * PRESSURE_GLITCH_PEAK_OPACITY * regimeMultipliers.glitch)
             const base = pressureGlitchBaseOffsets[index] ?? 0
             const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
             const jitter = Math.sin(elapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6
@@ -361,7 +395,12 @@ export function createBrainRendererHost(
         }
       }
       if (passthrough) {
-        const mix = ensureDenoisingPsycho2d(time)
+        const bioRegime = getBioRegime?.()
+        const regimeAllowsPsycho2d = bioRegime !== 'decompression' && bioRegime !== 'respiro-profondo'
+        const mix = regimeAllowsPsycho2d ? ensureDenoisingPsycho2d(time) : null
+        if (!regimeAllowsPsycho2d && denoisingPsycho2d) {
+          denoisingPsycho2d.root.style.opacity = '0'
+        }
         if (passthroughReady) {
           if (passthroughState === 'idle' || passthroughState === 'exiting') {
             passthroughState = 'entering'
@@ -390,11 +429,13 @@ export function createBrainRendererHost(
           // Psycho2D si aggiunge solo quando è pronto (createImageBitmap
           // può richiedere qualche frame in più della prima volta): finché
           // non lo è resta a opacità 0, senza bloccare FilterPsiche.
-          const mixReady = mix.controller.isReady?.() !== false
-          mix.root.style.opacity = mixReady
-            ? String(passthroughOpacity * DENOISING_MIX_OPACITY_FACTOR)
-            : '0'
-          mix.controller.update(bands, settings, time, rhythm, movingAverages, flash)
+          if (mix) {
+            const mixReady = mix.controller.isReady?.() !== false
+            mix.root.style.opacity = mixReady
+              ? String(passthroughOpacity * DENOISING_MIX_OPACITY_FACTOR)
+              : '0'
+            mix.controller.update(bands, settings, time, rhythm, movingAverages, flash)
+          }
           const pluginFrameInterval = settings.lowPowerMode
             ? 1_000 / BRAIN_CONFIG.lowPowerDenoisingPassthroughPluginFps
             : 1_000 / BRAIN_CONFIG.denoisingPassthroughPluginFps
@@ -435,16 +476,21 @@ export function createBrainRendererHost(
           flash,
         )
         if (denoisingPsycho2d) {
-          denoisingPsycho2d.root.style.opacity =
-            String(passthroughOpacity * DENOISING_MIX_OPACITY_FACTOR)
-          denoisingPsycho2d.controller.update(
-            bands,
-            settings,
-            time,
-            rhythm,
-            movingAverages,
-            flash,
-          )
+          const bioRegime = getBioRegime?.()
+          const regimeAllowsPsycho2d = bioRegime !== 'decompression' && bioRegime !== 'respiro-profondo'
+          denoisingPsycho2d.root.style.opacity = regimeAllowsPsycho2d
+            ? String(passthroughOpacity * DENOISING_MIX_OPACITY_FACTOR)
+            : '0'
+          if (regimeAllowsPsycho2d) {
+            denoisingPsycho2d.controller.update(
+              bands,
+              settings,
+              time,
+              rhythm,
+              movingAverages,
+              flash,
+            )
+          }
         }
         if (progress >= 1) {
           passthroughState = 'idle'
@@ -473,7 +519,17 @@ export function createBrainRendererHost(
       // faceva comparire anche fuori dal ciclo) — fuori dalla Riattivazione
       // la rete di sicurezza usa FilterPsiche, già impiegato altrove in
       // questo stesso file come passthrough leggero e affidabile.
-      const safetyNetId: BrainRendererId = getBoostHint?.() === true ? 'print2d' : 'filter-psiche'
+      //
+      // PIANO-040 (brief §4/§6.1/§17.1): Print2D non è eleggibile nel
+      // regime basso — il regime vince sempre sull'evento tecnico, quindi
+      // anche durante la Riattivazione la rete di sicurezza usa FilterPsiche
+      // se il regime è `decompression`/`respiro-profondo`. Nessun cambio per
+      // `pressurized`/`unresolved`/regime non disponibile: comportamento
+      // identico a oggi.
+      const bioRegime = getBioRegime?.()
+      const regimeAllowsPrint2d = bioRegime !== 'decompression' && bioRegime !== 'respiro-profondo'
+      const safetyNetId: BrainRendererId =
+        getBoostHint?.() === true && regimeAllowsPrint2d ? 'print2d' : 'filter-psiche'
       if (active.controller.hasFailed?.() === true && active.id !== safetyNetId) {
         brainWarn('render', 'renderer Brain attivo fallito; passo alla rete di sicurezza', {
           active: active.id,

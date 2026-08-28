@@ -207,6 +207,11 @@ export const IPC_CHANNELS = {
   publicSessionStatus: 'fx:public-session-status',
   /** Main → output: un nuovo input online, da trasformare in una storia dedicata. */
   publicOnlinePhrase: 'fx:public-online-phrase',
+  // PIANO-040: scorciatoia Maiusc+B registrata a livello OS (globalShortcut,
+  // non un keydown del renderer) — nella configurazione a due finestre
+  // (Control con il fuoco, Output sul proiettore quasi mai focalizzato) un
+  // keydown sul solo renderer Output non arriva mai. Main → output.
+  toggleBioOverlay: 'fx:toggle-bio-overlay',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -481,4 +486,5 @@ export interface OutputApi {
   loadDreamImages: (fileNames: string[]) => Promise<LoadedDreamImage[]>
   onPublicSessionStatus: (cb: (status: PublicSessionStatus) => void) => () => void
   onPublicOnlinePhrase: (cb: (text: string) => void) => () => void
+  onToggleBioOverlay: (cb: () => void) => () => void
 }

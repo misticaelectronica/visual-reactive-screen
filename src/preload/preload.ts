@@ -101,6 +101,12 @@ const outputApi: OutputApi = {
     ipcRenderer.on(channel, handler)
     return () => ipcRenderer.removeListener(channel, handler)
   },
+  onToggleBioOverlay: (cb: () => void) => {
+    const channel = IPC_CHANNELS.toggleBioOverlay
+    const handler = () => cb()
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
 }
 
 function isOutputEntry(): boolean {
