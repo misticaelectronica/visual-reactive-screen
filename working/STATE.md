@@ -1,5 +1,23 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Push e tag di `1.0.0-rc.1`, mai eseguiti finora — 2026-08-31
+
+- **Richiesta**: mergiare `develop` in `main` e avanzare di versione.
+- **Trovato prima di agire**: `1.0.0-rc.1` (commit `04a0e36`, merge `eb244d8`
+  in `develop`, PIANO-041) era pronta da tre giorni ma **mai pushata né
+  taggata** — il diff fra quel commit e la punta di `develop` toccava solo
+  `working/` (giornale di sessione), zero file applicativi. Bump a una
+  `rc.2` sarebbe stato quindi un numero senza contenuto dietro.
+- **Eseguito**: push di `develop` su origin (7 commit); merge `--no-ff` di
+  `develop` in `main` (`1b4219b`, nessun conflitto); push di `main`; tag
+  leggero `v1.0.0-rc.1` su origin.
+- **Non eseguito, deliberatamente**: promozione a `1.0.0` stabile. Il
+  collaudo manuale Go/No-Go descritto in `docs/release-candidate.md`
+  (fullscreen/microfono/Varco/regimi/Riattivazione/sessione pubblica) non
+  risulta ancora fatto in nessuna sessione registrata — resta il gate
+  esplicito già scritto in PIANO-041 ("promozione a stabile non ancora
+  autorizzata"), non ancora sciolto.
+
 ## MACRO-032 — Sogni Elettronici su GitHub Pages — 2026-08-28
 
 - **Pubblicazione**: pagina statica e video demo pubblicati sul branch orfano
