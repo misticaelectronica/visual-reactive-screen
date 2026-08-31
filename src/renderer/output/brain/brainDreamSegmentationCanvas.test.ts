@@ -4,10 +4,13 @@ import type { MaterialRegion, MaterialRegionMatch } from './brainMaterialAnalysi
 import {
   advanceElectricPulsePhase,
   calculateDreamMotion,
+  calculateDreamRegimeMultiplier,
+  calculateDreamRegimeProfile,
   computeBandProfile,
   computeCondensationBlend,
   computeDendriteBranchPoint,
   computeElectricPulsePoint,
+  computeDreamRegimeColor,
   computeLocalMorphProgress,
   computeProfileDistance,
   computeRegionBreathing,
@@ -147,6 +150,117 @@ describe('Dream Segmentation — avanzamento della trasformazione', () => {
   it('richiede almeno la durata minima per completarsi', () => {
     const progress = computeLocalMorphProgress(0, 1, 3_199, true)
     expect(progress).toBeLessThan(1)
+  })
+})
+
+describe('Dream Segmentation — regime bio-percettivo (PIANO-040, invariante §6)', () => {
+  it('calculateDreamRegimeMultiplier: 1.0 per pressurized/unresolved/nessuno stato — comportamento di default invariato', () => {
+    expect(calculateDreamRegimeMultiplier(null)).toBe(1)
+    expect(calculateDreamRegimeMultiplier('pressurized')).toBe(1)
+    expect(calculateDreamRegimeMultiplier('unresolved')).toBe(1)
+  })
+
+  it('riduce i vecchi moltiplicatori congelanti: 1.1 in decompressione, 1.25 nel respiro', () => {
+    const decompression = calculateDreamRegimeMultiplier('decompression')
+    const stableBreath = calculateDreamRegimeMultiplier('respiro-profondo')
+    expect(decompression).toBe(1.1)
+    expect(stableBreath).toBe(1.25)
+  })
+
+  it('brief Audio 2026-08-28 (punto 1): `residual` modula continuamente quanto del profilo del regime è in vigore', () => {
+    const full = calculateDreamRegimeProfile('respiro-profondo', 1)
+    const half = calculateDreamRegimeProfile('respiro-profondo', 0.5)
+    const none = calculateDreamRegimeProfile('respiro-profondo', 0)
+    // A residual 0 materia, colore e movimento coincidono col default;
+    // l'unica eccezione è il gate semantico assoluto dei neuroni.
+    expect(none).toEqual({
+      ...calculateDreamRegimeProfile(null),
+      neuronalMultiplier: 0,
+    })
+    expect(half.densityMultiplier).toBeGreaterThan(full.densityMultiplier)
+    expect(half.densityMultiplier).toBeLessThan(none.densityMultiplier)
+    expect(half.darkeningAdd).toBeGreaterThan(0)
+    expect(half.darkeningAdd).toBeLessThan(full.darkeningAdd)
+  })
+
+  it('senza passare `residual`, il comportamento resta quello pieno di sempre (retrocompatibile)', () => {
+    expect(calculateDreamRegimeProfile('decompression')).toEqual(calculateDreamRegimeProfile('decompression', 1))
+    expect(calculateDreamRegimeMultiplier('respiro-profondo')).toBe(calculateDreamRegimeMultiplier('respiro-profondo', 1))
+  })
+
+  it('il respiro apre e scurisce la materia riducendo anche densità e moto locale', () => {
+    const profile = calculateDreamRegimeProfile('respiro-profondo')
+    expect(profile.densityMultiplier).toBeLessThan(1)
+    expect(profile.darkeningAdd).toBeGreaterThan(0)
+    expect(profile.colorBrightness).toBeLessThan(1)
+    expect(profile.motionMultiplier).toBeGreaterThan(0)
+    expect(profile.motionMultiplier).toBeLessThan(1)
+  })
+
+  it('brief definitivo §8: il vocabolario neuronale è sospeso (non solo diradato) in decompression/respiro-profondo', () => {
+    expect(calculateDreamRegimeProfile('pressurized').neuronalMultiplier).toBe(1)
+    expect(calculateDreamRegimeProfile('unresolved').neuronalMultiplier).toBe(1)
+    // Sospeso a piena intensità (residual=1): zero, non "un po' meno" come
+    // densityMultiplier — è una condizione di regime, non una taratura.
+    expect(calculateDreamRegimeProfile('decompression', 1).neuronalMultiplier).toBe(0)
+    expect(calculateDreamRegimeProfile('respiro-profondo', 1).neuronalMultiplier).toBe(0)
+  })
+
+  it('non fa riapparire neuroni o elettricità attraverso il residuo nei regimi bassi', () => {
+    expect(calculateDreamRegimeProfile('respiro-profondo', 0).neuronalMultiplier).toBe(0)
+    expect(calculateDreamRegimeProfile('respiro-profondo', 0.5).neuronalMultiplier).toBe(0)
+    expect(calculateDreamRegimeProfile('decompression', 0.5).neuronalMultiplier).toBe(0)
+  })
+
+  it('i colori nel respiro restano audio-driven: scuri in quiete e cambiano con gli inviluppi, senza clock autonomo', () => {
+    const source = [180, 120, 220] as const
+    const quiet = computeDreamRegimeColor(source, 'respiro-profondo', { activity: 0, tension: 0 })
+    const sounding = computeDreamRegimeColor(source, 'respiro-profondo', { activity: 0.6, tension: 0.4 })
+    expect(quiet[0]).toBeLessThan(source[0])
+    expect(quiet[1]).toBeLessThan(source[1])
+    expect(quiet[2]).toBeLessThan(source[2])
+    expect(sounding).not.toEqual(quiet)
+    expect(computeDreamRegimeColor(source, 'respiro-profondo', { activity: 0, tension: 0 })).toEqual(quiet)
+  })
+
+  it('al moltiplicatore di default (1.0) updateDreamSurpriseAccumulator è identico alla chiamata senza il parametro', () => {
+    const state: DreamSurpriseState = { accumulator: 0, lastEventAt: 1_000 }
+    const withoutParam = updateDreamSurpriseAccumulator(state, 0.4, 5_000, 10_000, true)
+    const withDefaultMultiplier = updateDreamSurpriseAccumulator(
+      state, 0.4, 5_000, 10_000, true, 8_000 * calculateDreamRegimeMultiplier('pressurized'),
+    )
+    expect(withDefaultMultiplier).toEqual(withoutParam)
+  })
+
+  it('dwell appena più lungo nel respiro: rallenta senza congelare per 16 secondi', () => {
+    const justFired: DreamSurpriseState = { accumulator: 0, lastEventAt: 0 }
+    const elapsedSinceEvent = 9_000 // oltre 8s, sotto 10s (8 * 1.25)
+    const pressurizedMultiplier = calculateDreamRegimeMultiplier('pressurized')
+    const stableBreathMultiplier = calculateDreamRegimeMultiplier('respiro-profondo')
+    const inPressure = updateDreamSurpriseAccumulator(
+      justFired, 1, elapsedSinceEvent, elapsedSinceEvent, true, 8_000 * pressurizedMultiplier,
+    )
+    const inStableBreath = updateDreamSurpriseAccumulator(
+      justFired, 1, elapsedSinceEvent, elapsedSinceEvent, true, 8_000 * stableBreathMultiplier,
+    )
+    expect(inPressure.triggered).toBe(true)
+    expect(inStableBreath.triggered).toBe(false)
+    const breathAfterTenSeconds = updateDreamSurpriseAccumulator(
+      justFired, 1, 10_100, 10_100, true, 8_000 * stableBreathMultiplier,
+    )
+    expect(breathAfterTenSeconds.triggered).toBe(true)
+  })
+
+  it('transizione più lenta (più "viscosa") in respiro-profondo rispetto a pressurized, a parità di tempo trascorso', () => {
+    const pressurizedMultiplier = calculateDreamRegimeMultiplier('pressurized')
+    const stableBreathMultiplier = calculateDreamRegimeMultiplier('respiro-profondo')
+    const progressInPressure = computeLocalMorphProgress(
+      0, 1, 1_000, true, 3_200 * pressurizedMultiplier,
+    )
+    const progressInStableBreath = computeLocalMorphProgress(
+      0, 1, 1_000, true, 3_200 * stableBreathMultiplier,
+    )
+    expect(progressInStableBreath).toBeLessThan(progressInPressure)
   })
 })
 

@@ -188,7 +188,7 @@ Il punto è:
 
 Questo vincolo è essenziale.
 
-Un regime riflessivo o di recovery non deve essere percepito come:
+Un regime riflessivo o di respiro non deve essere percepito come:
 
 - fallback;
 - riduzione della qualità;
@@ -232,7 +232,7 @@ Per questo motivo l'eleggibilità del renderer deve poter dipendere anche dal re
 
 ---
 
-# 8. Classificazione renderer per regime basso / riflessivo / recovery
+# 8. Classificazione renderer per regime basso / riflessivo
 
 ## ESCLUSI
 
@@ -253,7 +253,7 @@ Anche rallentato continua a essere cognitivamente aggressivo.
 
 **Regola Visual:**
 
-> Psycho2D non è eleggibile nei regimi realmente bassi, riflessivi o di recovery.
+> Psycho2D non è eleggibile nei regimi realmente bassi, riflessivi o di respiro.
 
 ---
 
@@ -297,13 +297,20 @@ La sua identità resta legata a:
 
 **Regola Visual:**
 
-> Print2D non deve essere utilizzato come renderer di respiro o recovery.
+> Print2D non deve essere utilizzato come renderer di respiro.
 
 ---
 
-### Filter-Psiche
+---
 
-Deve essere escluso dai regimi realmente bassi.
+## RIBALTATO DAL CAPO SUPREMO — Filter-Psiche rientra, parametrizzato
+
+**Aggiornamento (brief definitivo §5).** Il giudizio che segue, riportato invariato per
+memoria, è stato **ribaltato dal Capo Supremo**. La motivazione originale resta valida
+per Filter-Psiche **non parametrizzato**; non vale più come motivo di esclusione
+assoluta dal regime basso.
+
+### Filter-Psiche — motivazione originale (superata come esclusione assoluta)
 
 La sua grammatica utilizza:
 
@@ -315,9 +322,17 @@ La sua grammatica utilizza:
 - alterazioni RGB;
 - elevata instabilità percettiva.
 
-**Regola Visual:**
+Questa grammatica, **non parametrizzata**, resta incompatibile con il vero regime
+riflessivo.
 
-> Filter-Psiche non è eleggibile durante il vero regime riflessivo.
+### Filter-Psiche — stato attuale
+
+> Filter-Psiche **è eleggibile nel regime di respiro se parametrizzato** verso colori
+> scuri, psichedelia dark, light non invasiva. Non entra com'è: entra addolcito. Vedi
+> brief definitivo §5 per le leve di parametrizzazione e il criterio di accettazione
+> percettiva (§5.1): può restare psichedelico, ma non deve produrre stroboscopia,
+> picchi bianchi dominanti, inversioni aggressive o instabilità cromatica tanto rapida
+> da diventare il principale oggetto attentivo della scena.
 
 ---
 
@@ -402,6 +417,19 @@ non:
 
 ---
 
+## Filter-Psiche — ADATTO, PARAMETRIZZATO (rientrato per decisione del Capo Supremo)
+
+Filter-Psiche rientra nel pool del respiro a condizione di essere parametrizzato verso
+colori scuri, psichedelia dark, light non invasiva (brief definitivo §5). Non entra
+com'è: entra addolcito.
+
+Criterio di accettazione: non deve produrre stroboscopia, picchi bianchi dominanti,
+inversioni aggressive o instabilità cromatica tanto rapida da diventare il principale
+oggetto attentivo della scena. **Dark non significa abbassare la luminosità: significa
+ridurre la competizione visiva.**
+
+---
+
 # 10. Glitch-Morph
 
 Glitch-Morph resta condizionale.
@@ -422,7 +450,7 @@ Non deve però essere considerato il renderer naturale della quiete.
 
 # 11. Pool Visual di riferimento
 
-## Regime basso / riflessivo / recovery
+## Regime basso / riflessivo
 
 Renderer compatibili:
 
@@ -430,13 +458,13 @@ Renderer compatibili:
 - Material-Morph
 - Bauhaus-Morph
 - Dream-Segmentation senza componente neuronale/elettrica
+- Filter-Psiche parametrizzato (rientrato — vedi §8, brief definitivo §5)
 
 Renderer non compatibili:
 
 - Psycho2D
 - Fractal Spiral Degeneration
 - Print2D
-- Filter-Psiche
 
 Renderer condizionale:
 
@@ -493,7 +521,7 @@ senza passare necessariamente a colori freddi.
 
 Principio:
 
-> **durante il recovery Brain non deve necessariamente cambiare colore; può ridurre la competizione fra i colori che già possiede.**
+> **durante il respiro Brain non deve necessariamente cambiare colore; può ridurre la competizione fra i colori che già possiede.**
 
 Questo conserva memoria dello stato precedente.
 
@@ -601,7 +629,6 @@ Questo è il caso critico.
 Se la musica è in:
 
 - respiro;
-- recovery;
 - quiete;
 - rarefazione;
 - stato riflessivo;
@@ -609,10 +636,15 @@ Se la musica è in:
 non è accettabile risolvere un problema GPU introducendo improvvisamente:
 
 - Psycho2D;
-- Filter-Psiche;
+- Filter-Psiche **non parametrizzato** (aggressivo, di default);
 - glitch aggressivo;
 - flash violento;
 - forte frammentazione.
+
+**Aggiornamento (brief definitivo §5, §6).** Filter-Psiche **parametrizzato verso il
+regime basso** non rientra in questo divieto: è anzi il fallback preferito sotto
+pressione GPU in regime basso, a condizione che il passthrough usi la
+parametrizzazione del regime corrente e non i valori di default. Vedi §23.
 
 La macchina risolverebbe un problema tecnico creando un errore artistico molto più evidente.
 
@@ -705,7 +737,7 @@ Non deve diventare:
 
 - fallback universale;
 - transizione standard;
-- comportamento automatico di recovery.
+- comportamento automatico di respiro.
 
 In particolare:
 
@@ -734,9 +766,16 @@ Pool Visual riflessivo.
 Devono rimanere esclusi:
 
 - Psycho2D;
-- Filter-Psiche;
 - Fractal Spiral Degeneration;
 - Print2D.
+
+**Aggiornamento (brief definitivo §5, §6).** Filter-Psiche non è più fra gli esclusi in
+questa condizione, a patto di essere parametrizzato verso il regime basso: è anzi
+l'unico renderer, insieme a Vector-Morph, che risulta sia eleggibile per il respiro sia
+non pesante sotto pressione GPU reale (`HEAVY_RENDERERS_UNDER_PRESSURE` esclude
+Bauhaus-Morph, Material-Morph e Dream-Segmentation). Il pool sotto pressione in regime
+basso è quindi Vector-Morph più Filter-Psiche parametrizzato, con Glitch-Morph come
+riserva condizionale.
 
 La riduzione tecnica del carico non deve rompere la fisiologia del set.
 
@@ -758,7 +797,7 @@ Un renderer tecnicamente conveniente ma percettivamente sbagliato non costituisc
 
 # 25. Riattivazione
 
-La riattivazione è distinta dal recovery.
+La riattivazione è distinta dal respiro.
 
 Quando il sistema esce da una fase bassa e la pressione musicale ritorna, non deve necessariamente avvenire:
 
@@ -802,39 +841,40 @@ Deve reagire in modo compatibile con il nuovo metabolismo.
 
 # 27. Relazione con lo stato bio-percettivo Audio
 
-L'Analisi Audio potrà fornire informazioni relative a:
+L'Analisi Audio fornisce esclusivamente cinque segnali:
 
-- persistence;
-- change;
-- residual;
-- perceptualPressure;
-- pressureTrend;
-- mobilization;
-- tension;
-- pulsation;
-- corporeality;
-- instability;
-- recovery;
-- eventuale sospensione;
-- affidabilità della lettura.
+- `persistence`;
+- `change`;
+- `residual`;
+- `perceptualPressure`;
+- `pressureTrend`.
 
-**Nota di riordino documentazione**: questo elenco riflette entrambe le formulazioni Audio nell'ordine in cui sono state scritte. Il modello operativo attuale, definito dopo questo brief in risposta diretta alle sue richieste, è il set a 5 segnali (`persistence`, `change`, `residual`, `perceptualPressure`, `pressureTrend`) — vedi [`team/briefs/brief-audio-persistence-pressure-respiro.md`](brief-audio-persistence-pressure-respiro.md). Le sei voci successive (mobilization…recovery) appartengono alla formulazione esplorativa precedente ([`docs/stato-bio-percettivo-brief.md`](../../docs/stato-bio-percettivo-brief.md)), superata e non più a scope corrente.
+È l'unico vocabolario a scope corrente — vedi
+[`team/briefs/brief-audio-persistence-pressure-respiro.md`](brief-audio-persistence-pressure-respiro.md).
+Il modello esplorativo a sei dimensioni (`mobilization`, `tension`, `pulsation`,
+`corporeality`, `instability`, `recovery`), proposto in
+[`docs/stato-bio-percettivo-brief.md`](../../docs/stato-bio-percettivo-brief.md), è
+superato e non è il vocabolario da implementare.
 
-Il Visual non richiede che tutte queste dimensioni diventino mapping diretti.
+Il Visual non richiede che questi segnali diventino mapping diretti.
 
 Non valgono equivalenze come:
 
-`recovery = Bauhaus`
+`pressureTrend falling = Bauhaus`
 
-`pressure falling = rallenta`
+`pressureTrend falling = rallenta`
 
-`tension alta = Filter-Psiche`
+`perceptualPressure alta = Filter-Psiche`
 
-`instability alta = glitch`
+`change alta = glitch`
 
 Le informazioni descrivono la musica.
 
 Il Visual decide la manifestazione.
+
+Il regime (basso/riflessivo, pressurizzato) non è uno dei cinque segnali: è
+un'interpretazione derivata a valle, di competenza della Direzione Visual — vedi brief
+definitivo §2.
 
 ---
 
@@ -845,7 +885,8 @@ Durante test reali, quando la musica entra realmente in una fase di respiro:
 - Psycho2D non compare;
 - Fractal Spiral Degeneration non compare;
 - Print2D non compare;
-- Filter-Psiche non compare;
+- se Filter-Psiche compare, è sempre nella parametrizzazione dark del regime basso —
+  mai nella grammatica di default;
 - Dream-Segmentation non presenta neuroni o scariche elettriche;
 - Vector-Morph rimane disponibile;
 - Material-Morph rimane disponibile;
@@ -868,7 +909,7 @@ Durante un sovraccarico reale:
 - un regime basso non deve improvvisamente diventare aggressivo solo per ragioni tecniche;
 - il MIX Filter-Psiche + Psycho2D non deve essere utilizzato come fallback universale;
 - il Varco Percettivo deve assorbire una discontinuità quando il suo linguaggio è coerente con il momento;
-- il recovery non deve essere interrotto da una falsa esplosione Visual.
+- il respiro non deve essere interrotto da una falsa esplosione Visual.
 
 ---
 

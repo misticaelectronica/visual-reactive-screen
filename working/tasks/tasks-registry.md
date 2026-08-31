@@ -2,6 +2,96 @@
 
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
+## Task Collegati a `PIANO-041` — Release Candidate 1
+
+- [x] **`TASK-041-01`** `DONE`: congelare il perimetro funzionale e portare la
+  versione a `1.0.0-rc.1`.
+- [x] **`TASK-041-02`** `DONE`: creare changelog, note RC, checklist di
+  collaudo, matrice piattaforme, problemi noti e criteri Go/No-Go.
+- [x] **`TASK-041-03`** `DONE`: committare la feature e integrarla
+  localmente in `develop` con merge esplicito.
+- [x] **`TASK-041-04`** `DONE`: validare typecheck, lint, suite, build e
+  artefatti RC sul commit risultante in `develop`.
+
+## Task Collegati a `PIANO-040` — brief collettivo pragmatico
+
+- [x] **`TASK-040-65`** `DONE`: rendere universale il contratto bio-visivo:
+  tutti i nove renderer registrati ricevono e rispettano pressurizzazione,
+  decompressione, respiro alto e respiro profondo indipendentemente dai pool di
+  selezione. Dream Segmentation mantiene neuroni/filamenti/scariche a zero
+  assoluto nei regimi bassi, senza interpolazione attraverso `residual`.
+
+- [x] **`TASK-040-64`** `DONE`: rendere la Riattivazione autonoma dalla
+  disponibilità di `nextProduction`; il contatore deve scattare al confine di
+  storia anche mentre generazione, Varco o GPU sono ancora in attesa.
+
+- [x] **`TASK-040-63`** `DONE`: riparare il ponte `setPerception` mancante nel
+  Renderer Host, inoltrando DECOMPRESSIONE a renderer attivo/entrante e ai
+  layer FilterPsiche/Psycho2D del Varco, inclusi quelli creati dopo il cambio.
+
+- [x] **`TASK-040-62`** `DONE`: eliminare l'anticipo fisso di 260ms e non
+  concedere l'inferenza GPU finché il passthrough FilterPsiche non è realmente
+  `active`, cioè finché non siamo già dentro il Varco Percettivo.
+
+- [x] **`TASK-040-61`** `DONE`: ridurre il movimento locale troppo nervoso di
+  Bauhaus Morph e Materia Morph nei regimi bassi riusando l'ampiezza geometrica
+  esistente (38% in decompressione, 16% in respiro profondo), senza alterare
+  camera, transizioni, flash, silenzio o budget.
+
+- [x] **`TASK-040-60`** `DONE`: correggere FilterPsiche troppo verde/ciano,
+  luminoso e dilavato anche in DECOMPRESSIONE; permettere ai profili bassi di
+  desaturare e ridurre realmente la luminosità, mantenendo contrasto e raster,
+  senza aggiungere layer o nuovi effetti; allineare anche il fallback di
+  preparazione per evitare un flash iniziale aggressivo.
+
+- [x] **`TASK-040-58`** `DONE`: completare la migrazione dal regime
+  `stable-breath` ai due stati abitati `respiro-alto`/`respiro-profondo`,
+  usando `pressureTrend` come unico asse passaggio/assestamento e la mediana
+  come livello, senza riattivare dispersione o `reference.phase` come gate.
+- [x] **`TASK-040-59`** `DONE`: riallineare selettore, hold, host, overlay,
+  Dream-Segmentation, Filter-Psiche e test; validare typecheck, suite completa
+  e lint. Nuovi filtri colore per Vector/Material/Bauhaus restano fuori scope
+  finché la Direzione Visual non sceglie il meccanismo.
+
+- [x] **`TASK-040-56`** `DONE`: registrare durante l'overlay un campione
+  bio-percettivo completo al secondo (bande, segnali, mediana, distanza, candidato,
+  regime e renderer) nel session log automatico, con marcatori inizio/fine.
+  Verificato nuovamente in `OutputApp.tsx`: era già implementato e il piano lo
+  segnava completo (Task 4.4i); il registro era rimasto stantio.
+
+- [x] **`TASK-040-54`** `DONE`: sostituire la blacklist incompleta del
+  regime basso con la whitelist normativa esatta; Glitch Morph deve essere espulso
+  immediatamente come Psycho2D quando entra decompressione/respiro.
+- [x] **`TASK-040-55`** `DONE`: eliminare il nervosismo attorno alla mediana
+  con una piccola zona neutra tecnica, senza reintrodurre firma o significatività
+  rispetto alla dispersione; aggiungere regressioni sul collaudo reale.
+
+- [x] **`TASK-040-50`** `DONE`: ritirare integralmente la firma
+  organizzativa dal regime; ingresso 3 s sotto mediana, uscita 3 s sopra, silenzio
+  prioritario a 2 s e rientro affidato alla conferma ordinaria.
+- [x] **`TASK-040-51`** `DONE`: misurare end-to-end la latenza della
+  `perceptualPressure` e rifiutare scenari oltre 5 s; audit dei test che non potevano
+  produrre l'esito atteso.
+- [x] **`TASK-040-52`** `DONE`: rendere Dream-Segmentation più lento, aperto
+  e scuro senza congelarlo; ridurre i moltiplicatori e mantenere variazione cromatica
+  audio-driven nella materia.
+- [x] **`TASK-040-53`** `DONE`: adeguare overlay, brief, piano, STATE e
+  storico; validazione completa.
+
+## Task Collegati a `PIANO-040` — secondo collaudo dal vivo
+
+- [x] **`TASK-040-46`** `DONE`: impedire che un mazzo renderer costruito nel
+  regime precedente possa consegnare Psycho2D/Fractal Spiral/Print2D dopo l'ingresso
+  in decompressione o respiro stabile; regressione sul cambio regime a metà storia.
+- [x] **`TASK-040-47`** `DONE`: aggiungere la via diretta di silenzio reale
+  (circa 2 s) con rientro isteretico più lento, senza contaminare mediana e
+  dispersione e senza attendere la firma organizzativa.
+- [x] **`TASK-040-48`** `DONE`: rendere l'overlay autosufficiente in due
+  secondi: pressione/mediana, distanza firmata, dispersione, significatività
+  normalizzata, posizione e condizione bloccante nominata.
+- [x] **`TASK-040-49`** `DONE`: validazione mirata, suite completa, typecheck, lint,
+  build e aggiornamento coerente di piano/STATE/storico sessione.
+
 ## Task Collegati alla Sessione 2026-08-27 (Campionamento frasi, sessione pubblica, v1.0.0-beta.3)
 
 - [x] **`DONE`**: Brief filosofico del Capo Supremo recepito — finestra
@@ -647,3 +737,19 @@ manuale finale viene eseguito dal Capo Supremo.
   sagome, assi, colori e texture derivati dalle regioni reali dell'immagine.
 - [ ] **`TASK-017-13`** `IN_PROGRESS`: Confrontare live riconoscibilità e stile
   Bauhaus su volti, corpi, architetture e paesaggi.
+
+---
+
+## Task Collegati a `MACRO-032` (Sogni Elettronici su GitHub Pages)
+
+- [x] **`TASK-032-01`** `DONE`: Preparare `index.html`, aggiungere il contatto
+  `misticaelectronica@libero.it`, includere `demo-1.mp4`, verificare desktop e
+  mobile, pubblicare il branch `gh-pages` e controllare sito e video pubblici.
+- [x] **`TASK-PAGES-02`** `DONE`: Sostituire integralmente `index.html` con il
+  nuovo file ricevuto, senza modificarlo, pubblicare `gh-pages` e verificare
+  l'identità byte-per-byte fra allegato e risposta HTTPS pubblica.
+- [x] **`TASK-PAGES-03`** `DONE`: Rimuovere il comportamento sticky dal blocco
+  “03 / processo condiviso”, verificare che il suo spostamento coincida con lo
+  scroll e pubblicare il fix su GitHub Pages.
+- [x] **`TASK-PAGES-04`** `DONE`: Ridurre la scala responsive del titolo
+  principale, verificare `ELETTRONICI` a 320/390 px e pubblicare il fix mobile.

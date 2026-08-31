@@ -17,6 +17,8 @@ import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 import {
   choosePsycho2dInkPalette,
   ditherPsycho2dPixels,
@@ -184,6 +186,7 @@ export function createBrainPsycho2dWindowScene(
   const loading = new Set<string>()
   let destroyed = false
   let resourcePressure = false
+  let bioPerception: BrainBioPerceptionState | null = null
   let morphPattern: BrainFrameMorphPattern = 'marea'
   let lastSyncAt = Number.NEGATIVE_INFINITY
   let lastRenderedAt = Number.NEGATIVE_INFINITY
@@ -390,6 +393,10 @@ export function createBrainPsycho2dWindowScene(
       resourcePressure = active
       canvas.dataset.brainResourcePressure = active ? 'true' : 'false'
     },
+    setPerception(state) {
+      bioPerception = state
+      canvas.dataset.brainBioRegime = state.regime
+    },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -445,6 +452,7 @@ export function createBrainPsycho2dWindowScene(
         (rhythm?.kickEnvelope ?? beatPulse) * kickProfileScale,
       )
       const flashDrive = clamp(flash?.intensity ?? 0)
+      const regimeMotionScale = brainBioLocalMotionScale(bioPerception?.regime)
       const flashActive = flash?.active === true && flashDrive > 0.04
       if (flashActive && !flashWasActive) flashGestureIndex += 1
       flashWasActive = flashActive
@@ -493,7 +501,7 @@ export function createBrainPsycho2dWindowScene(
       }
       const driveForTexture = (texture: Psycho2DTextureBand): number =>
         textureDrives[texture]
-      const activeDrive = driveForTexture(activeTextureBand)
+      const activeDrive = driveForTexture(activeTextureBand) * regimeMotionScale
       const densityVariant = selectPsycho2dDensityVariant(activeDrive, 0)
       const activeArtwork = artwork.variants[activeTextureBand][densityVariant]
       const textureBlendLinear = previousTextureBand === activeTextureBand
@@ -541,7 +549,7 @@ export function createBrainPsycho2dWindowScene(
       // Risposta primaria al beat: la matrice resta ferma, ma alcune scanline
       // interne respirano e si riallineano alla fase. È un movimento locale,
       // quindi non trascina mai il quadro intero.
-      const beatScanDrive = clamp(beatPulse * 1.35 + kickEnvelope * 0.18)
+      const beatScanDrive = clamp(beatPulse * 1.35 + kickEnvelope * 0.18) * regimeMotionScale
       if (beatScanDrive > 0.025) {
         const beatSliceCount = resourcePressure || settings.lowPowerMode ? 3 : 7
         context.save()
@@ -636,7 +644,7 @@ export function createBrainPsycho2dWindowScene(
         (rhythm?.bandTransients.mid ?? 0) * 0.85 +
         (rhythm?.bandTransients.high ?? 0) * 1.2 +
         bands.high * 0.22,
-      ) * profileScale
+      ) * profileScale * regimeMotionScale
       const sliceCount = glitchDrive > 0.02
         ? resourcePressure || settings.lowPowerMode ? 1 : 3
         : 0
@@ -684,7 +692,8 @@ export function createBrainPsycho2dWindowScene(
           )
           const direction = transitionRole === 'enter' ? 1 : -1
           const offset = Math.round(
-            direction * wave * morphEnvelope * (1 + beatPulse * 0.9) * canvas.width * 0.035,
+            direction * wave * morphEnvelope *
+            (1 + beatPulse * 0.9 * regimeMotionScale) * canvas.width * 0.035,
           )
           drawDitherSlice(
             context,
@@ -698,7 +707,11 @@ export function createBrainPsycho2dWindowScene(
         }
         context.globalAlpha = 1
       }
-      if (lastLatchedBeatIndex !== lastInvertedBeatIndex && time < latchedBeatUntil) {
+      if (
+        regimeMotionScale >= 0.35 &&
+        lastLatchedBeatIndex !== lastInvertedBeatIndex &&
+        time < latchedBeatUntil
+      ) {
         lastInvertedBeatIndex = lastLatchedBeatIndex
         inversionUntil = time + INVERSION_HOLD_MS
       }

@@ -7,6 +7,8 @@ import { brainLog, brainWarn } from './brainLog'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother, type BrainCanvasMotionTargets } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 
 /** Renderer serigrafico storico, distinto dalla regia a finestre Psycho2D. */
 const ANALYSIS_WIDTH = 240
@@ -669,6 +671,7 @@ export function createBrainPrint2dScene(
   let artwork: PreparedArtwork | null = null
   let destroyed = false
   let resourcePressure = false
+  let bioPerception: BrainBioPerceptionState | null = null
   let lastRenderedAt = Number.NEGATIVE_INFINITY
   let lastRenderSignature = ''
   let lastMotionAt = Number.NaN
@@ -733,6 +736,10 @@ export function createBrainPrint2dScene(
     setResourcePressure(active) {
       resourcePressure = active
       canvas.dataset.brainResourcePressure = active ? 'true' : 'false'
+    },
+    setPerception(state) {
+      bioPerception = state
+      canvas.dataset.brainBioRegime = state.regime
     },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
@@ -808,19 +815,22 @@ export function createBrainPrint2dScene(
       // ordinario — il "colpo interno alla stampa" del §4, non una nuova
       // danza continua: torna a scemare in decadimento.
       const impulseBoost = 1 + impulseDrive * 1.7
+      const regimeMotionScale = brainBioLocalMotionScale(bioPerception?.regime)
       const phaseRadians = (rhythm?.beatPhase ?? 0) * Math.PI * 2
-      const depthPx = smoothMotion.low * 19 * PLATE_MOTION_SCALE * impulseBoost
-      const propagationPx = smoothMotion.lowMid * 23 * PLATE_MOTION_SCALE * impulseBoost
-      const dislocationPx = smoothMotion.mid * 18 * PLATE_MOTION_SCALE * impulseBoost
-      const chromaticPx = smoothMotion.high * 13 * PLATE_MOTION_SCALE * impulseBoost
+      const depthPx = smoothMotion.low * 19 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
+      const propagationPx = smoothMotion.lowMid * 23 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
+      const dislocationPx = smoothMotion.mid * 18 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
+      const chromaticPx = smoothMotion.high * 13 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
       const motion: BrainPrint2dMotion = {
         ...rawMotion,
-        activity: smoothMotion.activity,
+        activity: smoothMotion.activity * regimeMotionScale,
         depthPx,
         propagationPx,
         dislocationPx,
         chromaticPx,
-        beatEnvelope: smoothMotion.beat,
+        beatEnvelope: smoothMotion.beat * regimeMotionScale,
+        layerScale: 1 + (rawMotion.layerScale - 1) * regimeMotionScale,
+        layerSkew: rawMotion.layerSkew * regimeMotionScale,
         depthOffsetPx: depthPx * Math.cos(phaseRadians),
         propagationOffsetPx: propagationPx * Math.sin(phaseRadians),
         dislocationOffsetPx:

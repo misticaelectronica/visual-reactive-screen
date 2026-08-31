@@ -23,6 +23,8 @@ import {
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 
 const NORMAL_WIDTH = 400
 const NORMAL_HEIGHT = 225
@@ -52,6 +54,15 @@ export type BauhausMotion = {
   beat: number
   flash: number
   phase: number
+}
+
+// Il regime non introduce un nuovo movimento: riduce soltanto l'ampiezza
+// geometrica locale già prodotta dalle bande e dal beat. Camera e transizioni
+// restano stabili; in silenzio l'ampiezza di partenza è già zero.
+export function bauhausGeometryScaleForRegime(
+  regime: BrainBioRegime | null | undefined,
+): number {
+  return brainBioLocalMotionScale(regime)
 }
 
 const artworkCache = new WeakMap<
@@ -707,6 +718,7 @@ export function createBrainBauhausMorphScene(
     lastEventAt: Number.NEGATIVE_INFINITY,
   }
   let activeFigure: BauhausFigureInstance | null = null
+  let latestPerception: BrainBioPerceptionState | null = null
   const motionSmoother = new BrainCanvasMotionSmoother()
   const prepared = new Map<string, PreparedBauhausArtwork>()
   const matchCache = new Map<string, ReturnType<typeof matchBauhausPlanes>>()
@@ -791,6 +803,10 @@ export function createBrainBauhausMorphScene(
       resourcePressure = active
       output.dataset.brainResourcePressure = active ? 'true' : 'false'
     },
+    setPerception(state) {
+      latestPerception = state
+      output.dataset.brainBioRegime = state.regime
+    },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -843,6 +859,7 @@ export function createBrainBauhausMorphScene(
         detail: smoothMotion.high,
         beat: smoothMotion.beat,
       }
+      const geometryScale = bauhausGeometryScaleForRegime(latestPerception?.regime)
       abstractionProgress = advanceBauhausAbstraction(
         abstractionProgress,
         previousMusicalPosition,
@@ -889,6 +906,7 @@ export function createBrainBauhausMorphScene(
         rhythm?.beatIndex ?? 0,
         settings.lowPowerMode ? 1 : 0,
         resourcePressure ? 1 : 0,
+        latestPerception?.regime ?? 'none',
         activeFigure ? 1 : 0,
         activeFigure
           ? Math.round(computeBauhausFigureEnvelope(time - activeFigure.spawnedAt).opacity * 100)
@@ -971,8 +989,8 @@ export function createBrainBauhausMorphScene(
           const ringCount = settings.lowPowerMode ? 2 : 4
           drawingContext.globalCompositeOperation = 'screen'
           for (let ring = 0; ring < ringCount; ring += 1) {
-            const spread = 1 + ring * (0.55 + motion.surface * 0.12)
-            const radius = baseRadius * spread * (1 + motion.beat * 0.03)
+            const spread = 1 + ring * (0.55 + motion.surface * 0.12 * geometryScale)
+            const radius = baseRadius * spread * (1 + motion.beat * 0.03 * geometryScale)
             if (radius <= 1) continue
             drawingContext.beginPath()
             drawingContext.arc(centerX, centerY, radius, 0, Math.PI * 2)
@@ -1033,10 +1051,12 @@ export function createBrainBauhausMorphScene(
         if (local <= 0) return
         visiblePlanesForFigure.push(plane)
         const phase = motion.phase * Math.PI * 2 + index * 1.37
-        const offsetScale = motion.activity > 0 ? motion.surface * 1.8 : 0
+        const offsetScale = motion.activity > 0 ? motion.surface * 1.8 * geometryScale : 0
         const offsetX = Math.cos(phase) * offsetScale * (index % 2 ? -1 : 1)
         const offsetY = Math.sin(phase) * offsetScale * 0.64
-        const scale = 1 + motion.mass * 0.018 + motion.beat * plane.salience * 0.012
+        const scale = 1 + (
+          motion.mass * 0.018 + motion.beat * plane.salience * 0.012
+        ) * geometryScale
         drawingContext.save()
         planePath(drawingContext, plane, width, height, scale, offsetX, offsetY)
         drawingContext.globalCompositeOperation = index % 4 === 0 ? 'multiply' : 'source-over'
@@ -1130,8 +1150,8 @@ export function createBrainBauhausMorphScene(
           const middleX = (line.x1 + line.x2) * 0.5 * width
           const middleY = (line.y1 + line.y2) * 0.5 * height
           drawingContext.quadraticCurveTo(
-            middleX + Math.sin(linePhase) * (2 + motion.lines * 7),
-            middleY + Math.cos(linePhase) * (2 + motion.lines * 6),
+            middleX + Math.sin(linePhase) * (2 + motion.lines * 7) * geometryScale,
+            middleY + Math.cos(linePhase) * (2 + motion.lines * 6) * geometryScale,
             line.x2 * width,
             line.y2 * height,
           )
@@ -1149,7 +1169,7 @@ export function createBrainBauhausMorphScene(
           const y = Math.floor(index * height / grainBands)
           const nextY = Math.ceil((index + 1) * height / grainBands)
           const offset = Math.sin(motion.phase * Math.PI * 2 + index * 2.1) *
-            motion.detail * 1.25
+            motion.detail * 1.25 * geometryScale
           drawingContext.drawImage(
             activeArtwork.grain,
             0,

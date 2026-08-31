@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { app, BrowserWindow, screen } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen } from 'electron'
 import {
   IPC_CHANNELS,
   type PublicSessionStatus,
@@ -109,8 +109,33 @@ export function createControlWindow(): BrowserWindow {
   return controlWindow
 }
 
+// PIANO-040: Maiusc+B per l'overlay diagnostico bio-percettivo. Registrato a
+// livello OS (non un keydown del renderer Output) perché nella
+// configurazione a due finestre l'Output — fullscreen, sempre in primo
+// piano sul proiettore — quasi mai ha il fuoco della tastiera: chi opera il
+// set lo preme mentre guarda/lavora sulla finestra Control. Attivo solo
+// mentre l'Output esiste, per non sottrarre la combinazione altrove
+// nell'app o al sistema quando non serve.
+const BIO_OVERLAY_SHORTCUT = 'Shift+B'
+
+function registerBioOverlayShortcut(): void {
+  if (globalShortcut.isRegistered(BIO_OVERLAY_SHORTCUT)) return
+  globalShortcut.register(BIO_OVERLAY_SHORTCUT, () => {
+    const win = outputWindow
+    if (!win || win.isDestroyed()) return
+    win.webContents.send(IPC_CHANNELS.toggleBioOverlay)
+  })
+}
+
+function unregisterBioOverlayShortcut(): void {
+  if (globalShortcut.isRegistered(BIO_OVERLAY_SHORTCUT)) {
+    globalShortcut.unregister(BIO_OVERLAY_SHORTCUT)
+  }
+}
+
 export function closeOutputWindow(): void {
   resetOutputAckState()
+  unregisterBioOverlayShortcut()
   if (outputWindow && !outputWindow.isDestroyed()) {
     outputWindow.close()
   }
@@ -225,12 +250,15 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     clearTimeout(showFallback)
     console.log('[main] output window CLOSED')
     resetOutputAckState()
+    unregisterBioOverlayShortcut()
     outputWindow = null
     const cw = controlWindow
     if (cw && !cw.isDestroyed()) {
       cw.webContents.send(IPC_CHANNELS.outputClosed)
     }
   })
+
+  registerBioOverlayShortcut()
 
   return { ok: true }
 }

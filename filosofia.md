@@ -263,3 +263,54 @@ Da qui due vincoli operativi per la permanenza (`selectBrainRendererHoldFrames`,
 
 Questo garantisce, per costruzione, che ogni storia mostri almeno un cambio
 di renderer — non serve verificarlo a valle o affidarsi alla sola casualità.
+
+## 3. Filosofia Aggiuntiva Audio — Relatività Percettiva Della Pressione
+
+> **Superata dalla §4 sotto** (2026-08-28): la mediana non decide più il
+> respiro. Sezione mantenuta per la parte ancora valida (mediana/dispersione
+> come descrizione del contesto della serata) — dove contraddice la §4, vale
+> la §4.
+
+Addendum del Capo Supremo dell'Analisi Audio (2026-08-27), testo integrale in
+[`team/briefs/brief-relativita-percettiva-mediana-set.md`](team/briefs/brief-relativita-percettiva-mediana-set.md):
+Brain non valuta la pressione musicale rispetto a una scala assoluta, ma
+rispetto alla **mediana dinamica della `perceptualPressure` dell'intera
+serata fino all'istante corrente** — mai congelata, mai sostituita da una
+finestra mobile breve. Durante i soli tre secondi di una candidatura il
+centro decisionale resta fermo, perché il criterio non può inseguire il
+segnale che sta verificando. `pressureTrend` non è una derivata temporale ma
+la posizione corrente rispetto alla mediana (`rising`/`stable`/`falling` =
+sopra/zona neutra tecnica ±0,01/sotto). La zona neutra impedisce al rumore
+numerico di diventare un evento, senza usare dispersione o firma. Il respiro è quindi relazionale e pragmatico: silenzio
+raw per due secondi lo autorizza direttamente; fuori dal silenzio servono
+tre secondi continui sotto mediana, e tre sopra per uscirne. Dispersione,
+`persistence`, `change` e `residual` descrivono l'esperienza ma non
+autorizzano il regime. La stessa `perceptualPressure` assume significati
+diversi in set diversi e nello stesso set mentre la storia si modifica.
+Implementato in
+[`brainBioPerception.ts`](src/renderer/output/brain/brainBioPerception.ts).
+
+## 4. Filosofia Aggiuntiva Audio — Respiro, Memoria Corporea E Ascolto Continuo
+
+Addendum del Capo Supremo dell'Analisi Audio (2026-08-28), testo integrale
+in [`team/briefs/brief-respiro-memoria-corporea-ascolto-continuo.md`](team/briefs/brief-respiro-memoria-corporea-ascolto-continuo.md):
+revisione semantica che supera la §3. Brain ascolta come una persona che
+balla — non conosce il futuro del brano, reagisce confrontando il presente
+con la configurazione **immediatamente precedente**, non con la mediana
+della serata. Il respiro è una **riduzione organizzata della costrizione
+percettiva rispetto al prima**, non una posizione sotto una soglia: può
+esistere anche a pressione assoluta elevata, e una pressione sotto mediana
+non è prova di respiro (controesempio: un set molto pressato con riduzione
+modesta). Mediana e dispersione restano contesto descrittivo, mai
+decisori. La reazione dev'essere rapida (ordine di secondi, non la durata
+della fase musicale) — nessuna finestra di conferma autorizza la prima
+reazione; un regime discreto può restare come rappresentazione lenta
+derivata, non come permesso. `residual` è memoria della configurazione
+precedente con decadimento asimmetrico: reazione rapida in salita, memoria
+lenta in discesa. La distinzione fra un passaggio momentaneo e un respiro
+reale sta nell'organizzazione *successiva* (persistence↑/change↓), che
+descrive dopo la reazione, non la autorizza prima. Implementato in
+[`brainBioPerception.ts`](src/renderer/output/brain/brainBioPerception.ts)
+(`classifyPressureTrend`, `advanceBioResidual`) e in
+[`brainDreamSegmentationCanvas.ts`](src/renderer/output/brain/brainDreamSegmentationCanvas.ts)
+(consumo continuo di `residual`, non solo del regime discreto).

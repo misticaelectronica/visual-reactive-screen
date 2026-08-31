@@ -6,6 +6,7 @@ import {
   calculateFilterPsicheColorDynamics,
   calculateFilterPsicheMotion,
   createBrainFilterPsicheScene,
+  filterPsicheFallbackFilter,
   FILTER_PSICHE_VARIANTS,
   selectFilterPsicheVariant,
   shouldRenderFilterPsicheFrame,
@@ -155,6 +156,71 @@ describe('FilterPsiche', () => {
       alternateAlpha: 0,
       inverseAlpha: 0,
     })
+  })
+
+  it('nei regimi bassi sostituisce la spinta cromatica: decompressione contenuta, respiro profondo ancora più quieto', () => {
+    const motion = {
+      activity: 0.72,
+      beat: 0.64,
+      flash: 0,
+      inverseMix: 0.7,
+      alternateMix: 0.58,
+      contrast: 0.52,
+      highColorMix: 0.66,
+      phaseDirection: 1,
+    }
+    const normal = calculateFilterPsicheColorDynamics(motion, 'pressurized')
+    const breath = calculateFilterPsicheColorDynamics(motion, 'respiro-profondo')
+    const decompression = calculateFilterPsicheColorDynamics(motion, 'decompression')
+
+    // Regressione sul collaudo reale: il vecchio profilo non poteva mai
+    // scendere sotto saturate(1)/brightness(1), quindi restava verde-ciano,
+    // luminoso e dilavato anche in decompressione.
+    expect(decompression.saturation).toBeLessThan(1)
+    expect(decompression.brightness).toBeLessThan(1)
+    expect(decompression.contrast).toBeGreaterThan(1)
+    expect(breath.saturation).toBeLessThan(decompression.saturation)
+    expect(breath.brightness).toBeLessThan(decompression.brightness)
+    expect(breath.contrast).toBeGreaterThanOrEqual(1)
+    expect(breath.alternateAlpha).toBeLessThan(normal.alternateAlpha)
+    expect(breath.inverseAlpha).toBeLessThan(normal.inverseAlpha)
+    expect(Math.abs(breath.hueDegrees)).toBeLessThan(Math.abs(normal.hueDegrees))
+    // Decompressione resta leggibile come passaggio, ma non può più
+    // conservare la stessa aggressività cromatica del regime alto.
+    expect(decompression.alternateAlpha).toBeLessThan(normal.alternateAlpha)
+    expect(decompression.alternateAlpha).toBeGreaterThan(breath.alternateAlpha)
+    expect(decompression.inverseAlpha).toBeGreaterThan(breath.inverseAlpha)
+  })
+
+  it('pressurized/unresolved/null restano al comportamento di sempre (nessuna regressione senza regime)', () => {
+    const motion = {
+      activity: 0.5,
+      beat: 0.3,
+      flash: 0,
+      inverseMix: 0.4,
+      alternateMix: 0.3,
+      contrast: 0.2,
+      highColorMix: 0.2,
+      phaseDirection: 1,
+    }
+    const withoutRegime = calculateFilterPsicheColorDynamics(motion)
+    const pressurized = calculateFilterPsicheColorDynamics(motion, 'pressurized')
+    const unresolved = calculateFilterPsicheColorDynamics(motion, 'unresolved')
+
+    expect(withoutRegime).toEqual(pressurized)
+    expect(pressurized).toEqual(unresolved)
+  })
+
+  it('allinea anche il fallback di preparazione ai profili bassi, senza flash cromatico aggressivo', () => {
+    const normal = filterPsicheFallbackFilter('pressurized')
+    const decompression = filterPsicheFallbackFilter('decompression')
+    const breath = filterPsicheFallbackFilter('respiro-profondo')
+
+    expect(normal).toContain('saturate(2.5)')
+    expect(decompression).toContain('saturate(0.680)')
+    expect(decompression).toContain('brightness(0.880)')
+    expect(breath).toContain('saturate(0.520)')
+    expect(breath).toContain('brightness(0.780)')
   })
 
   it('non disegna alcuna striscia orizzontale', async () => {

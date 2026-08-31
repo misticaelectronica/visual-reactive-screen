@@ -1341,3 +1341,701 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   si riduce a sufficienza in una sessione prolungata.
 - **Validazione**: 52 file / 311 test, typecheck e lint verdi (build non
   rieseguita in questa sessione).
+
+### `SESSION-2026-08-27-01`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040 (Stato bio-percettivo), Fase 1 — modulo puro
+  `brainBioPerception.ts`: tipi, inviluppi fast/mid, persistence/change/
+  perceptualPressure/pressureTrend, con le quattro correzioni del Capo Supremo
+  dell'Analisi Audio già recepite nel piano prima di iniziare.
+- **Incidente evitato**: il piano indicava `brainPerception.ts` come nome del nuovo
+  modulo — nome già occupato da `BrainPerceptionEngine` (analisi materica
+  frame-a-frame, wired in `brainSvgScene.ts`), estraneo a questo lavoro. Sovrascritto
+  per errore, individuato subito e ripristinato via `git checkout` prima di qualunque
+  commit. Il nuovo modulo è stato rinominato `brainBioPerception.ts`, simboli
+  prefissati `BrainBio*`; il piano è stato corretto per riflettere il nome reale.
+- **Bug trovato e corretto in corso d'opera**: la prima formula di
+  `calculateSpectralOccupancy` (pavimento relativo alla media mobile di ciascuna banda
+  presa singolarmente) falliva sul controesempio esplicito dell'Audio — un segnale
+  concentrato su una sola banda (`.8/.1/.1/.1`) risultava "occupato al 100%" perché
+  ogni banda era stabile rispetto a sé stessa, non perché portasse energia reale.
+  Corretto usando un pavimento relativo all'energia sostenuta complessiva, stesso
+  principio già in uso in `activeBands` del modulo `BrainPerceptionEngine` esistente.
+- **Decisioni non previste dal piano, registrate con motivazione** (nel codice e nel
+  registro di PIANO-040 §7): distanza L1 pesata per banda per persistence/change (non
+  coseno — il coseno ignorerebbe il livello assoluto); occupazione temporale dal gap
+  fra transient (`bandTransients` esistente, nessuna feature audio nuova); pesi
+  0.4/0.35/0.25 per `perceptualPressure`; zona morta ±0.06 e conferma 1.5s per
+  `pressureTrend` — tutte dichiarate "da tarare all'ascolto".
+- **Stato**: Task 1.1/1.2 completati e verdi (9/9 test), `residual` e la macchina a
+  stati di `reference` non ancora implementati (Task 1.3/1.4, prossimi). Vedi
+  `working/STATE.md` per il punto di ripresa esatto.
+- **Validazione**: `pnpm typecheck` pulito, `brainBioPerception.test.ts` 9/9 verdi.
+  Suite completa e build non ancora rieseguite in questa sessione (fine Fase 1).
+
+### `SESSION-2026-08-27-02`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, completamento Fase 1 — Task 1.3 (macchina a stati di
+  `reference`), 1.4 (`residual`), 1.5 (macchina a stati del regime a 5 valori), 1.6
+  (classe `BrainBioPerceptionClock`).
+- **Bug trovato e corretto in due tentativi durante lo sviluppo di Task 1.6** (non a
+  verifica finale): con `reference` catturata al primo campione (1° correzione:
+  inizializzata al vettore silenzioso invece), un segnale reale ma poco energico
+  produceva un `change` che convergeva asintoticamente sotto la soglia di invalidità
+  (0.35) — la macchina a stati restava bloccata per sempre con `reference` ancora a
+  zero, impedendo di raggiungere `stable-breath` per qualunque materiale rarefatto.
+  Causa vera: usare "silenzio" come mondo di riferimento valido, misurato con una
+  soglia assoluta di invalidità che un segnale a bassa energia non può mai superare per
+  costruzione. Corretto facendo partire la macchina già in `awaiting-confirmation` al
+  costruttore: nessun mondo precedente da invalidare, si va dritti alla conferma del
+  primo stato coerente qualunque sia la sua energia assoluta.
+- **Incidente serio, non causato da questa sessione**: dopo il completamento della
+  Fase 1 (32/32 test verdi), un reset esterno ha riportato l'intero albero di lavoro
+  al commit pulito del branch, cancellando tutti i file non committati — modulo,
+  test, questo piano, `STATE.md`, `session-history.md`, entrambi i brief. Segnalato
+  immediatamente al Capo Supremo invece di essere aggirato o ricostruito in silenzio;
+  il Capo Supremo ha confermato il ripristino e richiesto di procedere.
+- **Verifica post-ripristino**: contenuto identico al pre-incidente, più una
+  correzione minore trovata alla riverifica (`movingAverages`, parametro morto in
+  `ingestSample`, mai letto da nessuna formula — rimosso).
+- **Stato**: Fase 1 di PIANO-040 completa. Prossimo: Fase 2 (wiring in
+  `brainController.ts` e consumer). Vedi `working/STATE.md`.
+- **Validazione**: `brainBioPerception.test.ts` 32/32 verdi, `pnpm typecheck` pulito,
+  suite completa del repo **62 file / 538 test verdi**. Build non rieseguita in
+  questa sessione (non necessaria per questo piano — nessun tipo attraversa
+  IPC/main/preload, verificato in PIANO-040 §14 Task 4.3).
+
+### `SESSION-2026-08-27-03`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, Fase 2 (wiring) — collegare `BrainBioPerceptionClock` al
+  resto di Brain.
+- **Correzione di architettura scoperta durante l'implementazione**: il piano
+  assumeva che il clock ritmico vivesse in `brainController.ts`; in realtà vive in
+  `OutputApp.tsx` (istanziato e alimentato nel punto di ingest IPC). Il clock
+  bio-percettivo è stato collocato di conseguenza nello stesso file, non dove il piano
+  indicava — coerente con l'intento del brief ("accanto a rhythm"), diverso solo nel
+  file fisico.
+- **Wiring completato**: `bioPerceptionSource` filtrato da `OutputApp.tsx` a
+  `createBrainController` (stesso pattern di `rhythmSource`); `setPerception?`
+  opzionale su `BrainSceneRendererController`, propagato solo quando lo stato cambia
+  identità e forzato al primo frame di ogni renderer nuovo; `getBioRegime` iniettato
+  in `BrainRendererSelector` e `createBrainRendererHost` (nuovo parametro in coda,
+  nessuna firma esistente rotta); esclusione Psycho2D/Fractal Spiral/Print2D per
+  regime **mai bypassata dal boost della Riattivazione** (brief §13/§14 — il regime
+  vince sempre sull'evento tecnico); hold Riattivazione differenziato per regime
+  (tabella §17.1); rete di sicurezza regime-aware; log di osservabilità su cambio
+  regime.
+- **8 nuovi test, tutti verdi al primo tentativo** — nessun bug trovato in questa
+  fase (diversamente dalla Fase 1, dove ne erano emersi due reali).
+- **Stato**: Fase 2 di PIANO-040 completa. Prossimo: Fase 3, consumer
+  Dream-Segmentation (`setPerception()` + `regimeMultiplier` sulle tre soglie
+  esistenti, accumulatore intoccato). Vedi `working/STATE.md`.
+- **Validazione**: `pnpm typecheck` pulito, suite completa **62 file / 546 test
+  verdi**. Build non rieseguita (non necessaria, verificato in PIANO-040 §14 Task 4.3).
+
+### `SESSION-2026-08-27-04`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, Fase 3 — Dream-Segmentation come primo consumer reale
+  del livello bio-percettivo.
+- **Implementazione**: `setPerception()` e `calculateDreamRegimeMultiplier(regime)`
+  applicato a `MINIMUM_DWELL_MS`/`MINIMUM_TRANSFORMATION_MS`/`GHOST_LIFESPAN_MS` — le
+  tre soglie già esistenti indicate dal brief §11, mai l'accumulatore di sorpresa.
+  Moltiplicatori di primo collaudo: 1.0 (pressurized/unresolved/nessuno stato,
+  invariante §6), 1.4 (decompression), 2.0 (stable-breath).
+- **Invariante verificato per costruzione, non solo con i test**: i 30 test esistenti
+  del renderer, nessuno dei quali chiama `setPerception`, restano verdi senza alcuna
+  modifica — a moltiplicatore 1.0 le tre funzioni pure ricevono esattamente
+  l'argomento di default di prima.
+- **5 nuovi test**, tutti verdi al primo tentativo — nessun bug trovato in questa
+  fase (a differenza della Fase 1).
+- **PIANO-040: codice completo (Fasi 1, 2, 3).** Resta solo il Task 4.4 — collaudo
+  dal vivo, non eseguibile da un agente. Nessun test verde chiude questo piano
+  (criterio esplicito del brief §19); un esito negativo (solo "modalità lenta"
+  indistinta) è dichiarato accettabile.
+- **Validazione**: `pnpm typecheck` pulito, `pnpm lint` pulito sui file toccati, suite
+  completa **62 file / 551 test verdi**. Build non necessaria (verificato, nessun tipo
+  attraversa IPC/main/preload).
+
+### `SESSION-2026-08-27-05`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, richiesta esplicita del Capo Supremo dopo la Fase 3 —
+  "non soluzioni, etichette a schermo": overlay diagnostico per vedere in tempo reale,
+  durante l'ascolto, cosa sta facendo il livello bio-percettivo.
+- **Implementazione**: pannello in alto a destra in `OutputApp.tsx`, disattivato di
+  default, Maiusc+B per accendere/spegnere. Mostra regime, i cinque segnali con
+  valore, `pressureTrend` con freccia, renderer attivo, moltiplicatore
+  Dream-Segmentation applicato in quel momento, istante dell'ultimo cambio di regime
+  (orario assoluto) e contatore dei cambi. Aggiornamento in tempo reale allo stesso
+  ingest audio del clock bio-percettivo; renderer/moltiplicatore letti ogni 250ms
+  dallo stesso poll DOM già in uso per `activeRendererLabel` — nessun meccanismo
+  nuovo. Font grande (20-26px) per leggibilità a distanza su proiettore. Un'unica
+  inversione monocroma (bianco/nero) per 2.5s al cambio regime, nessun color-coding
+  per stato — rispettato il vincolo esplicito "niente colore".
+- **Un solo file di produzione toccato oltre a `OutputApp.tsx`**:
+  `brainDreamSegmentationCanvas.ts`, una riga — il moltiplicatore già calcolato viene
+  scritto come attributo diagnostico sul canvas, nessuna modifica di comportamento.
+- **Nessuna correzione al comportamento**, come richiesto esplicitamente: nessun
+  nuovo moltiplicatore, nessun nuovo regime, nessuna nuova logica.
+- **Stato**: PIANO-040 — codice e overlay diagnostico completi. Resta solo il Task
+  4.4 (collaudo dal vivo), ora con uno strumento a schermo oltre al log. **Attenzione
+  per chi gestisce il prossimo set live**: l'overlay è un toggle a runtime (Maiusc+B),
+  non un flag di build — va verificato che sia spento prima di andare in scena.
+- **Validazione**: `pnpm typecheck` pulito, `pnpm lint` pulito sui file toccati, suite
+  completa **62 file / 551 test verdi** (nessun nuovo test: overlay è wiring/JSX, non
+  logica pura, stessa convenzione di `OutputApp.test.ts`).
+
+### `SESSION-2026-08-27-06`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, due correzioni all'overlay diagnostico segnalate subito
+  dopo il primo utilizzo — "non vedo nulla a video" e poi "un tag a sinistra o centro
+  che non si sovrapponga agli altri".
+- **Bug 1 — il toggle non arrivava mai a destinazione**: Maiusc+B era un `keydown`
+  sul solo renderer Output. Nella configurazione reale a due finestre l'Output è
+  fullscreen sul proiettore e quasi mai ha il fuoco della tastiera — chi opera il set
+  preme il tasto guardando Control, non Output. Corretto registrando la combinazione
+  a **livello OS** (`globalShortcut` in `src/main/windows.ts`, attivo solo mentre la
+  finestra Output esiste, deregistrato alla sua chiusura), che invia un IPC dedicato
+  a Output. Nuovo canale minimo `fx:toggle-bio-overlay` in `IPC_CHANNELS`/`OutputApi`
+  (shared/preload), stesso schema di `onPublicOnlinePhrase` già esistente. Il
+  `keydown` locale resta come fallback innocuo.
+- **Correzione 2 — posizione**: spostato da "in alto a destra" a **in alto al
+  centro**, per non rischiare sovrapposizioni e per una lettura più naturale.
+- **Prima volta in questo piano che il codice attraversa `main`/`preload`**: rieseguito
+  `vite build` (non solo typecheck/test) e verificato pulito su tutti e tre i bundle
+  (renderer, main, preload).
+- **Stato**: overlay diagnostico corretto e verificato. PIANO-040 resta in attesa del
+  solo Task 4.4 (collaudo dal vivo).
+- **Validazione**: `pnpm typecheck` pulito, `pnpm lint` pulito sui file toccati, suite
+  completa **62 file / 551 test verdi**, `vite build` pulito (renderer + main +
+  preload).
+
+### `SESSION-2026-08-27-07`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, ritaratura di `pressureTrend`/`residual`/soglie richiesta
+  dal Capo Supremo dell'Analisi Audio dopo il primo collaudo dal vivo — le due
+  velocità (regime lento, livello intermedio) erano troppo distanti.
+- **Bug di modello trovato in `pressureTrend`, non solo taratura**: verificato
+  analiticamente prima di scrivere codice che il confronto a due EMA (anche con
+  costanti proprie, non più legate a `mid`) attenua strutturalmente il confronto
+  "adesso vs 3-4s fa" richiesto dall'Audio — uno scalino di 0.07 (il centro esatto
+  del range "falling" indicato) produceva al massimo 0.031 di scarto fra le due EMA,
+  sotto qualunque zona morta ragionevole: non classificabile mai come "falling",
+  qualunque fosse la soglia. Sostituito con una vera linea di ritardo (coda di
+  campioni con timestamp, riferimento = il più vecchio ancora entro ~3.5s) — un
+  confronto raw, non attenuato. Filtro anti-transient spostato dal tau di smoothing
+  (che avrebbe rallentato anche la risposta a un movimento vero) al tempo di conferma
+  (3s, non cumulativo): verificato empiricamente che un calo di 0.07 sostenuto
+  conferma "falling" a ~3.4s, un blip di 1.5s che rientra non conferma mai.
+- **Isteresi del regime**: scorporata da `BIO_PERCEPTION_MID_TAU_MS` (10s) a costante
+  propria (4s) — cambio regime confermato ora in ~10-11s (era ~20s), verificato che
+  una decompressione di 5.2s non lo cambi mai (struttura a due velocità confermata).
+- **Soglia `perceptualPressure` alta**: 0.65→0.60 — il caso segnalato dall'Audio
+  (`pressure 0.64`) ora classifica correttamente come area alta.
+- **`residual` — correzione semantica, non solo taratura**: aggiunto un innesco di
+  rilascio indipendente dal gate di persistence (su `pressureTrend=falling` o calo
+  ≥0.10 da un plateau recente tracciato ad hoc), che prevale su di esso — prima
+  restava fisso a 1.00 con persistence alta anche durante un'apertura evidente.
+  Carica resa esponenziale con tau 150s (prima lineare, saturava in pochi secondi):
+  la saturazione a 1.00 ora è davvero rara.
+- **Overlay**: aggiunta la riga "in attesa → regime (Xs/Ys)" richiesta dal braccio
+  destro — nuovo `getRegimeDiagnostics()` sul clock, sola lettura.
+- **Segnalato ma non affrontato**, per indicazione esplicita del braccio destro ("da
+  valutare dopo il prossimo collaudo, non adesso"): nessun renderer consuma i
+  segnali continui direttamente — solo Dream-Segmentation, e solo tramite il
+  `regime`. Una decompressione breve resta invisibile a schermo salvo l'overlay.
+- **Stato**: PIANO-040 ritarato, in attesa del prossimo collaudo dal vivo. Nessun
+  altro consumer toccato: `brainController.ts`, `brainRendererSelector.ts`,
+  `brainRendererHost.ts`, `brainDreamSegmentationCanvas.ts` consumano `regime`/
+  `signals` esattamente come prima.
+- **Validazione**: `pnpm typecheck` pulito, `pnpm lint` pulito, suite completa **62
+  file / 559 test verdi** (`brainBioPerception.test.ts` 32→40 test), `vite build`
+  pulito.
+
+### `SESSION-2026-08-27-08`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, addendum filosofico del Capo Supremo dell'Analisi Audio —
+  relatività percettiva della pressione rispetto alla mediana dinamica del set.
+  Revisione semantica, non taratura: `pressureTrend` sostituisce completamente il
+  modello a derivata temporale (linea di ritardo) della sessione precedente.
+- **Implementazione**: mediana del set aggiornata a passo costante (non EMA — resiste
+  agli outlier per costruzione, verificato con test dedicato: un kick isolato a 1.0
+  sposta la mediana di <0.001, un bias sostenuto per 5 minuti la sposta invece in modo
+  sostanziale). Banda adattiva derivata dalla variabilità osservata (scarto medio
+  assoluto dalla mediana). Bootstrap come rampa continua (smootherstep, 180s), non tre
+  interruttori. `classifyRawBioRegime` riscritta: legge solo `pressureTrend` come
+  criterio primario, le vecchie soglie assolute di pressione rimosse dalla
+  classificazione, la regione centrale (`stable`) non produce più `UNRESOLVED` come
+  esito normale (bug segnalato dal collaudo precedente, ora risolto).
+- **Bug d'interazione trovato e corretto durante l'implementazione stessa**: il
+  trigger di rilascio di `residual` su `pressureTrend='falling'` (aggiunto nella
+  sessione precedente) sarebbe rimasto perennemente attivo per l'intera durata di un
+  lungo passaggio sotto la mediana del set, impedendo per sempre la carica —
+  esattamente l'opposto dell'invariante originario dell'Audio. Rimosso; resta solo il
+  calo dal plateau locale, genuinamente transizionale.
+- **Decisione esplicitamente richiesta e scritta** (non deducibile dal codice): un
+  campione con `perceptualPressure < 0.02` (silenzio, pausa, cambio traccia) non entra
+  nella storia della mediana; il tempo del set continua comunque a scorrere per il
+  bootstrap (decisione deliberata, non effetto collaterale).
+- **Documentazione richiesta esplicitamente dal brief**: testo integrale salvato in
+  `team/briefs/brief-relativita-percettiva-mediana-set.md`, con puntatore da
+  `filosofia.md` (nuova §3).
+- **Segnalato, non risolto per esplicita indicazione**: la mediana insegue (ordine di
+  grandezza ~4 minuti per attraversare l'intera scala con bias sostenuto) — un respiro
+  molto lungo potrebbe finire per autoannullarsi. Va misurato al prossimo collaudo dal
+  vivo e discusso con l'Audio se il tempo è troppo corto, non corretto in silenzio.
+- **Stato**: PIANO-040 rimane in attesa del prossimo collaudo dal vivo. Nessun altro
+  consumer toccato.
+- **Validazione**: `pnpm typecheck` pulito, `pnpm lint` pulito, suite completa **62
+  file / 562 test verdi** (`brainBioPerception.test.ts` 40→43).
+
+### `SESSION-2026-08-27-09`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, secondo addendum filosofico dell'Analisi Audio —
+  "Autorizzazione adattiva del respiro": la conferma del regime di respiro smette di
+  essere un timer, diventa un riconoscimento di firma organizzativa.
+- **Implementazione**: `advanceBioBreath` (nuovo) confronta `persistence`/`change`
+  (via EMA breve, 2s) con uno snapshot preso al momento dell'ingresso in
+  `pressureTrend === 'falling'`, non con livelli assoluti — correzione decisiva del
+  braccio destro: un drone ambient con persistence alta/change basso già permanenti
+  non deve autorizzare il respiro all'istante solo perché attraversa la regione
+  inferiore. Isteresi ON/OFF (0.08/0.04) sostituisce il vecchio timer di conferma;
+  nessuna regola di uscita separata (la firma, ricalcolata di continuo, si
+  disorganizza da sola quando la configurazione torna verso l'ingresso). Rimossa
+  l'intera architettura a tick/pending/spacing del regime (Task 4.4c/4.4d), sostituita
+  da questo stato più semplice.
+- **Decisione esplicita presa e documentata** (punto 4 del braccio destro): quando la
+  firma non arriva mai, il regime resta `decompression` — uno stato definito, non un
+  blocco nel regime precedente.
+- **Vincolo "pressurized → stable-breath diretto vietato" rimosso**: non più
+  necessario, ora strutturalmente garantito dal fatto che `organized` parte sempre
+  falso all'ingresso in `falling`.
+- **Bug di test trovato e corretto durante la riscrittura, non a verifica finale**: il
+  vecchio scenario end-to-end "mondo rarefatto costante dal silenzio" non può mai
+  produrre la firma organizzativa per costruzione — `change` in quello scenario cresce
+  solo in modo asintotico verso un plateau, mai in discesa, quindi "persistence ↑,
+  change ↓" non emerge mai. Sostituito con una vera transizione (denso poi rarefatto),
+  verificata via simulazione diretta prima di scrivere l'asserzione.
+- **Overlay**: aggiunta mediana e dispersione a schermo (richiesta esplicita
+  dell'utente durante l'implementazione), più il progresso percentuale verso la firma
+  quando non ancora organizzato — sostituisce il vecchio "quanto manca al timer".
+- **Documentazione**: addendum "§13 Autorizzazione adattiva del respiro" accodato al
+  brief esistente `team/briefs/brief-relativita-percettiva-mediana-set.md`, incluse le
+  sei osservazioni del braccio destro e le relative risposte dell'Ingegneria.
+- **Segnalato, non risolto per esplicita indicazione**: anche `setPressureDispersion`
+  insegue come la mediana (un tratto compatto la restringe, rendendo "significativo"
+  uno scarto sempre più piccolo) — da misurare al prossimo collaudo, non da correggere
+  in silenzio.
+- **Stato**: PIANO-040 rimane in attesa del prossimo collaudo dal vivo. Nessun altro
+  consumer toccato.
+- **Validazione**: `pnpm typecheck` pulito, `pnpm lint` pulito, suite completa **62
+  file / 559 test verdi** (`brainBioPerception.test.ts`: 7 test obsoleti del vecchio
+  meccanismo a tick rimossi, 6 nuovi sulla firma organizzativa aggiunti).
+
+### `SESSION-2026-08-27-10`
+- **Data**: 27 Agosto 2026 (CEST)
+- **Obiettivo**: PIANO-040, secondo collaudo dal vivo negativo — Psycho2D comparso
+  nel respiro, silenzio privo di via diretta, posizione congelata su `rising` e
+  overlay non ancora sufficiente a spiegare l'autorizzazione in due secondi.
+- **Diagnosi Psycho2D**: causa primaria verificata nel selettore: i pool nuovi erano
+  filtrati correttamente e il boost non bypassava il regime, ma un mazzo costruito
+  prima del cambio restava consumabile dopo l'ingresso nel regime basso. La rete di
+  sicurezza era già FilterPsiche. Aggiunta riconciliazione nel punto d'uso, inclusa
+  sostituzione immediata dell'attivo ineleggibile. Chiusa inoltre una quarta via
+  tecnica: il mix Psycho2D del passthrough di denoising ora è spento nel regime basso.
+- **Diagnosi latenza**: non è la vecchia finestra `mid`; sotto la soglia di validità
+  `advanceBioTrend` conserva intenzionalmente l'ultima posizione, quindi il silenzio
+  poteva lasciare `rising` indefinitamente. Aggiunta via raw separata: 2 s quasi nulli
+  autorizzano `stable-breath`, 6 s di audio sostenuto chiudono il rientro protetto.
+  Il decadimento filtrato dopo il fader non aggiorna mediana/dispersione.
+- **Overlay**: pressione/mediana affiancate, distanza firmata, dispersione,
+  significatività rispetto alla banda decisionale, posizione, progressi separati e
+  condizione bloccante nominata; stati silenzio in conferma/rientro espliciti.
+- **Protocollo visivo**: nessun moto o effetto nuovo, camera stabile, silenzio senza
+  reattività simulata, transizioni/beat invariati, solo contatori scalari.
+- **Validazione**: test mirati 3 file / 95; suite completa **62 file / 564 test**;
+  typecheck e lint puliti; renderer/main/preload Vite compilati. Il packaging app/ZIP
+  è arrivato fino al blockmap, mentre il solo DMG ha fatto fallire `pnpm build` per
+  `hdiutil create` dopo i retry automatici. Stato finale: codice correttivo completo,
+  PIANO-040 ancora aperto esclusivamente per il nuovo collaudo live Task 4.4.
+
+### `SESSION-2026-08-28-11`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: recepire il brief collettivo pragmatico dopo il collaudo negativo:
+  ritirare la firma organizzativa, rendere il respiro raggiungibile e visibile e
+  misurare davvero il vincolo end-to-end di cinque secondi.
+- **Regime**: silenzio raw quasi nullo per 2 s prioritario; fuori dal silenzio 3 s
+  continui sotto mediana per entrare e 3 s sopra per uscire. Persistence, change,
+  residual e dispersione restano osservabili ma non decisionali. Rimosso il rientro
+  speciale a 6 s.
+- **Diagnosi latenza**: la mediana iniziale veniva catturata durante la salita degli
+  inviluppi e poi recuperava con passo da quattro minuti; aggiunto bootstrap valido
+  di 15 s. Dopo aver portato `fast` e smussatura temporale a tau 0,5 s, la pressione
+  attraversava il centro rapidamente ma la mediana la inseguiva durante la conferma,
+  azzerandola. Il centro resta ora fermo soltanto mentre un candidato è attivo.
+- **Misure**: discesa udibile 3,2 s complessivi, con esattamente 3,0 s sotto mediana;
+  ritorno dal silenzio 5,0 s complessivi. Entrambi rispettano il limite normativo.
+- **Dream-Segmentation**: tempi ridotti da 1,40/2,00 a 1,10/1,25; densità 0,90/0,78;
+  materia più scura e variazione cromatica guidata dagli inviluppi; moto locale
+  ancora positivo 0,84/0,68. Camera stabile e nessuna attività autonoma nel silenzio.
+- **Psycho2D**: confermata la causa già isolata — mazzo obsoleto non rifiltrato al
+  punto d'uso. Safety corretta; boost solo acceleratore. Resta chiusa anche la via
+  tecnica del passthrough nel regime basso.
+- **Audit test**: eliminata la famiglia della firma ritirata e lo scenario end-to-end
+  che pretendeva un esito che i propri ingressi non potevano generare. I nuovi casi
+  verificano precondizioni, attraversamento, durata continua, silenzio e oscillazione.
+- **Protocollo visivo**: camera/quadro stabili, materia e raster preservati, movimento
+  locale solo audio-driven, transizioni/beat invariati, budget ridotto nel respiro.
+- **Validazione**: test mirati 4 file / 123; suite completa **62 file / 557 test**;
+  typecheck e lint puliti; build completa riuscita inclusi app, DMG, ZIP e blockmap.
+  Stato finale: nessun altro lavoro di codice preventivo; resta il collaudo live con
+  overlay Maiusc+B.
+
+### `SESSION-2026-08-28-12`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: terzo collaudo PIANO-040 — correggere `Glitch Morph` visibile in
+  `STABLE-BREATH`, quadro quasi fermo/nervoso e 80 cambi di regime osservati.
+- **Evidenza live**: screenshot con pressione 0,34, mediana 0,45, distanza −0,11,
+  dispersione 0,06 e Glitch Morph attivo.
+- **Causa renderer**: il regime basso era una blacklist di Psycho2D, Fractal e
+  Print2D, mentre il brief prescriveva una whitelist di cinque. Glitch passava dalla
+  selezione ordinaria, non da safety, boost o passthrough. Implementata whitelist
+  Vector/Material/Bauhaus/Dream/Filter, riconciliata anche su attivo e mazzi esistenti.
+- **Causa nervosismo**: qualunque scarto infinitesimo congelava la mediana all'avvio
+  della candidatura e diventava artificialmente tre secondi continui. Aggiunta zona
+  neutra assoluta ±0,01, indipendente dalla dispersione e senza firma organizzativa.
+- **Rientro dal silenzio**: la stessa materia può tornare nella zona centrale senza
+  superarla; quel percorso avvia lì la conferma ordinaria di tre secondi, ma non passa
+  finché la pressione resta davvero sotto la zona.
+- **Regressioni**: Glitch attivo e accodato viene espulso subito; entrambi i regimi
+  bassi visitano solo i cinque ID ammessi; 60 s di oscillazione 0,495/0,505 attorno a
+  mediana 0,5 producono zero cambi; silenzio 2 s e attraversamenti reali restano verdi.
+- **Protocollo visivo**: camera/quadro invariati, nessun moto autonomo, materia/beat/
+  transizioni/budget non modificati; la correzione agisce su regia e segnale.
+- **Validazione**: suite completa **62 file / 559 test**, typecheck e lint puliti;
+  build completa riuscita inclusi app, DMG, ZIP e blockmap. Resta il riscontro live.
+
+### `SESSION-2026-08-28-13`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: brief del braccio destro — latenza da misurare, respiro visibile,
+  Varco Percettivo parametrico.
+- **Punto 1 (latenza)**: simulazione diretta di `BrainBioPerceptionClock` da un
+  calo secco a silenzio (60Hz, come il loop RAF reale) mostra `perceptualPressure`
+  sotto 0,05 in ~2,06s — il modulo isolato rispetta già il vincolo dei "due secondi",
+  in contraddizione col collaudo dal vivo negativo. Nessuna causa trovata da
+  correggere nel modulo; resta aperto in attesa della cattura reale col logger 1Hz.
+- **Punto 2 (respiro visibile)**: verificato che Dream-Segmentation era già
+  collegato a colore/densità/regime (premessa del brief superata dai fatti).
+  Aggiunto ramo scuro a Filter-Psiche (`calculateFilterPsicheColorDynamics`
+  riceve `regime`, riduce le due sovrapposizioni color-dodge/screen senza toccare
+  brightness/contrast/saturation — criterio Visual "meno competizione, non meno
+  luce" applicato alla lettera) ed etichetta "respiro" accanto al renderer attivo.
+  Vector-Morph/Material-Morph/Bauhaus-Morph restano senza leve di regime, non
+  ancora affrontati. Glitch-Morph resta escluso dal pool basso su decisione
+  esplicita del Capo Supremo (nessuna condizione specificata dal brief).
+- **Punto 3 (Varco parametrico)**: flash/glitch di mascheramento in
+  `brainRendererHost.ts` ora azzerato (flash) / ridotto al 25% (glitch minimo)
+  nel solo `stable-breath`, invariato altrove — "resta il solo glitch minimo".
+- **Validazione**: typecheck e lint puliti, suite completa **62 file / 562 test
+  verdi**. Dettaglio in `working/plans/piano-040-...md`, Task 4.4j.
+
+### `SESSION-2026-08-28-14`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: brief Audio "Respiro, memoria corporea e ascolto continuo" —
+  revisione semantica del respiro, supera la mediana come decisore.
+- **`pressureTrend`**: confronta ora la pressione live con `reference.pressure`
+  (snapshot al momento della promozione del riferimento — "la configurazione
+  immediatamente precedente"), non più con la mediana del set. Nuova funzione
+  pura `classifyPressureTrend`. Verificato via simulazione: `decompression`
+  raggiunta entro 200ms da una discesa udibile, reazione immediata senza gate.
+- **`residual`**: riscritto da carica gated su persistence sostenuta a
+  inviluppo a due costanti di tempo (salita 1.5s, discesa 25s) — memoria
+  diretta della pressione precedente, non più giudizio sulla coerenza dello
+  stato presente.
+- **Dream-Segmentation**: `calculateDreamRegimeProfile(regime, residual)` —
+  primo consumo di un segnale continuo oltre al regime discreto.
+- **`advanceBioRegime` invariata**: già compatibile col brief, nessuna
+  modifica necessaria (la sua isteresi è rappresentazione derivata, non gate).
+- **Deferiti**: §18.2 (uscita per ripartenza ritmica pompante, capacità
+  nuova) e la misura di latenza end-to-end dal vivo.
+- **Documentazione**: nuovo `team/briefs/brief-respiro-memoria-corporea-ascolto-continuo.md`,
+  `filosofia.md` §4 (supera la §3 sulla mediana).
+- **Validazione**: typecheck e lint puliti, suite completa **62 file / 563
+  test verdi** (rewrite di `brainBioPerception.test.ts`).
+
+### `SESSION-2026-08-28-15`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: brief correttivo del braccio destro — ritiro del §18.2,
+  regola permanente anti-sovrastrutturazione.
+- **§18.2 ritirato, non deferito**: nessun codice da scrivere. Con
+  `pressureTrend` relativo a `reference.pressure`, un rientro secco del kick
+  produce già il salto più grande della traccia — la via §18.1 (risalita
+  consistente) lo prende in fretta; un rientro graduale (8-16 battute) non
+  deve chiudere il respiro prima del corpo. Aggiornati piano, brief e
+  `filosofia.md` per rimuovere ogni riferimento a "deferito" e sostituirlo
+  con "ritirato".
+- **Regola permanente anti-sovrastrutturazione** scritta in `agents.md`
+  (§"Regole Da Non Rompere"): tre round di collaudo negativi (firma
+  organizzativa, significatività su dispersione, kick a quattro condizioni)
+  nati dallo stesso errore — aggiungere un meccanismo invece di verificare
+  se un segnale esistente rispondeva già. Vale anche sui brief firmati da
+  un Capo Supremo: segnalare la sovrastrutturazione, non implementarla.
+- **Resta aperta**: misura di latenza dal vivo, invariata da tre giri.
+- Nessuna modifica a codice/test in questa sessione — solo documentazione.
+
+### `SESSION-2026-08-28-16`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: analisi log sessione live — comportamenti renderer non tornavano;
+  poi brief del Capo Supremo su respiro che non si chiude e preset colore
+  "sovrascritti".
+- **Trovato e corretto (Dream-Segmentation)**: brief definitivo §8 (già firmato,
+  mai implementato) — vocabolario neuronale sospeso nel regime basso, non solo
+  diradato. Aggiunto `neuronalMultiplier` (0 in decompression/stable-breath),
+  applicato al budget filamenti.
+- **Trovato e corretto (Filter-Psiche)**: la sola riduzione di alternate/inverse
+  alpha lasciava la saturazione di base piena. Aggiunto `saturationMultiplier`
+  (riduce solo l'eccesso sopra 1, mai sotto).
+- **Trovata causa e corretta (respiro che non si chiude)**: `reference.pressure`
+  catturata vicino a un picco locale (log reale: 0.7408); con deadband 0.05 una
+  risalita a 0.77 restava "stable" (non superava 0.79). Deadband ridotta a 0.02,
+  verificato che 0.77 ora legge "rising".
+- **Verificato e riportato, non inventato**: Material-Morph non ha alcun codice
+  legato al regime — il "sovrascrive i preset" segnalato non può venire da lì con
+  lo stato attuale del codice. `reference` oggi si aggiorna solo per rottura, non
+  esiste una via per permanenza — confermato nel log reale (`change` sotto 0.35
+  per 6+ minuti). Entrambi riportati, non implementati senza conferma.
+- **Validazione**: typecheck e lint puliti, 62 file / 565 test verdi.
+
+### `SESSION-2026-08-28-17`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: "si blocca in stable-breath sempre, dopo un po' di minuti" —
+  la ritaratura del deadband del giro precedente non bastava, secondo log reale
+  alla mano.
+- **Causa vera trovata**: `reference.pressure` era uno snapshot di un singolo
+  campione istantaneo preso al momento della promozione — quasi sempre vicino a
+  un picco locale (persistence alta), non al livello tipico del passaggio. Log
+  reale: reference 0.6862, il ritorno della musica arrivava solo a 0.6999
+  (+0.0137), sotto qualunque deadband ragionevole.
+- **Corretto**: `pressure` è ora la media mobile (`pendingPressure`, tau 4s)
+  sull'intera finestra di conferma, non l'ultimo campione — nessuna struttura
+  nuova, la finestra era già osservata dalla macchina.
+- **Verificato con simulazione end-to-end** (jitter audio realistico, 3 run):
+  uscita dal respiro entro ~2.9s dal ritorno della musica in ogni run.
+- **Validazione**: typecheck e lint puliti, 62 file / 566 test verdi.
+
+### `SESSION-2026-08-28-18`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: analisi (nessun codice) — `stable-breath` ritirato, due assi
+  RESPIRO ALTO/RESPIRO PROFONDO. Documento completo:
+  `team/briefs/analisi-respiro-due-assi.md`.
+- **Modello percettivo**: `pressureTrend === 'stable'` è già "assestato"
+  (oggi scartato in `unresolved`); `pressureMedian` resta legittimo per "che
+  livello", domanda diversa da quella per cui era stato demosso. Nessun
+  meccanismo nuovo.
+- **Selettore**: non servono due pool — whitelist esistente sui due bassi,
+  nessuna restrizione sui due alti (come già `pressurized`). Nuova solo la
+  voce hold-frame per RESPIRO ALTO.
+- **Renderer**: Dream-Segmentation riusabile quasi al 100% per RESPIRO
+  PROFONDO. Filter-Psiche in tensione modula/sovrascrive, segnalata non
+  risolta. Vector/Material/Bauhaus-Morph: zero leve E zero formula colore da
+  parametrizzare in entrambi gli stati (palette fissa o pixel analizzati).
+- **3 decisioni segnalate al braccio destro, non prese**: significato di
+  "sovrascrive"; meccanismo colore per i tre renderer senza formula;
+  `neuronalMultiplier` in RESPIRO ALTO.
+- Nessuna modifica a codice/test in questa sessione — solo analisi e
+  documentazione, come richiesto esplicitamente dal brief.
+
+### `SESSION-2026-08-28-19`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: riprendere il lavoro complesso interrotto e completare il
+  passaggio da `stable-breath` ai due assi RESPIRO ALTO/PROFONDO.
+- **Stato trovato**: migrazione parziale non registrata; typecheck bloccato da
+  un'aspettativa legacy, nuovi ID già cablati in parte di modello, selettore,
+  overlay e consumer.
+- **Correzione modello 1**: rimosso `reference.phase` dal regime. Era un secondo
+  gate sulla stessa domanda già risolta da `pressureTrend` e portava la prima
+  decompressione a ~5,5s. Ora rising/falling producono subito pressurizzazione/
+  decompressione; stable apre la classificazione dello stato abitato.
+- **Correzione modello 2**: rimossa `mad` dal livello alto/profondo. Era
+  dichiarata solo contesto ma veniva usata come banda decisionale; nella
+  regressione denso→rarefatto arrivava a ~0,11 e manteneva erroneamente
+  "alto". La mediana usa ora il deadband di pressione già esistente.
+- **Regia/consumer**: whitelist sui due stati bassi, pool ampio sui due alti,
+  hold corto per Respiro Alto; Dream-Segmentation usa leve locali e
+  Filter-Psiche riusa il profilo pieno nell'alto. Nessun nuovo filtro per
+  Vector/Material/Bauhaus; decisione Visual ancora aperta.
+- **Protocollo visivo**: nessun moto di camera/quadro, materia e raster
+  preservati, silenzio senza attività autonoma, beat/transizioni invariati,
+  budget ancora governato da low power/pressione risorse.
+- **Validazione**: typecheck e lint puliti; suite completa **62 file / 567 test
+  verdi**; build completa riuscita (app, DMG, ZIP e blockmap). Resta il
+  collaudo live con overlay Maiusc+B.
+- **Registro riallineato**: `TASK-040-56` marcato `DONE`; logger 1 Hz e
+  marcatori apertura/chiusura erano già presenti in `OutputApp.tsx` e già
+  chiusi nel piano (Task 4.4i), era rimasto stantio soltanto il registry.
+
+### `SESSION-2026-08-28-20`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: correggere FilterPsiche troppo verde/ciano, luminoso e
+  dilavato anche nel regime DECOMPRESSIONE, riscontro da screenshot live.
+- **Diagnosi**: la base raster era già trasformata dalla variante psichedelica;
+  il profilo di decompressione attenuava solo hue e overlay, con saturazione e
+  luminosità vincolate a non scendere mai sotto 1. Il ramo era quindi una
+  FilterPsiche piena attenuata, non una vera apertura.
+- **Correzione**: lo stesso profilo Canvas controlla ora anche base/drive di
+  contrasto, saturazione e brightness. Decompressione desatura e abbassa
+  realmente la luce mantenendo contrasto; Respiro Profondo è più quieto.
+  Color-dodge/screen/difference restano presenti ma fortemente secondari. Il
+  fallback di preparazione segue subito il regime e non mostra più per alcuni
+  frame il vecchio `saturate(2.5)` nei regimi bassi.
+- **Protocollo visivo**: camera/quadro invariati; raster riconoscibile; nessun
+  movimento autonomo; beat/transizioni invariati; nessun nuovo costo.
+- **Validazione**: typecheck/lint puliti, **62 file / 568 test verdi**, build
+  completa riuscita con app, DMG, ZIP e blockmap. Resta il collaudo live.
+
+### `SESSION-2026-08-28-21`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: calmare Bauhaus Morph e Materia Morph, giudicati troppo nervosi
+  dal vivo durante DECOMPRESSIONE e RESPIRO PROFONDO.
+- **Causa**: lo smoothing era già presente e corretto, ma i renderer non
+  ricevevano il regime bio-percettivo; l'ampiezza geometrica locale restava
+  identica ai regimi alti.
+- **Correzione**: aggiunto `setPerception` ai due controller e riusata una sola
+  leva di ampiezza sui movimenti locali esistenti: 38% in decompressione, 16%
+  nel respiro profondo. Nessun cambiamento a camera, transizioni, flash,
+  generazione delle immagini o motore audio.
+- **Protocollo visivo**: camera stabile, reattività dentro piani/regioni raster,
+  zero moto inventato nel silenzio, fase/bande preservate, costo invariato.
+- **Validazione**: 35 test mirati verdi; typecheck/lint puliti; suite completa
+  **62 file / 570 test verdi**; bundle applicativo e ZIP riusciti. Packaging DMG
+  bloccato solo da `hdiutil create` (exit 1) dopo la compilazione. Resta prova live.
+
+### `SESSION-2026-08-28-22`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: impedire che i renderer inizino a laggare prima della comparsa
+  del Varco Percettivo; nessuna GPU finché non siamo già dentro il Varco.
+- **Causa**: il vecchio anticipo fisso di 260ms non copriva la preparazione
+  FilterPsiche (anche 1–2s) e il crossfade; l'inferenza partiva durante
+  `preparing/entering`.
+- **Correzione**: il Renderer Host espone la prontezza reale del passthrough
+  `active`; il controller mantiene armato lo stesso Varco e attende quel segnale
+  prima di avviare WebGPU. Il gate segue gli host correnti se cambia fotogramma.
+- **Nessuna sovrastrutturazione**: riusati `resourcePressure`, stato del
+  passthrough e Promise già attesa da Psichedel; rimosso il timer predittivo.
+- **Validazione**: 16 test mirati, typecheck/lint puliti, **62 file / 570 test
+  verdi**; app e ZIP prodotti. DMG fermo sul noto `hdiutil create` exit 1.
+  Resta il collaudo live.
+
+### `SESSION-2026-08-28-23`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: spiegare e correggere lo screenshot di Dream Segmentation
+  giallo/magenta e bruciato nonostante l'etichetta DECOMPRESSIONE.
+- **Causa**: disallineamento fra UI e renderer reale. Il controller inviava il
+  regime al Renderer Host, ma l'host non implementava `setPerception`; Dream,
+  FilterPsiche del Varco, Bauhaus e Materia non lo ricevevano.
+- **Correzione**: inoltro e memoria dell'ultimo stato nel Renderer Host, anche
+  per controller entranti o layer del Varco creati successivamente.
+- **Nessuna falsa taratura**: non sono stati cambiati colori o moltiplicatori;
+  prima si rende operativo il profilo già progettato e poi si valuta dal vivo.
+- **Validazione**: 64 test mirati, typecheck/lint puliti, **62 file / 571 test
+  verdi**; app e ZIP prodotti. DMG fermo sul noto `hdiutil create` exit 1.
+  Resta il nuovo riscontro live in DECOMPRESSIONE.
+
+### `SESSION-2026-08-28-24`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: ripristinare l'ingresso periodico della Riattivazione, che deve
+  funzionare a prescindere da regime, Varco e generazione.
+- **Causa**: il contatore era controllato solo quando `nextProduction` era già
+  pronta. Una generazione ritardata faceva riciclare indefinitamente la storia
+  corrente senza offrire il confine alla Riattivazione.
+- **Correzione**: il trigger viene ora valutato direttamente ai confini della
+  storia e durante il ricircolo; la Riattivazione può partire dall'archivio con
+  prossima produzione nulla e lasciare la generazione ordinaria in attesa. Il
+  confine rilegge anche l'archivio reale, evitando un cache asincrono stantio.
+- **Separazione**: il regime resta una grammatica visiva interna, non un veto
+  sul ciclo. Nessuna modifica ai renderer o alla selezione in questa sessione.
+- **Validazione**: typecheck/lint puliti, **62 file / 572 test verdi**, app e ZIP
+  prodotti. DMG fermo sul noto `hdiutil create` exit 1. Resta collaudo live.
+
+### `SESSION-2026-08-28-25`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: rendere obbligatoria sul comportamento reale di tutti i
+  renderer la risposta ai quattro regimi, indipendentemente dai pool, ed
+  eliminare i neuroni di Dream Segmentation nel respiro profondo.
+- **Causa**: cinque renderer registrati non implementavano `setPerception`.
+  Inoltre Dream interpolava lo zero neuronale col residuo, facendo riapparire
+  filamenti e scariche quando il residuo non era pieno.
+- **Correzione**: completato il ricevitore su Print2D, Psycho2D, Vector Morph,
+  Glitch Morph e Fractal Spiral; centralizzata la sola scala del moto locale e
+  riusata anche da Bauhaus/Materia. Il gate neuronale di Dream è ora zero
+  assoluto in decompressione e respiro profondo.
+- **Protocollo visivo**: nessun movimento di camera o quadro; soltanto materia
+  locale già audio-driven; silenzio, transizioni, flash e low power preservati;
+  nessun nuovo effetto o costo GPU.
+- **Validazione**: typecheck e lint puliti, **63 file / 574 test verdi**, build
+  completa riuscita con app, DMG, ZIP e blockmap. Resta prova live fullscreen.
+
+### `SESSION-2026-08-28-26`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: preparare tutta la documentazione di Release Candidate e
+  integrare il lavoro completo su `develop`.
+- **Release**: versione portata da `1.0.0-beta.3` a `1.0.0-rc.1`; creati
+  `CHANGELOG.md`, note RC, checklist installazione/smoke/live, matrice
+  piattaforme, problemi noti, criteri Go/No-Go e procedura verso `1.0.0`.
+- **Git**: consolidamento feature nel commit `04a0e36`; merge locale `--no-ff`
+  su `develop` nel commit `eb244d8`, senza conflitti. Nessun push o tag remoto.
+- **Validazione post-merge**: typecheck e lint puliti, suite completa **63 file /
+  574 test verdi**, build Electron riuscita. Generati DMG arm64 247 MB, ZIP
+  arm64 238 MB e relative blockmap con nome `1.0.0-rc.1`.
+- **Stato finale**: RC tecnicamente pronta; rimane il collaudo manuale
+  fullscreen/microfono/Varco/regimi/Riattivazione/sessione pubblica prima della
+  promozione alla versione stabile.
+
+### `SESSION-2026-08-28-27`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: pubblicare la pagina autonoma “Sogni Elettronici” su GitHub
+  Pages con il video demo e il riferimento contatti richiesto.
+- **Implementazione**: creato il branch orfano `gh-pages` con `index.html`,
+  `demo-1.mp4` e `.nojekyll`; aggiunto nel footer il link cliccabile
+  `mailto:misticaelectronica@libero.it`.
+- **Separazione**: nessun file dell'app Electron è stato incluso nel branch del
+  sito e nessun commit applicativo è stato pubblicato.
+- **Validazione**: controllo locale desktop/mobile, assenza di errori browser,
+  Pages `built`, HTTPS attivo, pagina e MP4 verificati sugli URL pubblici.
+
+### `SESSION-2026-08-28-28`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: sostituire la pagina pubblica con il nuovo file
+  `sogni-elettronici (1).html` caricato dall'utente, conservandolo integralmente.
+- **Pubblicazione**: il file è stato copiato senza modifiche come `index.html`
+  sul branch `gh-pages`; `demo-1.mp4` e `.nojekyll` sono rimasti invariati.
+- **Git**: commit pubblico `36d4504` (`site: aggiorna integralmente Sogni
+  Elettronici`). Nessun push su `develop`.
+- **Validazione**: HTTP 200 e HTTPS attivo; hash SHA-256 della risposta Pages
+  identico all'allegato (`369e0e86fcdf63a60e968eab9d5893ca44eed558f4b2364d4177ad00a1d4ec53`).
+
+### `SESSION-2026-08-28-29`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: fare scorrere con la pagina il blocco “03 / processo
+  condiviso”, segnalato come apparentemente fisso.
+- **Causa**: CSS `position: sticky; top: 38px`; nessun errore JavaScript.
+- **Correzione**: rimossi soltanto `position: sticky` e `top`, mantenendo
+  layout, contenuti, animazioni e comportamento mobile invariati.
+- **Validazione**: posizione calcolata `static`; a uno scroll di 480,5 px il
+  blocco si sposta di −480,5 px; nessun warning/errore browser. Build pubblica
+  verificata senza più alcuna regola sticky.
+- **Git**: commit pubblico `310cca5` sul branch `gh-pages`; nessun push su
+  `develop`.
+
+### `SESSION-2026-08-28-30`
+- **Data**: 28 Agosto 2026 (CEST)
+- **Obiettivo**: impedire il taglio della parola `ELETTRONICI` nel titolo
+  principale sui telefoni.
+- **Causa**: la scala mobile `19vw` produceva un titolo largo 402 px a 390 px
+  di viewport e 332 px a 320 px; `.page { overflow-x: hidden; }` nascondeva la
+  parte eccedente.
+- **Correzione**: sostituita la sola regola mobile con
+  `clamp(50px, 15.8vw, 92px)`.
+- **Validazione**: 20 px esatti di margine destro a 320 e 390 px, nessun
+  overflow orizzontale e nessun errore browser; build Pages verificata online.
+- **Git**: commit pubblico `de113ec` sul branch `gh-pages`; nessun push su
+  `develop`.

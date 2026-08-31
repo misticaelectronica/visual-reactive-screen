@@ -84,6 +84,18 @@ export function pickStoriesUntilNextRevisionCycle(random: () => number = Math.ra
     Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
 }
 
+/**
+ * La Riattivazione dipende dal proprio contatore e dal confine di storia,
+ * non dalla disponibilità della prossima produzione né dal regime visivo.
+ */
+export function shouldStartRevisionCycleAtBoundary(
+  storiesUntilNextCycle: number,
+  active: boolean,
+  starting: boolean,
+): boolean {
+  return storiesUntilNextCycle <= 0 && !active && !starting
+}
+
 export function pickRevisionImageCount(random: () => number = Math.random): number {
   const span = REVISION_CYCLE_MAX_IMAGES - REVISION_CYCLE_MIN_IMAGES + 1
   return REVISION_CYCLE_MIN_IMAGES +

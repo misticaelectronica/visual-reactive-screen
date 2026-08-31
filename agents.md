@@ -74,6 +74,11 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non applicare oscillazioni, derive laterali, rotazioni, zoom o pulsazioni ritmiche all’intero quadro: possono causare mal di mare. Distribuire sempre il movimento fra segmenti con fasi differenti e mantenere la camera stabile.
 - Non simulare reattività musicale con oscillazioni temporali autonome: le curve devono usare fase riallineata al beat e transienti distinti per `low`, `lowMid`, `mid` e `high`. In silenzio il movimento geometrico deve essere quasi nullo.
 - Non rimuovere `lowPowerMode`: serve per ridurre carico CPU/FPS/layer durante live lunghi o su macchine calde.
+- **Divieto di sovrastrutturazione** (regola permanente, brief del braccio destro 2026-08-28, PIANO-040): tre round di collaudo negativi sul respiro bio-percettivo sono nati dalla stessa causa — a ogni problema è stato aggiunto un meccanismo nuovo invece di verificare se uno già esistente rispondeva già alla domanda (firma organizzativa, significatività rispetto alla dispersione, qualificazione del kick a quattro condizioni: nessuno ha mai funzionato dal vivo, ognuno ha richiesto un round per essere ritirato). Da applicare sempre:
+  - Prima di aggiungere un meccanismo, verificare se un segnale già presente risponde alla domanda.
+  - Una condizione a più requisiti è quasi sempre un errore di progetto, non una specifica precisa: se il corpo/l'occhio riconosce una cosa in mezzo battito, il codice non dovrebbe avere bisogno di quattro verifiche incrociate.
+  - Se un criterio non scatta mai dal vivo, non va tarato: va rimosso.
+  - Segnalare la sovrastrutturazione quando arriva dall'alto — **anche quando il brief è firmato da un Capo Supremo**: se chiede un meccanismo che duplica qualcosa di già esistente, va riportato prima di essere implementato, non eseguito silenziosamente.
 
 ### Protocollo Obbligatorio Di Verifica Filosofia Visiva
 

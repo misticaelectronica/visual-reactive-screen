@@ -9,6 +9,8 @@ import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
 import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
+import type { BrainBioPerceptionState } from './brainBioPerception'
+import { brainBioLocalMotionScale } from './brainBioVisualResponse'
 
 // Glitch Morph: contorni di luminanza che ridisegnano il raster con linee
 // sottili, iridescenti, il cui spostamento verticale segue il profilo di
@@ -298,6 +300,7 @@ export function createBrainGlitchMorphScene(
   let destroyed = false
   let failed = false
   let resourcePressure = false
+  let bioPerception: BrainBioPerceptionState | null = null
   let preparationStarted = false
   let transitionProgress = 1
   let previousTransitionProgress = Number.NaN
@@ -362,6 +365,10 @@ export function createBrainGlitchMorphScene(
       resourcePressure = active
       outputCanvas.dataset.brainResourcePressure = active ? 'true' : 'false'
     },
+    setPerception(state) {
+      bioPerception = state
+      outputCanvas.dataset.brainBioRegime = state.regime
+    },
     setTransition(progress, role) {
       transitionProgress = clamp(progress)
       transitionRole = role
@@ -389,11 +396,12 @@ export function createBrainGlitchMorphScene(
         rhythm?.active ?? (rawMotion.activity > 0),
         settings.motionProfile,
       )
+      const regimeMotionScale = brainBioLocalMotionScale(bioPerception?.regime)
       const motion: GlitchMotion = {
-        activity: smoothMotion.activity,
-        beat: Math.max(rawMotion.beat, smoothMotion.beat),
-        high: smoothMotion.high,
-        tension: smoothMotion.low,
+        activity: smoothMotion.activity * regimeMotionScale,
+        beat: Math.max(rawMotion.beat, smoothMotion.beat) * regimeMotionScale,
+        high: smoothMotion.high * regimeMotionScale,
+        tension: smoothMotion.low * regimeMotionScale,
         flash: rawMotion.flash,
       }
       const audioActive = rhythm?.active ?? rawMotion.activity > 0
@@ -453,7 +461,9 @@ export function createBrainGlitchMorphScene(
       // questo è ciò che rende il rilievo percepibile come sincronizzato
       // alla musica, non solo un'onda a sé stante.
       const terrainAmplitude = height * (TERRAIN_BASE_RATIO + TERRAIN_BEAT_RATIO * motion.beat)
-      const rippleAmplitude = RIPPLE_MAX_PX * (0.3 + motion.high * 0.5 + motion.beat * 0.3)
+      const rippleAmplitude = RIPPLE_MAX_PX *
+        (0.3 + motion.high * 0.5 + motion.beat * 0.3) *
+        regimeMotionScale
       const fringeIntensity = clamp(motion.beat * 0.8 + motion.high * 0.3)
       const t = clockMs / 1000
 
