@@ -678,6 +678,16 @@ export function createBrainController(
   // impulso GPU, serve un margine che sopravviva a un beat irregolare.
   const CONSCIOUSNESS_MOTION_PULSE_LEAD_MS = 4_000
   let visualPressurePulseUntil = 0
+  // Il Varco resta acceso per TUTTA la durata dell'inferenza immagine, non
+  // per un tempo fisso (direttiva del Consigliere del Capo Supremo): la
+  // finestra a impulso `VISUAL_PRESSURE_PULSE_MS` (2,5 s) era più corta del
+  // fotogramma che deve coprire (4,6–11,7 s osservati nei log), e l'unico
+  // meccanismo che la estendeva nel corpo del fotogramma era l'evento
+  // reattivo `long-frame` — che per costruzione scatta a scatto già visto.
+  // Questo latch è distinto dalla finestra lunga di backoff della
+  // generazione (`longFrameBlockedUntil`, 9–20 s): copre solo il carico GPU
+  // reale, delimitato, non l'intera coda di raffreddamento.
+  let imageInferenceActive = false
   const reportThermalEvent = (event: BrainThermalSchedulerEvent) => {
     if (event.type === 'long-frame') {
       visualPressurePulseUntil = performance.now() + VISUAL_PRESSURE_PULSE_MS
@@ -755,7 +765,17 @@ export function createBrainController(
         'data-brain-image-inference',
         active ? 'active' : 'idle',
       )
-      if (active) await armVisualPressureBeforeGpuLoad()
+      if (active) {
+        // Si arma prima del carico GPU come già faceva (attende di essere
+        // dentro il Varco prima che l'inferenza parta); il latch tiene poi
+        // il Varco acceso per l'intero fotogramma e lo spegne al `finally`
+        // di `psichedel.ts` (`onImageGenerationState(false)`), non dopo un
+        // tempo fisso.
+        await armVisualPressureBeforeGpuLoad()
+        imageInferenceActive = true
+      } else {
+        imageInferenceActive = false
+      }
     },
     thermalScheduler,
   )
@@ -2358,7 +2378,11 @@ export function createBrainController(
     // passthrough leggero FilterPsiche+Psycho2D e il flash solo per
     // coprire il momento dello stallo, non per degradare la ricchezza
     // visiva di ogni renderer per 9-20s a ogni gap RAF.
-    const resourcePressureActive = now < visualPressurePulseUntil
+    // `imageInferenceActive`: il Varco resta acceso per tutta la durata del
+    // carico GPU reale. `visualPressurePulseUntil` continua a coprire gli
+    // altri due inneschi a impulso (long-frame reattivo, moto di coscienza).
+    const resourcePressureActive =
+      imageInferenceActive || now < visualPressurePulseUntil
     currentSvg?.setResourcePressure?.(resourcePressureActive)
     outgoingSvg?.setResourcePressure?.(resourcePressureActive)
     // PIANO-040 (brief §17.3): stato bio-percettivo, propagato solo quando
