@@ -59,7 +59,11 @@ import { BrainOfflineGenerationWindow } from './brainOfflineWindow'
 import { BrainRendererSelector } from './brainRendererSelector'
 import type { BrainRendererImageSource } from './brainRendererPlugin'
 import type { BrainRhythmState } from './brainRhythm'
-import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
+import type {
+  BrainBioPerceptionState,
+  BrainBioRegime,
+  BrainBioRegimeReason,
+} from './brainBioPerception'
 import {
   brainLog,
   brainWarn,
@@ -251,6 +255,11 @@ export type BrainControllerOptions = {
   // PIANO-040: stato bio-percettivo, aggiornato lato Output a bassa frequenza
   // (brief §10/§17.3) — stesso pattern di `rhythmSource`, non un canale nuovo.
   bioPerceptionSource?: () => BrainBioPerceptionState
+  // Motivo dell'ultimo regime (chiusura Item 2 §3): accompagna il log di
+  // cambio regime così che una transizione sia leggibile senza dedurla. Fonte
+  // separata da `bioPerceptionSource` per non gonfiare il payload passato ai
+  // renderer via `setPerception`. Opzionale: senza, il log resta com'era.
+  bioRegimeReasonSource?: () => BrainBioRegimeReason | null
 }
 
 export function createBrainController(
@@ -2375,6 +2384,9 @@ export function createBrainController(
     if (perceptionState && perceptionState.regime !== lastLoggedBioRegime) {
       brainLog('perception', `regime bio-percettivo: ${perceptionState.regime}`, {
         previousRegime: lastLoggedBioRegime,
+        // Chiusura Item 2 §3: il motivo del cambio, non solo il valore
+        // d'arrivo. Per costruzione non può essere una deriva della mediana.
+        reason: options.bioRegimeReasonSource?.() ?? null,
         signals: perceptionState.signals,
         activeRenderer: currentSvg?.element.dataset.activeRenderer,
       })

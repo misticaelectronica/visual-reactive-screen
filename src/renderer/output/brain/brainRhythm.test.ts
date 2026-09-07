@@ -156,6 +156,52 @@ describe('BrainRhythmClock', () => {
     }
   })
 
+  it('plateau (2026-08-31): un letto steady che oscilla attorno alla propria media NON produce transienti; un kick reale con lo stesso delta sì', () => {
+    // Letto residuo dell'altro deck: bande ~0.30, movingAverages a 0.30, il
+    // livello oscilla di ~0.03 attorno a quella media. Frame-to-frame il
+    // delta positivo supererebbe la soglia, ma il lift sopra la baseline è
+    // ~0 → nessun transiente → `gapSinceEventMs` può saturare (fine del
+    // plateau).
+    const bedClock = new BrainRhythmClock()
+    const bedAvg = { low: 0.3, lowMid: 0.28, mid: 0.26, high: 0.24 }
+    let now = 100
+    // warm-up: `previousBands` si allinea alla media del letto.
+    for (let i = 0; i < 6; i += 1) {
+      now += 40
+      bedClock.update(bedAvg, now, bedAvg)
+    }
+    let peak = 0
+    for (let i = 0; i < 40; i += 1) {
+      now += 40
+      const wobble = i % 2 === 0 ? 0.015 : -0.015
+      const bands = {
+        low: bedAvg.low + wobble,
+        lowMid: bedAvg.lowMid + wobble,
+        mid: bedAvg.mid + wobble,
+        high: bedAvg.high + wobble,
+      }
+      const state = bedClock.update(bands, now, bedAvg)
+      peak = Math.max(
+        peak,
+        state.bandTransients.low,
+        state.bandTransients.lowMid,
+        state.bandTransients.mid,
+        state.bandTransients.high,
+      )
+    }
+    expect(peak).toBeLessThan(0.03)
+
+    // Stesso identico delta frame-to-frame (+0.06), ma su un kick reale:
+    // fondo quieto, movingAverages basse, il colpo salta ben sopra la
+    // baseline → il transiente passa pieno (il beatmatch non perde ampiezza).
+    const kickClock = new BrainRhythmClock()
+    const quietAvg = { low: 0.05, lowMid: 0.05, mid: 0.05, high: 0.05 }
+    kickClock.update({ low: 0.06, lowMid: 0.06, mid: 0.06, high: 0.06 }, 100, quietAvg)
+    const hit = kickClock.update({ low: 0.72, lowMid: 0.6, mid: 0.5, high: 0.66 }, 140, quietAvg)
+    expect(hit.bandTransients.low).toBeGreaterThan(0.3)
+    expect(hit.bandTransients.high).toBeGreaterThan(0.3)
+  })
+
   it('rilascia un hat prima del sedicesimo successivo senza coda sostenuta', () => {
     const clock = new BrainRhythmClock()
     const silence = { low: 0, lowMid: 0, mid: 0, high: 0 }

@@ -15,6 +15,7 @@ export type BrainRendererId =
   | 'dream-segmentation'
   | 'glitch-morph'
   | 'fractal-spiral-degeneration'
+  | 'deliquescence'
 export type BrainRendererMode = 'manual' | 'rotation' | 'story-cycle'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
@@ -30,6 +31,7 @@ export const BRAIN_RENDERER_IDS: BrainRendererId[] = [
   'dream-segmentation',
   'glitch-morph',
   'fractal-spiral-degeneration',
+  'deliquescence',
 ]
 export const BRAIN_RENDERER_MODES: BrainRendererMode[] = [
   'manual',
@@ -212,6 +214,8 @@ export const IPC_CHANNELS = {
   // (Control con il fuoco, Output sul proiettore quasi mai focalizzato) un
   // keydown sul solo renderer Output non arriva mai. Main → output.
   toggleBioOverlay: 'fx:toggle-bio-overlay',
+  /** Main → output: annotazione manuale del collaudatore Audio (Maiusc+0..4). */
+  bioAudioMarker: 'fx:bio-audio-marker',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -487,4 +491,5 @@ export interface OutputApi {
   onPublicSessionStatus: (cb: (status: PublicSessionStatus) => void) => () => void
   onPublicOnlinePhrase: (cb: (text: string) => void) => () => void
   onToggleBioOverlay: (cb: () => void) => () => void
+  onBioAudioMarker: (cb: (marker: string | null) => void) => () => void
 }

@@ -107,6 +107,12 @@ const outputApi: OutputApi = {
     ipcRenderer.on(channel, handler)
     return () => ipcRenderer.removeListener(channel, handler)
   },
+  onBioAudioMarker: (cb: (marker: string | null) => void) => {
+    const channel = IPC_CHANNELS.bioAudioMarker
+    const handler = (_event: unknown, marker: string | null) => cb(marker)
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
 }
 
 function isOutputEntry(): boolean {

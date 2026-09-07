@@ -227,10 +227,42 @@ export function calculateChange(mid: BandEnergies, reference: BandEnergies): num
 // riferimento si sposta verso B; (b) puro rumore/jitter senza alcun
 // cambiamento reale resta sotto 0.03, con ampio margine, quindi
 // l'abbassamento non introduce falsi positivi.
-const REFERENCE_INVALID_THRESHOLD = 0.22
+// RIVISTA (2026-08-31, gate Item 1) dopo la diagnosi del Capo Supremo degli
+// Ingegneri. `change` è distanza fra `mid` e `reference`; `reference` nasceva
+// sistematicamente *corto* verso il mondo vecchio (undershoot: vedi il gate di
+// convergenza di `mid` in `advanceBioReference`). La distanza A→B osservata era
+// quindi sempre minore del reale, e la riduzione 0.35→0.22 di un giro
+// precedente compensava proprio quel difetto di misura: nella simulazione della
+// diagnosi una rottura −30% reale saturava `change` a 0.217, appena sotto 0.22
+// → "congelato per un'intera sessione". Rimosso l'undershoot, `change` misura
+// di nuovo la distanza vera — la stessa rottura −30% ora raggiunge ~0.315, la
+// −50% ~0.657 (misurato in simulazione, sette scenari). La soglia sale quindi
+// da 0.22 a **0.24**: piccolo aumento, non serve più compensare la misura
+// falsata; leggermente più selettiva contro derive sotto il ~−20%; la −30%
+// resta catturata con ampio margine (0.315 vs 0.24, oltre i 3s di
+// `REFERENCE_INVALID_CONFIRM_MS`); puro rumore/jitter resta sotto 0.03
+// (invariato). Punto di partenza per la taratura dal vivo, come le altre
+// costanti di questo modulo.
+const REFERENCE_INVALID_THRESHOLD = 0.24
 const REFERENCE_INVALID_CONFIRM_MS = 3_000
 const REFERENCE_CONFIRM_THRESHOLD = 0.75
 const REFERENCE_CONFIRM_MS = 4_000
+// Gate di convergenza di `mid` alla promozione (diagnosi 2026-08-31): la sola
+// `persistence >= REFERENCE_CONFIRM_THRESHOLD` sostenuta NON garantisce che
+// `mid` sia arrivato. `persistence` confronta `fast` con `mid`, e durante una
+// salita supera 0.75 mentre `mid` è ancora al ~75-85% della convergenza —
+// promuovere lì fissa `reference` a un punto intermedio fra mondo vecchio e
+// nuovo, per sempre (il residuo resta spesso sotto la soglia di invalidità →
+// nessuna autocorrezione: 10 minuti su un mondo immobile e `reference` a 0.168
+// da quel mondo). Si aggiunge una misura *diretta*: `mid` non deve essersi
+// mosso più di questo epsilon sull'arco dell'intera finestra di conferma;
+// altrimenti la finestra riparte da un nuovo ancoraggio (stessa fase, nessuna
+// macchina in più). Stessa scala di `change`. `mid` è un inviluppo a 10s, molto
+// liscio: 0.02 è stretto ma non si blocca mai. Verificato in simulazione — con
+// 0.02 le promozioni cadono entro ~0.035 dal mondo reale su tutte le ampiezze
+// (−15%…−50%) e il primo `reference` di sessione entro 0.034 da A dopo ~37s;
+// 0.03 lascia ~0.05 di scarto residuo, meno preciso senza vantaggi.
+const REFERENCE_CONFIRM_MID_STABLE_EPSILON = 0.02
 
 export type BrainBioReferencePhase = 'stable' | 'awaiting-confirmation'
 
@@ -262,6 +294,12 @@ export type BrainBioReferenceState = {
   pendingPressure: number
   invalidSustainedMs: number
   confirmSustainedMs: number
+  // `mid` all'inizio della finestra di conferma in corso — `null` fuori da
+  // `awaiting-confirmation` o quando la finestra non è ancora partita. Serve
+  // solo al gate di convergenza di `mid` (vedi `advanceBioReference`): misura
+  // diretta di "il nuovo mondo ha smesso di muoversi", non un giudizio sulla
+  // sola similarità fast/mid.
+  confirmAnchorMid: BandEnergies | null
 }
 
 export function createInitialBioReferenceState(
@@ -275,6 +313,7 @@ export function createInitialBioReferenceState(
     pendingPressure: initialPressure,
     invalidSustainedMs: 0,
     confirmSustainedMs: 0,
+    confirmAnchorMid: null,
   }
 }
 
@@ -314,6 +353,7 @@ export function advanceBioReference(
         pendingPressure: perceptualPressure,
         invalidSustainedMs: 0,
         confirmSustainedMs: 0,
+        confirmAnchorMid: null,
       }
     }
     return { ...previous, invalidSustainedMs }
@@ -327,17 +367,41 @@ export function advanceBioReference(
   const confirmSustainedMs = persistence >= REFERENCE_CONFIRM_THRESHOLD
     ? previous.confirmSustainedMs + deltaMs
     : 0
+  // Ancoraggio della finestra: il `mid` di quando la finestra è (ri)partita da
+  // zero. Congelato mentre la finestra accumula, così `midDrift` misura quanto
+  // `mid` si è mosso sull'intero arco della conferma, non fra due campioni. Si
+  // conserva l'ancora precedente solo se esiste già e la finestra ha davvero
+  // accumulato oltre il primo passo; in ogni altro caso (finestra appena
+  // (ri)partita, o nessuna ancora ancora fissata) si ancora al `mid` corrente.
+  const confirmAnchorMid: BandEnergies =
+    previous.confirmAnchorMid !== null && confirmSustainedMs > deltaMs
+      ? previous.confirmAnchorMid
+      : { ...mid }
   if (confirmSustainedMs >= REFERENCE_CONFIRM_MS) {
+    const midDrift = weightedBandDistance(mid, confirmAnchorMid)
+    if (midDrift <= REFERENCE_CONFIRM_MID_STABLE_EPSILON) {
+      return {
+        phase: 'stable',
+        vector: { ...mid },
+        pressure: pendingPressure,
+        pendingPressure,
+        invalidSustainedMs: 0,
+        confirmSustainedMs: 0,
+        confirmAnchorMid: null,
+      }
+    }
+    // Persistence sostenuta per l'intera finestra, ma `mid` si è ancora mosso
+    // troppo al suo interno: il nuovo mondo non è convergente. Si ricomincia la
+    // finestra da qui, con un nuovo ancoraggio — stessa fase, nessuna macchina
+    // in più, solo un'uscita più severa.
     return {
-      phase: 'stable',
-      vector: { ...mid },
-      pressure: pendingPressure,
+      ...previous,
       pendingPressure,
-      invalidSustainedMs: 0,
       confirmSustainedMs: 0,
+      confirmAnchorMid: { ...mid },
     }
   }
-  return { ...previous, pendingPressure, confirmSustainedMs }
+  return { ...previous, pendingPressure, confirmSustainedMs, confirmAnchorMid }
 }
 
 // --- Occupazione spettrale/temporale e perceptualPressure -----------------
@@ -424,16 +488,21 @@ export function calculateTemporalOccupancy(state: BrainBioTemporalOccupancyState
   return 1 - clamp(state.smoothedGapMs / TEMPORAL_GAP_SATURATION_MS)
 }
 
-// DECISIONE (non prevista dal piano): pesi di combinazione per
-// `perceptualPressure` — energia sostenuta pesa leggermente di più (0.4)
-// perché è l'unico dei tre termini già validato altrove nel codebase
-// (`activity`); occupazione spettrale (0.35) e temporale (0.25) hanno peso
-// reale ma minore, "da tarare all'ascolto" come da convenzione già in uso in
-// `BRAIN_CONFIG` (brainConfig.ts) per costanti di questo tipo — non sono
-// state derivate da una misura, sono un punto di partenza dichiarato.
-const PRESSURE_ENERGY_WEIGHT = 0.4
-const PRESSURE_SPECTRAL_WEIGHT = 0.35
-const PRESSURE_TEMPORAL_WEIGHT = 0.25
+// RIDEFINIZIONE (brief definitivo Audio 2026-08-31): `perceptualPressure` NON
+// è "quanto suono c'è" ma "quanto la configurazione costringe il corpo a
+// mantenere un movimento". La leggibilità della griglia ritmica entra nella
+// pressione — nessun segnale pubblico nuovo, si combinano dati già presenti
+// (`kickEnvelope`/`beatPulse`, `bandTransients`, bande). Energia e occupazione
+// restano componenti ma non la esauriscono: peso ridotto per far posto al
+// ritmo, che prende la quota singola maggiore (quando la griglia cede il
+// corpo può decomprimere anche dentro un muro di suono — §4/§9 del brief).
+// Valori di collaudo, "da tarare all'ascolto"; la prima sessione dopo questa
+// modifica è una NUOVA BASELINE (i valori assoluti precedenti non sono
+// confrontabili — §14).
+const PRESSURE_ENERGY_WEIGHT = 0.3
+const PRESSURE_SPECTRAL_WEIGHT = 0.2
+const PRESSURE_TEMPORAL_WEIGHT = 0.18
+const PRESSURE_RHYTHM_WEIGHT = 0.32
 
 export function calculateSustainedEnergy(fast: BandEnergies): number {
   return clamp(
@@ -444,25 +513,119 @@ export function calculateSustainedEnergy(fast: BandEnergies): number {
   )
 }
 
+// --- Leggibilità della griglia ritmica → costrizione corporea (brief Audio
+// 2026-08-31, §2/§3; riformulato dal brief Audio "Intervento 1:
+// rhythmConstraint", 2026-09-04) --------------------------------------------
+//
+// Tre qualità della stessa dimensione percettiva, tutte da dati esistenti e
+// tutte SOSTENUTE (inviluppi lenti): la perdita di un kick singolo o un fill
+// normale non deve muoverle — conta la perdita della *capacità della
+// configurazione di sostenere il passo* (§4, distinzione evento/config).
+//
+//  - `pulse`: affidabilità della pulsazione. PRIMA versione: inviluppo di
+//    max(kickEnvelope, beatPulse) — difetto individuato dall'Audio: in
+//    `brainRhythm.ts` `kickEnvelope` è per costruzione ≥ `beatPulse` (lo
+//    contiene all'82%), e `beatPulse` può restare a 1 su un beat PROIETTATO
+//    dal clock quando c'è energia low/lowMid generica ma nessun attacco
+//    reale (`projectState`, ramo `predictionHasEnergy`). Quel `max` finiva
+//    quindi per misurare l'aspettativa del clock, non l'attacco fisico —
+//    "l'aspettativa del beat non è entrainment". ORA: `pulse` è l'inviluppo
+//    lento del solo attacco confermato da `bandTransients.low/lowMid` (già
+//    lift-gated in `brainRhythm.ts`, quindi non risponde al letto steady);
+//    il clock resta come gate binario (`rhythm.active`) ma non sostiene più
+//    il valore.
+//  - `lowEnd`: presenza del basso corporeo — inviluppo di low/lowMid raw.
+//    Da sola non produce più costrizione (vedi `anchor` sotto): molto
+//    low-end senza ancoraggio ritmico (C05/C08, ambient) non trattiene il
+//    corpo nel passo.
+//  - `gridDensity`: densità della griglia — inviluppo della media di
+//    `bandTransients` (hat/perc/subdivisioni fanno salire questo; un letto
+//    steady, dopo il gate sul lift in `brainRhythm.ts`, contribuisce ~0).
+const RHYTHM_PULSE_TAU_MS = 1_800
+const RHYTHM_LOWEND_TAU_MS = 1_200
+const RHYTHM_GRID_TAU_MS = 1_500
+const RHYTHM_GRID_SCALE = 4
+
+// `anchor` = quanto pulse e griglia insieme stabiliscono un riferimento
+// motorio (Butler: il bass drum dà stabilità metrica ma non la esaurisce —
+// vedi brief-studio-teoria-groove-ambient-2026-09-04.md). `pulse` pesa di
+// più perché è la conferma fisica diretta; `gridDensity` può comunque far
+// salire l'ancoraggio da sola, a energia invariata (C02, articolazione).
+const RHYTHM_ANCHOR_PULSE_WEIGHT = 0.6
+const RHYTHM_ANCHOR_GRID_WEIGHT = 0.4
+// `lowEnd` entra come costrizione solo MOLTIPLICATA per `anchor`: qualifica
+// il basso invece di sommarlo (C05/C08). `anchor` da solo resta la quota
+// maggiore così una griglia stabile senza sub pesante (C03/C06) supera
+// comunque nettamente un respiro-profondo pieno di bassi ma privo di griglia.
+const RHYTHM_ANCHOR_WEIGHT = 0.62
+const RHYTHM_GROUNDED_LOWEND_WEIGHT = 0.38
+
+export type BrainBioRhythmInput = {
+  kickEnvelope: number
+  beatPulse: number
+  active: boolean
+}
+
+export type BrainBioRhythmConstraintState = {
+  pulse: number
+  lowEnd: number
+  gridDensity: number
+}
+
+export function createInitialBioRhythmConstraintState(): BrainBioRhythmConstraintState {
+  return { pulse: 0, lowEnd: 0, gridDensity: 0 }
+}
+
+export function advanceBioRhythmConstraint(
+  previous: BrainBioRhythmConstraintState,
+  bands: BandEnergies,
+  transients: BandEnergies | undefined,
+  rhythm: BrainBioRhythmInput | undefined,
+  deltaMs: number,
+): BrainBioRhythmConstraintState {
+  const pulseTarget = rhythm && rhythm.active && transients
+    ? clamp(transients.low * 0.7 + transients.lowMid * 0.3)
+    : 0
+  const lowEndTarget = clamp(bands.low * 0.55 + bands.lowMid * 0.45)
+  const gridTarget = transients
+    ? clamp(
+        ((transients.low + transients.lowMid + transients.mid + transients.high) / 4) *
+          RHYTHM_GRID_SCALE,
+      )
+    : 0
+  return {
+    pulse: emaStep(previous.pulse, pulseTarget, deltaMs, RHYTHM_PULSE_TAU_MS),
+    lowEnd: emaStep(previous.lowEnd, lowEndTarget, deltaMs, RHYTHM_LOWEND_TAU_MS),
+    gridDensity: emaStep(previous.gridDensity, gridTarget, deltaMs, RHYTHM_GRID_TAU_MS),
+  }
+}
+
+export function calculateRhythmConstraint(state: BrainBioRhythmConstraintState): number {
+  const anchor = clamp(
+    state.pulse * RHYTHM_ANCHOR_PULSE_WEIGHT + state.gridDensity * RHYTHM_ANCHOR_GRID_WEIGHT,
+  )
+  const groundedLowEnd = state.lowEnd * anchor
+  return clamp(anchor * RHYTHM_ANCHOR_WEIGHT + groundedLowEnd * RHYTHM_GROUNDED_LOWEND_WEIGHT)
+}
+
 /**
- * `perceptualPressure` = energia sostenuta + occupazione spettrale +
- * occupazione temporale (NON energia + transient + varianza fra bande: la
- * varianza è stata respinta dall'Audio con un controesempio esplicito —
- * `.8/.1/.1/.1` varianza alta ma materiale vuoto, `.55/.52/.50/.48` varianza
- * bassa ma spettro pieno, PIANO-040 §4.1). Non coincide con l'energia
- * (invariante §3): a parità di energia, poca occupazione spettrale/temporale
- * abbassa la pressione; a energia moderata, piena occupazione di entrambe la
- * alza.
+ * `perceptualPressure` = costrizione corporea al movimento — quattro
+ * componenti: energia sostenuta, occupazione spettrale, occupazione
+ * temporale e **leggibilità della griglia ritmica** (`rhythmConstraint`).
+ * Nessuna singola dimensione la esaurisce. `rhythmConstraint` opzionale
+ * (default 0) per i chiamanti che non passano ancora la componente ritmica.
  */
 export function calculatePerceptualPressure(
   sustainedEnergy: number,
   spectralOccupancy: number,
   temporalOccupancy: number,
+  rhythmConstraint = 0,
 ): number {
   return clamp(
     sustainedEnergy * PRESSURE_ENERGY_WEIGHT +
       spectralOccupancy * PRESSURE_SPECTRAL_WEIGHT +
-      temporalOccupancy * PRESSURE_TEMPORAL_WEIGHT,
+      temporalOccupancy * PRESSURE_TEMPORAL_WEIGHT +
+      rhythmConstraint * PRESSURE_RHYTHM_WEIGHT,
   )
 }
 
@@ -536,8 +699,8 @@ export function advanceBioResidual(
 // §21.7: "mediana e dispersione rimangono informazioni contestuali, non
 // decisori") — esposti in `BrainBioRegimeDiagnostics` per l'overlay, mai più
 // letti da `classifyRawBioRegime` o da chi decide `pressureTrend` (vedi
-// `classifyPressureTrend` più sotto, che usa `reference.pressure` — la
-// configurazione immediatamente precedente, non la storia della serata).
+// `classifyPressureTrend` più sotto, che usa la traiettoria corrente della
+// pressione). `reference.pressure` resta memoria del mondo assestato.
 const MEDIAN_STEP_PER_MS = 1 / 240_000
 const MAD_TAU_MS = 90_000
 const MEDIAN_BOOTSTRAP_MS = 15_000
@@ -616,53 +779,53 @@ export function advanceBioTrend(
   return { elapsedMs, validElapsedMs, median, mad }
 }
 
-// --- pressureTrend: posizione relativa alla configurazione immediatamente
-// precedente (`reference.pressure`), non più alla mediana del set ----------
+// --- pressureTrend: verso corrente della traiettoria di pressione ----------
 //
-// Traduzione diretta di §2/§4/§16 del brief Audio "Respiro, memoria corporea
-// e ascolto continuo": il riferimento è "che cosa è cambiato rispetto a
-// come si stava un momento fa", e quel "momento fa" è già rappresentato nel
-// modulo da `reference` — l'ultima configurazione che ha dimostrato
-// persistence sostenuta (§1.3 sopra), aggiornata con la propria isteresi
-// causale-corta, indipendente dalla storia dell'intera serata. Non serve
-// una struttura nuova: serve solo confrontare la pressione di adesso con la
-// pressione catturata quando quel riferimento è stato promosso.
-// Reazione immediata per costruzione (§6/§7/§9): questo confronto non ha
-// alcuna finestra di conferma — è ricalcolato a ogni campione, esattamente
-// come prima con la mediana, solo con un termine di paragone diverso e
-// causalmente corretto. La sola isteresi che sopravvive è quella già
-// intrinseca a `reference` stessa (si aggiorna lentamente, di proposito) e
-// quella del regime discreto a valle (§9: "rappresentazione derivata", non
-// autorizzazione alla prima reazione — la macchina di `advanceBioRegime`
-// sotto non cambia forma).
+// AUDIO-REGIMI-POSTCOLLAUDO-01 separa due domande prima confuse:
+// `reference` conserva il mondo assestato da cui Brain proviene; la differenza
+// fra pressione live e la sua linea ritardata già esistente dice invece se la
+// costrizione corporea sta crescendo o cedendo. Non viene aggiunta una nuova
+// macchina: `pressureLagged`, già usata da `advanceBioRegime` per riconoscere
+// l'atterraggio, è la memoria breve della stessa traiettoria.
+//
+// Reazione immediata per costruzione: nessuna finestra di conferma qui. La
+// funzione applica soltanto deadband e isteresi già presenti al segno di
+// `perceptualPressure - pressureLagged`.
 //
 // Zona neutra piccola per non classificare come direzione un pareggio
 // numerico — stessa lezione del terzo collaudo dal vivo (uno scarto
 // infinitesimo sulla mediana produceva 80 cambi di regime in un set):
-// stavolta il confronto è con una pressione istantanea (tau 0.5s), più
-// mobile della vecchia mediana, quindi un valore proprio, non riusato —
-// "da tarare all'ascolto" come le altre costanti di questo modulo.
-//
-// RIDOTTA da 0.05 a 0.02 dopo il collaudo dal vivo del 2026-08-28 (Capo
-// Supremo: "la pressione sale da 0.50 a 0.77 e il regime resta
-// stable-breath"). Causa trovata nel log reale: `reference.pressure` era
-// 0.7408 (catturato, come sempre, in un istante di persistence alta —
-// spesso vicino a un picco locale del passaggio); 0.77 superava già quel
-// riferimento, ma non di 0.05 (0.77-0.7408=0.029), quindi restava
-// classificato "stable", non "rising" — la ricostruzione c'era e non
-// veniva riconosciuta. 0.02 lascia comunque margine reale contro un
-// pareggio numerico (l'obiettivo originale di questa costante), senza
-// alzare artificialmente la soglia di uscita oltre quanto la musica
-// raggiunge davvero.
+// il confronto è ora con `pressureLagged` (tau 800ms). Il nome esportato
+// della costante resta per compatibilità, e il valore 0.02 non viene ritoccato
+// in questo intervento: il brief impone di cambiare la semantica della
+// direzione prima di qualunque nuova taratura.
 export const REFERENCE_PRESSURE_DEADBAND = 0.02
+
+// Isteresi (collaudo dal vivo 2026-08-31: "tre binari distanti 0.014 non
+// devono produrre tre stati diversi"). La soglia d'INGRESSO in rising/falling
+// resta `REFERENCE_PRESSURE_DEADBAND`; per USCIRE, `diff` deve rientrare di
+// `TREND_HYSTERESIS` oltre quella soglia — una regione di indifferenza attorno
+// alla transizione, dimensionata **sopra la quantizzazione osservata del
+// segnale** (0.014). Il tentativo di allargare l'ingresso per ridurre i cambi
+// è stato ritirato: nascondeva le oscillazioni reali come falsa stasi.
+export const TREND_HYSTERESIS = 0.016
 
 export function classifyPressureTrend(
   perceptualPressure: number,
-  referencePressure: number,
+  laggedPressure: number,
+  previous: BrainBioPressureTrend = 'stable',
 ): BrainBioPressureTrend {
-  const diff = perceptualPressure - referencePressure
-  if (diff > REFERENCE_PRESSURE_DEADBAND) return 'rising'
-  if (diff < -REFERENCE_PRESSURE_DEADBAND) return 'falling'
+  const diff = perceptualPressure - laggedPressure
+  const enter = REFERENCE_PRESSURE_DEADBAND
+  const stay = REFERENCE_PRESSURE_DEADBAND - TREND_HYSTERESIS
+  if (previous === 'rising') {
+    return diff > stay ? 'rising' : diff < -enter ? 'falling' : 'stable'
+  }
+  if (previous === 'falling') {
+    return diff < -stay ? 'falling' : diff > enter ? 'rising' : 'stable'
+  }
+  if (diff > enter) return 'rising'
+  if (diff < -enter) return 'falling'
   return 'stable'
 }
 
@@ -674,23 +837,36 @@ export function classifyPressureTrend(
 // della macchina `reference` resta osservabilità e genealogia del riferimento,
 // non una seconda autorizzazione del regime.
 //
-// LIVELLO (alto ↔ profondo): deciso soltanto nell'assestamento rispetto alla
-// mediana del set. La dispersione resta contesto diagnostico, come stabilito
-// dal brief Audio; non torna a essere un decisore. Per evitare oscillazioni su
-// un pareggio numerico si riusa la stessa zona neutra della pressione relativa.
+// LIVELLO (alto ↔ profondo): appartiene alla configurazione assestata. Si
+// valuta quando `reference` raggiunge una nuova stasi e quando la pressione
+// completa un cambiamento significativo già riconosciuto dal tracker di
+// atterraggio. Nel primo caso usa `reference.pressure`; nel secondo la
+// pressione live appena atterrata. Non viene mai ricalcolato in continuo
+// contro una mediana che si muove (decisione Audio AUDIO-REF-CHANGE-01 §3/§4:
+// "la deriva della mediana non può, da sola, causare un cambio di stato"). Fra
+// questi due confini il livello resta congelato. La mediana è già bloccata durante la trasformazione
+// (`holdCenter` in `advanceBioTrend`, agganciato a `referenceEverPromoted`),
+// quindi al momento della promozione porta ancora la storia del mondo
+// PRECEDENTE: è quel ritardo a fornire il contrasto. Alla PRIMA stasi di
+// sessione, se non c'è contrasto (mondo piatto dall'avvio), il livello resta
+// `null` — indeterminato: non si inventa con una soglia assoluta, Brain
+// permane `unresolved` col pool conservativo finché la prima trasformazione
+// reale non lo risolve. La dispersione resta contesto diagnostico.
 
 export type BrainBioLevel = 'alto' | 'profondo' | null
 
 function classifyLevel(
-  perceptualPressure: number,
+  configuredPressure: number,
   median: number,
   previous: BrainBioLevel,
 ): BrainBioLevel {
-  // Mediana non ancora bootstrap (avvio o set silenzioso): nessuna base
+  // Mediana non ancora in bootstrap (avvio o set silenzioso): nessuna base
   // per giudicare "alto o basso per stasera" — mantiene il precedente.
   if (Number.isNaN(median)) return previous
-  if (perceptualPressure > median + REFERENCE_PRESSURE_DEADBAND) return 'alto'
-  if (perceptualPressure < median - REFERENCE_PRESSURE_DEADBAND) return 'profondo'
+  if (configuredPressure > median + REFERENCE_PRESSURE_DEADBAND) return 'alto'
+  if (configuredPressure < median - REFERENCE_PRESSURE_DEADBAND) return 'profondo'
+  // Zona neutra: la configurazione assestata non è distinguibile dal centro
+  // del set. Alla prima stasi `previous` è `null` → resta indeterminato.
   return previous
 }
 
@@ -712,10 +888,47 @@ export function classifyRawBioRegime(
   return 'unresolved'
 }
 
+// Motivo per cui `current` è quello che è in questo campione. `brainController`
+// lo logga a ogni cambio di regime, il logger 1Hz lo registra (richiesta del
+// braccio destro, brief di chiusura Item 2 §3: "il log deve registrare il
+// motivo di ogni cambio di stato"). Per costruzione NON esiste un motivo
+// `median-drift`: la deriva della mediana non può più causare un cambio.
+export type BrainBioRegimeReason =
+  | 'silence-authorized'
+  | 'bootstrap'
+  | 'pressure-rising'
+  | 'pressure-falling'
+  | 'stasis-settled-alto'
+  | 'stasis-settled-profondo'
+  // Livello ereditato dalla direzione di una transizione riconosciuta e
+  // atterrata, senza attendere la ri-promozione di `reference` (gate del brief
+  // latenza §2): una `decompression` che si è fermata È un Respiro Profondo.
+  | 'stasis-inherited-alto'
+  | 'stasis-inherited-profondo'
+  | 'stasis-held'
+  | 'stasis-level-indeterminate'
+
+// Tracker di "pressione atterrata" — vedi `advanceBioRegime`. Linea di ritardo
+// di `perceptualPressure` + contatore di quanto a lungo `pp` ha smesso di
+// muoversi nella direzione del passaggio. In secondi, indipendente da
+// `reference`. Tau corto (800ms) perché la linea di ritardo deve *raggiungere*
+// `pp` in fretta dopo che questa si è fermata — è quel recupero a decidere il
+// tempo di ingresso nel respiro ereditato. La conferma dura 9s, oltre il ciclo
+// oscillatorio bloccante osservato (7.5–8s): un vertice temporaneamente piatto
+// non è una stasi. Valore di collaudo.
+const PRESSURE_SETTLE_TAU_MS = 800
+const PRESSURE_SETTLE_EPSILON = 0.02
+const PRESSURE_SETTLE_CONFIRM_MS = 9_000
+
 export type BrainBioRegimeState = {
   current: BrainBioRegime
   silence: BrainBioSilenceState
   level: BrainBioLevel
+  reason: BrainBioRegimeReason
+  pressureLagged: number
+  pressureFlatMs: number
+  pressureTrend: BrainBioPressureTrend
+  pressureDescending: boolean
 }
 
 export function createInitialBioRegimeState(): BrainBioRegimeState {
@@ -723,7 +936,23 @@ export function createInitialBioRegimeState(): BrainBioRegimeState {
     current: 'unresolved',
     silence: createInitialBioSilenceState(),
     level: null,
+    reason: 'bootstrap',
+    pressureLagged: 0,
+    pressureFlatMs: 0,
+    pressureTrend: 'stable',
+    pressureDescending: false,
   }
+}
+
+// Contesto di `reference` per `advanceBioRegime`: la pressione della
+// configurazione assestata, se il riferimento è mai stato affidabile
+// (bootstrap concluso), e se una nuova stasi è stata appena raggiunta in
+// questo campione. Opzionale per non rompere chiamanti esterni: senza,
+// `advanceBioRegime` resta al comportamento pre-bootstrap-gate.
+export type BrainBioReferenceContext = {
+  pressure: number
+  everPromoted: boolean
+  justSettled: boolean
 }
 
 // --- Via diretta del silenzio reale (secondo collaudo dal vivo) -----------
@@ -772,14 +1001,150 @@ export function advanceBioRegime(
   median: number,
   deltaMs: number,
   nearSilent = false,
+  reference?: BrainBioReferenceContext,
 ): BrainBioRegimeState {
   const silence = advanceBioSilence(previous.silence, nearSilent, deltaMs)
-  if (silence.authorized) {
-    return { current: 'respiro-profondo', silence, level: 'profondo' }
+
+  // "Pressione atterrata" — indipendente da `reference`, in secondi.
+  // `pressureLagged` è una linea di ritardo di `perceptualPressure` (tau
+  // 800ms); quando `|pp - pressureLagged|` resta sotto epsilon per 1s la
+  // pressione ha smesso di muoversi, cioè la transizione in corso è atterrata.
+  // Serve al gate del brief latenza §2: l'ingresso in un respiro DOPO una
+  // transizione riconosciuta non deve attendere i ~40s di ri-promozione di
+  // `reference`. `reference` continua ad assestarsi coi suoi tempi per tutto
+  // il resto; è solo la classificazione del respiro a non aspettarlo.
+  const pressureLagged = emaStep(
+    previous.pressureLagged,
+    signals.perceptualPressure,
+    deltaMs,
+    PRESSURE_SETTLE_TAU_MS,
+  )
+  // "Atterrata" = `pp` ha smesso di muoversi NELLA DIREZIONE del passaggio in
+  // corso, non semplicemente "piatta per un secondo" — che una discesa
+  // graduale potrebbe simulare nei primi
+  // secondi (pp scende poco per campione ma sta chiaramente calando). Durante
+  // una discesa `pp` sta sotto la propria media ritardata; quando la discesa
+  // si ferma `pp` la raggiunge. Simmetrico in salita.
+  // "Atterrata" = `pp` è tornata sulla propria media ritardata da entrambi i
+  // lati (`|pp - pressureLagged|` piccolo): ha davvero smesso di muoversi.
+  // NON basta `pp >= lagged - eps` (che sarebbe vero anche mentre `pp` RISALE
+  // veloce — es. rientro dal silenzio, dove `pressureTrend` legge ancora
+  // `falling` perché `pp` è sotto il riferimento pur crescendo).
+  const pressureDelta = signals.perceptualPressure - pressureLagged
+  const landingNow = Math.abs(pressureDelta) < PRESSURE_SETTLE_EPSILON
+  // Il conteggio riparte da zero ad ogni cambio di `pressureTrend`: l'inizio
+  // di un passaggio non deve ereditare i secondi "piatti" accumulati nello
+  // stato precedente (una discesa graduale parte lenta e sembrerebbe già
+  // atterrata).
+  const trendChanged = signals.pressureTrend !== previous.pressureTrend
+  const pressureFlatMs = landingNow && !trendChanged ? previous.pressureFlatMs + deltaMs : 0
+  const pressureLanded = pressureFlatMs >= PRESSURE_SETTLE_CONFIRM_MS
+  const pressureJustLanded =
+    pressureLanded && previous.pressureFlatMs < PRESSURE_SETTLE_CONFIRM_MS
+  // Direzione con cui `pp` si è mossa fin qui, dalla propria media ritardata
+  // (latch, sticky in zona piatta). Distingue "sceso e assestato" (→ eredita
+  // Respiro Profondo) da "risalito e assestato" (es. rientro dal silenzio: `pp`
+  // sotto il riferimento pur CRESCENDO — non deve ereditare Profondo).
+  const pressureDescending =
+    pressureDelta < -PRESSURE_SETTLE_EPSILON
+      ? true
+      : pressureDelta > PRESSURE_SETTLE_EPSILON
+        ? false
+        : previous.pressureDescending
+  const track = {
+    pressureLagged,
+    pressureFlatMs,
+    pressureTrend: signals.pressureTrend,
+    pressureDescending,
   }
-  const level = classifyLevel(signals.perceptualPressure, median, previous.level)
-  const current = classifyRawBioRegime(signals, level)
-  return { current, silence, level }
+
+  if (silence.authorized) {
+    // Osservazione diretta ("non c'è materia da organizzare"), non inferenza
+    // statistica: vale anche durante il bootstrap. NON tocca il `level`
+    // congelato della configurazione: il silenzio è una parentesi, non una
+    // nuova stasi — quando rientra la stessa musica il livello di prima
+    // (`alto`/`profondo`) torna a valere senza bisogno di una ri-promozione.
+    return {
+      current: 'respiro-profondo', silence, level: previous.level,
+      reason: 'silence-authorized', ...track,
+    }
+  }
+
+  const everPromoted = reference?.everPromoted ?? false
+  // La ri-promozione di `reference` non è l'unico confine affidabile: sul
+  // campo può non verificarsi per un'intera sessione. Il tracker di pressione
+  // atterrata esiste già e riconosce il secondo confine utile, senza timer,
+  // soglie o macchina aggiuntivi.
+  //
+  // CORREZIONE (ordine del Capo Supremo 2026-09-05, dati dal vivo:
+  // `stasis-level-indeterminate` prevale su `bootstrap`, 141s contro 99s,
+  // ricorrente per tutta la sessione con `persistence` 0.80-0.99). Prima:
+  // a questo confine `classifyLevel` ripartiva da `null` — una zona neutra
+  // senza contrasto azzerava il livello anche con una memoria valida, e
+  // quello zero restava "sticky" (nei tick successivi `settledLevel =
+  // previous.level`, cioè lo stesso `null` già scritto) per l'intera stasi
+  // piatta che seguiva: da qui i tratti lunghi osservati (fino a 82.6s).
+  // Ora: mancanza di contrasto eredita `previous.level` invece di azzerarlo
+  // — in presenza di memoria valida la zona neutra eredita il respiro
+  // precedente finché non emerge nuova evidenza (disposizione Audio già in
+  // vigore). `unresolved` per mancanza di livello resta possibile solo
+  // quando non esiste alcun livello precedente da ereditare (avvio di
+  // sessione, bootstrap) o durante il bootstrap stesso (`gatedLevel` sotto).
+  const settledLevel = reference?.justSettled
+    ? classifyLevel(reference.pressure, median, previous.level)
+    : pressureJustLanded
+      ? classifyLevel(signals.perceptualPressure, median, previous.level)
+      : previous.level
+  // Bootstrap (~37-45s): finché `reference` non è mai stato affidabile i due
+  // respiri non sono dichiarabili. Azzerando il livello, `classifyRawBioRegime`
+  // può restituire solo un passaggio o `unresolved`.
+  const gatedLevel: BrainBioLevel = everPromoted ? settledLevel : null
+  // `pressureTrend === stable` da solo può essere il breve punto neutro di
+  // un'oscillazione. Finché la pressione non è atterrata, conserva l'ultimo
+  // passaggio; solo `pressureLanded` può autorizzare un Respiro.
+  const rawCurrent =
+    signals.pressureTrend === 'stable' &&
+    !pressureLanded &&
+    (previous.current === 'pressurized' || previous.current === 'decompression')
+      ? previous.current
+      : classifyRawBioRegime(signals, pressureLanded ? gatedLevel : null)
+
+  // Ereditarietà del livello dopo una transizione riconosciuta e atterrata.
+  // Solo dopo il bootstrap. Il fronte `pressureJustLanded` è la condizione
+  // d'INGRESSO. Una volta dentro basta che il respiro sia già ereditato e che
+  // la transizione
+  // non abbia invertito direzione (`rawCurrent` ancora lo stesso passaggio) —
+  // evita il flicker respiro↔passaggio nei ~40s prima che `reference` catturi
+  // il nuovo mondo. All'arrivo della ri-promozione (`justSettled`) il ramo
+  // ordinario riprende senza scalino: stesso `level`, `reason` diventa
+  // `stasis-settled-*`.
+  if (everPromoted && rawCurrent === 'decompression' &&
+    ((pressureJustLanded && previous.pressureDescending && settledLevel === 'profondo') ||
+      (previous.reason === 'stasis-inherited-profondo' && !pressureJustLanded))) {
+    return {
+      current: 'respiro-profondo', silence, level: 'profondo',
+      reason: 'stasis-inherited-profondo', ...track,
+    }
+  }
+  if (everPromoted && rawCurrent === 'pressurized' &&
+    ((pressureJustLanded && !previous.pressureDescending && settledLevel === 'alto') ||
+      (previous.reason === 'stasis-inherited-alto' && !pressureJustLanded))) {
+    return {
+      current: 'respiro-alto', silence, level: 'alto',
+      reason: 'stasis-inherited-alto', ...track,
+    }
+  }
+
+  let reason: BrainBioRegimeReason
+  if (rawCurrent === 'pressurized') reason = 'pressure-rising'
+  else if (rawCurrent === 'decompression') reason = 'pressure-falling'
+  else if (rawCurrent === 'respiro-alto') {
+    reason = reference?.justSettled ? 'stasis-settled-alto' : 'stasis-held'
+  } else if (rawCurrent === 'respiro-profondo') {
+    reason = reference?.justSettled ? 'stasis-settled-profondo' : 'stasis-held'
+  } else reason = everPromoted ? 'stasis-level-indeterminate' : 'bootstrap'
+
+  return { current: rawCurrent, silence, level: gatedLevel, reason, ...track }
 }
 
 // --- Task 1.6: BrainBioPerceptionClock — compone le funzioni pure ----------
@@ -836,8 +1201,11 @@ export class BrainBioPerceptionClock {
   // parte già in `awaiting-confirmation` (non `stable`), saltando la fase 1
   // (non c'è nulla da invalidare, non è mai esistito un mondo) e andando
   // dritta alla fase 2 — il primo stato realmente coerente (persistence
-  // sostenuta) viene promosso a `reference` non appena si stabilizza,
-  // qualunque sia la sua energia assoluta.
+  // sostenuta *e* `mid` convergente, gate 2026-08-31) viene promosso a
+  // `reference` non appena si stabilizza, qualunque sia la sua energia
+  // assoluta. Il primo `reference` di sessione segue quindi esattamente lo
+  // stesso ramo di promozione degli aggiornamenti successivi: la correzione
+  // dell'undershoot lo raddrizza senza un percorso dedicato.
   private reference: BrainBioReferenceState = {
     phase: 'awaiting-confirmation',
     vector: createInitialBioEnvelopes().mid,
@@ -845,17 +1213,26 @@ export class BrainBioPerceptionClock {
     pendingPressure: 0,
     invalidSustainedMs: 0,
     confirmSustainedMs: 0,
+    confirmAnchorMid: null,
   }
   private residual: BrainBioResidualState = createInitialBioResidualState()
   private trend: BrainBioTrendState = createInitialBioTrendState()
   private temporal: BrainBioTemporalOccupancyState = createInitialBioTemporalOccupancyState()
+  private rhythm: BrainBioRhythmConstraintState = createInitialBioRhythmConstraintState()
   private regime: BrainBioRegimeState = createInitialBioRegimeState()
   private lastSampleAt = Number.NaN
+  // Sticky: vero dalla prima volta che `reference` è stato promosso a `stable`.
+  // È il confine del bootstrap — prima, i due respiri non sono dichiarabili
+  // (brief di chiusura Item 2 §2). Non torna mai falso: una rottura successiva
+  // rimette `reference.phase` a `awaiting-confirmation` ma il riferimento è già
+  // stato affidabile una volta.
+  private referenceEverPromoted = false
 
   ingestSample(
     bands: BandEnergies,
     now: number,
     transients?: BandEnergies,
+    rhythm?: BrainBioRhythmInput,
   ): BrainBioPerceptionState {
     const deltaMs = Number.isFinite(this.lastSampleAt)
       ? Math.max(0, now - this.lastSampleAt)
@@ -873,10 +1250,22 @@ export class BrainBioPerceptionClock {
     const spectralOccupancy = calculateSpectralOccupancy(this.envelopes.fast)
     this.temporal = advanceBioTemporalOccupancy(this.temporal, transients, deltaMs)
     const temporalOccupancy = calculateTemporalOccupancy(this.temporal)
-    const perceptualPressure = calculatePerceptualPressure(sustainedEnergy, spectralOccupancy, temporalOccupancy)
+    // Leggibilità della griglia ritmica → costrizione corporea (brief Audio
+    // 2026-08-31). Stessi `bandTransients` di `temporalOccupancy` (un segnale,
+    // tre scopi: temporale, ritmo, beatmatch — vedi nota di trasmissione §4),
+    // più kick/pulsazione dal clock ritmico. Nessun segnale pubblico nuovo.
+    this.rhythm = advanceBioRhythmConstraint(this.rhythm, bands, transients, rhythm, deltaMs)
+    const rhythmConstraint = calculateRhythmConstraint(this.rhythm)
+    const perceptualPressure = calculatePerceptualPressure(
+      sustainedEnergy,
+      spectralOccupancy,
+      temporalOccupancy,
+      rhythmConstraint,
+    )
     const rawPressure = calculateSustainedEnergy(bands)
     const nearSilent = rawPressure <= SILENCE_RAW_PRESSURE_MAX
 
+    const referencePhaseBefore = this.reference.phase
     this.reference = advanceBioReference(
       this.reference,
       this.envelopes.mid,
@@ -884,25 +1273,39 @@ export class BrainBioPerceptionClock {
       perceptualPressure,
       deltaMs,
     )
+    const referenceJustSettled =
+      referencePhaseBefore === 'awaiting-confirmation' && this.reference.phase === 'stable'
+    if (referenceJustSettled) this.referenceEverPromoted = true
     const change = calculateChange(this.envelopes.mid, this.reference.vector)
 
-    // Mediana/dispersione restano aggiornate come puro contesto per
-    // l'overlay (§4 del brief) — non decidono più nulla, vedi il commento
-    // sopra `classifyPressureTrend`. Il congelamento durante una
-    // trasformazione confermata resta per la qualità del dato diagnostico
-    // (stesso principio di prima, ora agganciato a `reference.phase`
-    // invece che alla candidatura di regime rimossa).
+    // Mediana/dispersione restano aggiornate come contesto (§4 del brief) — e
+    // ora sono l'unico termine di paragone per il LIVELLO alla promozione di
+    // una stasi. Il congelamento vale solo per una trasformazione DOPO che
+    // `reference` è già stato affidabile: così, alla promozione, la mediana
+    // porta ancora la storia del mondo precedente e fornisce il contrasto. Nel
+    // primo bootstrap NON si congela — deve costruire da zero il centro del
+    // set (senza contrasto, la prima stasi resterà comunque indeterminata).
     this.trend = advanceBioTrend(
       this.trend,
       nearSilent ? 0 : perceptualPressure,
       deltaMs,
-      this.reference.phase === 'awaiting-confirmation',
+      this.referenceEverPromoted && this.reference.phase === 'awaiting-confirmation',
     )
-    // `pressureTrend` ora confronta la pressione live con quella del
-    // riferimento — la configurazione immediatamente precedente (§2/§4 del
-    // brief), non la mediana della serata. Reazione immediata per
-    // costruzione: nessuna finestra di conferma qui.
-    const pressureTrend = classifyPressureTrend(perceptualPressure, this.reference.pressure)
+    // Direzione = verso corrente della pressione, non posizione rispetto al
+    // mondo memorizzato. `advanceBioRegime` calcolerà lo stesso identico valore
+    // da `this.regime.pressureLagged`; anticiparlo qui mantiene segnali e stato
+    // coerenti nello stesso campione senza mutare la macchina esistente.
+    const trajectoryPressure = emaStep(
+      this.regime.pressureLagged,
+      perceptualPressure,
+      deltaMs,
+      PRESSURE_SETTLE_TAU_MS,
+    )
+    const pressureTrend = classifyPressureTrend(
+      perceptualPressure,
+      trajectoryPressure,
+      this.regime.pressureTrend,
+    )
     // `residual` non dipende più da `persistence` (vedi il commento sopra
     // `advanceBioResidual`): è memoria diretta della pressione, non più
     // un'impronta gated dalla coerenza dello stato corrente.
@@ -921,6 +1324,11 @@ export class BrainBioPerceptionClock {
       this.trend.median,
       deltaMs,
       nearSilent,
+      {
+        pressure: this.reference.pressure,
+        everPromoted: this.referenceEverPromoted,
+        justSettled: referenceJustSettled,
+      },
     )
 
     return { signals, regime: this.regime.current }
@@ -931,6 +1339,7 @@ export class BrainBioPerceptionClock {
       calculateSustainedEnergy(this.envelopes.fast),
       calculateSpectralOccupancy(this.envelopes.fast),
       calculateTemporalOccupancy(this.temporal),
+      calculateRhythmConstraint(this.rhythm),
     )
     return {
       signals: {
@@ -938,7 +1347,11 @@ export class BrainBioPerceptionClock {
         change: calculateChange(this.envelopes.mid, this.reference.vector),
         residual: this.residual.value,
         perceptualPressure,
-        pressureTrend: classifyPressureTrend(perceptualPressure, this.reference.pressure),
+        pressureTrend: classifyPressureTrend(
+          perceptualPressure,
+          this.regime.pressureLagged,
+          this.regime.pressureTrend,
+        ),
       },
       regime: this.regime.current,
     }
@@ -949,22 +1362,54 @@ export class BrainBioPerceptionClock {
   getRegimeDiagnostics(): BrainBioRegimeDiagnostics {
     const silence = this.regime.silence
     const currentPressure = this.getState().signals.perceptualPressure
+    const sustainedEnergy = calculateSustainedEnergy(this.envelopes.fast)
+    const spectralOccupancy = calculateSpectralOccupancy(this.envelopes.fast)
+    const temporalOccupancy = calculateTemporalOccupancy(this.temporal)
+    const rhythmConstraint = calculateRhythmConstraint(this.rhythm)
+    const pressureTrend = classifyPressureTrend(
+      currentPressure,
+      this.regime.pressureLagged,
+      this.regime.pressureTrend,
+    )
     return {
       currentRegime: this.regime.current,
-      pressureTrend: classifyPressureTrend(currentPressure, this.reference.pressure),
+      pressureTrend,
       currentPressure,
       referencePressure: this.reference.pressure,
       pressureMedian: this.trend.median,
       pressureDispersion: this.trend.mad,
-      // Distanza dal riferimento: è quella che decide `pressureTrend` (brief
-      // Audio 2026-08-28). La distanza dalla mediana resta esposta a parte,
-      // sotto, come puro contesto — non decide più nulla.
+      // Memoria e direzione restano osservabili separatamente: Δrif misura la
+      // distanza dal mondo assestato; Δtraiettoria è il valore firmato che
+      // decide `pressureTrend`.
       pressureDistance: currentPressure - this.reference.pressure,
+      pressureTrajectoryDistance: currentPressure - this.regime.pressureLagged,
+      pressureComponents: {
+        sustainedEnergy,
+        spectralOccupancy,
+        temporalOccupancy,
+        rhythmConstraint,
+      },
+      rhythmConstraintComponents: { ...this.rhythm },
       medianDistance: Number.isNaN(this.trend.median)
         ? Number.NaN
         : currentPressure - this.trend.median,
-      transforming: this.reference.phase === 'awaiting-confirmation',
+      transforming: pressureTrend !== 'stable',
       level: this.regime.level,
+      regimeReason: this.regime.reason,
+      // Due condizioni diverse che l'overlay deve distinguere a colpo d'occhio
+      // (brief di chiusura Item 2 §nodo, condizione 1):
+      //  - `bootstrapping`: `reference` non è ancora mai stato affidabile
+      //    (~37-45s dall'avvio o dal rientro dal nulla) → "regime non ancora
+      //    calcolato". I due respiri non sono dichiarabili.
+      //  - `levelIndeterminate`: `reference` è affidabile e la stasi è
+      //    riconosciuta, ma manca il contrasto per dire alto/profondo (tipico
+      //    della prima stasi di sessione) → "livello indeterminato". È un
+      //    esito legittimo e può durare a lungo, non un blocco.
+      bootstrapping: !this.referenceEverPromoted,
+      levelIndeterminate:
+        this.referenceEverPromoted &&
+        this.regime.level === null &&
+        this.regime.current === 'unresolved',
       silenceNearZero: silence.nearSilent,
       silenceAuthorized: silence.authorized,
       silenceConfirmationProgress: clamp(silence.silentSustainedMs / SILENCE_ENTER_MS),
@@ -976,19 +1421,36 @@ export type BrainBioRegimeDiagnostics = {
   currentRegime: BrainBioRegime
   pressureTrend: BrainBioPressureTrend
   currentPressure: number
-  /** Pressione catturata nell'istante in cui il riferimento corrente fu promosso — la "configurazione immediatamente precedente" del brief Audio. */
+  /** Pressione del mondo assestato memorizzato da `reference`; non decide la direzione. */
   referencePressure: number
   /** Puro contesto (brief Audio 2026-08-28, §4/§6): non decide più nulla del passaggio, solo del livello dentro la stasi. */
   pressureMedian: number
   pressureDispersion: number
-  /** Distanza firmata dal riferimento — quella che decide `pressureTrend`. */
+  /** Distanza firmata dal mondo assestato di riferimento — memoria/contesto, non direzione. */
   pressureDistance: number
+  /** Scarto firmato dalla linea ritardata della pressione — quello che decide `pressureTrend`. */
+  pressureTrajectoryDistance: number
+  /** Quattro contributi già esistenti alla pressione, esposti soltanto per collaudo/log. */
+  pressureComponents: {
+    sustainedEnergy: number
+    spectralOccupancy: number
+    temporalOccupancy: number
+    rhythmConstraint: number
+  }
+  /** Componenti sostenute già esistenti della costrizione ritmica. */
+  rhythmConstraintComponents: BrainBioRhythmConstraintState
   /** Distanza firmata dalla mediana dinamica del set — puro contesto. */
   medianDistance: number
-  /** Forma: `reference.phase === 'awaiting-confirmation'` — trasformazione in corso. */
+  /** Forma: traiettoria della pressione con verso dominante — trasformazione in corso. */
   transforming: boolean
-  /** Livello riconosciuto nell'ultima stasi (con isteresi) — `null` prima del primo assestamento. */
+  /** Livello riconosciuto nell'ultima stasi (con isteresi) — `null` prima del primo assestamento o se indeterminato. */
   level: BrainBioLevel
+  /** Motivo dell'ultimo `current` — per l'overlay e il log 1Hz. */
+  regimeReason: BrainBioRegimeReason
+  /** `reference` non ancora mai affidabile: bootstrap in corso, i due respiri non sono dichiarabili. */
+  bootstrapping: boolean
+  /** `reference` affidabile e stasi riconosciuta, ma senza contrasto per il livello: "livello indeterminato". Distinto da `bootstrapping`. */
+  levelIndeterminate: boolean
   silenceNearZero: boolean
   silenceAuthorized: boolean
   silenceConfirmationProgress: number

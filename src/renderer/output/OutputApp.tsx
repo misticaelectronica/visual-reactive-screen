@@ -29,6 +29,7 @@ import {
   type BrainBioPressureTrend,
   type BrainBioRegime,
   type BrainBioRegimeDiagnostics,
+  type BrainBioRegimeReason,
 } from './brain/brainBioPerception'
 import {
   calculateStoryMorphingInterludeMs,
@@ -60,13 +61,20 @@ const BIO_TREND_ARROWS: Record<BrainBioPressureTrend, string> = {
   falling: '↓',
 }
 
+const BIO_AUDIO_MARKERS = {
+  '1': 'PRESSURIZED',
+  '2': 'DECOMPRESSION',
+  '3': 'RESPIRO ALTO',
+  '4': 'RESPIRO PROFONDO',
+} as const
+
 function formatBioSignal(value: number | undefined): string {
   return typeof value === 'number' ? value.toFixed(2) : '—'
 }
 
-// PIANO-040, brief finale Audio/Visual "due assi" (2026-08-28): la forma
-// (stasi/trasformazione) è `reference.phase`, non più una conferma a
-// tempo sul regime — `diagnostics.transforming` la espone direttamente.
+// AUDIO-REGIMI-POSTCOLLAUDO-01: la forma direzionale è la traiettoria della
+// pressione, separata da `reference.phase`; `diagnostics.transforming` la
+// espone direttamente.
 // Il livello (alto/profondo) usa mediana/dispersione come puro contesto
 // (§6 del brief), con isteresi già applicata in `diagnostics.level`.
 function formatBioRegimeDiagnostics(diagnostics: BrainBioRegimeDiagnostics | null): string {
@@ -77,33 +85,58 @@ function formatBioRegimeDiagnostics(diagnostics: BrainBioRegimeDiagnostics | nul
     : diagnostics.pressureMedian.toFixed(2)
   const dispersionLabel = diagnostics.pressureDispersion.toFixed(2)
   const distanceLabel = `${diagnostics.pressureDistance >= 0 ? '+' : ''}${diagnostics.pressureDistance.toFixed(2)}`
+  const trajectoryLabel = `${diagnostics.pressureTrajectoryDistance >= 0 ? '+' : ''}${diagnostics.pressureTrajectoryDistance.toFixed(2)}`
   const position = [
     `pressione ${diagnostics.currentPressure.toFixed(2)} | rif. ${referenceLabel}`,
-    `Δrif ${distanceLabel}`,
+    `Δrif ${distanceLabel} (memoria)`,
+    `Δtraiettoria ${trajectoryLabel} ${BIO_TREND_ARROWS[diagnostics.pressureTrend]}`,
     `mediana ${medianLabel} (disp ${dispersionLabel}, contesto)`,
   ].join(' | ')
+  const reasonLabel = ` [${diagnostics.regimeReason}]`
   if (diagnostics.silenceNearZero && !diagnostics.silenceAuthorized) {
     return `${position}\nblocco: silenzio non ancora confermato (${Math.round(diagnostics.silenceConfirmationProgress * 100)}%)`
   }
   if (diagnostics.silenceAuthorized) {
-    return `${position}\nautorizzato: silenzio confermato`
+    return `${position}\nautorizzato: silenzio confermato${reasonLabel}`
   }
   if (diagnostics.transforming) {
-    return `${position}\nin trasformazione — ${diagnostics.pressureTrend === 'falling' ? 'DECOMPRESSIONE' : 'PRESSURIZZAZIONE'}`
+    return `${position}\nin trasformazione — ${diagnostics.pressureTrend === 'falling' ? 'DECOMPRESSIONE' : 'PRESSURIZZAZIONE'}${reasonLabel}`
   }
-  return `${position}\nstasi strutturale — livello ${diagnostics.level ?? 'non ancora determinato'}`
+  // Due condizioni DIVERSE, da distinguere a colpo d'occhio (chiusura Item 2,
+  // condizione 1 della Direzione Visual):
+  if (diagnostics.bootstrapping) {
+    return `${position}\nBOOTSTRAP — regime non ancora calcolato: i due respiri non sono dichiarabili finché il riferimento non è affidabile${reasonLabel}`
+  }
+  if (diagnostics.levelIndeterminate) {
+    return `${position}\nstasi strutturale — livello INDETERMINATO: nessun contrasto per dedurlo (normale alla prima stasi, può durare)${reasonLabel}`
+  }
+  return `${position}\nstasi strutturale — livello ${diagnostics.level ?? 'non ancora determinato'}${reasonLabel}`
 }
 
-// Nomi visibili (brief Visual "due assi", 2026-08-28, §2/§23): `PRESSURIZED`
-// resta l'id tecnico interno, ma overlay/documentazione/comunicazione
-// artistica devono mostrare "PRESSURIZZAZIONE" — descrive un processo, non
-// uno stato già stabilizzato.
+// Nomi visibili (brief Visual "due assi", 2026-08-28, §2/§23; Item 3): gli id
+// tecnici interni restano, ma overlay/documentazione/comunicazione artistica
+// mostrano i nomi in chiaro — descrivono un processo o uno stato abitato, non
+// l'enum. `unresolved` non ha un nome fisso: si sdoppia in BOOTSTRAP
+// (riferimento non ancora affidabile) e STASI · LIVELLO INDETERMINATO
+// (assestato ma senza contrasto), due condizioni che la Direzione Visual
+// vuole distinte a colpo d'occhio (chiusura Item 2, condizione 1).
 const BIO_REGIME_DISPLAY_NAMES: Record<BrainBioRegime, string> = {
   unresolved: 'NON RISOLTO',
   pressurized: 'PRESSURIZZAZIONE',
   decompression: 'DECOMPRESSIONE',
   'respiro-alto': 'RESPIRO ALTO',
   'respiro-profondo': 'RESPIRO PROFONDO',
+}
+
+function bioRegimeDisplayLabel(
+  regime: BrainBioRegime,
+  diagnostics: BrainBioRegimeDiagnostics | null,
+): string {
+  if (regime === 'unresolved') {
+    if (diagnostics?.bootstrapping) return 'BOOTSTRAP'
+    if (diagnostics?.levelIndeterminate) return 'STASI · LIVELLO INDETERMINATO'
+  }
+  return BIO_REGIME_DISPLAY_NAMES[regime]
 }
 
 const MORPHING_ALGO_LABELS: Record<string, string> = {
@@ -231,6 +264,7 @@ function createMorphingController(
   onBrainStoryCycleComplete?: (completion: BrainStoryCycleCompletion) => void,
   rhythmSource?: () => BrainRhythmState,
   bioPerceptionSource?: () => BrainBioPerceptionState,
+  bioRegimeReasonSource?: () => BrainBioRegimeReason | null,
 ): MorphingController | null {
   if (!visualModeActive(state) || !state.settings) return null
   if (state.settings.useBrain) {
@@ -238,6 +272,7 @@ function createMorphingController(
       onStoryCycleComplete: onBrainStoryCycleComplete,
       rhythmSource,
       bioPerceptionSource,
+      bioRegimeReasonSource,
     })
     controller.__algo = 'brain'
     controller.__key = morphingKey(state)
@@ -267,6 +302,7 @@ function beginMorphingTransition(
   preserveFrom = false,
   rhythmSource?: () => BrainRhythmState,
   bioPerceptionSource?: () => BrainBioPerceptionState,
+  bioRegimeReasonSource?: () => BrainBioRegimeReason | null,
 ): MorphingTransition {
   const fromKey = from?.__key ?? 'none'
   const toKey = morphingKey(state)
@@ -287,6 +323,7 @@ function beginMorphingTransition(
       onBrainStoryCycleComplete,
       rhythmSource,
       bioPerceptionSource,
+      bioRegimeReasonSource,
     ),
     durationMs,
     active: true,
@@ -371,6 +408,7 @@ export function OutputApp() {
   const morphingTransitionRef = useRef<MorphingTransition | null>(null)
   const previousBioRegimeRef = useRef<BrainBioRegime | null>(null)
   const bioRegimeFlashTimeoutRef = useRef<number | null>(null)
+  const bioAudioMarkerRef = useRef<string | null>(null)
   const bioOverlayVisibleRef = useRef(false)
   const lastBioSessionSampleAtRef = useRef(Number.NEGATIVE_INFINITY)
   const [msgCount, setMsgCount] = useState(0)
@@ -467,9 +505,33 @@ export function OutputApp() {
     return off
   }, [])
   useEffect(() => {
+    const api = window.fxOutput
+    if (!api) return
+    return api.onBioAudioMarker((marker) => {
+      bioAudioMarkerRef.current = marker
+      brainLog(
+        'perception-session',
+        marker === null ? 'marcatore Audio manuale rimosso' : 'marcatore Audio manuale',
+        { marker },
+      )
+    })
+  }, [])
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.shiftKey && event.key.toLowerCase() === 'b') {
         setBioOverlayVisible((visible) => !visible)
+        return
+      }
+      const digitKey = event.code.startsWith('Digit') ? event.code.slice(-1) : event.key
+      if (event.shiftKey && digitKey in BIO_AUDIO_MARKERS) {
+        const marker = BIO_AUDIO_MARKERS[digitKey as keyof typeof BIO_AUDIO_MARKERS]
+        bioAudioMarkerRef.current = marker
+        brainLog('perception-session', 'marcatore Audio manuale', { marker })
+        return
+      }
+      if (event.shiftKey && digitKey === '0') {
+        bioAudioMarkerRef.current = null
+        brainLog('perception-session', 'marcatore Audio manuale rimosso', { marker: null })
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -523,6 +585,10 @@ export function OutputApp() {
     const bioPerceptionClock = new BrainBioPerceptionClock()
     let bioPerceptionState = bioPerceptionClock.getState()
     const bioPerceptionSource = () => bioPerceptionState
+    // Motivo dell'ultimo regime (chiusura Item 2 §3): aggiornato allo stesso
+    // ingest, letto dal controller solo quando logga un cambio di regime.
+    let bioRegimeReason = bioPerceptionClock.getRegimeDiagnostics().regimeReason
+    const bioRegimeReasonSource = () => bioRegimeReason
     let rhythmRafId = 0
     const projectRhythm = (now: number) => {
       rhythmState = rhythmClock.projectState(performance.timeOrigin + now)
@@ -592,6 +658,14 @@ export function OutputApp() {
           inputState.bandEnergies,
           inputState.audioTimestampMs ?? receivedAt,
           rhythmState.bandTransients,
+          // Brief Audio 2026-08-31: la leggibilità della griglia ritmica entra
+          // in `perceptualPressure`. Nessun segnale nuovo — kick/pulsazione
+          // dal clock ritmico già proiettato.
+          {
+            kickEnvelope: rhythmState.kickEnvelope,
+            beatPulse: rhythmState.beatPulse,
+            active: rhythmState.active ?? false,
+          },
         )
         // PIANO-040: overlay diagnostico — solo lettura, nessun effetto sul
         // comportamento. `previousBioRegimeRef` distingue "primo valore mai
@@ -600,6 +674,7 @@ export function OutputApp() {
         // chiesto di rendere visibile ("se resta bloccato sullo stesso
         // valore per tutto il set, quello è il dato che serve").
         const bioDiagnostics = bioPerceptionClock.getRegimeDiagnostics()
+        bioRegimeReason = bioDiagnostics.regimeReason
         setBioOverlayState(bioPerceptionState)
         setBioRegimePending(bioDiagnostics)
         const bioSampleAt = inputState.audioTimestampMs ?? receivedAt
@@ -616,9 +691,16 @@ export function OutputApp() {
             sequenceNumber: inputState.sequenceNumber,
             bands: inputState.bandEnergies,
             transients: rhythmState.bandTransients,
+            rhythm: {
+              active: rhythmState.active ?? false,
+              kickEnvelope: rhythmState.kickEnvelope,
+              beatPulse: rhythmState.beatPulse,
+              beatPhase: rhythmState.beatPhase,
+            },
             signals: bioPerceptionState.signals,
             diagnostics: bioDiagnostics,
             regime: bioPerceptionState.regime,
+            audioMarker: bioAudioMarkerRef.current,
             activeRenderer,
           })
         }
@@ -759,6 +841,7 @@ export function OutputApp() {
               false,
               rhythmSource,
               bioPerceptionSource,
+              bioRegimeReasonSource,
             )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
@@ -782,6 +865,7 @@ export function OutputApp() {
               onBrainStoryCycleComplete,
               rhythmSource,
               bioPerceptionSource,
+              bioRegimeReasonSource,
             )
             morphingRef.current?.setOpacity?.(1)
           }
@@ -840,6 +924,7 @@ export function OutputApp() {
               preserveBrain,
               rhythmSource,
               bioPerceptionSource,
+              bioRegimeReasonSource,
             )
             morphingRef.current = morphingTransitionRef.current.to
             morphingRef.current?.setOpacity?.(0)
@@ -956,15 +1041,17 @@ export function OutputApp() {
         }}
       >
         {activeRendererLabel}
-        {bioOverlayState && bioOverlayState.regime !== 'unresolved' && (
-          // Brief del braccio destro (punto 2) + brief Visual "due assi"
-          // §23: etichetta di stato accanto al tipo di morphing, sempre
-          // visibile senza dover aprire l'overlay di collaudo Maiusc+B —
-          // ora mostra lo stato reale (i quattro nomi visibili), non più
-          // solo un flag binario "respiro sì/no".
+        {bioOverlayState && (
+          // Brief del braccio destro (punto 2) + brief Visual "due assi" §23 +
+          // Item 3: etichetta di stato accanto al tipo di morphing, sempre
+          // visibile senza aprire l'overlay di collaudo Maiusc+B. Mostra i
+          // cinque nomi in chiaro — inclusi BOOTSTRAP e STASI · LIVELLO
+          // INDETERMINATO, i due volti di `unresolved` (prima era nascosta).
           <>
             <br />
-            <span style={{ color: '#7fd1ff' }}>{BIO_REGIME_DISPLAY_NAMES[bioOverlayState.regime]}</span>
+            <span style={{ color: '#7fd1ff' }}>
+              {bioRegimeDisplayLabel(bioOverlayState.regime, bioRegimePending)}
+            </span>
           </>
         )}
         {revisionCycleActive && (
@@ -997,8 +1084,11 @@ export function OutputApp() {
           <div style={{ fontSize: 14, opacity: 0.75, letterSpacing: 1 }}>
             BIO-PERCETTIVO — strumento di collaudo (Maiusc+B per nascondere)
           </div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>
+            marker Audio: ⇧1 PRESSURIZED · ⇧2 DECOMPRESSION · ⇧3 ALTO · ⇧4 PROFONDO · ⇧0 cancella
+          </div>
           <div style={{ fontSize: 26, fontWeight: 'bold', margin: '4px 0' }}>
-            {bioOverlayState ? BIO_REGIME_DISPLAY_NAMES[bioOverlayState.regime] : '—'}
+            {bioOverlayState ? bioRegimeDisplayLabel(bioOverlayState.regime, bioRegimePending) : '—'}
           </div>
           <div>persistence&nbsp;&nbsp;{formatBioSignal(bioOverlayState?.signals.persistence)}</div>
           <div>change&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{formatBioSignal(bioOverlayState?.signals.change)}</div>

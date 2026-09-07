@@ -34,11 +34,14 @@ export function sessionLogFileName(startedAt: Date): string {
   ].join('-') + '.txt'
 }
 
-export function sessionLogDirectory(): string {
-  const root = app.isPackaged
-    ? path.dirname(process.execPath)
-    : app.getAppPath()
-  return path.join(root, 'log')
+export function sessionLogDirectory(
+  applicationDataRoot = app.getPath('userData'),
+): string {
+  // I log sono dati runtime dell'applicazione: devono vivere nella cartella
+  // applicativa scrivibile del profilo utente, non accanto all'eseguibile.
+  // Nelle build macOS `process.execPath` può trovarsi dentro il bundle o su un
+  // DMG read-only; `userData` resta invece stabile fra build e avvii.
+  return path.join(applicationDataRoot, 'log')
 }
 
 function appendLine(level: ConsoleLevel, args: unknown[]): void {

@@ -1,5 +1,10 @@
 # Brief Audio — Persistence, Change, Residual, Perceptual Pressure
 
+> **Normativa corrente:** questo documento resta genealogia del modello. Per
+> direzione, ruolo del `reference`, costrizione ritmica e livello della stasi
+> prevale
+> [`AUDIO-REGIMI-POSTCOLLAUDO-01`](brief-audio-regimi-postcollaudo-01.md).
+
 # Destinatari
 
 Capo Supremo degli Ingegneri

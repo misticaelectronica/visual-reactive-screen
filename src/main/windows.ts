@@ -117,19 +117,38 @@ export function createControlWindow(): BrowserWindow {
 // mentre l'Output esiste, per non sottrarre la combinazione altrove
 // nell'app o al sistema quando non serve.
 const BIO_OVERLAY_SHORTCUT = 'Shift+B'
+const BIO_AUDIO_MARKER_SHORTCUTS = [
+  ['Shift+1', 'PRESSURIZED'],
+  ['Shift+2', 'DECOMPRESSION'],
+  ['Shift+3', 'RESPIRO ALTO'],
+  ['Shift+4', 'RESPIRO PROFONDO'],
+  ['Shift+0', null],
+] as const
 
 function registerBioOverlayShortcut(): void {
-  if (globalShortcut.isRegistered(BIO_OVERLAY_SHORTCUT)) return
-  globalShortcut.register(BIO_OVERLAY_SHORTCUT, () => {
-    const win = outputWindow
-    if (!win || win.isDestroyed()) return
-    win.webContents.send(IPC_CHANNELS.toggleBioOverlay)
-  })
+  if (!globalShortcut.isRegistered(BIO_OVERLAY_SHORTCUT)) {
+    globalShortcut.register(BIO_OVERLAY_SHORTCUT, () => {
+      const win = outputWindow
+      if (!win || win.isDestroyed()) return
+      win.webContents.send(IPC_CHANNELS.toggleBioOverlay)
+    })
+  }
+  for (const [shortcut, marker] of BIO_AUDIO_MARKER_SHORTCUTS) {
+    if (globalShortcut.isRegistered(shortcut)) continue
+    globalShortcut.register(shortcut, () => {
+      const win = outputWindow
+      if (!win || win.isDestroyed()) return
+      win.webContents.send(IPC_CHANNELS.bioAudioMarker, marker)
+    })
+  }
 }
 
 function unregisterBioOverlayShortcut(): void {
   if (globalShortcut.isRegistered(BIO_OVERLAY_SHORTCUT)) {
     globalShortcut.unregister(BIO_OVERLAY_SHORTCUT)
+  }
+  for (const [shortcut] of BIO_AUDIO_MARKER_SHORTCUTS) {
+    if (globalShortcut.isRegistered(shortcut)) globalShortcut.unregister(shortcut)
   }
 }
 

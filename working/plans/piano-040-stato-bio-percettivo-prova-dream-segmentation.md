@@ -1137,6 +1137,86 @@ suite completa **62 file / 551 test verdi** (35/35 su
 - **Validazione**: typecheck/lint puliti, suite completa **63 file / 574 test**;
   build completa riuscita con app, DMG, ZIP e blockmap. Resta collaudo live.
 
+### Task 4.4v — Il livello si rivaluta quando la pressione atterra (2026-08-31)
+
+- [x] **Difetto di campo riprodotto**: `alto` ereditato durante il build dal
+  silenzio a `reference.pressure ≈ 0.04`, poi pressione ferma a 0.26 con
+  mediana 0.26 e `reference.justSettled=false`. Prima il latch restava valido
+  indefinitamente.
+- [x] **Correzione minima sul percorso esistente**: `classifyLevel` viene
+  consultata sia su `reference.justSettled` sia sul fronte
+  `pressureJustLanded`, derivato dal tracker già presente. Nessun nuovo stato,
+  timer, gate o valore di taratura.
+- [x] **Revoca reale**: al nuovo confine la classificazione parte da `null`;
+  se la pressione atterrata cade nella banda neutra rispetto alla mediana, il
+  livello torna `null` e la stasi seguente espone
+  `stasis-level-indeterminate`. L'ereditarietà viene accettata al confine solo
+  quando la stessa classificazione concorda con la direzione.
+- [x] **Perimetro rispettato**: occupancy, componente pulse, deadband,
+  isteresi, `classifyPressureTrend`, pool renderer e DELIQUESCENCE invariati.
+- **Protocollo visivo**: nessuna modifica di renderer o camera; Materia,
+  Silenzio, Beatmatch, Transizioni, Alternanza, costo e `lowPowerMode`
+  invariati.
+- **Validazione**: test mirato 49/49; suite completa **64 file / 603 test**;
+  `pnpm typecheck`, `pnpm lint` e `pnpm build` verdi con app, DMG, ZIP e
+  blockmap.
+
+### Task 4.4w — Session log nella cartella dati applicativa (2026-09-01)
+
+- [x] Rimuovere la destinazione derivata da `process.execPath`, non affidabile
+  nelle build macOS avviate da bundle o DMG.
+- [x] Usare esclusivamente `app.getPath('userData')/log`, cartella applicativa
+  persistente e scrivibile del profilo utente; nessuna scrittura sulla
+  Scrivania o nella cartella del progetto.
+- [x] Conservare nome e formato `session-YYYY-MM-DD-HH-MM-SS.txt` e il log del
+  percorso completo all'avvio.
+- [x] Aggiungere regressione sul resolver del percorso.
+- **Validazione**: test mirato 2/2; suite completa **64 file / 604 test**;
+  `pnpm typecheck`, `pnpm lint` e `pnpm build` verdi con app, DMG, ZIP e
+  blockmap.
+
+### Task 4.4x — AUDIO-REGIMI-POSTCOLLAUDO-01, Intervento 1 (2026-09-01)
+
+- [x] Consolidare direttamente il brief definitivo Audio e dichiararne la
+  prevalenza sui documenti incompatibili precedenti.
+- [x] Separare il verso della trasformazione dalla posizione rispetto al
+  `reference`: `classifyPressureTrend` confronta la pressione live con
+  `pressureLagged`, linea di ritardo già presente nel tracker di atterraggio.
+  Nessuna macchina o osservabile percettiva nuova.
+- [x] Conservare `reference` come memoria del mondo assestato e `change` come
+  misura della separazione; Δreference resta diagnostica, non decide il verso.
+- [x] Esporre nel log persistente a 1 Hz Δtraiettoria, quattro componenti della
+  pressione, `kickEnvelope`, `beatPulse`, low-end, densità della griglia e
+  marcatore manuale Audio. Scorciatoie globali: Maiusc+1 PRESSURIZED, +2
+  DECOMPRESSION, +3 RESPIRO ALTO, +4 RESPIRO PROFONDO, +0 cancella.
+- [x] Perimetro sequenziale rispettato: nessuna modifica a formula della
+  costrizione ritmica, pesi, occupancy, deadband, isteresi, mediana,
+  `classifyLevel` o ereditarietà del livello.
+- [x] Protocollo visivo: nessuna modifica a camera, materia, silenzio,
+  beatmatch, transizioni, alternanza, budget o `lowPowerMode`.
+- **Gate successivo**: Collaudo 1 esclusivamente
+  `PRESSURIZED ↔ DECOMPRESSION`; soltanto dopo i dati si apre l'Intervento 2.
+- **Validazione**: test mirato 49/49; suite completa **64 file / 604 test**;
+  `pnpm typecheck`, `pnpm lint` e `pnpm build` verdi con app, DMG, ZIP e
+  blockmap.
+
+### Task 4.4y — DELIQUESCENCE al 95% in Respiro Profondo (2026-09-01)
+
+- [x] Portare `LOW_REGIME_DOMINANT_SHARE` da 0.90 a 0.95.
+- [x] Applicare la quota soltanto quando il regime è `respiro-profondo` e la
+  selezione è automatica; il restante 5% conserva gli altri renderer del pool
+  basso come variazione.
+- [x] Non cambiare decompressione, Respiro Alto, bootstrap, selezione manuale,
+  fallback dell'host, hold, renderer o costo.
+- [x] Aggiornare specifica DELIQUESCENCE e regressione statistica sul tempo di
+  selezione (finestra accettata 92–98% attorno all'obiettivo 95%).
+- **Protocollo visivo**: Camera, Materia, Silenzio, Beatmatch, Transizione,
+  Alternanza e Costo invariati; cambia soltanto la programmazione temporale di
+  un renderer già autorizzato.
+- **Validazione**: test mirato 48/48; suite completa **64 file / 604 test**;
+  `pnpm typecheck`, `pnpm lint` e `pnpm build` verdi con app, DMG, ZIP e
+  blockmap.
+
 - [x] Task 4.5: `working/STATE.md` e `working/sessions/session-history.md` aggiornati
       dopo ogni fase (non solo a fine sessione) per tutta la Fase 1, 2 e 3 — vedi le
       sessioni `SESSION-2026-08-27-01/02/03` e questo stesso registro §7.
@@ -1165,6 +1245,26 @@ suite completa **62 file / 551 test verdi** (35/35 su
 ---
 
 ## 7. 📝 Note e Registro Avanzamento
+
+### Ripresa Ingegneria — 2026-09-04, replay Intervento 1 rhythmConstraint
+
+Esito: replay concluso, baseline ricostruita esattamente; separazione
+alto/profondo ancora incompleta rispetto ai nomi dei campioni. Report in
+`working/calibration-v1/rhythm-constraint-replay.md`. Test mirati 52/52,
+typecheck/lint/diff-check verdi. Nessuna modifica runtime; decisione all'Audio.
+
+- [x] TASK-040-71: rendere riproducibile il confronto isolato della nuova
+  costrizione ritmica sugli ingressi reali conservati in calibration-v1.
+- [x] TASK-040-72: verificare le proprietà tecniche con regressioni mirate,
+  typecheck e lint; consegnare risultati e limiti all'Audio.
+- Perimetro: nessuna nuova formula o soglia. Riutilizzare il modulo reale;
+  mantenere fisse le altre tre componenti della pressione registrate.
+  Il riscaldamento originale non è registrato: escludere il transitorio
+  iniziale del replay e dichiarare il limite. Identificare i campioni con
+  il nome file, perché la mappa C01–C09 non è conservata nel corpus.
+- Protocollo: Camera, Materia, Silenzio, Beatmatch, Transizione, Alternanza
+  e Costo invariati; nessuna modifica runtime, memoria autobiografica,
+  permessi, throttling o lowPowerMode. Replay offline non equivale a collaudo live.
 
 - **2026-08-27**: Creazione del piano. Precede l'implementazione — nessun codice
   scritto ancora. Riferimento normativo:
@@ -1195,3 +1295,34 @@ suite completa **62 file / 551 test verdi** (35/35 su
   fine sessione (Task 4.5). Nessuna decisione precedente del brief o del piano è stata
   ridiscussa — solo l'architettura interna di `brainBioPerception.ts`, non ancora
   implementata.
+
+
+### Direttiva di semplicità — 2026-09-04
+
+- [x] TASK-040-73: recepire il riscontro Audio e la direttiva del Capo Supremo.
+- C03/C06 più vincolanti di C04: la formula attuale non supera la verifica.
+  Arrestarne il dettaglio; Fase 1 aperta, spectralOccupancy e soglie congelate.
+- Prossimo passo: sola verifica minima della conferma fisica ricorrente
+  rispetto alla fase esistente. Nessuna nuova formula richiesta o introdotta.
+
+
+### Correzione frequenza regimi — 2026-09-04
+
+- [x] TASK-040-74: applicare l’isteresi esistente anche all’ingresso del trend.
+- Replay: 375 → 38 cambi; nessun nuovo stato o timer.
+- 64 file / 607 test, typecheck, lint e diff-check verdi. Resta prova live.
+
+
+### Falsa stasi oscillatoria — 2026-09-04
+
+- [x] TASK-040-75: ritirare l’isteresi larga, smentita da `test-1.mp3`.
+- [x] Riutilizzare `pressureLanded`: senza assestamento nessun Respiro.
+- Nessun nuovo meccanismo. 64 file / 608 test, typecheck/lint verdi; live pendente.
+
+
+### Collaudo reale `test-1.mp3` — 2026-09-04
+
+- [x] TASK-040-76: eseguire il campione e richiedere stasi continua per 9 s.
+- [x] Conservare il passaggio nei brevi punti neutri dell’oscillazione.
+- Esito: `respiro-alto` 7,55 s → 0 s; sola alternanza direzionale dopo l’avvio.
+- 64 file / 608 test e controlli statici verdi. Nessun nuovo segnale o stato.

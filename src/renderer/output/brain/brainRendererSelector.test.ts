@@ -660,6 +660,7 @@ describe('selectBrainRendererHoldFrames — hold per regime durante Riattivazion
 describe('BrainRendererSelector — esclusione per regime (PIANO-040 §4/§17.1)', () => {
   const ids = BRAIN_RENDERER_IDS
   const lowPool = new Set([
+    'deliquescence',
     'filter-psiche',
     'vector-morph',
     'material-morph',
@@ -667,7 +668,7 @@ describe('BrainRendererSelector — esclusione per regime (PIANO-040 §4/§17.1)
     'dream-segmentation',
   ])
 
-  it('in decompression/respiro-profondo compare soltanto la whitelist normativa di cinque renderer', () => {
+  it('in decompression/respiro-profondo compare soltanto la whitelist normativa di sei renderer', () => {
     for (const regime of ['decompression', 'respiro-profondo'] as const) {
       for (const boosted of [false, true]) {
         const selector = new BrainRendererSelector(
@@ -776,5 +777,145 @@ describe('BrainRendererSelector — esclusione per regime (PIANO-040 §4/§17.1)
     }
     expect(visited.has('glitch-morph')).toBe(false)
     for (const id of visited) expect(lowPool.has(id)).toBe(true)
+  })
+})
+
+describe('RESPIRO ALTO — hold e pool proprio (Item 4)', () => {
+  const ids = BRAIN_RENDERER_IDS
+  const highPriority = new Set([
+    'psycho2d',
+    'fractal-spiral-degeneration',
+    'glitch-morph',
+    'vector-morph',
+    'filter-psiche',
+  ])
+  const highSecondary = new Set(['material-morph', 'bauhaus-morph', 'dream-segmentation'])
+
+  it('fuori Riattivazione, respiro-alto usa il range persistente ordinario [2,3] — non la stretta [1,2]', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, false, 'respiro-alto')
+      expect(value).toBeGreaterThanOrEqual(2)
+      expect(value).toBeLessThanOrEqual(3)
+    }
+    // Estremi espliciti: mai 1, mai 4.
+    expect(selectBrainRendererHoldFrames('vector-morph', () => 0, false, 'respiro-alto')).toBe(2)
+    expect(selectBrainRendererHoldFrames('vector-morph', () => 0.999, false, 'respiro-alto')).toBe(3)
+  })
+
+  it('durante la Riattivazione (boost) respiro-alto resta nella stretta [1,2], come pressurized', () => {
+    for (let index = 0; index < 20; index += 1) {
+      const value = selectBrainRendererHoldFrames('vector-morph', () => index / 20, true, 'respiro-alto')
+      expect(value).toBeGreaterThanOrEqual(1)
+      expect(value).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('nel ciclo per storia i prioritari coprono la rotazione; i compatibili non prioritari non vi compaiono (restano per i ricicli lunghi)', () => {
+    const selector = new BrainRendererSelector(
+      ids, 'psycho2d', () => 0.5, () => false, () => false, () => 'respiro-alto',
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    const visited = new Set<string>()
+    for (let story = 0; story < 12; story += 1) {
+      selector.beginStory(`alto-story-${story}`, settings)
+      visited.add(selector.resolve(settings, story * 1_000))
+      for (let frame = 1; frame < 8; frame += 1) {
+        selector.advanceStoryRenderer(`alto-story-${story}`, settings, story * 1_000 + frame)
+        visited.add(selector.resolve(settings, story * 1_000 + frame))
+      }
+    }
+    for (const id of visited) expect(highPriority.has(id)).toBe(true)
+    for (const id of highSecondary) expect(visited.has(id)).toBe(false)
+    // Nessuna esclusione dura: i compatibili restano nel mazzo, solo in coda.
+    expect(highSecondary.size).toBe(3)
+  })
+
+  it('durante i ricicli d\'attesa lunghi i compatibili non prioritari compaiono, ma i prioritari restano prevalenti', () => {
+    const selector = new BrainRendererSelector(
+      ids, 'psycho2d', () => 0.5, () => false, () => false, () => 'respiro-alto',
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    selector.beginStory('alto-wait', settings)
+    const counts = new Map<string, number>()
+    for (let frame = 1; frame < 400; frame += 1) {
+      selector.advanceWaitingRenderer(settings, frame * 100)
+      const id = selector.resolve(settings, frame * 100)
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+    const priorityTotal = [...highPriority].reduce((sum, id) => sum + (counts.get(id) ?? 0), 0)
+    const secondaryTotal = [...highSecondary].reduce((sum, id) => sum + (counts.get(id) ?? 0), 0)
+    expect(secondaryTotal).toBeGreaterThan(0) // compaiono
+    expect(priorityTotal).toBeGreaterThan(secondaryTotal) // ma restano prevalenti
+    expect(counts.has('print2d')).toBe(false) // Print2D non entra nel ciclo, invariato
+  })
+})
+
+describe('RESPIRO PROFONDO — dominanza DELIQUESCENCE (Item 5)', () => {
+  const ids = BRAIN_RENDERER_IDS
+
+  function share(regime: 'respiro-profondo' | 'decompression'): Map<string, number> {
+    // random() ~ uniforme: `advanceStoryRenderer` lo usa per shuffle/hold e
+    // `applyLowRegimeDominance` per il dado di dominanza. Una sequenza pseudo
+    // casuale deterministica basta a misurare la quota.
+    let seed = 12345
+    const rnd = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      return seed / 0xffffffff
+    }
+    const selector = new BrainRendererSelector(
+      ids, 'deliquescence', rnd, () => false, () => false, () => regime,
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    const counts = new Map<string, number>()
+    for (let story = 0; story < 40; story += 1) {
+      selector.beginStory(`dp-${regime}-${story}`, settings)
+      counts.set(selector.resolve(settings, story * 1_000), (counts.get(selector.resolve(settings, story * 1_000)) ?? 0) + 1)
+      for (let frame = 1; frame < 8; frame += 1) {
+        selector.advanceStoryRenderer(`dp-${regime}-${story}`, settings, story * 1_000 + frame)
+        const id = selector.resolve(settings, story * 1_000 + frame)
+        counts.set(id, (counts.get(id) ?? 0) + 1)
+      }
+    }
+    return counts
+  }
+
+  it('in respiro-profondo DELIQUESCENCE è circa il 95% della rotazione, gli altri restano visibili', () => {
+    const counts = share('respiro-profondo')
+    const total = [...counts.values()].reduce((a, b) => a + b, 0)
+    const deliq = counts.get('deliquescence') ?? 0
+    expect(deliq / total).toBeGreaterThan(0.92)
+    expect(deliq / total).toBeLessThan(0.98)
+    // gli altri non sono esclusi: almeno uno del pool basso compare.
+    const others = ['vector-morph', 'material-morph', 'bauhaus-morph', 'dream-segmentation', 'filter-psiche']
+    expect(others.some((id) => (counts.get(id) ?? 0) > 0)).toBe(true)
+    // nessun renderer fuori dal pool basso.
+    for (const id of counts.keys()) {
+      expect(['deliquescence', ...others]).toContain(id)
+    }
+  })
+
+  it('in decompression (non protratta) DELIQUESCENCE non domina: quota vicina al pari peso del pool basso', () => {
+    const counts = share('decompression')
+    const total = [...counts.values()].reduce((a, b) => a + b, 0)
+    const deliq = counts.get('deliquescence') ?? 0
+    // eleggibile ma non dominante: ben sotto il 95%.
+    expect(deliq / total).toBeLessThan(0.5)
+  })
+
+  it('DELIQUESCENCE è escluso dal Respiro Alto (dichiarato)', () => {
+    const selector = new BrainRendererSelector(
+      ids, 'filter-psiche', Math.random, () => false, () => false, () => 'respiro-alto',
+    )
+    const settings = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+    const visited = new Set<string>()
+    for (let story = 0; story < 15; story += 1) {
+      selector.beginStory(`ra-${story}`, settings)
+      visited.add(selector.resolve(settings, story * 1_000))
+      for (let frame = 1; frame < 8; frame += 1) {
+        selector.advanceStoryRenderer(`ra-${story}`, settings, story * 1_000 + frame)
+        visited.add(selector.resolve(settings, story * 1_000 + frame))
+      }
+    }
+    expect(visited.has('deliquescence')).toBe(false)
   })
 })

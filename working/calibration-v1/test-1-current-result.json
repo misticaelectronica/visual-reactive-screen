@@ -1,0 +1,75 @@
+{
+  "file": "docs/campioni/test-1.mp3",
+  "durationSeconds": {
+    "unresolved": 0.8359183673469383,
+    "decompression": 14.535691609977416,
+    "pressurized": 33.73859410430742
+  },
+  "transitions": 15,
+  "timeline": [
+    {
+      "second": 0.007981859410429025,
+      "state": "unresolved"
+    },
+    {
+      "second": 0.8439002267573669,
+      "state": "decompression"
+    },
+    {
+      "second": 1.122539682539682,
+      "state": "pressurized"
+    },
+    {
+      "second": 8.111746031746028,
+      "state": "decompression"
+    },
+    {
+      "second": 11.455419501133788,
+      "state": "pressurized"
+    },
+    {
+      "second": 18.026666666666664,
+      "state": "decompression"
+    },
+    {
+      "second": 20.046802721088433,
+      "state": "pressurized"
+    },
+    {
+      "second": 23.20471655328798,
+      "state": "decompression"
+    },
+    {
+      "second": 26.9663492063492,
+      "state": "pressurized"
+    },
+    {
+      "second": 31.145941043083905,
+      "state": "decompression"
+    },
+    {
+      "second": 35.44163265306123,
+      "state": "pressurized"
+    },
+    {
+      "second": 36.13823129251701,
+      "state": "decompression"
+    },
+    {
+      "second": 36.532970521541955,
+      "state": "pressurized"
+    },
+    {
+      "second": 41.68780045351473,
+      "state": "decompression"
+    },
+    {
+      "second": 42.10575963718821,
+      "state": "pressurized"
+    },
+    {
+      "second": 49.094965986394556,
+      "state": "decompression"
+    }
+  ]
+}

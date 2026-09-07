@@ -352,7 +352,25 @@ File chiave:
   (`selectBrainRendererHoldFrames`, `PERSISTENT_STORY_RENDERERS`) e le
   esclusioni per modalità (`AUTOMATICALLY_EXCLUDED_RENDERERS` per la
   rotazione temporale, `STORY_CYCLE_EXCLUDED_RENDERERS` per "Tutti per
-  storia").
+  storia"). **Pool per regime bio-percettivo** (2026-08-31): `respiro-profondo`
+  /`decompression` = whitelist dura `LOW_REGIME_RENDERERS` (5 renderer, mai
+  bypassata dal boost); `respiro-alto` = pool proprio a due ranghi
+  (`HIGH_REGIME_PRIORITY_RENDERERS` / `HIGH_REGIME_SECONDARY_RENDERERS`,
+  `HIGH_REGIME_EXCLUDED_RENDERERS`) applicato come chiave PRIMARIA di
+  `weightedDeck` via `regimePreferenceRank`, preferenza morbida (i secondari
+  restano nel mazzo, in coda). `respiro-alto` fuori Riattivazione usa il
+  range hold ordinario `[2,3]`, non la stretta `[1,2]`: "tempi corti" =
+  velocità interna dei renderer, non rotazione. **Item 5 (in corso)**:
+  `deliquescence` è nel pool basso (`LOW_REGIME_RENDERERS`) ed è **dominante
+  al ~90%** in `respiro-profondo` via `applyLowRegimeDominance`
+  (`LOW_REGIME_DOMINANT_SHARE`, quota probabilistica sul pick — non un rango
+  stretto); escluso da Respiro Alto (`HIGH_REGIME_EXCLUDED_RENDERERS`) e da
+  bootstrap (`BOOTSTRAP_EXCLUDED_RENDERERS`). La selezione manuale da tendina
+  ignora le esclusioni di regime. Ancora da fare: dominanza in
+  `decompression` protratta (contatore `regimeSince` +
+  `DECOMPRESSION_PROTRACTED_MS`); luci interne / coagulazione / 8 varianti nel
+  renderer `brainDeliquescenceCanvas.ts`. Spec completa:
+  `team/briefs/brief-deliquescence-specifica.md`.
 - `src/renderer/output/brain/brainRendererHost.ts` — gestisce COSA SI VEDE
   davvero: il layer `active`/`incoming` con crossfade interno
   (`SWITCH_DURATION_MS`), e il layer separato `denoisingFilterPsiche`
@@ -368,6 +386,13 @@ File chiave:
 
 Regole/insidie note (già risolte, non ripartire da zero):
 
+- **Latch bio-percettivi**: una classificazione che può essere ereditata non
+  può dipendere per la propria rivalutazione da un evento che sul campo non
+  avviene (`reference.justSettled`). Prima di aggiungere una macchina, cercare
+  un confine già misurato: per il livello `alto`/`profondo` è il fronte di
+  `pressureLanded`. Consultare `classifyLevel` su quel fronte, non a ogni frame,
+  così la deriva della mediana non decide da sola ma un latch errato può
+  tornare indeterminato.
 - **AGGIORNATO 2026-08-25 — la nota precedente era superata**:
   `shouldSuspendPlugin` nel passthrough dipende **solo** da
   `resourcePressure`, non da `offlineHold` (quel flag resta vero per

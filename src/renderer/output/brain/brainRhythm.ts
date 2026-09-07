@@ -26,6 +26,22 @@ const TRANSIENT_RELEASE_MS: BandEnergies = {
   mid: 180,
   high: 75,
 }
+// Plateau (collaudo bio-percettivo 2026-08-31): il detector scattava sul
+// letto steady dell'altro deck perché un semplice `delta = bands −
+// previousBands` positivo bastava. Un transiente reale è un'ESCURSIONE sopra
+// la baseline stabilita, non un'oscillazione attorno alla propria media: un
+// letto steady ha `bands ≈ movingAverages` → lift ≈ 0. Stesso segnale già
+// usato per il kick (`lowLift`/`lowMidLift` qui sotto, e
+// `bandEnergies − movingAverages` in visualEngine). Fattore graduato, non un
+// gate secco: sotto `LIFT_FLOOR` il transiente è annullato, sopra
+// `LIFT_FLOOR + LIFT_SPAN` passa pieno.
+const TRANSIENT_LIFT_FLOOR: BandEnergies = {
+  low: 0.02,
+  lowMid: 0.018,
+  mid: 0.016,
+  high: 0.02,
+}
+const TRANSIENT_LIFT_SPAN = 0.05
 
 const STALE_PACKET_AGE_MS = 1_500
 const LONG_SAMPLE_GAP_MS = 1_500
@@ -178,10 +194,18 @@ export class OutputRhythmClock {
     const transientTargets: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
     for (const band of BANDS) {
       const delta = bands[band] - this.previousBands[band]
-      transientTargets[band] = Math.max(
+      const rawTarget = Math.max(
         0,
         Math.min(1, (delta - TRANSIENT_THRESHOLDS[band]) * 5.5),
       )
+      // Lift sopra la baseline stabilita: un letto steady non deve scattare
+      // (plateau, 2026-08-31). Graduato, non binario.
+      const lift = bands[band] - this.movingAverages[band]
+      const liftFactor = Math.max(
+        0,
+        Math.min(1, (lift - TRANSIENT_LIFT_FLOOR[band]) / TRANSIENT_LIFT_SPAN),
+      )
+      transientTargets[band] = rawTarget * liftFactor
       const current = this.bandTransients[band]
       if (transientTargets[band] > current) {
         const attackBlend = 1 - Math.exp(-elapsed / 28)

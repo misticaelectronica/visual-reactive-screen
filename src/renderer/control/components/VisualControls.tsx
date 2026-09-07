@@ -152,6 +152,7 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="dream-segmentation">Dream Segmentation — immaginazione</option>
             <option value="glitch-morph">Glitch Morph — contorno</option>
             <option value="fractal-spiral-degeneration">Fractal Spiral Degeneration — ricorsivo</option>
+            <option value="deliquescence">Deliquescence — dissoluzione oscura</option>
           </select>
         </label>
         <label>

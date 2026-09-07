@@ -9,6 +9,7 @@ import { createBrainBauhausMorphScene } from './brainBauhausMorphCanvas'
 import { createBrainDreamSegmentationScene } from './brainDreamSegmentationCanvas'
 import { createBrainGlitchMorphScene } from './brainGlitchMorphCanvas'
 import { createBrainFractalSpiralScene } from './brainFractalSpiralCanvas'
+import { createBrainDeliquescenceScene } from './brainDeliquescenceCanvas'
 
 export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
   const registry = new BrainRendererRegistry()
@@ -109,6 +110,16 @@ export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
       lowPowerMode: true,
     },
     create: createBrainFractalSpiralScene,
+  })
+  registry.register({
+    id: 'deliquescence',
+    label: 'Deliquescence — dissoluzione oscura',
+    capabilities: {
+      multipleImages: false,
+      semanticMetadata: false,
+      lowPowerMode: true,
+    },
+    create: createBrainDeliquescenceScene,
   })
   return registry
 }
