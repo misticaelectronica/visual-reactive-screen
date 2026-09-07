@@ -59,6 +59,11 @@ Desktop.ini
 .eslintcache
 .stylelintcache
 
+# Log di calibrazione rigenerabili con scripts/replay-rhythm-constraint.mjs
+# e scripts/calibration/analyze-sample.mjs — mai i .jsonl grezzi (decine di
+# MB), solo i riassunti .md/.json restano versionati.
+working/calibration-v1/*.jsonl
+
 # Vite / frontend build
 dist/
 dist-ssr/
