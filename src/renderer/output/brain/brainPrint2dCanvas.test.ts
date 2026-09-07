@@ -153,7 +153,7 @@ describe('Brain Print2D', () => {
     expect(drives.high).toBeGreaterThan(0)
   })
 
-  it('muove una banda lungo la fase del beat senza cambiare la sua energia', () => {
+  it('conserva le ampiezze indipendenti dalla fase, ora gestita nelle regioni', () => {
     const bands = { low: 0.5, lowMid: 0, mid: 0, high: 0 }
     const averages = { low: 0.35, lowMid: 0, mid: 0, high: 0 }
     const first = calculateBrainPrint2dMotion(
@@ -174,8 +174,7 @@ describe('Brain Print2D', () => {
     )
 
     expect(first.depthPx).toBeCloseTo(opposite.depthPx)
-    expect(first.depthOffsetPx).toBeGreaterThan(0)
-    expect(opposite.depthOffsetPx).toBeLessThan(0)
+    expect(first).toEqual(opposite)
   })
 
   it('deforma le masse in entrata e le ricompone a fine morph', () => {

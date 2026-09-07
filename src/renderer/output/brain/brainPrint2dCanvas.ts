@@ -1,3 +1,8 @@
+import {
+  advancePrintRegionState,
+  createPrintRegionState,
+  printRegionOffsets,
+} from './brainPrint2dRegionMotion'
 import type { AppSettings, BandEnergies } from '@shared/types'
 import type { PsychedelScene } from '@shared/brain/brainTypes'
 import type { BrainFrameMorphPattern } from './brainFrameMotion'
@@ -17,6 +22,8 @@ const RENDER_WIDTH = 480
 const RENDER_HEIGHT = 270
 const LAYER_COUNT = 6
 const INK_FRAGMENT_COUNT = 4
+const CONTOUR_CORE_REGION = LAYER_COUNT + INK_FRAGMENT_COUNT
+const CONTOUR_FAINT_REGION = CONTOUR_CORE_REGION + 1
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 
 export const BRAIN_PRINT2D_MODES = [
@@ -42,10 +49,6 @@ export type BrainPrint2dMotion = {
   beatEnvelope: number
   layerScale: number
   layerSkew: number
-  depthOffsetPx: number
-  propagationOffsetPx: number
-  dislocationOffsetPx: number
-  chromaticOffsetPx: number
 }
 
 export type BrainPrint2dBandDrives = BandEnergies
@@ -150,7 +153,7 @@ export function calculateBrainPrint2dBandDrives(
 // `computeContourDoubling` più sotto) e sul colpo di `impulso`.
 const PLATE_MOTION_SCALE = 0.5
 
-/** Mappa drive, transienti e fase musicale su quattro gesti indipendenti. */
+/** Calcola le ampiezze per banda; fase e posizione vivono nelle regioni. */
 export function calculateBrainPrint2dMotion(
   bands: BandEnergies,
   settings: AppSettings,
@@ -204,8 +207,6 @@ export function calculateBrainPrint2dMotion(
     0,
     13 * PLATE_MOTION_SCALE,
   )
-  const phase = rhythm?.beatPhase ?? 0
-  const phaseRadians = phase * Math.PI * 2
   return {
     activity,
     activeLayer: ((marchStep % layerCount) + layerCount) % layerCount,
@@ -229,12 +230,6 @@ export function calculateBrainPrint2dMotion(
       0,
       0.05,
     ),
-    depthOffsetPx: depthPx * Math.cos(phaseRadians),
-    propagationOffsetPx: propagationPx * Math.sin(phaseRadians),
-    dislocationOffsetPx:
-      dislocationPx * Math.cos(phaseRadians * 2 + Math.PI / 3),
-    chromaticOffsetPx:
-      chromaticPx * Math.sin(phaseRadians * 4 + Math.PI / 4),
   }
 }
 
@@ -676,6 +671,10 @@ export function createBrainPrint2dScene(
   let lastRenderSignature = ''
   let lastMotionAt = Number.NaN
   const motionSmoother = new BrainCanvasMotionSmoother()
+  // Sei lastre, quattro frammenti, due contorni: identità stabili anche
+  // quando il preset disegna temporaneamente solo alcune delle regioni.
+  const regionStates = Array.from({ length: LAYER_COUNT + INK_FRAGMENT_COUNT + 2 },
+    (_, index) => createPrintRegionState(sceneSeed + index * 3571))
   let previousBeatIndex = -1
   let marchStep = sceneSeed % LAYER_COUNT
   let transitionProgress = 1
@@ -786,8 +785,8 @@ export function createBrainPrint2dScene(
       // avanza affatto, non solo "non cambia visivamente" — così quando il
       // freeze finisce l'inerzia riparte da dove si era fermata, non da un
       // salto temporale accumulato.
+      lastMotionAt = time
       if (!frozen) {
-        lastMotionAt = time
         breathingPhase = advanceContourBreathingPhase(
           breathingPhase,
           motionElapsed,
@@ -816,7 +815,6 @@ export function createBrainPrint2dScene(
       // danza continua: torna a scemare in decadimento.
       const impulseBoost = 1 + impulseDrive * 1.7
       const regimeMotionScale = brainBioLocalMotionScale(bioPerception?.regime)
-      const phaseRadians = (rhythm?.beatPhase ?? 0) * Math.PI * 2
       const depthPx = smoothMotion.low * 19 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
       const propagationPx = smoothMotion.lowMid * 23 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
       const dislocationPx = smoothMotion.mid * 18 * PLATE_MOTION_SCALE * impulseBoost * regimeMotionScale
@@ -831,14 +829,29 @@ export function createBrainPrint2dScene(
         beatEnvelope: smoothMotion.beat * regimeMotionScale,
         layerScale: 1 + (rawMotion.layerScale - 1) * regimeMotionScale,
         layerSkew: rawMotion.layerSkew * regimeMotionScale,
-        depthOffsetPx: depthPx * Math.cos(phaseRadians),
-        propagationOffsetPx: propagationPx * Math.sin(phaseRadians),
-        dislocationOffsetPx:
-          dislocationPx * Math.cos(phaseRadians * 2 + Math.PI / 3),
-        chromaticOffsetPx:
-          chromaticPx * Math.sin(phaseRadians * 4 + Math.PI / 4),
       }
       const audioActive = motion.activity >= 0.015 || motion.beatEnvelope >= 0.01
+      const regionDrives = {
+        low: depthPx / (19 * PLATE_MOTION_SCALE),
+        lowMid: propagationPx / (23 * PLATE_MOTION_SCALE),
+        mid: dislocationPx / (18 * PLATE_MOTION_SCALE),
+        high: chromaticPx / (13 * PLATE_MOTION_SCALE),
+      }
+      for (const state of regionStates) {
+        advancePrintRegionState(
+          state, regionDrives,
+          rhythm?.beatPhase ?? 0, motionElapsed, rhythm?.beatDurationMs ?? 500,
+          (rhythm?.active ?? true) && rawMotion.activity > 0,
+          frozen, settings.motionProfile,
+        )
+      }
+      const prepared = artwork
+      const regionMotion = (layer: HTMLCanvasElement) => {
+        const screenIndex = prepared.screenprintLayers.indexOf(layer)
+        const index = screenIndex >= 0 ? screenIndex
+          : LAYER_COUNT + prepared.inkFragments.indexOf(layer)
+        return printRegionOffsets(regionStates[index])
+      }
       const frameInterval = calculateBrainPrint2dFrameInterval(
         resourcePressure,
         settings.lowPowerMode,
@@ -856,10 +869,7 @@ export function createBrainPrint2dScene(
         marchStep,
         transitionRole,
         Math.round(transitionProgress * 60),
-        Math.round(motion.depthOffsetPx * 2),
-        Math.round(motion.propagationOffsetPx * 2),
-        Math.round(motion.dislocationOffsetPx * 2),
-        Math.round(motion.chromaticOffsetPx * 2),
+        ...regionStates.flatMap((state) => state.position.map((value) => Math.round(value * 1000))),
         Math.round(motion.beatEnvelope * 12),
         lifeState.phase,
         Math.round(breathingGate * 20),
@@ -879,7 +889,7 @@ export function createBrainPrint2dScene(
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
-      const direction = marchStep % 2 === 0 ? 1 : -1
+      const direction = sceneSeed % 2 === 0 ? 1 : -1
       const paint = (
         layer: CanvasImageSource,
         index: number,
@@ -918,14 +928,11 @@ export function createBrainPrint2dScene(
       const activeScreen = motion.activeLayer
       const activeInk = activeScreen % INK_FRAGMENT_COUNT
       const beatScale = 1 + motion.beatEnvelope * 0.075
-      const depthMotion = motion.depthOffsetPx
-      const propagationMotion = motion.propagationOffsetPx
-      const dislocationMotion = motion.dislocationOffsetPx
-      const chromaticMotion = motion.chromaticOffsetPx
 
       switch (mode) {
         case 'layered-screenprint':
           screen.forEach((layer, index) => {
+            const { depthMotion, propagationMotion, dislocationMotion } = regionMotion(layer)
             const lane = (index % 3) - 1
             paint(
               layer,
@@ -942,11 +949,12 @@ export function createBrainPrint2dScene(
           break
 
         case 'living-ink':
-          paint(screen[1], 0, 2, 0.2, propagationMotion * 0.3)
-          paint(screen[4], 1, 2, 0.17, -propagationMotion * 0.24)
+          paint(screen[1], 0, 2, 0.2, regionMotion(screen[1]).propagationMotion * 0.3)
+          paint(screen[4], 1, 2, 0.17, -regionMotion(screen[4]).propagationMotion * 0.24)
           context.globalCompositeOperation = 'screen'
           ink.forEach((fragment, index) => {
-            const lane = ((index + marchStep) % 3) - 1
+            const { depthMotion, dislocationMotion, chromaticMotion } = regionMotion(fragment)
+            const lane = (index % 3) - 1
             paint(
               fragment,
               index,
@@ -964,6 +972,7 @@ export function createBrainPrint2dScene(
         case 'riso-echo':
           context.globalCompositeOperation = 'screen'
           ;[1, 3, 5].forEach((layerIndex, index) => {
+            const { depthMotion, propagationMotion, chromaticMotion } = regionMotion(screen[layerIndex])
             const lane = index - 1
             paint(
               screen[layerIndex],
@@ -977,12 +986,13 @@ export function createBrainPrint2dScene(
               -lane * motion.layerSkew,
             )
           })
-          paint(ink[activeInk], 3, 4, 0.72, direction * chromaticMotion)
+          paint(ink[activeInk], 3, 4, 0.72, direction * regionMotion(ink[activeInk]).chromaticMotion)
           break
 
         case 'acid-glass':
           context.globalCompositeOperation = 'lighter'
           ;[0, 2, 3, 5].forEach((layerIndex, index) => {
+            const { depthMotion, dislocationMotion } = regionMotion(screen[layerIndex])
             const quadrant = index % 2 === 0 ? -1 : 1
             paint(
               screen[layerIndex],
@@ -999,9 +1009,10 @@ export function createBrainPrint2dScene(
           break
 
         case 'topographic-ghost':
-          paint(screen[2], 0, 1, 0.14, 0, direction * depthMotion * 0.3)
+          paint(screen[2], 0, 1, 0.14, 0, direction * regionMotion(screen[2]).depthMotion * 0.3)
           context.globalCompositeOperation = 'screen'
           ink.forEach((fragment, index) => {
+            const { depthMotion, propagationMotion } = regionMotion(fragment)
             const ring = index - 1.5
             paint(
               fragment,
@@ -1019,6 +1030,7 @@ export function createBrainPrint2dScene(
         case 'chromatic-cutout':
           context.globalCompositeOperation = 'screen'
           ;[0, 2, 5].forEach((layerIndex, index) => {
+            const { dislocationMotion, chromaticMotion } = regionMotion(screen[layerIndex])
             const lane = index - 1
             paint(
               screen[layerIndex],
@@ -1031,15 +1043,16 @@ export function createBrainPrint2dScene(
               lane * dislocationMotion * 0.0035,
             )
           })
-          paint(ink[activeInk], 3, 4, motion.edgeAlpha, direction * propagationMotion)
+          paint(ink[activeInk], 3, 4, motion.edgeAlpha, direction * regionMotion(ink[activeInk]).propagationMotion)
           break
 
         case 'negative-bloom':
           context.globalCompositeOperation = 'difference'
-          paint(screen[0], 0, 2, 0.86, -propagationMotion, 0, motion.layerScale)
-          paint(screen[5], 1, 2, 0.86, propagationMotion, 0, beatScale)
+          paint(screen[0], 0, 2, 0.86, -regionMotion(screen[0]).propagationMotion, 0, motion.layerScale)
+          paint(screen[5], 1, 2, 0.86, regionMotion(screen[5]).propagationMotion, 0, beatScale)
           context.globalCompositeOperation = 'screen'
           ink.forEach((fragment, index) => {
+            const { depthMotion, dislocationMotion, chromaticMotion } = regionMotion(fragment)
             const petal = index % 2 === 0 ? 1 : -1
             paint(
               fragment,
@@ -1078,14 +1091,16 @@ export function createBrainPrint2dScene(
         context.save()
         context.globalCompositeOperation = 'multiply'
         context.globalAlpha = clamp(0.3 + thickness * 0.5)
-        context.drawImage(artwork.contourCore, 0, 0, canvas.width, canvas.height)
+        context.drawImage(artwork.contourCore,
+          regionStates[CONTOUR_CORE_REGION].position[1] * 0.3,
+          regionStates[CONTOUR_CORE_REGION].position[0] * 0.3, canvas.width, canvas.height)
         if (doubling > 0.02) {
           context.globalCompositeOperation = 'screen'
           context.globalAlpha = clamp(doubling * 0.7)
           context.drawImage(
             artwork.contourFaint,
-            chromaticMotion * 0.6 * (1 + impulseDrive),
-            depthMotion * 0.4 * (1 + impulseDrive),
+            regionStates[CONTOUR_FAINT_REGION].position[3] * 0.6,
+            regionStates[CONTOUR_FAINT_REGION].position[0] * 0.4,
             canvas.width,
             canvas.height,
           )
@@ -1132,8 +1147,8 @@ export function createBrainPrint2dScene(
             activeInk,
             INK_FRAGMENT_COUNT,
             clamp(bleed * 0.55),
-            -chromaticMotion * 0.55,
-            dislocationMotion * 0.4,
+            -regionMotion(ink[activeInk]).chromaticMotion * 0.55,
+            regionMotion(ink[activeInk]).dislocationMotion * 0.4,
             1 + impulseDrive * 0.12,
           )
           context.restore()
@@ -1156,6 +1171,7 @@ export function createBrainPrint2dScene(
     destroy() {
       destroyed = true
       motionSmoother.reset()
+      regionStates.length = 0
       bitmap?.close()
       bitmap = null
       artwork?.screenprintLayers.forEach((layer) => {

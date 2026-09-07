@@ -2236,3 +2236,17 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   (richiesta esplicita del Consigliere). Nessun mapping noto fra le sigle
   `C02/C03/C04/C05/C06/C08/C09` usate dall'Audio e i nomi dei file: da
   chiarire con l'Audio, non inventarlo.
+
+## SESSION-2026-09-07-PRINT2D — 13:57 Europe/Rome
+
+- Ordine del Consigliere: correzione strutturale delle regioni PRINT2D mentre
+  prosegue altro lavoro sul Varco. Letti STATE, macrotasks, PIANO-039,
+  filosofia.md e istruzioni Output.
+- Completati TASK-033-01/02/03: 12 stati locali, fase circolare filtrata,
+  velocità smorzata e posizione limitata conservata; eliminata l'origine
+  attrattiva e il cambio di direzione/corsia al beat. Corretto delta post-freeze.
+- Verifica: 33 test mirati (inclusi sette preset su contesto Canvas simulato),
+  typecheck e lint verdi. Nessun build o collaudo fullscreen reale eseguito.
+- Stato finale: PIANO-042 implementato, live pendente. Wash-out, impulso locale
+  e lock leggibile subordinati. Nessuna modifica a brainController.ts o al
+  documento del Varco; nessun commit effettuato.

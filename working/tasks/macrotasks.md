@@ -215,3 +215,9 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 ### `MACRO-007`: Preset Manager Avanzato & Snapshot Export
 - **Descrizione**: Espansione del salvataggio dei preset colore/morphing e possibilità di importare/esportare profili live personalizzati.
 - **Stato**: ⚪ PLANNED
+
+## `MACRO-033`: PRINT2D — stato e memoria per regione
+- **Stato**: IN PROGRESS — implementazione e validazione automatica completate;
+  collaudo percettivo fullscreen pendente.
+- **Piano**: `working/plans/piano-042-print2d-stato-regioni.md`.
+- Correzione strutturale mirata, estensione di PIANO-039; nessun intervento sul Varco.

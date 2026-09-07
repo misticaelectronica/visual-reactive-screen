@@ -1,5 +1,17 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## PRINT2D — correzione strutturale per regione — 2026-09-07
+
+- MACRO-033 / PIANO-042: implementazione completata, collaudo fullscreen pendente.
+- Dodici stati (sei lastre, quattro frammenti, due contorni): fase circolare
+  filtrata, velocità smorzata, posizione accumulata senza attrazione all'origine.
+- Limiti locali fissi; silenzio conserva il residuo, freeze sospende lo stato.
+  Eliminati offset globali, armoniche ×2/×4 e inversioni geometriche al beat.
+- Identità, palette, retino, transizioni e pacing low power conservati.
+- 33 test mirati, typecheck e lint verdi; Canvas simulato, nessuna prova live.
+- Prossimo passo: collaudare asincronia e memoria leggera prima di wash-out,
+  impulso locale e lock leggibile. Altro lavoro su Varco escluso dall'intervento.
+
 ## Presenza del raster — Bauhaus / Fractal / DELIQUESCENCE — 2026-09-07
 
 - Disposizione del Capo Supremo: il raster di fondo deve leggersi di più

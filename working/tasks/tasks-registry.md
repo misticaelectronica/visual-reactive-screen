@@ -818,3 +818,11 @@ manuale finale viene eseguito dal Capo Supremo.
   scroll e pubblicare il fix su GitHub Pages.
 - [x] **`TASK-PAGES-04`** `DONE`: Ridurre la scala responsive del titolo
   principale, verificare `ELETTRONICI` a 320/390 px e pubblicare il fix mobile.
+
+## Task PRINT2D — MACRO-033 / PIANO-042
+- [x] **TASK-033-01 [DONE]**: diagnosi e verifica filosofia/protocollo.
+- [x] **TASK-033-02 [DONE]**: stato per regione, fase filtrata, integratore
+  senza ritorno a zero e limiti permanenti; integrazione nei sette preset.
+- [x] **TASK-033-03 [DONE]**: 33 test mirati, typecheck e lint.
+- [ ] **TASK-033-04 [TODO]**: collaudo fullscreen reale su asincronia, residuo,
+  silenzio/ripresa, freeze e low power; poi valutare gli interventi subordinati.
