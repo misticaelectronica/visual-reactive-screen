@@ -119,10 +119,16 @@ export function deliquescenceTonemap(
 ): [number, number, number] {
   const lum = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255)
   const shaped = Math.pow(lum, 1.35)
+  // Disposizione del Capo Supremo (2026-09-07): difetto aperto — figura e
+  // contorno quasi neri su nero, raster praticamente assente. Pavimenti neri
+  // 10/12/18 → 26/24/34 e gate luminanza `0.7 + lum·0.3` → `0.8 + lum·0.2`:
+  // si recupera leggibilità restando nella gamma bassa, il collasso della
+  // forma non si attenua.
+  const gate = 0.8 + lum * 0.2
   return [
-    Math.round((10 + shaped * 120) * (0.7 + lum * 0.3)),
-    Math.round((12 + shaped * 74) * (0.7 + lum * 0.3)),
-    Math.round((18 + shaped * 96) * (0.7 + lum * 0.3)),
+    Math.round((26 + shaped * 120) * gate),
+    Math.round((24 + shaped * 74) * gate),
+    Math.round((34 + shaped * 96) * gate),
   ]
 }
 

@@ -100,6 +100,13 @@ describe('computeUnderlayOpacity', () => {
       expect(samples[index]).toBeLessThanOrEqual(samples[index - 1])
     }
   })
+
+  it('resta al soffitto nella prima parte della degenerazione (dissoluzione lenta)', () => {
+    expect(computeUnderlayOpacity(0.2)).toBeCloseTo(computeUnderlayOpacity(0), 5)
+    expect(computeUnderlayOpacity(0.35)).toBeCloseTo(computeUnderlayOpacity(0), 5)
+    // Solo dopo la soglia il raster comincia davvero a ritirarsi.
+    expect(computeUnderlayOpacity(0.6)).toBeLessThan(computeUnderlayOpacity(0.35))
+  })
 })
 
 describe('computeSpiralArmPoints', () => {

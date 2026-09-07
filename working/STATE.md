@@ -1,5 +1,39 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Presenza del raster — Bauhaus / Fractal / DELIQUESCENCE — 2026-09-07
+
+- Disposizione del Capo Supremo: il raster di fondo deve leggersi di più
+  sotto la grammatica del renderer, senza toccare la grammatica. Tre delle
+  quattro decisioni eseguite qui; **Print2D è rimandato al round PRINT2D**
+  (già in corso in questo tree — `brainPrint2dRegionMotion.ts`): leva nuova
+  autorizzata = passaggio di raster pieno tenue ~0.12–0.18 sotto le lastre,
+  da fare insieme agli offset per regione. Print2D si tocca una volta sola.
+- **Bauhaus-Morph** ([`brainBauhausMorphCanvas.ts`](../src/renderer/output/brain/brainBauhausMorphCanvas.ts)):
+  `UNDERLAY_CEILING` 0.24 → **0.44** (secondo giro "raster ancora più
+  visibile"), `UNDERLAY_FLOOR` 0.08 → 0.16. `UNDERLAY_HARD_CEILING` 0.45 è
+  ora imposto sull'output finale (respiro del beat incluso) — è il limite
+  invalicabile del Capo Supremo, **siamo al tetto**: altri aumenti = nuova
+  disposizione. Terzo giro ("dissoluzione più lenta"):
+  `UNDERLAY_REVEAL_PHASE_END` 0.40 → 0.55 — il raster resta al soffitto più
+  a lungo prima di ritirarsi (solo tempistica, non tocca il tetto).
+  Leva = opacità underlay in `computeBauhausUnderlayOpacity`.
+- **Fractal Spiral Degeneration** ([`brainFractalSpiralCanvas.ts`](../src/renderer/output/brain/brainFractalSpiralCanvas.ts)):
+  `UNDERLAY_FLOOR` 0.55 → 0.70, `FILL_ALPHA_CEILING` 0.32 → 0.26,
+  `ARM_ALPHA_BASE` 0.40 → 0.32, `ARM_ALPHA_DETAIL` 0.25 → 0.20. Se serve
+  altro margine, contenere il layer di degenerazione `lighter` prima di
+  alzare ancora l'underlay. Dissoluzione più lenta ("più in presenza"):
+  `computeUnderlayOpacity` ora tiene il soffitto finché
+  `degenerationProgress` ≤ `UNDERLAY_HOLD_UNTIL` (0.35), poi scende al
+  pavimento con curva dolce — invece di calare lineare da subito.
+- **DELIQUESCENCE** ([`brainDeliquescenceCanvas.ts`](../src/renderer/output/brain/brainDeliquescenceCanvas.ts)):
+  **difetto aperto** (figura/contorno quasi neri su nero) mai corretto dal
+  rework. `deliquescenceTonemap`: pavimenti neri 10/12/18 → 26/24/34, gate
+  luminanza `0.7 + lum·0.3` → `0.8 + lum·0.2`. Span invariati, collasso
+  della forma invariato. Test: grigio medio ora stacca dal fondo `#0a0812`
+  (min > 30).
+- Validazione: typecheck + lint puliti, 66 file / 628 test. Collaudo live da
+  fare. Precedenza `unresolved` invariata.
+
 ## Output su 2° monitor (macOS): icona sparita dalla Dock + fullscreen — 2026-09-07
 
 - Sintomo (macOS, desktop esteso): appena si apre la finestra Output

@@ -74,6 +74,16 @@ describe('deliquescenceTonemap — riscrive scuro conservando la luminanza relat
     expect(lum(light)).toBeGreaterThan(lum(dark))
     expect(Math.max(...light)).toBeLessThan(160)
   })
+
+  it('non schiaccia più la figura sul nero del fondo (difetto aperto 2026-09-07)', () => {
+    // Il fondo notturno è #0a0812 (10, 8, 18). Un grigio medio deve staccarsi
+    // nettamente, non restare "quasi nero su nero".
+    const mid = deliquescenceTonemap(128, 128, 128)
+    expect(Math.min(...mid)).toBeGreaterThan(30)
+    // Anche un'ombra profonda resta sopra il pavimento nero alzato.
+    const shadow = deliquescenceTonemap(20, 20, 20)
+    expect(Math.max(...shadow)).toBeGreaterThan(24)
+  })
 })
 
 describe('deliquescenceNoise / tide / phase', () => {

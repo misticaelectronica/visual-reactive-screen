@@ -75,13 +75,19 @@ const MAX_REGIONS_FOR_ANALYSIS = 12
 // gli oggetti e la spirale per l'intera degenerazione, non solo
 // all'inizio.
 const UNDERLAY_CEILING = 0.92
-const UNDERLAY_FLOOR = 0.55
+// Disposizione del Capo Supremo (2026-09-07, "presenza del raster"):
+// pavimento 0.55 → 0.70. È già il renderer col raster più presente: se il
+// margine si esaurisce, contenere prima il layer di degenerazione in
+// `lighter` che alzare ancora l'underlay.
+const UNDERLAY_FLOOR = 0.7
 // Tetti di opacità del riempimento interno (massa + bracci): abbassati in
 // parallelo all'alzata dell'underlay — la materia spiraliforme deve
-// convivere con il raster dentro l'oggetto, non sostituirlo.
-const FILL_ALPHA_CEILING = 0.32
-const ARM_ALPHA_BASE = 0.4
-const ARM_ALPHA_DETAIL = 0.25
+// convivere con il raster dentro l'oggetto, non sostituirlo. Stessa
+// disposizione: 0.32 → 0.26, base bracci 0.40 → 0.32, dettaglio in
+// proporzione (0.25 → 0.20).
+const FILL_ALPHA_CEILING = 0.26
+const ARM_ALPHA_BASE = 0.32
+const ARM_ALPHA_DETAIL = 0.2
 
 type RGB = readonly [number, number, number]
 
@@ -353,8 +359,18 @@ export function advanceDegenerationProgress(
   return clamp(progress + delta * (0.045 + motion.density * 0.035 + motion.beat * 0.02))
 }
 
+// Dissoluzione più lenta (Capo Supremo, "il raster deve stare un po' di più
+// in presenza"): il raster resta al soffitto finché `degenerationProgress`
+// non supera `UNDERLAY_HOLD_UNTIL`, poi scende al pavimento con una curva
+// dolce sul tratto restante — invece di calare linearmente da subito.
+const UNDERLAY_HOLD_UNTIL = 0.35
+
 export function computeUnderlayOpacity(degenerationProgress: number): number {
-  return UNDERLAY_CEILING - clamp(degenerationProgress) * (UNDERLAY_CEILING - UNDERLAY_FLOOR)
+  const progress = clamp(degenerationProgress)
+  if (progress <= UNDERLAY_HOLD_UNTIL) return UNDERLAY_CEILING
+  const fade = (progress - UNDERLAY_HOLD_UNTIL) / (1 - UNDERLAY_HOLD_UNTIL)
+  const eased = fade * fade * (3 - 2 * fade)
+  return UNDERLAY_CEILING - eased * (UNDERLAY_CEILING - UNDERLAY_FLOOR)
 }
 
 /**
