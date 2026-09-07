@@ -211,6 +211,20 @@ Regola:
 
 - Il main conserva `latestVisualState` e lo reinvia quando l'output viene mostrato.
 
+macOS, 2° monitor — icona sparita dalla Dock / fullscreen dell'Output:
+
+- L'icona spariva perché la BrowserWindow dell'Output aveva `skipTaskbar:
+  true`, che su macOS Electron esegue come `app.dock.hide()`. Tenere
+  `skipTaskbar: process.platform !== 'darwin'` (serve solo a Windows).
+- Per il fullscreen dell'Output usare **`setFullScreen(true)` nativo**, non
+  `setKiosk` (nasconde la Dock di sistema, l'operatore non vede l'icona) né
+  `setSimpleFullScreen` (su display secondario lascia la finestra senza
+  contenuto renderizzato — electron/electron#34367).
+- `ensureOutputVisible` è agganciata a tre trigger (`ready-to-show`,
+  `did-finish-load`, fallback 500ms): le API di fullscreen vanno chiamate
+  una volta sola (guard `fullscreenApplied`), altrimenti l'Output resta a
+  schermo colorato senza contenuto.
+
 ## Skill: IPC E Preload
 
 Quando usare:

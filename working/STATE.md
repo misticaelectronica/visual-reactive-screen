@@ -1,5 +1,34 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Output su 2° monitor (macOS): icona sparita dalla Dock + fullscreen — 2026-09-07
+
+- Sintomo (macOS, desktop esteso): appena si apre la finestra Output
+  l'icona dell'applicazione scompare dalla Dock.
+- **Causa**: la finestra Output in [`windows.ts`](../src/main/windows.ts)
+  era creata con `skipTaskbar: true`. Su macOS Electron lo esegue come
+  `app.dock.hide()` — l'app sparisce dalla Dock nel momento in cui l'Output
+  viene creato. `skipTaskbar` serviva solo a evitare una seconda voce in
+  taskbar su Windows.
+- **Correzione applicata** (3 modifiche minime in `ensureOutputVisible` /
+  opzioni della BrowserWindow):
+  - `skipTaskbar: process.platform !== 'darwin'` — niente più
+    `app.dock.hide()` su macOS.
+  - `setKiosk` / `setVisibleOnAllWorkspaces` → **`setFullScreen(true)`
+    nativo** su tutte le piattaforme. Il kiosk macOS nasconde la Dock a
+    livello di sistema (l'operatore non vede l'icona); `setSimpleFullScreen`
+    su display secondario lascia l'Output senza contenuto renderizzato
+    ([electron/electron#34367](https://github.com/electron/electron/issues/34367)).
+    `setAlwaysOnTop('screen-saver')` resta solo fuori da darwin.
+  - guard `fullscreenApplied`: `ensureOutputVisible` è agganciata a tre
+    trigger (`ready-to-show`, `did-finish-load`, fallback 500ms) — le API di
+    fullscreen vanno chiamate una volta sola, altrimenti la finestra resta
+    a schermo colorato senza contenuto.
+- Esito collaudato dal vivo su due monitor: icona presente nella Dock +
+  Output a schermo intero col contenuto. `typecheck` + `lint` puliti.
+- **Non committato** in questo giro: `brainController.ts` e
+  `docs/varco-percettivo.md` (latch `imageInferenceActive` del Varco) —
+  modifiche non originate qui, lasciate al proprio autore.
+
 ## `unresolved` per mancanza di contrasto — eredita il livello precedente — 2026-09-05
 
 - Ordine del Capo Supremo in risposta alla diagnosi (sotto): quando

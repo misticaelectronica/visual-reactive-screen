@@ -199,6 +199,12 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     win.focus()
   }
 
+  // ensureOutputVisible viene richiamata da tre trigger (ready-to-show,
+  // did-finish-load, fallback 500ms): le API di fullscreen vanno applicate
+  // una volta sola, chiamarle di nuovo mentre la finestra sta già entrando
+  // in fullscreen la lascia a schermo colorato senza contenuto.
+  let fullscreenApplied = false
+
   const ensureOutputVisible = () => {
     const win = outputWindow
     if (!win || win.isDestroyed()) return
@@ -206,14 +212,19 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     console.log('[main] ensuring output window is visible')
     win.setBounds(outputShouldBeFullscreen ? target.bounds : windowedBounds)
     win.show()
-    if (outputShouldBeFullscreen) {
-      if (process.platform === 'darwin') {
-        win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-        win.setKiosk(true)
-      } else {
-        win.setFullScreen(true)
+    if (outputShouldBeFullscreen && !fullscreenApplied) {
+      fullscreenApplied = true
+      // Fullscreen NATIVO su tutte le piattaforme:
+      // - NON `setKiosk` (macOS): nasconde la Dock di sistema e fa sparire
+      //   l'icona dell'app all'operatore;
+      // - NON `setSimpleFullScreen` (macOS): su display secondario lascia la
+      //   finestra senza contenuto renderizzato (bug noto di Electron).
+      // Il fullscreen nativo tiene l'icona nella Dock e disegna il contenuto;
+      // su desktop esteso occupa uno Spazio solo sul monitor del proiettore.
+      win.setFullScreen(true)
+      if (process.platform !== 'darwin') {
+        win.setAlwaysOnTop(true, 'screen-saver')
       }
-      win.setAlwaysOnTop(true, 'screen-saver')
     }
     win.focus()
   }
@@ -226,7 +237,10 @@ export function createOutputWindow(displayId: number): { ok: true } | { ok: fals
     frame: false,
     backgroundColor: '#170204',
     show: true,
-    skipTaskbar: true,
+    // Solo Windows/Linux: su macOS `skipTaskbar` viene eseguito come
+    // `app.dock.hide()` e fa sparire l'icona dell'app dalla Dock appena
+    // si apre l'Output.
+    skipTaskbar: process.platform !== 'darwin',
     autoHideMenuBar: true,
     icon: iconPath(),
     webPreferences: {
