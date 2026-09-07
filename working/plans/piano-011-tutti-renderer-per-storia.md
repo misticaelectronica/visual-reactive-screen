@@ -1,9 +1,12 @@
 # Piano di Lavoro: Tutti i Renderer per Storia
 
 > **ID Piano**: `PIANO-011`  
-> **Macrotask di Riferimento**: `MACRO-010`  
+> **Macrotask di Riferimento**: `MACRO-013`  
 > **Data Creazione**: 2026-08-10  
-> **Stato**: `IN_PROGRESS`  
+> **Stato**: `ARCHIVIATO` — superato da `PIANO-015` (Regia Casuale Brain e
+> Morphing), che distribuisce i renderer sui fotogrammi invece di far
+> attraversare l'intera storia a un renderer per volta. Chiusura registro,
+> Consigliere 2026-09-07.  
 > **Autore/Agente**: Codex / Capo Supremo
 
 ---

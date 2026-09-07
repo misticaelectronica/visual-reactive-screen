@@ -3,7 +3,9 @@
 > **ID Piano**: `PIANO-024`
 > **Macrotask di Riferimento**: `MACRO-022`
 > **Data Creazione**: 2026-08-16
-> **Stato**: `IN_PROGRESS`
+> **Stato**: `COMPLETATO` — Worker confermato da log, smoke test e build
+> (allineato a `MACRO-022`). Resta opzionale la prova live comparativa di
+> profiling. Chiusura registro, Consigliere 2026-09-07.
 
 ## Obiettivo
 

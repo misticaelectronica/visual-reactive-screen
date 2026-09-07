@@ -3,7 +3,8 @@
 > **ID Piano**: `PIANO-017`  
 > **Macrotask di Riferimento**: `MACRO-015`  
 > **Data Creazione**: 2026-08-16  
-> **Stato**: `COMPLETATO`  
+> **Stato**: `IMPLEMENTATO — VALIDAZIONE AUTOMATICA COMPLETA, PROVA LIVE PENDENTE`
+> (allineato a `MACRO-015`, chiusura registro 2026-09-07)  
 > **Autore/Agente**: Agente AI
 
 ---
