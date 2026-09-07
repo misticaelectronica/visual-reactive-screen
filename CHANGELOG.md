@@ -3,6 +3,52 @@
 Le modifiche rilevanti di Mistica Electronica Visual Reactive Screen sono
 raccolte qui. Il progetto segue versioni semantiche con prerelease Beta e RC.
 
+## [1.0.0-rc.3] — 2026-09-07
+
+Consolida il lavoro bio-percettivo (già `1.0.0-rc.2`), il Varco, Print2D e la
+presenza del raster in un'unica release candidate. Chiusura del registro dei
+piani: gli otto piani renderer sono marcati implementati; restano attivi il
+blocco prestazioni, Print2D e il bootstrap lungo bio-percettivo.
+
+### Modificato
+
+- Varco Percettivo: copertura estesa all'intera durata dell'inferenza
+  immagine (latch `imageInferenceActive`), non più una finestra a impulso
+  fissa di 2,5 s più corta del fotogramma da coprire.
+- Print2D: stato e movimento per regione — dodici stati locali, fase
+  circolare filtrata, posizione accumulata entro limiti permanenti; il freeze
+  non accumula più delta da recuperare alla ripresa.
+- Bauhaus Morph, Fractal Spiral Degeneration e DELIQUESCENCE: il raster di
+  fondo resta più presente e si dissolve più lentamente sotto la grammatica
+  del renderer, senza toccarne la grammatica.
+
+### Corretto
+
+- Riferimento bio-percettivo: promozione corretta, deriva della mediana
+  neutralizzata, ereditarietà del livello.
+- Plateau nei transienti corretto; isteresi aggiunta sul trend.
+- `unresolved` per livello mancante eredita il livello precedente valido
+  invece di azzerarlo.
+- DELIQUESCENCE: figura e contorno non più quasi neri su nero (tonemap con
+  pavimenti alzati e gate di luminanza allargato).
+- macOS, output su secondo monitor: l'icona dell'app non sparisce più dalla
+  Dock all'apertura dell'Output; il fullscreen usa l'API nativa invece del
+  kiosk.
+
+### Verifica
+
+- Typecheck e lint puliti.
+- Suite completa: 66 file, 629 test superati.
+
+### Da collaudare prima di 1.0.0 stabile
+
+- Varco visibile per l'intero fotogramma durante generazioni lente, senza
+  scatti al centro dell'inferenza.
+- Print2D per regione su set reale prolungato: asincronia, residuo,
+  silenzio/ripresa, freeze e low power.
+- Presenza del raster nei tre renderer su proiettore reale.
+- Bootstrap lungo bio-percettivo (PIANO-040 ancora aperto).
+
 ## [1.0.0-rc.1] — 2026-08-28
 
 ### Aggiunto

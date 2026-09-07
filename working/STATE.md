@@ -1,5 +1,24 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Chiusura piani + `1.0.0-rc.3` — 2026-09-07
+
+- Disposizione del Consigliere: commit del working tree in unità separate
+  (Varco / Print2D / presenza del raster — bio-percettivo era già in rc.2),
+  chiusura del registro, avanzamento a release candidate. Nessun push
+  (deciso dal Capo Supremo: commit + tag locali).
+- **Commit**: `feat(varco)`, `feat(brain)` presenza raster, `feat(print2d)`
+  stato per regione, `chore(registry)` chiusura piani, `chore(release)`
+  rc.3. Tag locale `v1.0.0-rc.3`.
+- **Registro**: otto piani renderer marcati implementati (riapertura
+  singola, nessuna campagna di collaudo unica). Attivi: `MACRO-009` +
+  `MACRO-020` (blocco prestazioni), `MACRO-033` (Print2D PIANO-042/039),
+  PIANO-040 (bootstrap lungo). `MACRO-008`/PIANO-005 **parcheggiato**
+  (ristrutturazione autonoma del grafo richiede decisione esplicita).
+  PIANO-011 **archiviato** in PIANO-015. PIANO-008 confermato **attivo**
+  dal Capo Supremo. Allineati gli header di PIANO-017/018/021/024 ai
+  rispettivi macrotask.
+- Validazione: typecheck + lint puliti, 66 file / 629 test.
+
 ## PRINT2D — correzione strutturale per regione — 2026-09-07
 
 - MACRO-033 / PIANO-042: implementazione completata, collaudo fullscreen pendente.
