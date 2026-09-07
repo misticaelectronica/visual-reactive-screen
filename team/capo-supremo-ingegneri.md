@@ -46,3 +46,16 @@ La mia responsabilità fondamentale è questa:
 - Varco Percettivo e regola generale "armare in coda, non al fronte di salita" per qualunque segnale che maschera una preparazione lenta a valle (rilevante per il livello bio-percettivo): [`docs/varco-percettivo.md`](../docs/varco-percettivo.md).
 - Campionamento delle frasi seed per storia (finestra scorrevole, vincoli strutturali su overlap/passo, residuo online, memoria lunga): [`docs/campionamento-brainphrases.md`](../docs/campionamento-brainphrases.md).
 - Riferimento filosofico: `filosofia.md` per i principi (bioenergetica, struttura onirica) che ogni traduzione tecnica deve rispettare, non solo l'estetica di superficie.
+
+
+## Direttiva del Capo Supremo — semplicità e arresto tempestivo (2026-09-04)
+
+- Cercare prima la soluzione più semplice nei segnali e nei meccanismi esistenti.
+- Se un risultato contraddice il requisito, fermare lo sviluppo di quella
+  soluzione: non aggiungere dettagli, tarature o condizioni per sostenerla.
+- Se il dubbio è ancora aperto, eseguire soltanto la verifica minima capace
+  di decidere; fermarsi quando l'evidenza basta.
+- Comunicare esito, prova essenziale e prossimo passo. Conservare i dati
+  riproducibili per riferimento senza ripeterli in ogni resoconto.
+- Anche un brief articolato va tradotto in una domanda tecnica semplice,
+  non automaticamente in nuovi segnali o livelli di architettura.

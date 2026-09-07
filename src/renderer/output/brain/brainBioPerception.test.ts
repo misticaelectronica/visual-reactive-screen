@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { BandEnergies } from '@shared/types'
 import {
   advanceBioEnvelopes,
+  advanceBioRhythmConstraint,
+  calculateRhythmConstraint,
+  createInitialBioRhythmConstraintState,
   advanceBioReference,
   advanceBioRegime,
   advanceBioResidual,
@@ -24,9 +27,51 @@ import {
   createInitialBioTemporalOccupancyState,
   createInitialBioTrendState,
   type BrainBioPerceptionSignals,
+  type BrainBioRegimeState,
 } from './brainBioPerception'
 
 const SILENT: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
+
+describe('rhythmConstraint — confirmed attacks versus clock prediction', () => {
+  const bass: BandEnergies = { low: 0.9, lowMid: 0.8, mid: 0.1, high: 0.1 }
+  const predicted = { active: true, kickEnvelope: 1, beatPulse: 1 }
+
+  it('does not turn a sustained bass bed and projected beats into constraint', () => {
+    let state = createInitialBioRhythmConstraintState()
+    for (let i = 0; i < 600; i += 1) {
+      state = advanceBioRhythmConstraint(state, bass, SILENT, predicted, 50)
+    }
+    expect(state.lowEnd).toBeGreaterThan(0.8)
+    expect(state.pulse).toBe(0)
+    expect(calculateRhythmConstraint(state)).toBe(0)
+  })
+
+  it('responds to real articulation at identical band energy and releases in silence', () => {
+    let state = createInitialBioRhythmConstraintState()
+    for (let i = 0; i < 600; i += 1) {
+      state = advanceBioRhythmConstraint(state, bass,
+        i % 10 === 0 ? { low: 1, lowMid: 0.7, mid: 0.5, high: 0.5 } : SILENT,
+        predicted, 50)
+    }
+    const activeConstraint = calculateRhythmConstraint(state)
+    expect(activeConstraint).toBeGreaterThan(0)
+    const oneMissingBeat = advanceBioRhythmConstraint(state, bass, SILENT, predicted, 500)
+    expect(calculateRhythmConstraint(oneMissingBeat)).toBeGreaterThan(activeConstraint * 0.5)
+    for (let i = 0; i < 600; i += 1) {
+      state = advanceBioRhythmConstraint(state, SILENT, SILENT,
+        { active: false, kickEnvelope: 0, beatPulse: 0 }, 50)
+    }
+    expect(calculateRhythmConstraint(state)).toBeLessThan(0.000001)
+  })
+
+  it('does not depend on projected pulse amplitude when confirmed attacks are identical', () => {
+    const initial = createInitialBioRhythmConstraintState()
+    const a = advanceBioRhythmConstraint(initial, bass, bass, predicted, 50)
+    const b = advanceBioRhythmConstraint(initial, bass, bass,
+      { active: true, kickEnvelope: 0, beatPulse: 0 }, 50)
+    expect(a).toEqual(b)
+  })
+})
 
 function feed(bands: BandEnergies, steps: number, stepMs: number) {
   let envelopes = createInitialBioEnvelopes()
@@ -185,7 +230,7 @@ describe('reference — macchina a stati a due fasi (correzione Audio, PIANO-040
     // Alterna persistence alta/bassa: il totale cumulato di tempo "alto"
     // supera abbondantemente 4s, ma mai in un tratto continuo — non deve
     // mai promuovere.
-    for (let index = 0; index < 20; index += 1) {
+    for (let index = 0; index < 30; index += 1) {
       reference = advanceBioReference(reference, worldB, index % 2 === 0 ? 0.9 : 0.2, 0.9, 3_000)
     }
     expect(reference.phase).toBe('awaiting-confirmation')
@@ -209,19 +254,24 @@ describe('reference — macchina a stati a due fasi (correzione Audio, PIANO-040
       }
       envelopes = advanceBioEnvelopes(envelopes, target, stepMs)
       const persistence = calculatePersistence(envelopes)
-      // All'inizio della rampa (primi secondi) la reference non si è ancora
-      // mossa: la trasformazione è troppo lenta per aver già invalidato nulla.
-      if (index === 10) {
-        expect(reference.phase).toBe('stable')
-        expect(reference.vector).toEqual(worldA)
-      }
+      reference = advanceBioReference(reference, envelopes.mid, persistence, 0.7, stepMs)
+      // Finché il mondo si sta ancora muovendo (rampa in corso) il gate di
+      // convergenza di `mid` impedisce OGNI promozione: né prematura né
+      // parziale. `reference` resta esattamente su worldA — nessun undershoot
+      // verso un punto intermedio fra i due mondi (bug 2026-08-31).
+      expect(reference.vector).toEqual(worldA)
+    }
+    // Rampa finita: worldB viene ora tenuto fermo. Solo adesso `mid` converge e
+    // la promozione può completarsi.
+    for (let index = 0; index < 300; index += 1) {
+      envelopes = advanceBioEnvelopes(envelopes, worldB, stepMs)
+      const persistence = calculatePersistence(envelopes)
       reference = advanceBioReference(reference, envelopes.mid, persistence, 0.7, stepMs)
     }
-    // Dopo un'evoluzione sufficientemente lunga e coerente, la reference si
-    // è infine spostata verso il nuovo mondo — non è rimasta bloccata per
-    // sempre né è saltata istantaneamente al primo scarto.
-    expect(reference.vector).not.toEqual(worldA)
-    expect(calculateChange(reference.vector, worldB)).toBeLessThan(calculateChange(worldA, worldB))
+    // Non è rimasta bloccata su A né si è fermata a metà strada: ha raggiunto
+    // il nuovo mondo per intero.
+    expect(reference.phase).toBe('stable')
+    expect(calculateChange(reference.vector, worldB)).toBeLessThan(0.05)
   })
 
   it('collaudo dal vivo 2026-08-28 (secondo giro): un picco isolato all\'ingresso non ancora la reference al suo valore, la media della finestra sì', () => {
@@ -361,13 +411,11 @@ describe('mediana/dispersione del set — SOLO CONTESTO (brief Audio 2026-08-28,
   })
 })
 
-// NUOVO (2026-08-28): sostituisce il vecchio describe "pressureTrend —
-// posizione immediata rispetto alla mediana". `pressureTrend` non legge più
-// la mediana (brief Audio, §4/§6): confronta la pressione live con
-// `reference.pressure`, la configurazione immediatamente precedente. La
-// funzione è pura e si testa direttamente, senza passare per il clock.
-describe('classifyPressureTrend — posizione rispetto al riferimento, non alla mediana (brief Audio 2026-08-28)', () => {
-  it('sopra il riferimento oltre la zona neutra è "rising", sotto è "falling"', () => {
+// AUDIO-REGIMI-POSTCOLLAUDO-01: `pressureTrend` non descrive più la posizione
+// rispetto al reference ma il verso corrente, confrontando la pressione live
+// con la propria linea ritardata già esistente.
+describe('classifyPressureTrend — verso corrente della traiettoria di pressione', () => {
+  it('sopra la linea ritardata oltre la zona neutra è "rising", sotto è "falling"', () => {
     expect(classifyPressureTrend(0.7, 0.5)).toBe('rising')
     expect(classifyPressureTrend(0.3, 0.5)).toBe('falling')
   })
@@ -375,30 +423,59 @@ describe('classifyPressureTrend — posizione rispetto al riferimento, non alla 
   it('la zona neutra assorbe un pareggio numerico senza dichiarare una direzione', () => {
     expect(classifyPressureTrend(0.5, 0.5)).toBe('stable')
     expect(classifyPressureTrend(0.51, 0.5)).toBe('stable')
-    expect(classifyPressureTrend(0.56, 0.5)).toBe('rising')
+    expect(classifyPressureTrend(0.57, 0.5)).toBe('rising')
   })
 
-  it('controesempio del brief §4: un set molto pressato con riduzione modesta non legge come apertura', () => {
-    // Riferimento alto (set molto pressato) — una riduzione modesta che
-    // avrebbe attraversato una mediana storica non deve leggere "falling"
-    // se resta vicina al riferimento reale.
-    expect(classifyPressureTrend(0.87, 0.88)).toBe('stable')
+  it('legge DECOMPRESSION anche quando il presente resta sopra il vecchio reference', () => {
+    // pp=0.70 è ancora sopra un ipotetico reference=0.40, ma è sotto la linea
+    // ritardata 0.78: la costrizione sta cedendo e deve leggere falling.
+    expect(classifyPressureTrend(0.7, 0.78)).toBe('falling')
   })
 
-  it('collaudo dal vivo 2026-08-28: una ricostruzione reale (0.77 su riferimento 0.7408) deve leggere "rising"', () => {
-    // Caso reale osservato dal Capo Supremo: con la vecchia zona neutra
-    // (0.05) 0.77 restava "stable" perché non superava 0.7408+0.05=0.79 —
-    // il respiro non si chiudeva pur con la pressione tornata alta.
-    expect(classifyPressureTrend(0.77, 0.7408363166560792)).toBe('rising')
+  it('legge PRESSURIZED anche quando il presente resta sotto il vecchio reference', () => {
+    // pp=0.45 è ancora sotto un ipotetico reference=0.80, ma è sopra la linea
+    // ritardata 0.40: la costrizione sta crescendo e deve leggere rising.
+    expect(classifyPressureTrend(0.47, 0.4)).toBe('rising')
+  })
+
+  it('isteresi: mantiene reattive le oscillazioni reali', () => {
+    expect(classifyPressureTrend(0.525, 0.5)).toBe('rising')
+    expect(classifyPressureTrend(0.475, 0.5)).toBe('falling')
+    expect(classifyPressureTrend(0.515, 0.5)).toBe('stable')
+    // Già in 'rising': si esce solo quando `diff` rientra a +0.004 (0.02 −
+    // 0.016). A +0.014 — la quantizzazione osservata — NON si esce.
+    expect(classifyPressureTrend(0.514, 0.5, 'rising')).toBe('rising')
+    expect(classifyPressureTrend(0.506, 0.5, 'rising')).toBe('rising')
+    expect(classifyPressureTrend(0.503, 0.5, 'rising')).toBe('stable') // < +0.004
+    // Simmetrico in 'falling'.
+    expect(classifyPressureTrend(0.486, 0.5, 'falling')).toBe('falling')
+    expect(classifyPressureTrend(0.497, 0.5, 'falling')).toBe('stable')
+  })
+
+  it('isteresi: tre binari a 0.014 di distanza attorno alla transizione non producono tre stati diversi', () => {
+    // Il difetto dimostrato sul campo: pp che oscilla su rotaie quantizzate
+    // a ~0.014 vicino alla soglia. Con isteresi, restando in 'rising', i tre
+    // livelli 0.512 / 0.526 / 0.540 danno tutti 'rising' — non
+    // stable/rising/rising né peggio.
+    const lagged = 0.5
+    const rails = [0.512, 0.526, 0.54]
+    let trend: ReturnType<typeof classifyPressureTrend> = 'rising'
+    const seen = new Set<string>()
+    for (let cycle = 0; cycle < 6; cycle += 1) {
+      for (const pp of rails) {
+        trend = classifyPressureTrend(pp, lagged, trend)
+        seen.add(trend)
+      }
+    }
+    expect([...seen]).toEqual(['rising'])
   })
 })
 
 // RISCRITTE (2026-08-28) per il brief finale Audio/Visual "Respiro Alto,
 // Respiro Profondo e stasi strutturale": due assi indipendenti — forma
-// (`transforming`, da `reference.phase`) e livello (`level`, da mediana/
-// dispersione con isteresi). `classifyRawBioRegime` non decide più *se*
-// c'è una trasformazione (lo decide il chiamante passando `transforming`),
-// solo *verso dove* (pressureTrend) o, in stasi, *quale livello*.
+// (`pressureTrend`, dalla traiettoria della pressione) e livello (`level`).
+// `classifyRawBioRegime` traduce il verso in passaggio oppure, quando il verso
+// è stabile, il livello in una stasi abitata.
 const PRESSURIZED_SIGNALS: BrainBioPerceptionSignals = {
   persistence: 0.8,
   change: 0.1,
@@ -459,6 +536,11 @@ describe('advanceBioRegime — silenzio diretto, livello con isteresi, nessuna c
     pressureTrend: 'stable',
     ...overrides,
   })
+  const landedRegime = (): BrainBioRegimeState => ({
+    ...createInitialBioRegimeState(),
+    pressureLagged: 0.4,
+    pressureFlatMs: 9_000,
+  })
 
   it('il regime di passaggio segue immediatamente pressureTrend, senza una finestra propria', () => {
     let regime = createInitialBioRegimeState()
@@ -468,22 +550,290 @@ describe('advanceBioRegime — silenzio diretto, livello con isteresi, nessuna c
     expect(regime.current).toBe('pressurized')
   })
 
-  it('in stasi, il livello sopra la mediana + banda è RESPIRO ALTO, sotto è RESPIRO PROFONDO', () => {
-    let regime = createInitialBioRegimeState()
-    regime = advanceBioRegime(regime, baseSignals({ perceptualPressure: 0.8 }), 0.5, 100)
+  it('alla promozione di una stasi, la reference sopra la mediana + banda è RESPIRO ALTO, sotto è RESPIRO PROFONDO', () => {
+    let regime = landedRegime()
+    // Alla promozione di una stasi (`justSettled`) il livello usa la
+    // `reference.pressure` contro la mediana.
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.8, everPromoted: true, justSettled: true,
+    })
     expect(regime.current).toBe('respiro-alto')
-    regime = advanceBioRegime(regime, baseSignals({ perceptualPressure: 0.2 }), 0.5, 100)
+    expect(regime.reason).toBe('stasis-settled-alto')
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.2, everPromoted: true, justSettled: true,
+    })
     expect(regime.current).toBe('respiro-profondo')
+    expect(regime.reason).toBe('stasis-settled-profondo')
   })
 
-  it('nella zona centrale (né chiaramente sopra né sotto) il livello conserva il carattere precedente — nessuna oscillazione artificiale', () => {
+  it('fra due promozioni il livello resta congelato alla configurazione (reason stasis-held)', () => {
+    let regime = landedRegime()
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.8, everPromoted: true, justSettled: true,
+    })
+    expect(regime.current).toBe('respiro-alto')
+    // Nessuna nuova stasi (`justSettled: false`): il livello NON viene
+    // ricalcolato, nemmeno passando una mediana che si è mossa e una pressione
+    // di riferimento ora più bassa. La deriva non cambia lo stato.
+    regime = advanceBioRegime(regime, baseSignals({}), 0.9, 100, false, {
+      pressure: 0.2, everPromoted: true, justSettled: false,
+    })
+    expect(regime.current).toBe('respiro-alto')
+    expect(regime.reason).toBe('stasis-held')
+  })
+
+  it('alla promozione, una reference entro la banda neutra attorno alla mediana conserva il livello precedente', () => {
+    let regime = landedRegime()
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.8, everPromoted: true, justSettled: true,
+    })
+    expect(regime.current).toBe('respiro-alto')
+    // Nuova stasi ma `reference.pressure` dentro la banda neutra: il livello
+    // resta 'alto', non oscilla a profondo né a unresolved.
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.51, everPromoted: true, justSettled: true,
+    })
+    expect(regime.current).toBe('respiro-alto')
+  })
+
+  it('un’oscillazione bidirezionale non viene promossa a Respiro Alto nei punti a trend stable', () => {
+    const ref = { pressure: 0.8, everPromoted: true, justSettled: false }
+    let regime: BrainBioRegimeState = {
+      ...landedRegime(),
+      current: 'respiro-alto',
+      level: 'alto',
+      reason: 'stasis-held',
+    }
+    const seen = new Set<string>()
+    for (const [pressureTrend, perceptualPressure] of [
+      ['falling', 0.25], ['stable', 0.3],
+      ['rising', 0.7], ['stable', 0.65],
+      ['falling', 0.28], ['stable', 0.32],
+      ['rising', 0.72], ['stable', 0.68],
+    ] as const) {
+      regime = advanceBioRegime(
+        regime,
+        baseSignals({ pressureTrend, perceptualPressure }),
+        0.5,
+        250,
+        false,
+        ref,
+      )
+      seen.add(regime.current)
+      expect(regime.current).not.toBe('respiro-alto')
+    }
+    expect(seen).toContain('decompression')
+    expect(seen).toContain('pressurized')
+  })
+
+  it('bootstrap: finché reference non è mai stato affidabile, i due respiri non sono dichiarabili', () => {
     let regime = createInitialBioRegimeState()
-    regime = advanceBioRegime(regime, baseSignals({ perceptualPressure: 0.8 }), 0.5, 100)
+    // Pressione alta e stabile, ma `everPromoted: false`: resta unresolved.
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.8, everPromoted: false, justSettled: true,
+    })
+    expect(regime.current).toBe('unresolved')
+    expect(regime.reason).toBe('bootstrap')
+    // I passaggi restano disponibili anche in bootstrap.
+    regime = advanceBioRegime(regime, baseSignals({ pressureTrend: 'rising' }), 0.5, 100, false, {
+      pressure: 0.8, everPromoted: false, justSettled: false,
+    })
+    expect(regime.current).toBe('pressurized')
+    expect(regime.reason).toBe('pressure-rising')
+  })
+
+  it('prima stasi senza contrasto: reference affidabile ma livello indeterminato (reason stasis-level-indeterminate)', () => {
+    let regime = createInitialBioRegimeState()
+    // `everPromoted: true`, `justSettled: true`, ma `reference.pressure` ≈ mediana:
+    // nessun contrasto per dedurre alto/profondo. Non si inventa.
+    regime = advanceBioRegime(regime, baseSignals({}), 0.5, 100, false, {
+      pressure: 0.5, everPromoted: true, justSettled: true,
+    })
+    expect(regime.current).toBe('unresolved')
+    expect(regime.level).toBeNull()
+    expect(regime.reason).toBe('stasis-level-indeterminate')
+  })
+
+  it('una decompressione atterrata diventa Respiro Profondo per livello ereditato, senza attendere reference', () => {
+    // `reference.pressure` è ancora quella del vecchio mondo alto (0.8): la
+    // via ordinaria resterebbe `decompression` per ~40s finché `reference`
+    // non si ri-promuove. L'ereditarietà non aspetta.
+    const ref = { pressure: 0.8, everPromoted: true, justSettled: false }
+    let regime = createInitialBioRegimeState()
+    // discesa REALE: `pp` cala da 0.75 a 0.2 (serve per il latch di direzione
+    // — una `pp` costante da zero leggerebbe come "risalita").
+    for (const pp of [0.75, 0.6, 0.45, 0.3, 0.2]) {
+      regime = advanceBioRegime(
+        regime, baseSignals({ pressureTrend: 'falling', perceptualPressure: pp }), 0.5, 500, false, ref,
+      )
+      expect(regime.current).toBe('decompression')
+    }
+    // poi `pp` piatta a 0.2: atterra → eredita Respiro Profondo.
+    for (let index = 0; index < 60; index += 1) {
+      regime = advanceBioRegime(
+        regime, baseSignals({ pressureTrend: 'falling', perceptualPressure: 0.2 }), 0.5, 500, false, ref,
+      )
+    }
+    expect(regime.current).toBe('respiro-profondo')
+    expect(regime.level).toBe('profondo')
+    expect(regime.reason).toBe('stasis-inherited-profondo')
+  })
+
+  it('un input falling stantio mentre la pressione risale NON eredita Respiro Profondo', () => {
+    // Difesa interna di `advanceBioRegime`: anche se un chiamante consegnasse
+    // ancora `falling`, la traiettoria locale 0.1 → 0.72 mostra una risalita.
+    // Il latch non deve trasformarla in una discesa atterrata.
+    const ref = { pressure: 0.78, everPromoted: true, justSettled: false }
+    let regime: BrainBioRegimeState = {
+      ...createInitialBioRegimeState(),
+      reason: 'silence-authorized',
+    }
+    const seen = new Set<string>()
+    for (const pp of [0.1, 0.25, 0.4, 0.55, 0.66, 0.72, 0.72, 0.72, 0.72, 0.72, 0.72, 0.72]) {
+      regime = advanceBioRegime(
+        regime, baseSignals({ pressureTrend: 'falling', perceptualPressure: pp }), 0.5, 500, false, ref,
+      )
+      seen.add(regime.current)
+    }
+    expect(seen.has('respiro-profondo')).toBe(false)
+  })
+
+  it('una pressurizzazione atterrata diventa Respiro Alto per livello ereditato (simmetrico)', () => {
+    const ref = { pressure: 0.3, everPromoted: true, justSettled: false }
+    const rising = baseSignals({ pressureTrend: 'rising', perceptualPressure: 0.9 })
+    let regime = advanceBioRegime(createInitialBioRegimeState(), rising, 0.5, 500, false, ref)
+    expect(regime.current).toBe('pressurized')
+    for (let index = 0; index < 30; index += 1) {
+      regime = advanceBioRegime(regime, rising, 0.5, 500, false, ref)
+    }
     expect(regime.current).toBe('respiro-alto')
-    // Pressione tornata vicinissima alla mediana (zona centrale, entro la
-    // banda): non deve "cadere" a profondo né a unresolved.
-    regime = advanceBioRegime(regime, baseSignals({ perceptualPressure: 0.51 }), 0.5, 100)
+    expect(regime.level).toBe('alto')
+    expect(regime.reason).toBe('stasis-inherited-alto')
+  })
+
+  it('un livello ereditato senza contrasto con la mediana non viene revocato (ordine Capo Supremo 2026-09-05)', () => {
+    const ref = { pressure: 0.04, everPromoted: true, justSettled: false }
+    let regime: BrainBioRegimeState = {
+      ...createInitialBioRegimeState(),
+      current: 'respiro-alto',
+      level: 'alto',
+      reason: 'stasis-inherited-alto',
+      pressureLagged: 0.04,
+      pressureTrend: 'rising',
+    }
+
+    // Un livello alto ereditato durante il build dal silenzio, poi pressione
+    // che sale e si ferma esattamente sulla mediana (nessun contrasto).
+    // `reference.justSettled` non arriva mai: solo `pressureLanded` decide.
+    for (const pp of [0.08, 0.14, 0.2, 0.26]) {
+      regime = advanceBioRegime(
+        regime,
+        baseSignals({ pressureTrend: 'rising', perceptualPressure: pp }),
+        0.26,
+        250,
+        false,
+        ref,
+      )
+    }
+    for (let index = 0; index < 60; index += 1) {
+      regime = advanceBioRegime(
+        regime,
+        baseSignals({ pressureTrend: 'rising', perceptualPressure: 0.26 }),
+        0.26,
+        250,
+        false,
+        ref,
+      )
+    }
+
+    // Mancanza di contrasto (pp esattamente sulla mediana): il livello
+    // ereditato 'alto' resta, non viene azzerato. Atterrata durante la
+    // salita, la pressione eredita subito Respiro Alto (lo stesso gate di
+    // "una pressurizzazione atterrata diventa Respiro Alto per livello
+    // ereditato" qui sopra) invece di restare 'pressurized' con livello
+    // nullo come prima della correzione.
+    expect(regime.level).toBe('alto')
     expect(regime.current).toBe('respiro-alto')
+    expect(regime.reason).toBe('stasis-inherited-alto')
+
+    for (let index = 0; index < 40; index += 1) {
+      regime = advanceBioRegime(
+        regime,
+        baseSignals({ pressureTrend: 'stable', perceptualPressure: 0.26 }),
+        0.26,
+        250,
+        false,
+        ref,
+      )
+    }
+    // Resta Respiro Alto: mai revocato a `unresolved`/`stasis-level-indeterminate`.
+    expect(regime.level).toBe('alto')
+    expect(regime.current).toBe('respiro-alto')
+  })
+
+  it('senza alcun livello precedente, la mancanza di contrasto resta indeterminata', () => {
+    const ref = { pressure: 0.04, everPromoted: true, justSettled: false }
+    let regime: BrainBioRegimeState = {
+      ...createInitialBioRegimeState(),
+      current: 'unresolved',
+      level: null,
+      reason: 'stasis-level-indeterminate',
+      pressureLagged: 0.26,
+      pressureTrend: 'stable',
+    }
+    // Nessun `previous.level` da ereditare: la zona neutra resta indeterminata,
+    // come prima — `unresolved` non è diventato irraggiungibile, solo non più
+    // l'esito di default quando esiste memoria valida.
+    for (let index = 0; index < 40; index += 1) {
+      regime = advanceBioRegime(
+        regime,
+        baseSignals({ pressureTrend: 'stable', perceptualPressure: 0.26 }),
+        0.26,
+        250,
+        false,
+        ref,
+      )
+    }
+    expect(regime.level).toBeNull()
+    expect(regime.current).toBe('unresolved')
+    expect(regime.reason).toBe('stasis-level-indeterminate')
+  })
+
+  it('in bootstrap l\'ereditarietà non si applica: una pressurizzazione atterrata resta pressurized', () => {
+    const ref = { pressure: 0, everPromoted: false, justSettled: false }
+    const rising = baseSignals({ pressureTrend: 'rising', perceptualPressure: 0.7 })
+    let regime = createInitialBioRegimeState()
+    for (let index = 0; index < 20; index += 1) {
+      regime = advanceBioRegime(regime, rising, 0.5, 500, false, ref)
+    }
+    expect(regime.current).toBe('pressurized')
+  })
+
+  it('una volta ereditato il Respiro Profondo non fa flicker su una discesa che continua; un\'inversione a rising lo rilascia', () => {
+    const ref = { pressure: 0.8, everPromoted: true, justSettled: false }
+    let regime = createInitialBioRegimeState()
+    // discesa reale, poi piatta a 0.2 → eredita Respiro Profondo.
+    for (const pp of [0.7, 0.5, 0.3, 0.2]) {
+      regime = advanceBioRegime(
+        regime, baseSignals({ pressureTrend: 'falling', perceptualPressure: pp }), 0.5, 500, false, ref,
+      )
+    }
+    for (let index = 0; index < 20; index += 1) {
+      regime = advanceBioRegime(
+        regime, baseSignals({ pressureTrend: 'falling', perceptualPressure: 0.2 }), 0.5, 500, false, ref,
+      )
+    }
+    expect(regime.current).toBe('respiro-profondo')
+    // pp scende ancora un po' (non atterrata): NON torna a decompression.
+    regime = advanceBioRegime(
+      regime, baseSignals({ pressureTrend: 'falling', perceptualPressure: 0.12 }), 0.5, 500, false, ref,
+    )
+    expect(regime.current).toBe('respiro-profondo')
+    // Inversione reale: pressione di nuovo in salita → rilascia verso il passaggio.
+    regime = advanceBioRegime(
+      regime, baseSignals({ pressureTrend: 'rising', perceptualPressure: 0.85 }), 0.5, 500, false, ref,
+    )
+    expect(regime.current).not.toBe('respiro-profondo')
   })
 
   it('silenzio quasi nullo autorizza direttamente il Respiro Profondo in due secondi', () => {
@@ -511,18 +861,20 @@ describe('advanceBioRegime — silenzio diretto, livello con isteresi, nessuna c
 })
 
 describe('BrainBioPerceptionClock — composizione end-to-end', () => {
-  it('parte da unresolved e raggiunge pressurized con un segnale sostenuto e denso', () => {
+  it('parte da unresolved e attraversa pressurized mentre la pressione sostenuta cresce', () => {
     const clock = new BrainBioPerceptionClock()
     const dense: BandEnergies = { low: 0.7, lowMid: 0.68, mid: 0.65, high: 0.6 }
     let state = clock.getState()
     expect(state.regime).toBe('unresolved')
 
     let now = 0
-    for (let index = 0; index < 6; index += 1) {
-      now += 2_600
+    let reachedPressurized = false
+    for (let index = 0; index < 60; index += 1) {
+      now += 100
       state = clock.ingestSample(dense, now, dense) // i transient coincidono con le bande: evento continuo
+      if (state.regime === 'pressurized') reachedPressurized = true
     }
-    expect(state.regime).toBe('pressurized')
+    expect(reachedPressurized).toBe(true)
     expect(state.signals.perceptualPressure).toBeGreaterThan(0.5)
   })
 
@@ -561,53 +913,89 @@ describe('BrainBioPerceptionClock — composizione end-to-end', () => {
     expect(diagnostics.silenceAuthorized).toBe(true)
   })
 
-  it('misura end-to-end: una discesa udibile reagisce subito e si assesta in Respiro Profondo entro la finestra reference', () => {
+  it('misura end-to-end: una discesa udibile reagisce subito e, una volta atterrata, entra in Respiro Profondo in secondi (livello ereditato, non attende reference)', () => {
     // Numeri verificati con una simulazione diretta del clock (non calcolati
     // a mano), coerente con la pratica già in uso in questo file: il brief
     // Audio 2026-08-28 chiede reazione in ordine di secondi, non la cifra
     // esatta — le soglie qui sotto verificano l'ordine di grandezza.
     const clock = new BrainBioPerceptionClock()
+    const moderate: BandEnergies = { low: 0.34, lowMid: 0.3, mid: 0.26, high: 0.22 }
     const dense: BandEnergies = { low: 0.78, lowMid: 0.72, mid: 0.66, high: 0.58 }
     const sparse: BandEnergies = { low: 0.18, lowMid: 0.14, mid: 0.11, high: 0.08 }
     let now = 0
-    for (let index = 0; index < 300; index += 1) {
+    // Il LIVELLO alto/profondo si risolve solo per contrasto fra una stasi e
+    // la mediana che porta ancora la storia della stasi precedente. Serve
+    // quindi una prima stasi (moderate) e poi una trasformazione verso dense:
+    // partire direttamente da dense darebbe "prima stasi senza contrasto" →
+    // livello indeterminato (comportamento corretto, ma non ciò che questo
+    // test misura). Fase 1: 60s moderate → `reference` affidabile.
+    for (let index = 0; index < 600; index += 1) {
+      now += 100
+      clock.ingestSample(moderate, now, moderate)
+    }
+    // Fase 2: 60s dense → trasformazione, la mediana si congela sul livello di
+    // moderate, `reference` si ri-promuove su dense → RESPIRO ALTO per
+    // contrasto.
+    for (let index = 0; index < 600; index += 1) {
       now += 100
       clock.ingestSample(dense, now, dense)
     }
-    // Dopo 30s il materiale denso non è più un passaggio: è una stasi
-    // strutturale alla quota alta, quindi RESPIRO ALTO.
     expect(clock.getState().regime).toBe('respiro-alto')
+    expect(clock.getRegimeDiagnostics().transforming).toBe(false)
 
     let reachedDecompressionAtMs: number | null = null
     let reachedBreathAtMs: number | null = null
+    let breathReason: string | null = null
     for (let index = 1; index <= 300 && reachedBreathAtMs === null; index += 1) {
       now += 100
       const state = clock.ingestSample(sparse, now, SILENT)
       if (state.regime === 'decompression' && reachedDecompressionAtMs === null) {
         reachedDecompressionAtMs = index * 100
       }
-      if (state.regime === 'respiro-profondo') reachedBreathAtMs = index * 100
+      if (state.regime === 'respiro-profondo') {
+        reachedBreathAtMs = index * 100
+        breathReason = clock.getRegimeDiagnostics().regimeReason
+      }
     }
     // Reazione immediata (brief §6/§7/§9): decompressione entro il primo
-    // secondo, non dopo una finestra di conferma — non c'è più alcun gate
-    // sulla prima reazione, a differenza del vecchio modello a mediana.
+    // secondo — nessun gate sulla prima reazione.
     expect(reachedDecompressionAtMs).not.toBeNull()
     expect(reachedDecompressionAtMs as number).toBeLessThanOrEqual(1_000)
+    // Respiro Profondo NON istantaneo: prima la discesa deve atterrare
+    // (`perceptualPressure` piatta per almeno 9s). Ma NEMMENO ~40s: il livello è
+    // ereditato dalla direzione della decompressione, senza attendere la
+    // ri-promozione di `reference` (gate del brief latenza §2). "Secondi".
     expect(reachedBreathAtMs).not.toBeNull()
-    // L'assestamento non aggiunge un proprio timer: arriva quando la macchina
-    // `reference` esistente ha osservato il nuovo mondo attraverso il proprio
-    // inviluppo `mid`, poi completa invalidazione e conferma.
-    expect(reachedBreathAtMs as number).toBeLessThanOrEqual(30_000)
+    expect(reachedBreathAtMs as number).toBeGreaterThanOrEqual(2_000)
+    expect(reachedBreathAtMs as number).toBeLessThanOrEqual(20_000)
+    expect(['stasis-inherited-profondo', 'stasis-held']).toContain(breathReason)
   })
 
-  it('misura end-to-end: dopo il silenzio la stessa musica torna al Respiro Alto entro 5s', () => {
+  it('misura end-to-end: dopo il silenzio la stessa musica torna al Respiro Alto in pochi secondi', () => {
     const clock = new BrainBioPerceptionClock()
+    const moderate: BandEnergies = { low: 0.34, lowMid: 0.3, mid: 0.26, high: 0.22 }
     const dense: BandEnergies = { low: 0.78, lowMid: 0.72, mid: 0.66, high: 0.58 }
+    // Come in produzione (`OutputApp.tsx`), il clock ritmico è sempre passato
+    // insieme ai transient: dopo l'Intervento 1 (brief Audio 2026-09-04),
+    // `pulse` — e quindi `rhythmConstraint` — resta a 0 senza un gate
+    // `active`, anche a transient pieni (l'aspettativa del clock da sola non
+    // basta più, serve la conferma d'attacco). I valori di kickEnvelope/
+    // beatPulse sono irrilevanti qui: solo `bandTransients` e `active` pesano.
+    const activeRhythm = { kickEnvelope: 0, beatPulse: 0, active: true }
     let now = 0
-    for (let index = 0; index < 300; index += 1) {
+    // Come il test precedente: due stasi per far risolvere il livello a 'alto'
+    // (moderate → dense). Il silenzio poi lo mette a Respiro Profondo per via
+    // diretta; al ritorno di dense il livello congelato 'alto' torna a valere.
+    for (let index = 0; index < 600; index += 1) {
       now += 100
-      clock.ingestSample(dense, now, dense)
+      clock.ingestSample(moderate, now, moderate, activeRhythm)
     }
+    for (let index = 0; index < 600; index += 1) {
+      now += 100
+      clock.ingestSample(dense, now, dense, activeRhythm)
+    }
+    expect(clock.getState().regime).toBe('respiro-alto')
+
     for (let index = 0; index < 20; index += 1) {
       now += 100
       clock.ingestSample(SILENT, now, SILENT)
@@ -615,12 +1003,20 @@ describe('BrainBioPerceptionClock — composizione end-to-end', () => {
     expect(clock.getState().regime).toBe('respiro-profondo')
 
     let reachedHighBreathAtMs: number | null = null
-    for (let index = 1; index <= 100 && reachedHighBreathAtMs === null; index += 1) {
+    for (let index = 1; index <= 220 && reachedHighBreathAtMs === null; index += 1) {
       now += 100
-      const state = clock.ingestSample(dense, now, dense)
+      const state = clock.ingestSample(dense, now, dense, activeRhythm)
       if (state.regime === 'respiro-alto') reachedHighBreathAtMs = index * 100
     }
     expect(reachedHighBreathAtMs).not.toBeNull()
-    expect(reachedHighBreathAtMs as number).toBeLessThanOrEqual(5_000)
+    // Nuova baseline (brief Audio 2026-08-31, §14): la componente ritmica di
+    // `perceptualPressure` è SOSTENUTA (tau 1.2-1.8s, così un fill non la
+    // muove — §4). Dopo un silenzio quella memoria si ricostruisce: la
+    // pressione torna a coincidere con il riferimento e deve poi restare
+    // assestata oltre un intero ciclo oscillatorio.
+    // come quando pesava solo l'inviluppo `fast`. La reazione (decompression /
+    // silence→respiro-profondo) resta immediata; è la RI-dichiarazione della
+    // stasi alta che ora rispecchia il tempo di ricostruzione della griglia.
+    expect(reachedHighBreathAtMs as number).toBeLessThanOrEqual(20_000)
   })
 })

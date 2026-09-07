@@ -48,13 +48,17 @@ const SWITCH_TIMEOUT_MS = 15_000
 const PRESSURE_FLASH_ATTACK_MS = 32
 const PRESSURE_FLASH_DECAY_MS = 220
 const PRESSURE_FLASH_PEAK_OPACITY = 0.85
-const STABLE_BREATH_FLASH_MULTIPLIER = 0
-const STABLE_BREATH_GLITCH_MULTIPLIER = 0.25
+const RESPIRO_PROFONDO_FLASH_MULTIPLIER = 0
+// Collaudo Visual 2026-08-31: le slice di glitch al 25% con tinte sature
+// (cyan/magenta/giallo) restano chiare e brevi, ma la disposizione è "scuro
+// predominante". Moltiplicatore abbassato E tinte sostituite con toni
+// organici scuri (`PRESSURE_GLITCH_TINTS_DARK`, sotto).
+const RESPIRO_PROFONDO_GLITCH_MULTIPLIER = 0.1
 function pressureFlashRegimeMultipliers(
   regime: BrainBioRegime | undefined,
 ): { flash: number; glitch: number } {
   if (regime === 'respiro-profondo') {
-    return { flash: STABLE_BREATH_FLASH_MULTIPLIER, glitch: STABLE_BREATH_GLITCH_MULTIPLIER }
+    return { flash: RESPIRO_PROFONDO_FLASH_MULTIPLIER, glitch: RESPIRO_PROFONDO_GLITCH_MULTIPLIER }
   }
   return { flash: 1, glitch: 1 }
 }
@@ -66,6 +70,19 @@ const PRESSURE_GLITCH_TINTS = [
   'rgba(255,70,195,0.72)',
   'rgba(255,225,70,0.6)',
 ] as const
+// Respiro Profondo: toni organici scuri (petrolio, viola ematico, ruggine
+// annerita) al posto delle tinte sature — "scuro predominante" anche nel
+// Varco (collaudo Visual 2026-08-31).
+const PRESSURE_GLITCH_TINTS_DARK = [
+  'rgba(22,40,44,0.55)',
+  'rgba(46,26,40,0.5)',
+  'rgba(48,32,20,0.45)',
+] as const
+
+function glitchTintFor(regime: BrainBioRegime | undefined, index: number): string {
+  const set = regime === 'respiro-profondo' ? PRESSURE_GLITCH_TINTS_DARK : PRESSURE_GLITCH_TINTS
+  return set[index % set.length]
+}
 
 type RendererLayer = {
   id: BrainRendererId
@@ -184,7 +201,7 @@ export function createBrainRendererHost(
         top: `${top.toFixed(1)}%`,
         height: `${height.toFixed(1)}%`,
         transform: `translateX(${offset.toFixed(1)}px)`,
-        backgroundColor: PRESSURE_GLITCH_TINTS[index % PRESSURE_GLITCH_TINTS.length],
+        backgroundColor: glitchTintFor(getBioRegime?.(), index),
       })
     })
   }
@@ -384,9 +401,11 @@ export function createBrainRendererHost(
             pressureFlashOverlay.style.opacity =
               String(clamped * PRESSURE_FLASH_PEAK_OPACITY * regimeMultipliers.flash)
           }
+          const glitchRegime = getBioRegime?.()
           pressureGlitchSlices.forEach((slice, index) => {
             slice.style.opacity =
               String(clamped * PRESSURE_GLITCH_PEAK_OPACITY * regimeMultipliers.glitch)
+            slice.style.backgroundColor = glitchTintFor(glitchRegime, index)
             const base = pressureGlitchBaseOffsets[index] ?? 0
             const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
             const jitter = Math.sin(elapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6

@@ -1,5 +1,475 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## `unresolved` per mancanza di contrasto — eredita il livello precedente — 2026-09-05
+
+- Ordine del Capo Supremo in risposta alla diagnosi (sotto): quando
+  `classifyLevel` non trova contrasto pressione/mediana e un livello
+  precedente valido esiste, quel livello viene mantenuto invece di
+  ricadere su `null`/`unresolved`.
+- **Causa del bug**: al fronte di atterraggio (`pressureJustLanded`),
+  `advanceBioRegime` chiamava `classifyLevel(pp, median, null)` — il
+  terzo argomento era forzato a `null` invece di `previous.level`. In
+  zona neutra `classifyLevel` restituisce il suo terzo argomento: con
+  `null` forzato, un livello ereditato valido veniva azzerato anche senza
+  alcuna nuova evidenza. Quello zero restava poi "sticky" (i tick
+  successivi ripropongono `previous.level`, cioè lo stesso `null`) per
+  l'intera stasi piatta che seguiva — da qui i tratti di 82,6s/23,1s/15s
+  osservati nel log.
+- **Correzione**: un solo argomento, da `null` a `previous.level`, in
+  [`brainBioPerception.ts`](../src/renderer/output/brain/brainBioPerception.ts)
+  (`advanceBioRegime`, calcolo di `settledLevel`). Nessun meccanismo,
+  segnale o soglia nuovi. `unresolved` per livello mancante resta possibile
+  solo senza alcun livello precedente da ereditare (avvio sessione,
+  bootstrap) — coperto da un test dedicato.
+- Bootstrap (98,8s contro 37-45s attesi) registrato come secondo bersaglio,
+  non toccato in questo giro.
+- **Validazione**: 2 test aggiornati/aggiunti (uno riscritto per il nuovo
+  comportamento, uno nuovo per il caso "nessun livello da ereditare").
+  64 file / 609 test, typecheck e lint puliti.
+- Per il prossimo collaudo live: overlay 1 Hz (Maiusc+B) da accendere,
+  altrimenti `pressureMedian`/`referencePressure` restano fuori dal log.
+
+## Diagnosi tratti `unresolved` dal log live — nessuna correzione — 2026-09-05
+
+- Richiesta del Consigliere: estrarre dal log dell'ultima sessione live
+  (`session-2026-09-04-23-54-15.txt`, 21:55:01→22:02:20 UTC, 160 cambi di
+  regime) `reason`, durata e pressione di ogni tratto rimasto `unresolved`.
+  Nessuna correzione applicata: solo lettura del log esistente.
+- **12 tratti `unresolved`, 240,1 s totali.** Due cause, già distinte dal
+  log senza toccare codice:
+  - `reason: bootstrap` — **1 solo tratto, 98,8 s** (21:55:27→21:57:06,
+    inizio sessione). Non 2min19s come stimato a voce nel giro precedente:
+    quel numero era una lettura approssimata a mano, questo viene dal
+    parsing esatto dei timestamp. Resta comunque ben oltre i 37-45s
+    documentati come tipici.
+  - `reason: stasis-level-indeterminate` — **11 tratti, 141,0 s**, da 0,1 s
+    a **82,6 s** (21:57:22, 21:58:11, 21:58:15, 21:59:10, 21:59:59,
+    22:00:59, 22:01:29, 22:02:04, 22:02:20 UTC), distribuiti per tutta la
+    sessione, anche a decine di minuti dal bootstrap.
+- **Prevale `stasis-level-indeterminate`**: per tempo totale (141,0 s contro
+  99,1 s) e soprattutto perché **ricorre** (11 volte, per l'intera durata
+  osservata) mentre il bootstrap è per costruzione un evento singolo a
+  inizio sessione. È questo il caso che corrisponde alla segnalazione del
+  Capo Supremo: la configurazione viene riconosciuta assestata
+  (`persistence` fra 0,80 e 0,99 nei tratti più lunghi) ma il livello non
+  viene attribuito per mancanza di contrasto pressione/mediana.
+- **Dato mancante**: `pressureMedian` e `referencePressure` non sono nel
+  log — la registrazione diagnostica 1 Hz (overlay Maiusc+B) non è stata
+  attivata in questa sessione, il log di regime porta solo
+  `perceptualPressure`, `pressureTrend`, `persistence`, `change`. Servirà
+  riattivare l'overlay per avere mediana e reference nello stesso file.
+- Nessuna modifica a codice, soglie o formula: in attesa di lettura
+  dell'Audio su questa distinzione, come richiesto.
+
+### Nota a verbale — isteresi anticipata dalla fase conclusiva del piano
+
+- `TREND_HYSTERESIS` (ingresso+uscita, cambi da 375 a 38 su un log
+  registrato) apparteneva alla fase conclusiva del piano ed è stata
+  anticipata per il comportamento live. I valori raccolti da questo punto
+  in avanti (inclusa la sessione sopra) **non sono confrontabili** con la
+  baseline di calibrazione (`working/calibration-v1/*`, precedente
+  all'anticipo). Da tenere presente prima di attribuire a `rhythmConstraint`
+  un effetto che può venire dall'isteresi.
+
+## `test-1.mp3` — falsa stasi eliminata sul campione reale — 2026-09-04
+
+- Eseguito `test-1.mp3` nella pipeline offline con i clock Brain reali.
+- Prima della correzione: `respiro-alto` per 7,55 s. Dopo: 0 s.
+- Correzione minima: `pressureLanded` deve permanere 9 s, oltre il ciclo
+  bloccante 7,5–8 s. Nei brevi punti neutri conserva l’ultimo passaggio.
+- Esito: 0,84 s iniziali unresolved, poi sola alternanza
+  decompression/pressurized (15 transizioni complessive).
+- Nessun nuovo segnale o stato. 64 file / 608 test, typecheck, lint e diff-check verdi.
+
+
+## Falsa stasi oscillatoria — correzione completata — 2026-09-04
+
+- Il riscontro Audio su `test-1.mp3` invalida l’allargamento dell’isteresi:
+  riduceva i cambi trasformando l’oscillazione in falsa stabilità. Ritirato.
+- Un Respiro ora richiede anche `pressureLanded`, verifica di assestamento già
+  esistente. Trend rising/falling restano immediati; nei brevi punti neutri di
+  un’oscillazione l’esito è `unresolved`, mai un falso Respiro.
+- Nessun nuovo segnale, stato, timer o soglia. `test-1.mp3` non è presente nel
+  workspace, quindi la verifica è una regressione sulla traiettoria descritta.
+- Validazione: 64 file / 608 test, typecheck e lint verdi. Resta collaudo live.
+
+
+## Regimi troppo frequenti — isteresi d’ingresso corretta — 2026-09-04
+
+- Il cambio circa ogni secondo proveniva dall’ingresso del `pressureTrend`:
+  bastava superare il deadband 0,02; l’isteresi esistente proteggeva soprattutto l’uscita.
+- La stessa isteresi ora filtra anche l’ingresso. Nessun nuovo stato o timer.
+- Sul log registrato, a parità di traiettoria, i cambi scendono da 375 a 38.
+  I passaggi ampi restano riconosciuti. Conferma live ancora necessaria.
+- Validazione: 64 file / 607 test, typecheck, lint e diff-check verdi.
+
+
+## Direttiva di semplicità e riscontro Audio — 2026-09-04
+
+- Semplificare e arrestare gli approfondimenti di soluzioni smentite;
+  direttiva permanente registrata nel mandato Ingegneria.
+- Audio conferma C03=respiro-alto-0, C04=respiro-profondo,
+  C06=respiro-alto-1 e il maggiore vincolo motorio di C03/C06 rispetto a C04.
+  Il pulse attuale non rappresenta adeguatamente questa proprietà.
+- Verifica minima del codice: i transienti misurano emergenza locale;
+  beatPulse/kickEnvelope includono previsione. Il clock conserva già gli
+  intervalli dei beat rilevati, ma anche il detector usa gli stessi transienti.
+  Quindi riusare gli intervalli non dimostra da solo di risolvere l'inversione.
+- Fase 1 aperta. Nessuna nuova formula, soglia o modifica a spectralOccupancy.
+  Prossima verifica: conferme fisiche ricorrenti rispetto alla fase già
+  disponibile. I log attuali non conservano beatPhase né distinguono i beat
+  rilevati dai previsti: il replay esistente non certifica questa relazione.
+
+
+## Ripresa Ingegneria — replay rhythmConstraint completato — 2026-09-04
+
+- Riprodotto il confronto isolato su tutti i dieci file del log warmed con
+  `scripts/replay-rhythm-constraint.mjs`, usando il modulo runtime reale.
+  Report: `working/calibration-v1/rhythm-constraint-replay.md` (hash ingressi
+  e sorgente, mediane e finestre temporali di 10 s).
+- Baseline ricostruita con errore zero. Warm-up non registrato: esclusi i
+  primi 20 s globali; errore lowEnd/gridDensity residuo < 4.3e-8.
+- Esito parziale negativo per la separazione suggerita dai nomi file:
+  respiro-alto-0 PP=0.4530 resta sotto respiro-profondo-1=0.4690 e
+  respiro-profondo=0.4859. Non è dimostrata una scala pronta per soglie assolute.
+- Non disponibili mappa C01–C09 né harness FFT originale: non dichiarati
+  verificati quei confronti o il collaudo percettivo live. Nessun regime
+  ricalcolato; altre componenti della pressione mantenute alla baseline.
+- 52/52 test bio-percettivi, typecheck, lint e diff-check verdi. Tre nuove
+  regressioni: basso steady con clock predetto, articolazione/release,
+  indipendenza dall'ampiezza del beat predetto. Nessuna modifica runtime.
+- Prossimo passo: l'Audio verifica la corrispondenza dei campioni e valuta
+  l'insufficienza della formula sul corpus prima di altre modifiche.
+  `classifyLevel`, pesi e soglie restano congelati.
+
+
+## `alto`/`profondo`: decisione Audio — livello assoluto, non più relativo alla mediana — 2026-09-04
+
+- L'Analisi Audio ha confermato l'architettura `perceptualPressure` (livello
+  assoluto) + `pressureTrend` (verso) come corretta e non richiede nuovi
+  segnali: nessuna modifica di codice in questo giro.
+- Decisione semantica (NON ANCORA IMPLEMENTATA, in attesa di calibrazione):
+  `RESPIRO ALTO`/`RESPIRO PROFONDO` non devono più essere definiti dalla
+  posizione di `perceptualPressure` rispetto alla `median` di serata
+  (`classifyLevel` in `brainBioPerception.ts`, oggi lo fa). La mediana
+  descrive il contesto della serata, non ridefinisce quanto il corpo sia
+  vincolato ora — un mondo molto costrittivo non diventa "profondo" solo
+  perché la serata è stata ancora più pressata, e viceversa.
+- Vincolo esplicito: **nessuna soglia assoluta provvisoria** (niente `0.3`,
+  `0.5`, `0.7` o simili) finché `perceptualPressure` non è calibrata
+  empiricamente sul corpus Audio — prima va verificato che la scala ordini
+  correttamente configurazioni a costrizione diversa, poi si definiscono
+  zone/soglie/deadband/isteresi assolute fra `alto` e `profondo`.
+- `classifyLevel` resta quindi INVARIATO per ora (richiesta esplicita
+  dell'Audio, punto 3 del brief): la dipendenza dalla mediana è dichiarata
+  "non più definitiva", non ancora sostituita.
+- Verificata la strumentazione richiesta (punto 5 del brief, "predisporre il
+  sistema a registrare integralmente perceptualPressure e le sue
+  componenti"): già soddisfatta dal log 1Hz introdotto in
+  AUDIO-REGIMI-POSTCOLLAUDO-01 (`getRegimeDiagnostics()` espone già
+  `pressureComponents` — energia/spettrale/temporale/ritmica — e
+  `rhythmConstraintComponents` — pulse/lowEnd/gridDensity — dentro il campo
+  `diagnostics` del log). Nessuna modifica necessaria.
+- Prossimo passo: attendere l'esito della calibrazione empirica
+  dell'Audio prima di toccare `classifyLevel`.
+
+## DELIQUESCENCE al 95% del Respiro Profondo — 2026-09-01
+
+- `LOW_REGIME_DOMINANT_SHARE` portato da 0.90 a 0.95: durante la selezione
+  automatica in `respiro-profondo`, DELIQUESCENCE occupa circa il 95% del
+  tempo; il restante 5% conserva gli altri renderer bassi come variazione.
+- Perimetro invariato: nessuna dominanza in decompressione, Respiro Alto o
+  bootstrap; selezione manuale, fallback, hold, renderer e budget intatti.
+- Specifica DELIQUESCENCE aggiornata; test mirato selettore **48/48** verde con
+  finestra statistica 92–98%. Suite completa **64 file / 604 test**, typecheck,
+  lint e build verdi con app, DMG, ZIP e blockmap.
+
+## AUDIO-REGIMI-POSTCOLLAUDO-01 — direzione separata dalla memoria — 2026-09-01
+
+- Consolidato il brief normativo definitivo in
+  `team/briefs/brief-audio-regimi-postcollaudo-01.md`; aggiornati i rimandi
+  Audio e dichiarato il superamento delle formulazioni incompatibili.
+- Completato soltanto l'Intervento 1: `pressureTrend` non usa più la posizione
+  rispetto a `reference.pressure`. Usa il segno di
+  `perceptualPressure − pressureLagged`, riutilizzando la linea breve già
+  presente nel tracker di atterraggio. `reference` resta memoria; Δreference
+  resta osservabilità.
+- Il log 1 Hz nella cartella applicativa espone ora separatamente Δreference e
+  Δtraiettoria, componenti energetica/spettrale/temporale/ritmica,
+  `kickEnvelope`, `beatPulse`, low-end, densità griglia e marcatore Audio.
+  Marcatori globali: Maiusc+1/+2/+3/+4; Maiusc+0 cancella; Maiusc+B delimita la
+  registrazione.
+- Non toccati costrizione ritmica, pesi, occupancy, soglie, isteresi, mediana,
+  classificazione o ereditarietà del livello. Il prossimo gate è il Collaudo 1
+  esclusivamente `PRESSURIZED ↔ DECOMPRESSION`.
+- Test mirato **49/49**, suite completa **64 file / 604 test**, typecheck, lint
+  e build completi e verdi; prodotti app, DMG, ZIP e blockmap.
+
+## Session log spostato nella cartella dati applicativa — 2026-09-01
+
+- Corretto `sessionLogDirectory`: non usa più `process.execPath`, il bundle,
+  il DMG o la radice del progetto. Usa sempre
+  `app.getPath('userData')/log`, cioè la cartella applicativa persistente e
+  scrivibile del profilo utente.
+- Nessuna scrittura sulla Scrivania. Il nome file resta
+  `session-YYYY-MM-DD-HH-MM-SS.txt`; il percorso completo continua a essere
+  dichiarato nel log di avvio del Main.
+- Aggiunto test puro del percorso applicativo. Validazione completa:
+  `pnpm typecheck`, `pnpm lint`, **64 file / 604 test** e `pnpm build` verdi;
+  prodotti app, DMG, ZIP e blockmap.
+
+## Collaudo quattro stati negativo, log numerico non persistito — 2026-09-01
+
+- Riscontro del Capo Supremo: DECOMPRESSIONE e RESPIRO PROFONDO vengono letti
+  anche come PRESSURIZZATO; RESPIRO ALTO troppo frequente; nuovo
+  `stasis-level-indeterminate` molto frequente.
+- Nessun `session-*.txt` recuperabile dopo ricerca in progetto, build,
+  Applicazioni, Documenti, Download, Scrivania, temporanei e volumi montati.
+  Vietato inventare dati mancanti: il brief distingue osservazioni, codice
+  certo e ipotesi.
+- Brief completo per il Capo Supremo dell'Analisi Audio:
+  `team/briefs/brief-audio-collaudo-negativo-quattro-stati-2026-08-31.md`.
+- Blocco principale sottoposto all'Audio: `pressureTrend` usa la posizione di
+  pp rispetto a `reference.pressure` come direzione; il collaudo mostra che le
+  due cose divergono. Restano aperti pulse/griglia, scala pratica e neutralità
+  frequente del livello.
+- Prima del prossimo collaudo: rendere il log certamente scrivibile, mostrarne
+  il path e salvare campioni 1 Hz con marcatori Audio dei quattro intervalli.
+
+## Livello bio-percettivo rivalutato all'atterraggio — 2026-08-31
+
+- Corretto il difetto dimostrato nel collaudo: `alto`/`profondo` non dipende
+  più esclusivamente da `reference.justSettled` (zero occorrenze nelle sessioni
+  osservate). `classifyLevel` viene ora consultata anche quando il tracker già
+  esistente rileva il confine `pressureJustLanded`.
+- Nessuna nuova macchina, soglia o taratura: riusati `pressureFlatMs`,
+  `PRESSURE_SETTLE_CONFIRM_MS` e la `classifyLevel` esistente. Al confine di
+  rivalutazione la classificazione riparte da `null`, quindi un livello
+  ereditato può tornare davvero `stasis-level-indeterminate` quando la pressione
+  atterrata non è distinguibile dalla mediana.
+- L'ereditarietà entra ora sul singolo confine di atterraggio e solo quando la
+  rivalutazione concorda con la direzione (`alto` in salita, `profondo` in
+  discesa); la persistenza anti-flicker resta invariata dopo l'ingresso.
+- Non toccati occupancy, pulse, deadband, isteresi, derivazione del trend o
+  DELIQUESCENCE. Regressione sul caso reale 0.04 → 0.26 con mediana 0.26 e
+  `justSettled=false`.
+- Validazione: `pnpm typecheck`, `pnpm lint`, **64 file / 603 test** e
+  `pnpm build` completi e verdi (app, DMG, ZIP e blockmap).
+
+## `perceptualPressure` ridefinita — costrizione corporea al movimento — 2026-08-31
+
+Brief definitivo Audio. **La modifica sostanziale**: `perceptualPressure` non
+misura più "quanto suono c'è" ma **quanto la configurazione costringe il
+corpo a mantenere un movimento**. La leggibilità della griglia ritmica entra
+nella pressione. **Nessun segnale pubblico nuovo** (niente `danceability` /
+`rhythmicPressure` / ecc.).
+
+- **`calculatePerceptualPressure`** ha ora 4 componenti: energia (peso
+  0.30), occupazione spettrale (0.20), occupazione temporale (0.18),
+  **`rhythmConstraint` (0.32)** — la quota singola maggiore. Energia e
+  occupazione restano ma non esauriscono la pressione.
+- **`advanceBioRhythmConstraint`** (nuovo, stateful, inviluppi SOSTENUTI):
+  - `pulse` = inviluppo lento di `max(kickEnvelope, beatPulse)` dal clock
+    ritmico (tau 1.8s) — affidabilità della pulsazione;
+  - `lowEnd` = inviluppo di `low*0.55 + lowMid*0.45` raw (tau 1.2s) —
+    presenza del basso corporeo;
+  - `gridDensity` = inviluppo della media di `bandTransients` × 4 (tau 1.5s)
+    — hat/perc/subdivisioni; un letto steady (dopo il gate sul lift in
+    `brainRhythm.ts`) contribuisce ~0.
+  Tutti sostenuti: la perdita di un kick singolo o un fill normale non li
+  muove — conta la perdita della capacità di sostenere il passo (§4).
+- **Threading**: `ingestSample(bands, now, transients?, rhythm?)` — `rhythm`
+  = `{kickEnvelope, beatPulse, active}` da `rhythmState` in `OutputApp.tsx`.
+  Opzionale (default → pulse 0) per i chiamanti che non lo passano.
+- **Nuova baseline** (§14): la scala numerica di `perceptualPressure` è
+  cambiata. La prima sessione dopo la modifica è baseline nuova — i valori
+  assoluti precedenti NON sono confrontabili. `TREND_HYSTERESIS` (0.016),
+  `REFERENCE_PRESSURE_DEADBAND` (0.02), `TRANSIENT_LIFT_FLOOR/SPAN`,
+  `PRESSURE_SETTLE_EPSILON` (0.02) sono da riverificare contro la nuova
+  scala al collaudo — non toccati speculativamente.
+- **NON toccata la derivazione del regime** (come da ordine del brief §13):
+  `advanceBioRegime`, `classifyPressureTrend`, `classifyLevel`, deadband,
+  isteresi restano. Prima il collaudo, poi il giudizio sull'incidenza del
+  Respiro Profondo (casi A/B del §13).
+- **Bug d'interazione trovato e corretto**: la componente ritmica è lenta,
+  quindi al rientro dal silenzio `pp` risale lentamente e resta sotto
+  `reference.pressure` per ~4-5s → `pressureTrend` legge `falling` mentre
+  `pp` sta CRESCENDO → l'ereditarietà inglobava erroneamente `respiro-
+  profondo`. Aggiunto un **latch di direzione** `pressureDescending` (da
+  `pp − pressureLagged`, sticky in zona piatta): l'ereditarietà a Respiro
+  Profondo scatta solo se `pp` è davvero SCESA; al Respiro Alto solo se è
+  salita. Verificato: rientro dal silenzio → `respiro-alto` a ~4.7s;
+  discesa udibile dense→sparse → `decompression` immediato,
+  `respiro-profondo` (ereditato) a ~5.1s.
+- Vite build OK; typecheck + lint puliti; **64 file / 602 test verdi**.
+
+## Revisione modello bio-percettivo Item 1–4 + latenza + specifica DELIQUESCENCE — 2026-08-31
+
+Lavoro non ancora committato. `pnpm typecheck` + `pnpm lint` puliti, suite
+**63 file / 585 test verdi**.
+
+- **Item 1 — `reference`/`change`**: `reference` non rappresentava mai il
+  presente (nasceva corto verso il mondo vecchio, non convergeva — 10 min su
+  un mondo immobile → 0.168 di distanza). Causa: la promozione
+  `awaiting-confirmation → stable` catturava `mid` mentre ancora in corsa.
+  Corretto con un gate di convergenza di `mid` (`confirmAnchorMid`,
+  `REFERENCE_CONFIRM_MID_STABLE_EPSILON = 0.02`) + soglia di invalidità
+  0.22 → 0.24 (non deve più compensare la misura falsata). Cold-start
+  assestamento ~37 s. Verificato in simulazione sui 7 scenari.
+- **Item 2 — deriva mediana**: il livello `alto`/`profondo` si valuta SOLO
+  alla promozione di una stasi, dalla `reference.pressure` contro la mediana
+  di quell'istante; fra due promozioni resta congelato. La mediana continua
+  ad aggiornarsi (nessun fattore di dimenticanza), cambia solo dove viene
+  letta — `holdCenter` agganciato a `referenceEverPromoted`. Bootstrap gate:
+  ~37–45 s in cui i due respiri non sono dichiarabili (`BOOTSTRAP`),
+  distinto da `LIVELLO INDETERMINATO`. `BrainBioRegimeReason` su ogni cambio
+  di stato, nel log 1 Hz + nel log event-driven (`bioRegimeReasonSource`).
+  Per costruzione non esiste `reason` `median-drift`.
+- **Item 3 — Respiro Profondo**: era già in piedi dopo Item 1/2. Overlay:
+  `bioRegimeDisplayLabel` mostra i cinque nomi (BOOTSTRAP incluso), non più
+  un flag. Ripulite le costanti `STABLE_BREATH_*` → `RESPIRO_PROFONDO_*` in
+  `brainRendererHost.ts`.
+- **Item 4 — Respiro Alto**: `selectBrainRendererHoldFrames` — `respiro-alto`
+  fuori Riattivazione torna al range persistente `[2,3]` (era `[1,2]`: la
+  trance è permanenza dentro l'intensità, "tempi corti" = velocità interna
+  dei renderer). Pool proprio strutturalmente distinto:
+  `HIGH_REGIME_PRIORITY_RENDERERS` (psycho2d, fractal-spiral, glitch-morph,
+  vector-morph, filter-psiche) + `HIGH_REGIME_SECONDARY_RENDERERS` (material,
+  bauhaus, dream-seg) + `HIGH_REGIME_EXCLUDED_RENDERERS` (vuoto, in attesa di
+  DELIQUESCENCE). `regimePreferenceRank` come chiave primaria in
+  `weightedDeck` solo per `respiro-alto`.
+- **Misura di latenza** (rifatta da capo): `perceptualPressure` non è mai
+  stata il collo di bottiglia — calo netto a terra in ~1.5–2.7 s,
+  `decompression` in 0.1 s. L'ipotesi "inviluppo lento" era sbagliata; il
+  vecchio collaudo negativo era la macchina `reference`.
+- **Gate latenza §2 — livello ereditato**: l'ingresso in `respiro-profondo`
+  dopo una decompressione richiedeva la ri-promozione di `reference` (~40 s).
+  Corretto: un tracker di "pressione atterrata" indipendente da `reference`
+  (`pressureLagged` τ 800 ms, conferma 1 s, `|pp − lagged| < 0.02`, reset a
+  ogni cambio di `pressureTrend`) → una `decompression` atterrata diventa
+  `respiro-profondo` con livello ereditato (`stasis-inherited-profondo`);
+  simmetrico `pressurized` → `respiro-alto`. Anti-flicker sticky, handoff
+  pulito alla ri-promozione. Numeri: 2 s (silenzio vero) / 5–11 s (letto
+  residuo / dissolvenza lunga), era 38–43 s. `decompression` resta immediato.
+  Due bug corretti in corso d'opera (falso positivo su discesa graduale;
+  falso positivo al rientro dal silenzio — `landingNow` deve essere
+  `|delta| < eps`, non `delta >= -eps`).
+- **Specifica DELIQUESCENCE (Item 5)**: consolidata in
+  `team/briefs/brief-deliquescence-specifica.md` — direzione artistica,
+  vincoli Audio, fattibilità Canvas2D, wiring pool/regime.
+- **Item 5 — DELIQUESCENCE, primo passo** (Capo Supremo, 2026-08-31 —
+  "mettilo nell'elenco, selezionabile da tendina, 90% della rotazione in
+  respiro profondo"): id `deliquescence` in `BrainRendererId` /
+  `BRAIN_RENDERER_IDS` / registry / tendina `VisualControls.tsx` /
+  `LOW_REGIME_RENDERERS` / `PERSISTENT_STORY_RENDERERS`. Renderer minimo
+  reale `brainDeliquescenceCanvas.ts` (nucleo minimo spec §10 passi 2-3:
+  raster mappato-palette scura come substrato sempre presente, mesh-warp
+  lento su griglia 16×10, erosione del bordo lungo stima grezza della
+  figura, marea da `residual`, fase congelata in silenzio; stato metabolico
+  fuori istanza `metabolismStore`). Luci interne, coagulazione multi-centro
+  e le 8 varianti sono passi successivi. **Dominanza 90%**: quota
+  probabilistica `LOW_REGIME_DOMINANT_SHARE = 0.9` applicata al pick in
+  `respiro-profondo` (`applyLowRegimeDominance`), non un rango stretto —
+  gli altri quattro del pool basso restano il ~10%, texture. `HIGH_REGIME_
+  EXCLUDED_RENDERERS` ora contiene `deliquescence` (escluso dal Respiro
+  Alto) e `BOOTSTRAP_EXCLUDED_RENDERERS` lo esclude da `unresolved` (bootstrap
+  — esclusione minima esplicita; la restrizione completa del pool conservativo
+  resta voce di collaudo). Selezione **manuale** da tendina: sempre valida,
+  ignora le esclusioni di regime (come gli altri renderer). `decompression`
+  protratta: **non ancora** — serve il contatore `regimeSince` +
+  `DECOMPRESSION_PROTRACTED_MS`, prossimo passo. Build renderer OK
+  (`vite build`); typecheck + lint puliti; **64 file / 594 test verdi**.
+- **Item 5 — correzione Visual + renderer riscritto attorno al campo di
+  occupazione** (2026-08-31): la Direzione Visual ha corretto la gerarchia —
+  **il bordo è il protagonista**, non la materia interna. Verifica di
+  fattibilità (spec §3bis): il "bordo a topologia variabile" va scritto
+  attorno a un **campo di occupazione a media risoluzione** (96×54)
+  deformato da una griglia di **nodi con offset persistente** (24×14), NON
+  attorno a una polilinea né al mesh-warp del raster — strozzatura / perdita
+  di segmenti / fusione emergono come topologia dalla soglia del campo,
+  senza ri-triangolazione. Costo nell'ordine di Materia Morph. **Fatto**:
+  `brainDeliquescenceCanvas.ts` riscritto. `advanceCollapseNodes` (cedimenti:
+  sostegno che decade → give di scatto → conseguenza che resta, primo give
+  ~3 s; nodi vicino a un attrattore riportano l'offset a 0 = l'attrattore
+  resiste; frozen in silenzio), `warpOccupation` (advezione pull-back del
+  campo, meno il campo di erosione reversibile), `estimateOccupationField`
+  (con box-blur → fascia di bordo reale), 8 **modi di collasso** come vettori
+  di parametri (`COLLAPSE_MODES`, `pickCollapseMode` sul seme). Store fuori
+  istanza: offset dei nodi + sostegno + erosione + marea + fase + buffer
+  della colata sopravvivono alla ricreazione dell'istanza; cambio immagine =
+  scambio lento di substrato, non reset. Colata del colore verso il basso
+  (striature verticali che si accumulano nel buffer `drip`, gravità reale,
+  solo colore). Fusione figura-sfondo (`occWarp > occ0` → pigmento sfumato
+  nel fondo). **Test 1 e Test 2 Visual resi programmatici e verdi**:
+  `silhouetteDivergence(occ0, warped)` > 0.12 dopo ~8 s per ogni modo di
+  collasso (SAG/IMPLOSION/BLEED/SLUMP/EROSION verificati; scratch conferma
+  tutti e 8); la divergenza cresce da t=8 s a t=38 s (conseguenze che si
+  accumulano) restando < 0.85 (stesso soggetto). Test 3 (confronto
+  Material-Morph): path manuale — la tendina cambia renderer sullo stesso
+  fotogramma senza rigenerare (verificato in `brainController.ts`).
+  `decompression` protratta ancora da fare. Vite build OK; typecheck + lint
+  puliti; **64 file / 597 test verdi**.
+- **Item 5 — collaudo visivo negativo + rework della resa** (2026-08-31): a
+  schermo si vedevano solo striature verticali su nero (barre da
+  equalizzatore); il collasso del contorno non arrivava all'immagine.
+  Diagnosi: (1) il contorno — il protagonista — era disegnato **nero su
+  nero** ad alpha 0.35-0.75; (2) fondo + tonemap + velo `multiply` 40%
+  seppellivano il raster; (3) si warpava solo la **maschera**, non i pixel
+  del raster → il contenuto interno non si muoveva; (4) la colata in 10
+  colonne fisse era l'unico layer con contrasto. Rework (autorizzato):
+  `analyzeMaterialPixels` estrae **zone di colore** al prepare; il raster
+  mappato-palette viene **warpato per celle** (griglia 22×13 lungo il campo
+  di nodi) → le regioni cromatiche scivolano visibilmente; il contorno è
+  ora un tratto **chiaro** (cenere calda `rgb(214,196,205)`) più largo, in
+  `lighter`; fondo `#0a0812` e velo `multiply` al 3-13% → il raster è il
+  layer dominante; la colata segue il **bordo inferiore warpato di ogni
+  regione** (non colonne fisse), sfumatura lenta = macchia, alpha 0.28-0.44
+  = subordinata; scratch canvas persistenti al posto di 3/frame. **Test 1
+  reso anche "a schermo"**: `interiorDisplacement(nodes, occ0)` misura lo
+  spostamento dei nodi DENTRO la figura (stessa griglia del warp raster) —
+  4.6-6.2 celle-occ (~15-21 px) a 8 s per ogni modo, > 0.8 richiesto.
+  **Varco in Respiro Profondo — scuro predominante**:
+  `RESPIRO_PROFONDO_GLITCH_MULTIPLIER` 0.25 → 0.1 e nuove
+  `PRESSURE_GLITCH_TINTS_DARK` (petrolio / viola ematico / ruggine annerita)
+  al posto di cyan/magenta/giallo quando `regime === 'respiro-profondo'`
+  (`glitchTintFor`, applicato anche per-frame così segue i cambi di regime).
+  Flash già a 0, mix Psycho2D già soppresso, passthrough FilterPsiche già
+  dark-profilato. Vite build OK; typecheck + lint puliti; **64 file / 598
+  test verdi**. La verifica visiva a schermo resta da fare al collaudo.
+- **Plateau + isteresi trend** (2026-08-31, dal collaudo bio-percettivo):
+  - **Isteresi sul classificatore di trend — FATTO** (unica aggiunta
+    autorizzata, difetto dimostrato sul campo: "tre binari a 0.014 di
+    distanza producevano tre stati diversi"). `classifyPressureTrend` prende
+    ora un 3° parametro `previous` (default `'stable'` → comportamento
+    invariato per i chiamanti a 2 arg): l'ingresso in rising/falling resta a
+    `REFERENCE_PRESSURE_DEADBAND` (0.02), l'uscita richiede che `diff`
+    rientri a `0.02 − TREND_HYSTERESIS` (0.016) = **0.004**. Regione di
+    indifferenza 0.016, sopra la quantizzazione osservata 0.014. Il clock
+    passa `this.regime.pressureTrend` (già in `BrainBioRegimeState` dal gate
+    latenza). Solo l'uscita ha memoria; entrare resta reattivo.
+  - **Plateau — FATTO** (`brainRhythm.ts`). Il detector di transienti
+    scattava sul letto residuo dell'altro deck (`delta = bands −
+    previousBands` positivo ad ogni oscillazione → `bandTransients` non
+    rilascia → `temporalOccupancy` alta → pressione piantata a ~0.30/0.42).
+    Correzione: `transientTargets[band]` è ora moltiplicato per un
+    `liftFactor` graduato su `bands[band] − this.movingAverages[band]`
+    (`TRANSIENT_LIFT_FLOOR` per banda ~0.02, `TRANSIENT_LIFT_SPAN` 0.05 —
+    valori di collaudo). Un transiente è un'escursione sopra la baseline
+    stabilita, non un'oscillazione attorno alla propria media. Stesso
+    segnale già usato per il kick (`lowLift`/`lowMidLift`, e
+    `bandEnergies − movingAverages` in `visualEngine.ts`). Verificato:
+    letto steady con wobble ±0.02 attorno alla sua media → peak transiente
+    **0.0000**; kick reale in musica forte sostenuta (movingAverages ≈ 0.5,
+    colpo a 0.78) → `bandTransients.low = 0.65`, `.high = 0.45` — **il
+    beatmatch non perde ampiezza**. `bandTransients` alimenta anche
+    `calculateBrainKickEnvelope`/`calculateRhythmicAccent`, non solo
+    `temporalOccupancy`: preservato.
+  - **`reference` mai ri-promosso** (0 `stasis-settled` in entrambe le
+    sessioni, 100% ingressi al respiro per livello ereditato): riportato, non
+    corretto. Probabile conseguenza del plateau (un mondo che non si assesta
+    non promuove). Da verificare dopo la correzione a monte; se persiste,
+    secondo blocco da riportare.
+
 ## Push e tag di `1.0.0-rc.1`, mai eseguiti finora — 2026-08-31
 
 - **Richiesta**: mergiare `develop` in `main` e avanzare di versione.

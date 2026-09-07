@@ -1,5 +1,43 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Collaudo `test-1.mp3` — 2026-09-04
+
+- [x] **`TASK-040-76`** `DONE`: analizzare il campione reale, eliminare la
+  falsa stasi usando `pressureLanded` e verificare zero `respiro-alto`.
+  Pipeline offline riproducibile e suite completa verdi.
+
+
+## Falsa stasi oscillatoria — 2026-09-04
+
+- [x] **`TASK-040-75`** `DONE`: ritirare l’isteresi larga e subordinare i
+  Respiri al tracker `pressureLanded` già esistente. Aggiunta regressione
+  bidirezionale; nessun nuovo meccanismo. Verifica completa verde.
+
+
+## Correzione frequenza regimi — 2026-09-04
+
+- [x] **`TASK-040-74`** `DONE`: applicare l’isteresi esistente anche
+  all’ingresso del trend, riducendo sul replay i cambi da 375 a 38 senza
+  introdurre macchine o timer. Suite completa e controlli statici verdi.
+
+
+## Direttiva Ingegneria — 2026-09-04
+
+- [x] **`TASK-040-73`** `DONE`: recepire la semplificazione richiesta,
+  acquisire il riscontro Audio C03/C04/C06 e verificare i segnali esistenti;
+  fermare ulteriori elaborazioni della formula smentita. Solo documentazione.
+
+
+## Ripresa Ingegneria PIANO-040 — 2026-09-04
+
+- [x] **`TASK-040-71`** `DONE`: replay riproducibile della sola costrizione
+  ritmica sugli ingressi registrati, integrità baseline verificata, report
+  per dieci file e finestre di 10 s; warm-up escluso e limiti dichiarati.
+- [x] **`TASK-040-72`** `DONE`: tre regressioni tecniche, 52/52 test mirati,
+  typecheck/lint/diff-check verdi; documentato il limite della separazione
+  alto/profondo, senza tarature compensative o modifiche runtime.
+
+
 Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
 
 ## Task Collegati a `PIANO-041` — Release Candidate 1
@@ -14,6 +52,33 @@ Registro atomico dei micro-task collegati ai Macrotask attivi e recenti.
   artefatti RC sul commit risultante in `develop`.
 
 ## Task Collegati a `PIANO-040` — brief collettivo pragmatico
+
+- [x] **`TASK-040-70`** `DONE`: portare DELIQUESCENCE dal 90% al 95% del
+  tempo di selezione automatica esclusivamente in `respiro-profondo`, lasciando
+  il 5% agli altri renderer bassi e mantenendo invariati decompressione,
+  Respiro Alto, bootstrap, fallback e selezione manuale.
+
+- [x] **`TASK-040-69`** `DONE`: consolidare il brief normativo
+  `AUDIO-REGIMI-POSTCOLLAUDO-01` e implementare soltanto l'Intervento 1:
+  `pressureTrend` deriva ora dalla traiettoria di `perceptualPressure` contro
+  la linea `pressureLagged` già esistente; `reference` resta memoria. Esporre
+  separatamente Δreference e Δtraiettoria nel log 1 Hz, aggiungere componenti
+  della pressione/ritmo e marcatori Audio globali Maiusc+0..4. Nessuna modifica
+  a costrizione ritmica, pesi, soglie, mediana o livello della stasi.
+
+- [x] **`TASK-040-68`** `DONE`: spostare i session log nella cartella dati
+  applicativa `userData/log`, eliminando ogni dipendenza da eseguibile,
+  bundle, DMG o cartella del progetto; aggiungere test e validazione completa.
+
+- [x] **`TASK-040-67`** `DONE`: registrare il collaudo negativo dei quattro
+  stati senza inventare il log numerico mancante; produrre il brief completo
+  per il Capo Supremo dell'Analisi Audio e identificare il difetto di
+  persistenza del logger come prerequisito del prossimo collaudo.
+
+- [x] **`TASK-040-66`** `DONE`: rivalutare `alto`/`profondo` anche al confine
+  già esistente di pressione atterrata, riusando `classifyLevel` senza nuove
+  macchine o tarature; permettere a un latch ereditato errato di tornare
+  `stasis-level-indeterminate` e coprire il caso reale 0.04 → 0.26.
 
 - [x] **`TASK-040-65`** `DONE`: rendere universale il contratto bio-visivo:
   tutti i nove renderer registrati ricevono e rispettano pressurizzazione,

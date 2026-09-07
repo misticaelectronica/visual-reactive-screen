@@ -19,27 +19,92 @@ const STORY_CYCLE_EXCLUDED_RENDERERS = new Set<BrainRendererId>([
 // vince sempre sull'evento tecnico (brief §13/§14 della nota Visual —
 // "l'esclusione per regime deve rimanere attiva durante la Riattivazione").
 const LOW_REGIME_RENDERERS = new Set<BrainRendererId>([
+  'deliquescence',
   'vector-morph',
   'material-morph',
   'bauhaus-morph',
   'dream-segmentation',
   'filter-psiche',
 ])
+// DELIQUESCENCE è la grammatica del Respiro Profondo: quando il regime entra
+// in `respiro-profondo` deve essere il **95% della rotazione** (Capo Supremo,
+// 2026-09-01). Gli altri renderer del pool basso restano eleggibili — texture,
+// il 5% — ma DELIQUESCENCE domina. Non è un rango stretto (che darebbe ~100%
+// in ciclo per storia): è una quota probabilistica applicata al pick.
+const LOW_REGIME_DOMINANT_ID: BrainRendererId = 'deliquescence'
+const LOW_REGIME_DOMINANT_SHARE = 0.95
 const REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(
   BRAIN_RENDERER_IDS.filter((id) => !LOW_REGIME_RENDERERS.has(id)),
 )
 
-// `respiro-alto`/`pressurized`: nessuna esclusione, come già `pressurized`
-// prima di questo brief. Il brief Visual §5 elenca una preferenza
-// "prioritari/compatibili" per Respiro Alto, non un'esclusione — non
-// implementata come peso di selezione in questo giro (nessun meccanismo
-// di priorità esiste oggi nel selettore; aggiungerne uno per una
-// preferenza qualitativa non vincolante sarebbe la sovrastrutturazione
-// che la regola vieta finché non richiesto in modo stringente).
+// --- Pool proprio del RESPIRO ALTO (Item 4) ---------------------------------
+//
+// Strutturalmente distinto dal pool basso (`LOW_REGIME_RENDERERS`): NON una
+// lista unica con override, ma insiemi espliciti e separati. Il brief Item 4
+// li dichiara così.
+//
+//  - PRIORITARI: scorrono per primi nel mazzo, sono la grammatica del Respiro
+//    Alto (Psycho2D, Fractal Spiral, Glitch-Morph, Vector-Morph, Filter-Psiche
+//    in grammatica piena).
+//  - COMPATIBILI NON PRIORITARI: restano eleggibili ma passano dopo i
+//    prioritari — compaiono solo quando il mazzo dei prioritari è esaurito,
+//    rari, non esclusi.
+//  - Print2D non è in nessuno dei due: conserva il ruolo attuale (fuori
+//    story-cycle, solo Riattivazione).
+//  - DELIQUESCENCE è in `HIGH_REGIME_EXCLUDED_RENDERERS` — escluso dal
+//    Respiro Alto, dichiarato, non emergente.
+//
+// Filter-Psiche e Vector-Morph appartengono anche a `LOW_REGIME_RENDERERS`:
+// stessa identità, due grammatiche opposte (dark e non competitivo nel
+// profondo, piena nell'alto). La differenza vive nei renderer, non qui — qui
+// entrambi sono solo "eleggibili e prioritari" in alto, "eleggibili" in basso.
+const HIGH_REGIME_PRIORITY_RENDERERS = new Set<BrainRendererId>([
+  'psycho2d',
+  'fractal-spiral-degeneration',
+  'glitch-morph',
+  'vector-morph',
+  'filter-psiche',
+])
+const HIGH_REGIME_SECONDARY_RENDERERS = new Set<BrainRendererId>([
+  'material-morph',
+  'bauhaus-morph',
+  'dream-segmentation',
+])
+// DELIQUESCENCE è escluso dal Respiro Alto per costruzione (dichiarato, non
+// emergente): la sua grammatica è quella del Respiro Profondo.
+const HIGH_REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
+// Bootstrap (`unresolved`, prima che `reference` sia affidabile): DELIQUESCENCE
+// non è dichiarabile — la sua sola presenza affermerebbe una grammatica di
+// Respiro Profondo prima che il sistema possa riconoscerlo (brief Visual
+// "due assi" §3). Esclusione minima esplicita; la restrizione completa del
+// pool conservativo di bootstrap resta voce di collaudo.
+const BOOTSTRAP_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
+
+// `pressurized`: nessuna esclusione né preferenza — è un passaggio, non uno
+// stato abitato con un pool proprio.
 function excludedForRegime(regime: BrainBioRegime): ReadonlySet<BrainRendererId> {
-  return regime === 'decompression' || regime === 'respiro-profondo'
-    ? REGIME_EXCLUDED_RENDERERS
-    : AUTOMATICALLY_EXCLUDED_RENDERERS
+  if (regime === 'decompression' || regime === 'respiro-profondo') {
+    return REGIME_EXCLUDED_RENDERERS
+  }
+  if (regime === 'respiro-alto') return HIGH_REGIME_EXCLUDED_RENDERERS
+  if (regime === 'unresolved') return BOOTSTRAP_EXCLUDED_RENDERERS
+  return AUTOMATICALLY_EXCLUDED_RENDERERS
+}
+
+// Rango di preferenza del renderer nel regime corrente: 0 = prioritario o
+// nessuna preferenza applicabile, 1 = compatibile non prioritario. Usato SOLO
+// nel Respiro Alto come chiave primaria di ordinamento del mazzo, prima del
+// bilanciamento per esposizione — i compatibili restano nel mazzo, in coda.
+function regimePreferenceRank(
+  regime: BrainBioRegime,
+  id: BrainRendererId,
+): number {
+  if (regime !== 'respiro-alto') return 0
+  if (HIGH_REGIME_PRIORITY_RENDERERS.has(id)) return 0
+  if (HIGH_REGIME_SECONDARY_RENDERERS.has(id)) return 1
+  // Fuori dal pool del Respiro Alto (es. Print2D nella rotazione a tempo):
+  // eleggibile ma ultimo, dopo prioritari e compatibili.
+  return 2
 }
 // Bauhaus Morph e Materia Morph preparano il materiale visivo analizzando
 // pixel/maschere di più sorgenti immagine per fotogramma (capabilities
@@ -70,6 +135,7 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'dream-segmentation',
   'glitch-morph',
   'fractal-spiral-degeneration',
+  'deliquescence',
 ])
 // Un renderer persistente è un invariante onirico (filosofia.md §2): deve
 // durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2
@@ -104,12 +170,15 @@ export function selectBrainRendererHoldFrames(
   if (boosted && regime === 'decompression') {
     return DECOMPRESSION_BOOSTED_HOLD_FRAMES
   }
-  // Brief Visual "due assi" (2026-08-28), §4/§5: Respiro Alto vuole "tempi
-  // corti" — la stessa stretta 1-2 già usata dalla Riattivazione, ma qui
-  // attiva anche fuori boost, perché è la stasi stessa a chiederlo, non
-  // un evento tecnico. Respiro Profondo resta l'unico caso che torna al
-  // range ordinario anche sotto boost ("deve mimetizzarsi").
-  const useShortRange = regime === 'respiro-alto' || (boosted && regime !== 'respiro-profondo')
+  // Item 4 CORREGGE l'interpretazione precedente: nel Respiro Alto "tempi
+  // corti" significa velocità INTERNA dei renderer (micro-morph rapidi,
+  // risposta cromatica veloce, densità), NON hold ridotto e rotazione
+  // continua di renderer. La trance nasce dalla permanenza dentro
+  // l'intensità — "Brain va a mille senza cambiare identità". Perciò il
+  // Respiro Alto fuori Riattivazione usa il range persistente ordinario
+  // [2,3]. La stretta [1,2] resta solo durante la Riattivazione (`boosted`),
+  // per ogni regime tranne il Respiro Profondo che "deve mimetizzarsi".
+  const useShortRange = boosted && regime !== 'respiro-profondo'
   const minimum = useShortRange ? MINIMUM_BOOSTED_HOLD_FRAMES : MINIMUM_PERSISTENT_HOLD_FRAMES
   const maximum = useShortRange ? MAXIMUM_BOOSTED_HOLD_FRAMES : MAXIMUM_PERSISTENT_HOLD_FRAMES
   const span = maximum - minimum + 1
@@ -188,7 +257,7 @@ export class BrainRendererSelector {
     if (this.mode === 'story-cycle') {
       this.storyDeck = this.balancedStoryDeck(this.activeId)
       this.storyDeckIndex = 0
-      this.activeId = this.storyDeck[0] ?? FILTER_PSICHE_ID
+      this.activeId = this.applyLowRegimeDominance(this.storyDeck[0] ?? FILTER_PSICHE_ID)
       this.storyHoldRemaining = this.storyHoldForActive()
     } else {
       this.activeId = this.automaticIds()[0] ?? FILTER_PSICHE_ID
@@ -245,14 +314,24 @@ export class BrainRendererSelector {
     ids: readonly BrainRendererId[],
     avoidedId: BrainRendererId,
   ): BrainRendererId[] {
+    // Item 4: nel Respiro Alto il rango di preferenza è la chiave PRIMARIA —
+    // i prioritari scorrono per primi, i compatibili non prioritari restano
+    // nel mazzo ma in coda (rari, non esclusi). Il bilanciamento per
+    // esposizione resta come chiave secondaria, invariato negli altri regimi.
+    const regime = this.getRegime?.() ?? 'unresolved'
     const randomized = this.shuffled(ids)
     const deck = randomized.sort((left, right) =>
-      this.exposureWeight(left) - this.exposureWeight(right),
+      (regimePreferenceRank(regime, left) - regimePreferenceRank(regime, right)) ||
+      (this.exposureWeight(left) - this.exposureWeight(right)),
     )
     if (deck.length > 1 && deck[0] === avoidedId) {
+      const firstRank = regimePreferenceRank(regime, deck[0])
       const firstCount = this.exposureWeight(deck[0])
       const replacementIndex = deck.findIndex(
-        (id) => id !== avoidedId && this.exposureWeight(id) === firstCount,
+        (id) =>
+          id !== avoidedId &&
+          regimePreferenceRank(regime, id) === firstRank &&
+          this.exposureWeight(id) === firstCount,
       )
       if (replacementIndex > 0) {
         ;[deck[0], deck[replacementIndex]] = [deck[replacementIndex], deck[0]]
@@ -263,6 +342,26 @@ export class BrainRendererSelector {
 
   private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {
     return this.weightedDeck(this.storyCycleIds(), avoidedId)
+  }
+
+  /**
+   * Quota di dominanza del Respiro Profondo (Capo Supremo, 2026-09-01):
+   * DELIQUESCENCE è il ~95% della rotazione. Applicata al pick del mazzo:
+   * con probabilità `LOW_REGIME_DOMINANT_SHARE` il renderer è DELIQUESCENCE
+   * (se eleggibile); nel resto, se il mazzo aveva già scelto DELIQUESCENCE
+   * si forza un altro renderer del pool basso — così la quota resta ~95/5,
+   * non ~99/1. Fuori da `respiro-profondo` è un no-op.
+   */
+  private applyLowRegimeDominance(deckPick: BrainRendererId): BrainRendererId {
+    if ((this.getRegime?.() ?? 'unresolved') !== 'respiro-profondo') return deckPick
+    if (!this.availableIds.includes(LOW_REGIME_DOMINANT_ID)) return deckPick
+    if (!this.regimeAllows(LOW_REGIME_DOMINANT_ID)) return deckPick
+    if (this.random() < LOW_REGIME_DOMINANT_SHARE) return LOW_REGIME_DOMINANT_ID
+    if (deckPick !== LOW_REGIME_DOMINANT_ID) return deckPick
+    const others = this.storyCycleIds().filter((id) => id !== LOW_REGIME_DOMINANT_ID)
+    return others.length > 0
+      ? others[Math.floor(this.random() * others.length)]
+      : deckPick
   }
 
   private recordExposure(id: BrainRendererId, frames: number): void {
@@ -312,7 +411,7 @@ export class BrainRendererSelector {
     this.storyDeckIndex = 0
     this.storyDeck = this.balancedStoryDeck(this.activeId)
     if (settings?.brainRendererMode === 'story-cycle') {
-      this.activeId = this.storyDeck[0] ?? this.activeId
+      this.activeId = this.applyLowRegimeDominance(this.storyDeck[0] ?? this.activeId)
       this.storyHoldRemaining = this.storyHoldForActive()
       this.recordExposure(this.activeId, this.storyHoldRemaining + 1)
       this.mode = 'story-cycle'
@@ -342,7 +441,7 @@ export class BrainRendererSelector {
       this.storyDeck = [...this.storyDeck, ...this.shuffled(this.storyCycleIds())]
     }
     this.storyDeckIndex += 1
-    this.activeId = this.storyDeck[this.storyDeckIndex]
+    this.activeId = this.applyLowRegimeDominance(this.storyDeck[this.storyDeckIndex])
     this.storyHoldRemaining = this.storyHoldForActive()
     this.recordExposure(this.activeId, this.storyHoldRemaining + 1)
     this.switchedAt = now
@@ -365,8 +464,16 @@ export class BrainRendererSelector {
       )
     }
     const nextId = this.waitingDeck.shift()
-    if (!nextId || nextId === this.activeId) return false
-    this.activeId = nextId
+    if (!nextId) return false
+    const picked = this.applyLowRegimeDominance(nextId)
+    if (picked === this.activeId) {
+      // La dominanza del Respiro Profondo vuole DELIQUESCENCE di nuovo: non è
+      // un cambio, ma va rinnovato l'hold per non ri-tirare il dado ogni
+      // fotogramma.
+      this.waitingHoldRemaining = this.storyHoldForActive()
+      return false
+    }
+    this.activeId = picked
     this.waitingHoldRemaining = this.storyHoldForActive()
     this.recordExposure(this.activeId, this.waitingHoldRemaining + 1)
     this.switchedAt = now

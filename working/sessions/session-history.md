@@ -1,5 +1,62 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-09-04-INGEGNERIA-TEST-1
+
+- **Obiettivo**: collaudare direttamente il caso bloccante `test-1.mp3`.
+- **Prima**: 7,55 s di falso `respiro-alto`.
+- **Dopo**: zero Respiri; dopo 0,84 s iniziali, sola alternanza fra
+  decompression e pressurized. Conferma di stasi portata a 9 s e punti neutri
+  mantenuti nell’ultimo passaggio. Nessun nuovo segnale o stato.
+- **Validazione**: harness offline, regressione dedicata, 64 file / 608 test,
+  typecheck, lint e diff-check verdi. Prova fullscreen raccomandata.
+
+
+## SESSION-2026-09-04-INGEGNERIA-STASI-OSCILLATORIA
+
+- **Obiettivo**: impedire che una trasformazione bidirezionale diventi
+  `respiro-alto` quando le direzioni si annullano.
+- **Correzione**: ritirata la soglia larga; i Respiri richiedono ora anche
+  l’assestamento del tracker esistente. Oscillazione → passaggi, punti neutri → unresolved.
+- **Validazione**: regressione dedicata; 64 file / 608 test, typecheck e lint verdi.
+- **Limite**: campione `test-1.mp3` assente; collaudo live pendente.
+
+
+## SESSION-2026-09-04-INGEGNERIA-FREQUENZA-REGIMI
+
+- **Obiettivo**: impedire cambi di stato circa ogni secondo.
+- **Modifica**: ingresso del trend reso meno sensibile usando l’isteresi già
+  disponibile; nessun nuovo meccanismo.
+- **Evidenza**: replay sulla traiettoria registrata 375 → 38 cambi.
+- **Validazione**: 64 file / 607 test, typecheck, lint e diff-check verdi.
+- **Stato**: implementazione completata; resta verifica percettiva live.
+
+
+## SESSION-2026-09-04-INGEGNERIA-SEMPLICITA
+
+- Direttiva del Capo Supremo recepita nel mandato; TASK-040-73 completato.
+- Letto il riscontro Audio allegato e verificati detector e clock esistenti:
+  salienza locale e previsione non certificano conferme fisiche ricorrenti.
+- Fase 1 aperta; nessuna nuova formula o modifica runtime. Verificato il diff
+  documentale; test non necessari. Prossimo passo limitato alla verifica
+  della relazione fra eventi reali e fase, senza nuova architettura.
+
+
+## SESSION-2026-09-04-INGEGNERIA-REPLAY
+
+- **Data/ora**: 2026-09-04, 19:40 Europe/Rome.
+- **Obiettivo**: riprendere il mandato Ingegneria dall'Intervento 1 rhythmConstraint.
+- **Completato**: TASK-040-71/72; replay offline riproducibile sugli ingressi
+  reali già registrati e tre test di regressione. Baseline PP ricostruita
+  esattamente; transitorio iniziale escluso perché warm-up non disponibile.
+- **Esito**: la separazione alto/profondo suggerita dai nomi file resta
+  incompleta; report consegnato nel brief Ingegneria. Nessuna mappa verificata
+  C01–C09 e nessuna equivalenza dichiarata con nuovo ascolto/live.
+- **Validazione**: 52/52 test mirati, typecheck, lint, diff-check verdi.
+  Build non necessaria: modificati solo harness offline, test e documenti.
+- **Stato finale**: verifica tecnica conclusa; prossima decisione percettiva
+  all'Audio. Nessuna modifica runtime o soglia, lavoro preesistente preservato.
+
+
 Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Electronica Visual Reactive Screen**.
 
 ---
@@ -2039,3 +2096,143 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   overflow orizzontale e nessun errore browser; build Pages verificata online.
 - **Git**: commit pubblico `de113ec` sul branch `gh-pages`; nessun push su
   `develop`.
+
+### `SESSION-2026-08-31-01`
+- **Data**: 31 Agosto 2026, 23:29 CEST
+- **Obiettivo**: correggere esclusivamente la mancata rivalutazione del livello
+  bio-percettivo dopo il collaudo negativo, senza intervenire sulle altre tre
+  tarature segnalate.
+- **Causa confermata**: `classifyLevel` era consultata soltanto su
+  `reference.justSettled`, evento mai osservato nei log reali; un livello
+  ereditato poteva quindi durare per l'intera sessione.
+- **Correzione**: riusato il tracker di pressione atterrata già presente. Sul
+  fronte `pressureJustLanded`, `classifyLevel` rivaluta la pressione live
+  rispetto alla mediana partendo da livello indeterminato; l'ereditarietà
+  entra soltanto se la rivalutazione concorda con la direzione del passaggio.
+  Nessuna macchina, soglia o taratura nuova.
+- **Regressione**: riprodotto il caso `alto` ereditato a 0.04, salita e stasi a
+  0.26 con mediana 0.26 e `justSettled=false`; il livello torna `null` e la
+  stasi diventa `stasis-level-indeterminate`.
+- **Validazione**: test mirato 49/49; `pnpm typecheck` e `pnpm lint` puliti;
+  suite completa **64 file / 603 test**; `pnpm build` riuscito con app, DMG,
+  ZIP e blockmap. Nessun commit.
+
+### `SESSION-2026-09-01-01`
+- **Data**: 1 Settembre 2026 (CEST), relativo al collaudo del 31 agosto.
+- **Obiettivo**: consegnare al Capo Supremo dell'Analisi Audio l'esito del
+  collaudo reale dei quattro stati bio-percettivi.
+- **Esito live**: DECOMPRESSIONE e RESPIRO PROFONDO letti anche come
+  PRESSURIZZATO; RESPIRO ALTO troppo frequente; LIVELLO INDETERMINATO molto
+  frequente dopo la rivalutazione all'atterraggio.
+- **Integrità dati**: nessun file `session-*.txt` recuperabile. Ricerca estesa
+  a progetto, build, cartelle utente, temporanei e volumi montati. Il brief non
+  inventa numeri e dichiara esplicitamente l'assenza dell'allegato 1 Hz.
+- **Consegna**:
+  `team/briefs/brief-audio-collaudo-negativo-quattro-stati-2026-08-31.md`, con
+  matrice del fallimento, descrizione della macchina corrente, ipotesi separate
+  dai fatti, cinque decisioni richieste all'Audio e schema del prossimo log.
+- **Nessuna modifica runtime**: nessuna taratura o correzione applicata in
+  questo giro. Nessun commit.
+
+### `SESSION-2026-09-01-02`
+- **Data**: 1 Settembre 2026, 00:06 CEST.
+- **Obiettivo**: rendere persistente il log del collaudo esclusivamente nelle
+  cartelle applicative.
+- **Causa**: il logger pacchettizzato derivava `log/` da `process.execPath`,
+  quindi poteva puntare dentro bundle o DMG. Non scriveva sulla Scrivania, ma
+  la destinazione era comunque errata e fragile.
+- **Correzione**: `sessionLogDirectory()` usa ora sempre
+  `app.getPath('userData')/log`, la cartella dati applicativa scrivibile del
+  profilo utente. Nome e formato dei file invariati.
+- **Validazione**: test mirato 2/2; `pnpm typecheck` e `pnpm lint` puliti;
+  suite completa **64 file / 604 test**; `pnpm build` riuscito con app, DMG,
+  ZIP e blockmap. Nessun commit.
+
+### `SESSION-2026-09-01-03`
+- **Data**: 1 Settembre 2026 (CEST).
+- **Obiettivo**: consolidare direttamente il brief definitivo del Capo
+  Supremo dell'Analisi Audio e realizzare esclusivamente l'Intervento 1.
+- **Consolidamento**:
+  `team/briefs/brief-audio-regimi-postcollaudo-01.md` diventa la normativa
+  corrente per direzione, ruolo del `reference`, costrizione ritmica e livello
+  della stasi; i documenti precedenti incompatibili sono marcati come superati.
+- **Correzione semantica**: `pressureTrend` deriva dalla traiettoria corrente
+  confrontando `perceptualPressure` con `pressureLagged`, già presente. Una
+  pressione sopra il vecchio reference ma in discesa legge `falling`; una
+  pressione sotto il reference ma in salita legge `rising`. `reference` non è
+  più un decisore della direzione.
+- **Logging**: Δreference e Δtraiettoria sono separati; registrate componenti
+  della pressione e della costrizione ritmica, valori clock e marcatore manuale
+  Audio. Maiusc+1/+2/+3/+4 annotano i quattro stati, Maiusc+0 cancella; Maiusc+B
+  avvia e conclude il campionamento 1 Hz nel `userData/log` applicativo.
+- **Perimetro**: nessuna taratura o modifica a costrizione ritmica, occupancy,
+  deadband, isteresi, mediana o livello. Prossimo passo: Collaudo 1 della sola
+  direzione.
+- **Validazione**: test mirato 49/49; suite **64 file / 604 test**; typecheck,
+  lint e build completi e verdi con app, DMG, ZIP e blockmap. Nessun commit.
+
+### `SESSION-2026-09-01-04`
+- **Data**: 1 Settembre 2026 (CEST).
+- **Obiettivo**: rendere DELIQUESCENCE il 95% del tempo in Respiro Profondo.
+- **Modifica**: `LOW_REGIME_DOMINANT_SHARE` 0.90 → 0.95 nel solo ramo
+  `respiro-profondo`; il ramo residuo forza un renderer basso alternativo,
+  mantenendo una quota reale vicina a 95/5 invece di accumulare probabilità.
+- **Perimetro**: decompressione, Respiro Alto, bootstrap, manuale, fallback,
+  hold, comportamento grafico e costo invariati.
+- **Validazione**: test selettore 48/48; suite completa **64 file / 604 test**;
+  typecheck, lint e build verdi con app, DMG, ZIP e blockmap. Nessun commit.
+
+### `SESSION-2026-09-04-01` — IN CORSO, handoff veloce
+- **Data**: 4 Settembre 2026 (CEST).
+- **Obiettivo 1 (fatto)**: Intervento 1 su `rhythmConstraint` (brief Audio
+  "chiusura Fase 1"). `pulse` ridefinito sul solo attacco confermato da
+  `bandTransients.low/lowMid` (gate `active`, non più `max(kickEnvelope,
+  beatPulse)`); `lowEnd` diventa moltiplicativo su `anchor = pulse*0.6 +
+  gridDensity*0.4` invece di additivo. Vedi
+  [`brainBioPerception.ts`](../../src/renderer/output/brain/brainBioPerception.ts)
+  righe ~516-611 e risposta tecnica
+  [`team/briefs/brief-ingegneria-rhythmconstraint-intervento-1-2026-09-04.md`](../../team/briefs/brief-ingegneria-rhythmconstraint-intervento-1-2026-09-04.md).
+  Test mirato 49/49, suite `brain/` 507/507, typecheck pulito. Nessun commit.
+- **Obiettivo 2 (NON fatto, bloccante per chiudere la Fase 1)**: l'Audio ha
+  richiesto di ricostruire e **committare** l'harness di calibrazione che ha
+  prodotto `working/calibration-v1/*` (mai tracciato in git, quindi perso come
+  strumento anche se i log sono ancora su disco). Reverse-engineering fatto
+  leggendo `working/calibration-v1/calibration-v1-summary-warmed.md` (diff
+  vs `-summary.md`) e i due `.jsonl`, poi confermato contro `ffprobe` sulla
+  durata reale di due file — **specifica esatta ricostruita**:
+  - FFT non sovrapposta a blocchi da 1024 campioni (hop = fftSize), un
+    ingest per blocco; `deltaMs` costante = `1024/44100*1000 =
+    23.219954648526077` ms (verificato: `decompresisone-1.mp3` 50.599 s →
+    2179 frame, `decompresisone.mp3` 55.040 s → 2370 frame, entrambi
+    coerenti a meno dell'ultimo blocco parziale).
+  - Riscaldamento: 40 s di rumore rosa **non loggato**, generato con
+    `ffmpeg -f lavfi -i anoisesrc=color=pink:...` (confermato dal testo della
+    tabella "warmed"), ~1723 blocchi, sullo stesso clock che poi ingerisce il
+    corpus reale senza reset (`tGlobalMs` continuo; `tLocalMs` riparte per
+    file solo per leggibilità nel log).
+  - Campi JSONL per riga: `file, tGlobalMs, tLocalMs, bands{low,lowMid,mid,
+    high}, rhythm{active,kickEnvelope,beatPulse}, transients{...},
+    signals{persistence,change,residual,perceptualPressure,pressureTrend},
+    regime, diagnostics{...tutto `getRegimeDiagnostics()`...}` — riusano le
+    classi reali (`OutputRhythmClock`/`BrainRhythmClock`,
+    `BrainBioPerceptionClock`) e `computeBandEnergies`/`allBandBinRanges` da
+    `@shared/audioMath`/`@shared/frequencyBands`, non reimplementate.
+  - `minDecibels=-90`/`maxDecibels=-10` per la mappatura dB→byte 0-255 (stessi
+    valori dell'`AnalyserNode` in `useAudioAnalyzer.ts`), finestra Blackman
+    prima della FFT, smoothing 0.75 sulla magnitudine lineare fra blocchi
+    successivi (non sul dB) — coerente con l'algoritmo `AnalyserNode`.
+  - `docs/campioni/` contiene **10 file**, non nove come dicono i brief
+    precedenti (verificato con `md5`: tutti distinti, non duplicati). Ordine
+    già noto: decompresisone-1, decompresisone, pressurizzazione-2,
+    pressurizzazione, pressurizzazione1, respiro-alto-0, respiro-alto-1,
+    respiro-profondo-1, respiro-profondo, respirto-profondo-3.
+- **Prossimo passo per chi riprende**: scrivere
+  `scripts/calibration/` (decodifica ffmpeg → PCM f32le mono 44.1 kHz, FFT
+  1024/Blackman/smoothing 0.75 come sopra, loop sui blocchi, istanze uniche
+  dei clock reali, log JSONL + riassunto Markdown come `calibration-v1`),
+  aggiungere `tsx` come devDependency e uno script npm `calibrate`,
+  **committare lo strumento**, eseguirlo sui 10 campioni ed eseguirlo,
+  poi consegnare la tabella all'Analisi Audio **senza proporre modifiche**
+  (richiesta esplicita del Consigliere). Nessun mapping noto fra le sigle
+  `C02/C03/C04/C05/C06/C08/C09` usate dall'Audio e i nomi dei file: da
+  chiarire con l'Audio, non inventarlo.

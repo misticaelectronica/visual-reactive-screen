@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 
 describe('Brain renderer registry', () => {
-  it('registra i nove renderer Brain, incluso Psycho2D, Dream Segmentation, Glitch Morph e Fractal Spiral Degeneration', () => {
+  it('registra i dieci renderer Brain, incluso Dream Segmentation, Fractal Spiral Degeneration e Deliquescence', () => {
     const registry = createDefaultBrainRendererRegistry()
     expect(registry.ids()).toEqual([
       'print2d',
@@ -14,6 +14,7 @@ describe('Brain renderer registry', () => {
       'dream-segmentation',
       'glitch-morph',
       'fractal-spiral-degeneration',
+      'deliquescence',
     ])
     expect(registry.get('psycho2d')?.capabilities).toEqual({
       multipleImages: true,
@@ -48,6 +49,11 @@ describe('Brain renderer registry', () => {
     })
     expect(registry.get('fractal-spiral-degeneration')?.capabilities).toEqual({
       multipleImages: true,
+      semanticMetadata: false,
+      lowPowerMode: true,
+    })
+    expect(registry.get('deliquescence')?.capabilities).toEqual({
+      multipleImages: false,
       semanticMetadata: false,
       lowPowerMode: true,
     })

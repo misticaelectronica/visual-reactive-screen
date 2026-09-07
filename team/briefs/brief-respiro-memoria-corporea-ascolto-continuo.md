@@ -1,5 +1,12 @@
 # BRAIN — Respiro, memoria corporea e ascolto continuo
 
+> **Superamento parziale:**
+> [`AUDIO-REGIMI-POSTCOLLAUDO-01`](brief-audio-regimi-postcollaudo-01.md)
+> sostituisce la posizione rispetto al `reference` come decisore della
+> direzione: `reference` è memoria; il verso deriva dalla traiettoria corrente
+> di `perceptualPressure`. La mediana resta contesto e perde anche il ruolo
+> decisionale sul livello della stasi.
+
 Brief del Capo Supremo dell'Analisi Audio, 2026-08-28. Revisione semantica
 del respiro: supera la mediana come decisore, ridefinisce il respiro come
 **riduzione organizzata della costrizione percettiva rispetto alla
