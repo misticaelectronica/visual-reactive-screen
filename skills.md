@@ -657,3 +657,136 @@ pnpm exec electron-builder --win
 ```
 
 Da macOS, Electron Builder puo' richiedere dipendenze/target aggiuntivi in base al formato scelto.
+
+## Skill: Creare Un Renderer Brain (plugin nuovo)
+
+Quando usare:
+
+- si progetta un nuovo renderer Brain da zero
+- serve il contratto plugin completo, il gate filosofia, le regole di
+  autonomia, il ciclo di vita e i test minimi prima di scrivere codice
+- un renderer nuovo "non compare", "si congela", "non e' reattivo" o
+  "sembra un altro renderer"
+
+File chiave:
+
+- `src/renderer/output/brain/brainRendererPlugin.ts` — `BrainRendererPlugin`
+  e `BrainRendererPluginContext` (cosa ricevi).
+- `src/renderer/output/brain/brainSvgScene.ts` — `BrainSceneRendererController`
+  (cosa il tuo `create()` deve restituire).
+- `src/renderer/output/brain/brainRendererRegistry.ts` — registrazione e
+  `capabilities`.
+- `src/renderer/output/brain/brainRendererSelector.ts` — pool per regime,
+  permanenza, esclusioni (vedi skill "Renderer Brain").
+- `src/renderer/output/brain/brainRendererHost.ts` — come il controller
+  viene guidato dal vivo (crossfade `active`/`incoming`, passthrough Varco).
+- `src/renderer/output/brain/brainController.ts` — `applyFrame` crea una
+  **nuova istanza del renderer ad ogni fotogramma**.
+- `agents.md` §"Autonomia Dei Renderer" e il gate filosofia a 5 punti.
+- Esempio completo e recente: `brainPsicoFantasmaCanvas.ts` + `psicofantasma/`
+  (PIANO-043) — analisi locale, prep pesante / runtime economico, matcher
+  in-modulo, memoria fuori istanza, reattivita' solo ottica.
+
+Contratto del controller (`BrainSceneRendererController`, quello che
+`create(context)` ritorna):
+
+- `element` — il tuo `<canvas>`/SVG, gia' appeso a `context.container`,
+  `position:absolute; inset:0; pointer-events:none`.
+- `update(bands, settings, time, rhythm?, movingAverages?, flash?)` —
+  chiamato ogni frame RAF; qui vive il disegno.
+- `destroy()` — libera RAF, canvas, resize listener, observer; `element.remove()`.
+- `isReady?()` / `hasFailed?()` — l'host aspetta `isReady` prima di mostrare;
+  `hasFailed` fa scattare la rete di sicurezza (passthrough Print2D/FilterPsiche).
+- `setOpacity(o)` — pilotato dal crossfade dell'host.
+- `setResourcePressure(active)` — sotto pressione GPU reale: rinvia o
+  abortisci le preparazioni pesanti.
+- `setOfflineHold?(active)` — generazione storia in corso; **non** congelare
+  per sempre su questo flag (resta vero 40-100+s).
+- `setPerception?(state)` — regime bio-percettivo, bassa frequenza, solo ai cambi.
+- `setTransition(progress, role, counterpart?)` — la maggior parte dei
+  renderer lo lascia vuoto: la transizione fra immagini e' il crossfade
+  ESTERNO dell'host, non una tua responsabilita'.
+- `setMorphPattern` / `getMorphShapes` — solo se partecipi al morph di forme.
+- `context.frameRenderMode` (`interlude`/`standard`/`enhanced`/`high-quality`)
+  — se il tuo renderer analizza la materia del raster al pixel, escludi
+  `interlude` nel selettore (4 step di denoising, 448x256; vedi PsicoFantasma
+  034-20 in `brainRendererSelector.ts`).
+
+Regole non negoziabili:
+
+1. **Gate filosofia a 5 punti** (`agents.md`): Camera ferma; Materia (raster
+   originale nella figura, vietati sticker/outline/glow non richiesti dal
+   brief); Silenzio (nel silenzio reale nessuna nuova emersione, morph
+   sospeso, si tengono gli ultimi pixel); Beatmatch (impulso prima del
+   pacing, il beat modifica solo la separazione ottica locale, bande
+   distinte); Transizione (riusa il crossfade dell'host). Scrivi la
+   checklist nel Piano di Lavoro e verificala sul renderer reale e in
+   `lowPowerMode`.
+2. **Autonomia** (disposizione Capo Supremo 2026-09-07): la tua analisi del
+   raster (zone di colore, segmentazione, occupazione, silhouette, salienza,
+   forma) vive nel tuo modulo e si tara solo per te. La duplicazione con
+   altri renderer e' **voluta**, non un refactor mancato. Non importare
+   `analyzeMaterialPixels`, `BAUHAUS_SILHOUETTES` o analisi di un altro
+   renderer: se serve, si riporta al Capo Supremo. Condivisa solo
+   l'infrastruttura non-grammaticale (contratto plugin, crossfade, motion
+   smoother, `brainRhythm`, store fuori istanza, `setPerception`).
+3. **Costo**: tutto il lavoro pesante (analisi, blur, layer, inferenze,
+   descrittori) va fatto **alla preparazione**, una volta per immagine; a
+   runtime solo crossfade/composizione economica. `startPreparation`
+   guardato da `preparationStarted || resourcePressure || destroyed`; su
+   `setResourcePressure(true)` prima che sia pronto, `abort()`. Nessun
+   ricampionamento o riallocazione di Canvas per frame.
+4. **Silenzio**: `const audible = rhythm?.active !== false && (somma bande >
+   ~0.008)`. Pattern: `if ((!audible || offlineHold) && Number.isFinite(
+   lastRenderAt)) return` — tiene l'ultimo frame dipinto. Il tempo
+   percettivo avanza solo se `audible`.
+5. **Memoria fuori istanza**: l'host ricrea una nuova istanza del renderer
+   ad ogni fotogramma. Qualunque stato che deve sopravvivere (fase,
+   decadimento, traccia, contatore) va in un `Map`/`WeakMap` a livello di
+   modulo con snapshot **scalari**; le canvas restano weakly held. Un
+   accumulatore a soglia calibrato per richiedere piu' di ~20-84s reali di
+   fatto non scatta mai (durata tipica di un hold) — verificalo con un test
+   di integrazione a centinaia di frame simulati.
+6. **Reattivita' audio**: `bands` per l'inviluppo continuo, `rhythm` per
+   l'impulso — `calculateRhythmicAccent(rhythm)` (0..1, picco sul kick,
+   decade ~180ms), `rhythm.beatPulse`, `rhythm.bandTransients`. Ampiezza
+   **percepibile**, non un ritocco del 4%. Se il brief vieta colore/halo/
+   glow, la reattivita' vive nella separazione ottica: profondita' del blur
+   di fondo, contrasto figura/fondo, micro-scala, jitter breve sul battito
+   che si assesta fra un colpo e l'altro.
+
+Registrazione:
+
+- `brainRendererRegistry.ts`: `registry.register({ id, label, capabilities:
+  { multipleImages, semanticMetadata, lowPowerMode }, create })`.
+- `src/shared/types.ts`: aggiungi l'`id` a `BrainRendererId`.
+- `VisualControls.tsx`: voce per la selezione manuale (che ignora le
+  esclusioni di regime — utile per il collaudo).
+- Selettore: dichiara i regimi di eleggibilita' (`LOW_REGIME_RENDERERS`,
+  `HIGH_REGIME_PRIORITY_/SECONDARY_/EXCLUDED_RENDERERS`,
+  `BOOTSTRAP_EXCLUDED_RENDERERS`); se persiste su piu' fotogrammi,
+  `PERSISTENT_STORY_RENDERERS` (hold 2-3); se fa analisi multi-sorgente
+  pesante, `HEAVY_RENDERERS_UNDER_PRESSURE`.
+
+Test (obbligatori prima di dichiarare "fatto"):
+
+- esporta le funzioni pure (stato/fasi, timing per regime, ranking,
+  descrittori) e testale isolate;
+- un test d'integrazione del controller: `vi.spyOn(HTMLCanvasElement.
+  prototype, 'getContext')` mockato, `vi.stubGlobal('createImageBitmap', ...)`,
+  guida `update()` su centinaia di `time` simulati; verifica `isReady`, il
+  congelamento nel silenzio (`drawImage` non chiamato), `destroy()` + nuova
+  istanza con memoria ripristinata;
+- `pnpm typecheck`, `pnpm lint`, `pnpm exec vitest run <tuoi file>`, `pnpm build`;
+- gate 20-40% / Test Visual: collaudo a schermo, mai quota runtime.
+
+Insidie note (non ripartire da zero — vedi anche skill "Renderer Brain"):
+
+- hash a bassa diffusione su indici piccoli e sequenziali (0-11): eseguilo
+  numericamente su quel range esatto prima di fidarti; usa un avalanche a
+  interi (splitmix/Wang), non `hashUnit(x, cost, cost)`;
+- non forzare il tuo renderer in prima posizione del mazzo;
+- il renderer sotto un passthrough deve continuare ad aggiornare a ritmo
+  ridotto anche in stato `active`, non solo `entering`;
+- bilanciare per "fotogrammi mostrati" (`exposureWeight`), non per numero di
+  comparse.
