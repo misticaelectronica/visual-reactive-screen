@@ -2,6 +2,7 @@ import type { AppSettings, MorphingAlgorithm } from '@shared/types'
 import { MORPHING_PRESETS } from '@shared/morphingPresets'
 import { PSY_HYP_MORPHING_PRESETS } from '@shared/psyHypMorphingShapes'
 import { SLIT_SCAN_PRESETS } from '@shared/slitScanPresets'
+import { isPsicoFantasmaBundled } from '@shared/psicoFantasmaAvailability'
 
 interface Props {
   settings: AppSettings
@@ -140,6 +141,7 @@ export function VisualControls({ settings, onChange }: Props) {
             value={settings.brainRendererId}
             onChange={(e) => onChange({
               brainRendererId: e.target.value as AppSettings['brainRendererId'],
+              ...(e.target.value === 'psicofantasma' ? { brainRendererMode: 'manual' as const } : {}),
             })}
             disabled={!settings.useBrain || settings.alternateBrainWithMorphing}
           >
@@ -153,7 +155,13 @@ export function VisualControls({ settings, onChange }: Props) {
             <option value="glitch-morph">Glitch Morph — contorno</option>
             <option value="fractal-spiral-degeneration">Fractal Spiral Degeneration — ricorsivo</option>
             <option value="deliquescence">Deliquescence — dissoluzione oscura</option>
+            <option value="psicofantasma">
+              {isPsicoFantasmaBundled() ? 'PsicoFantasma — pareidolia artificiale' : 'PsicoFantasma — repertorio in preparazione'}
+            </option>
           </select>
+          {settings.brainRendererId === 'psicofantasma' && !isPsicoFantasmaBundled() && (
+            <small>Prova di emersione e risposta all’audio. Riconoscimento in attesa del repertorio.</small>
+          )}
         </label>
         <label>
           Alternanza renderer Brain

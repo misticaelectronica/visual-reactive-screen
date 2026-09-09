@@ -1,5 +1,102 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-09-08-PSICOFANTASMA-REPERTORIO-V2
+
+- Importato senza modificare gli SVG il pacchetto approvato: 120 silhouette,
+  24 per famiglia, 40/40 archetipi guida. Verificati nomi, hash, JSON,
+  impronte binarie e assenza di costrutti SVG eseguibili.
+- Aggiunto import deterministico dall'impronta morfologica 32×32 consegnata
+  ai contorni normalizzati runtime. Il round-trip riproduce 120/120 impronte.
+- Il loader e il build accettano la nuova base V1 da almeno 120 sagome e 24
+  per famiglia; il repertorio viene incluso nel bundle e abilita la rotazione.
+- Matching reale: 120/120 descrittori finiti, affinità/coerenza esatta; 115
+  passano il gate su sagoma identica, 5 collisioni vengono rifiutate per
+  margine zero. Problemi registrati per singolo asset, senza riaprire la
+  selezione complessiva.
+- Profiling simultaneo nello stesso processo: Psichedel WebGPU 34,301 s
+  (riferimento caldo 34,840 s); carico completo PsicoFantasma CPU 44,6 ms,
+  circa 1,7 MB heap, nessun modello o uso VRAM.
+- Validazione finale: 72 file / 674 test, typecheck, lint, build app/ZIP/DMG.
+  Il repertorio estratto da `app.asar` contiene 120 sagome e ha lo stesso
+  SHA-256 del JSON normalizzato (`141978d9…`).
+- 034-04 chiuso; 034-11 resta aperto soltanto per Test Visual 1–12 e giudizio
+  a schermo 20–40%, mai usato come quota runtime.
+
+## SESSION-2026-09-08-PSICOFANTASMA-CONTINUITA — prosecuzione PIANO-043
+
+- Richiesta: proseguire i task aperti del piano. Verificato lo stato aggiornato
+  dell'Ingegneria: 034-17 geometrico già implementato/autorizzato; residuo
+  implementativo 034-18, oltre alla consegna Visual e al collaudo.
+- Completato 034-18: slot rotante della forma raggiunta (due stadi cached,
+  interpolazione, silhouette/bbox/completamento/opacità/durata); proprietà
+  generazionale per escludere scritture delle istanze uscenti. Morph cached
+  verso il nuovo candidato solo dopo il gate; senza match decadimento in
+  12 s percettivi senza ritorno alla foto, congelato nel silenzio/hold.
+- Budget: singolo passaggio, 18 stadi massimo 480×270, 9 low power; nessuna
+  analisi o allocazione Canvas per frame. Checkpoint stessa immagine conservato.
+- Verifiche: 71 file / 671 test, typecheck/lint, build completa app/ZIP/DMG.
+  Canvas reale Electron con fixture temporanee: A riconosciuta (0.811),
+  B riconosciuta (0.998) eredita/morpha A, C senza regione conserva e lascia
+  decadere B fino a scadenza; pixel identici nel silenzio, B/C low power.
+  Nessuna sagoma tecnica inserita nel repertorio o nel bundle.
+- Registri riallineati: 034-02b CLIP superato da rimozione encoder, non
+  falsamente dichiarato misurato in simultaneità. Restano 034-04 e 034-11.
+  Nessuna modifica alle tarature del matcher, alla reattività precedente,
+  a DELIQUESCENCE, al gate qualità o ai file concorrenti. Nessun commit/push.
+
+## SESSION-2026-09-08-PSICOFANTASMA-MANUALE — 01:15 CEST
+
+- Richiesta utente: rendere PsicoFantasma selezionabile per provarlo da solo.
+- TASK-034-15: voce abilitata e selezione che imposta Manuale; plugin sempre
+  registrato, esclusione per asset mancanti spostata ai soli cicli automatici.
+- Senza repertorio il Canvas prepara fuoco/emersione/osservazione senza
+  chiamare fetch o CLIP; indicazione esplicita nel pannello. Nessuna sagoma
+  fittizia e nessun falso riconoscimento.
+- Verifiche: 70 file / 662 test, typecheck e lint; app/DMG/ZIP aggiornati,
+  blockmap ZIP completata alle 01:17:35. La sessione del processo non era
+  più disponibile dopo l'aggiornamento del contesto; verificati i file finali.
+  Nessuna modifica DELIQUESCENCE o impostazione live applicata all'app aperta.
+
+## SESSION-2026-09-08-PSICOFANTASMA — 01:11 CEST
+
+- **Obiettivo**: proseguire PIANO-043 e verificare gli scostamenti dal brief.
+- **Completato**: TASK-034-12/13/14. Eliminati ripartenza periodica e accento
+  globale; trasporto raster precomputato, crossfade continuo e memoria della
+  fase interrotta fuori istanza. Corretti identità cache e cancellazione
+  concorrente. Backend ONNX solo WASM, disponibilità prima della rotazione,
+  bundle JSON+modello verificato e crescita oltre 60 senza cambi al codice.
+- **Verifiche**: 70 file / 661 test, typecheck e lint; build finale app,
+  ZIP e DMG riuscita. Un tentativo sandbox fallito in hdiutil è stato
+  ripetuto con permessi di esecuzione e completato.
+- **Electron reale**: Canvas con fixture tecnica, pixel identici durante il
+  silenzio e dopo ricreazione, una richiesta embedding. Prova distinta con
+  encoder reale via brain-model: output 512, 311.8 ms inferenza, 1116.5 ms totali.
+- **Stato finale**: implementazione tecnica riconvalidata; mancano repertorio
+  curato, collaudo/taratura Visual e profiling simultaneo SD. Plugin escluso
+  dalla rotazione senza asset. Nessuna curatela assistita o sagoma fittizia
+  aggiunta al bundle; nessuna modifica DELIQUESCENCE, agents.md o skills.md.
+  Nessun commit o push.
+
+## SESSION-2026-09-07-PSICOFANTASMA — 15:57 CEST
+
+- **Obiettivo**: apertura piano e avvio implementazione del brief Visual,
+  con disposizioni CLIP e fetta V1 del Consigliere.
+- **Completato**: PIANO-043/MACRO-034; brief rinominato PsicoFantasma;
+  formato e loader, script embedding offline, Worker CPU serializzato,
+  ranking/gate, analisi regionale autonoma, renderer Canvas e integrazione.
+- **Evidenza**: artefatto INT8 verificato 88648877 byte e SHA256; smoke
+  reale CPU 239–296 ms/inferenza, RSS campionata circa 461 MiB. Release
+  non riduce subito RSS: client termina il Worker dopo ogni immagine.
+- **Verifiche**: 69 file / 654 test, typecheck, lint e build passati; script offline
+  eseguito su due fixture tecniche temporanee, non repertorio Visual.
+- **Stato finale**: implementazione tecnica collegata e verificata. Repertorio
+  curato 40–60 sagome non consegnato: senza di esso il renderer usa il
+  fallimento controllato. Restano collaudo Visual 1–12, taratura del gate e
+  profiling simultaneo a SD sul corpus reale.
+- **Perimetro**: nessuna modifica ai file DELIQUESCENCE o alle modifiche
+  preesistenti in agents.md/skills.md. Nessun commit/push o build di release.
+
+
 ## SESSION-2026-09-04-INGEGNERIA-TEST-1
 
 - **Obiettivo**: collaudare direttamente il caso bloccante `test-1.mp3`.

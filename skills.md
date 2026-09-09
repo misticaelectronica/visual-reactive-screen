@@ -380,8 +380,19 @@ File chiave:
   (`LOW_REGIME_DOMINANT_SHARE`, quota probabilistica sul pick — non un rango
   stretto); escluso da Respiro Alto (`HIGH_REGIME_EXCLUDED_RENDERERS`) e da
   bootstrap (`BOOTSTRAP_EXCLUDED_RENDERERS`). La selezione manuale da tendina
-  ignora le esclusioni di regime. Ancora da fare: dominanza in
-  `decompression` protratta (contatore `regimeSince` +
+  ignora le esclusioni di regime. **Gate qualità immagine PsicoFantasma**
+  (PIANO-043 034-20, 2026-09-08): `excludedForRegime(regime, frameRenderMode?)`
+  unisce `psicofantasma` quando `frameRenderMode === 'interlude'` (raster a 4
+  step di denoising / 448×256 — PsicoFantasma analizza la materia al pixel e
+  non la regge; `standard`/`enhanced`/`high-quality` e i fotogrammi archiviati
+  con modalità `undefined` sono ammessi). La modalità viaggia:
+  `psichedel.ts` la scrive su `PsychedelScene.renderMode` →
+  `brainController.applyFrame` aggiorna `currentFrameRenderMode` prima di ogni
+  `resolve` e la passa come 7° callback `getFrameRenderMode` del selettore +
+  come `BrainRendererPluginContext.frameRenderMode`. R2 (nessun `interlude`
+  sotto PsicoFantasma a metà hold) è coperto da `reconcileCurrentRegime`.
+  Manuale esente (corto-circuito in `resolve` prima del filtro). Ancora da
+  fare: dominanza in `decompression` protratta (contatore `regimeSince` +
   `DECOMPRESSION_PROTRACTED_MS`); luci interne / coagulazione / 8 varianti nel
   renderer `brainDeliquescenceCanvas.ts`. Spec completa:
   `team/briefs/brief-deliquescence-specifica.md`.
@@ -397,9 +408,40 @@ File chiave:
   (`outgoingSvg`/`currentSvg`, crossfade `smootherstep` di 6-9s configurato
   in `brainRenderingConfig`/`timing`), non quella interna di
   `brainRendererHost`.
+- `src/renderer/output/brain/brainPsicoFantasmaCanvas.ts` +
+  `psicofantasma/` — PIANO-043, in revisione dal vivo (2026-09-08). Vincoli
+  dal Capo Supremo già applicati, **non regredire**: (a) `034-19` la regione
+  non decade mai a zero finché il renderer permane (`RESIDENT_PRESENCE`);
+  (b) `034-21` la reattività musicale vive SOLO nella separazione ottica —
+  `worldDefocus`/`beatPresence` guidati da `calculateRhythmicAccent` +
+  `bandDrive`, ampiezza percepibile, **mai** colore/halo/glow (gate
+  Beatmatch, brief §33); (c) `034-22` bordi della selezione sfumati
+  (`featherMask`, solo per il compositing — `mask`/`contour`/coerenza
+  restano netti); (d) `034-23` `analysis.ts` estrae comunque una regione da
+  primi piani dominanti (tetto 0.94) e figure piccole (min 12 celle), flat
+  raster resta `[]`; (e) `034-20` gate `interlude` nel selettore, manuale
+  esente. Il silenzio congela sempre (return anticipato in `update()`).
+  Aperti: `034-17` matcher (brief `brief-psicofantasma-matcher-034-17.md`,
+  CLIP confronta domini ortogonali), `034-18` persistenza fra immagini,
+  `034-04` repertorio Visual, `034-11` Test Visual.
 
 Regole/insidie note (già risolte, non ripartire da zero):
 
+- **Autonomia dei renderer** (regola permanente, `agents.md` §"Autonomia Dei
+  Renderer", disposizione Capo Supremo 2026-09-07): ogni renderer è un plugin
+  autonomo — la sua analisi del raster (zone di colore, segmentazione, campo
+  di occupazione, silhouette, palette, salienza) vive nel suo modulo e si
+  tara solo per lui. La duplicazione di codice di analisi fra renderer è
+  **voluta**, non un refactor mancato. Se serve un'analisi che esiste già
+  altrove, si riporta al Capo Supremo invece di importarla. Condivisa solo
+  l'infrastruttura non-grammaticale (contratto plugin, crossfade, motion
+  smoother, `brainRhythm`, store fuori istanza, `setPerception`).
+  `analyzeMaterialPixels` (`brainMaterialAnalysis`) è importata da
+  Material-Morph + Dream-Segmentation + Fractal-Spiral + Bauhaus (via
+  `brainBauhausAnalysis`): accoppiamento storico accettato, **non** un
+  modello da estendere; nessun nuovo renderer la importi, le sue tarature
+  servono Material-Morph. DELIQUESCENCE disaccoppiato 2026-09-07 →
+  `extractDeliquescenceColorZones` in `brainDeliquescenceCanvas.ts`.
 - **Latch bio-percettivi**: una classificazione che può essere ereditata non
   può dipendere per la propria rivalutazione da un evento che sul campo non
   avviene (`reference.justSettled`). Prima di aggiungere una macchina, cercare

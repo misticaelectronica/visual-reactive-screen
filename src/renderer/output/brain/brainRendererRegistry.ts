@@ -10,6 +10,7 @@ import { createBrainDreamSegmentationScene } from './brainDreamSegmentationCanva
 import { createBrainGlitchMorphScene } from './brainGlitchMorphCanvas'
 import { createBrainFractalSpiralScene } from './brainFractalSpiralCanvas'
 import { createBrainDeliquescenceScene } from './brainDeliquescenceCanvas'
+import { createBrainPsicoFantasmaScene } from './brainPsicoFantasmaCanvas'
 
 export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
   const registry = new BrainRendererRegistry()
@@ -120,6 +121,16 @@ export function createDefaultBrainRendererRegistry(): BrainRendererRegistry {
       lowPowerMode: true,
     },
     create: createBrainDeliquescenceScene,
+  })
+  registry.register({
+    id: 'psicofantasma',
+    label: 'PsicoFantasma — pareidolia artificiale',
+    capabilities: {
+      multipleImages: false,
+      semanticMetadata: false,
+      lowPowerMode: true,
+    },
+    create: createBrainPsicoFantasmaScene,
   })
   return registry
 }

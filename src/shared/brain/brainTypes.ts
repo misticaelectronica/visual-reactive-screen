@@ -36,12 +36,22 @@ export type DreamStory = {
   onlineSourceText?: string | null
 }
 
+/**
+ * Modalità di resa con cui la raster del fotogramma è stata generata. Governa
+ * step di denoising e geometria d'inferenza (vedi `brainImageWorkerClient.ts`):
+ * `interlude` = 4 step / 448×256, `standard` = 8 step / 448×256,
+ * `enhanced` = 12 step / 512×320, `high-quality` = 20 step / risoluzione piena.
+ */
+export type ImageRenderMode = 'standard' | 'interlude' | 'high-quality' | 'enhanced'
+
 export type PsychedelScene = {
   frameId: string
   description: string
   svg: string
   /** Raster originale usata dal renderer Canvas 2D; l'SVG resta solo fallback. */
   raster?: Blob
+  /** Modalità di resa della raster; assente per fotogrammi archiviati/riusati. */
+  renderMode?: ImageRenderMode
 }
 
 export type BrainProduction = {

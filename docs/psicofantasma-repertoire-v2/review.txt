@@ -1,0 +1,1224 @@
+FAMILY: human
+ARCHETYPE: running-group
+SELECTED: Jogging-Couple-Silhouette
+SOURCE: openclipart-source/svg/unsorted/Jogging-Couple-Silhouette.svg
+SCORE: 319
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: pregnant
+SELECTED: Pregnant_woman_silhouette
+SOURCE: openclipart-source/svg/silhouettes/Pregnant_woman_silhouette.svg
+SCORE: 329
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-female
+SELECTED: nicubunu_Woman_Silhouette_16
+SOURCE: openclipart-source/svg/silhouettes/nicubunu_Woman_Silhouette_16.svg
+SCORE: 319
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-male
+SELECTED: man_silhouette
+SOURCE: openclipart-source/svg/silhouettes/man_silhouette.svg
+SCORE: 313
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: hand
+SELECTED: right_hand_print_benji_p_01
+SOURCE: openclipart-source/svg/people/bodypart/right_hand_print_benji_p_01.svg
+SCORE: 266
+SIMILAR CANDIDATES DISCARDED:
+1. right_hand_print_benji_p_01 — distance 0 — openclipart-source/svg/people/right_hand_print_benji_p_01.svg
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: head-profile
+SELECTED: profile_01
+SOURCE: openclipart-source/svg/people/profile_01.svg
+SCORE: 218
+SIMILAR CANDIDATES DISCARDED:
+1. profile — distance 0 — openclipart-source/svg/people/profile.svg
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: seated-crouched
+SELECTED: seated_man_thinks
+SOURCE: openclipart-source/svg/unsorted/seated_man_thinks.svg
+SCORE: 262
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: body-pose
+SELECTED: female-yoga-pose-silhouette-26
+SOURCE: openclipart-source/svg/unsorted/female-yoga-pose-silhouette-26.svg
+SCORE: 362
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: bird
+SELECTED: predatory-bird-silhouette
+SOURCE: openclipart-source/svg/unsorted/predatory-bird-silhouette.svg
+SCORE: 343
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: spider
+SELECTED: Spider_Deaths_Head
+SOURCE: openclipart-source/svg/unsorted/Spider_Deaths_Head.svg
+SCORE: 203
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- high element count: 35
+
+FAMILY: animal
+ARCHETYPE: horse
+SELECTED: johnny_automatic_horse_silhouette
+SOURCE: openclipart-source/svg/silhouettes/johnny_automatic_horse_silhouette.svg
+SCORE: 337
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: whale
+SELECTED: Whale
+SOURCE: openclipart-source/svg/unsorted/Whale.svg
+SCORE: 251
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: deer
+SELECTED: deer_matt_todd_01
+SOURCE: openclipart-source/svg/animals/mammals/deer_matt_todd_01.svg
+SCORE: 261
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: fox
+SELECTED: AnimalSilhouettes2-Fox
+SOURCE: openclipart-source/svg/unsorted/AnimalSilhouettes2-Fox.svg
+SCORE: 257
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: snake
+SELECTED: Snake-with-wings-1
+SOURCE: openclipart-source/svg/unsorted/Snake-with-wings-1.svg
+SCORE: 229
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: insect
+SELECTED: Flourishful-Butterfly-Silhouette
+SOURCE: openclipart-source/svg/unsorted/Flourishful-Butterfly-Silhouette.svg
+SCORE: 316
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: roots-branches
+SELECTED: Tree-with-Long-Roots-Woofer
+SOURCE: openclipart-source/svg/plants/trees/Tree-with-Long-Roots-Woofer.svg
+SCORE: 301
+SIMILAR CANDIDATES DISCARDED:
+1. Tree_with_Long_Roots_Woofer — distance 0 — openclipart-source/svg/plants/trees/Tree_with_Long_Roots_Woofer.svg
+2. Tree_with_Long_Roots_Woofer — distance 0 — openclipart-source/svg/unsorted/Tree_with_Long_Roots_Woofer.svg
+ANOMALIES:
+- high element count: 138
+
+FAMILY: organic
+ARCHETYPE: flower
+SELECTED: adstract_flower
+SOURCE: openclipart-source/svg/plants/flowers/adstract_flower.svg
+SCORE: 239
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: leaf
+SELECTED: maple_leaf_silhouette
+SOURCE: openclipart-source/svg/silhouettes/maple_leaf_silhouette.svg
+SCORE: 315
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: mushroom
+SELECTED: mushroom
+SOURCE: openclipart-source/svg/misc/mushroom.svg
+SCORE: 252
+SIMILAR CANDIDATES DISCARDED:
+1. mushroom — distance 0 — openclipart-source/svg/plants/mushroom.svg
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: tree
+SELECTED: TreeSilhouette
+SOURCE: openclipart-source/svg/plants/trees/TreeSilhouette.svg
+SCORE: 334
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: fern
+SELECTED: fern_0_symbol_1m_bwh
+SOURCE: openclipart-source/svg/signs_and_symbols/fern_0_symbol_1m_bwh.svg
+SCORE: 211
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- unusual foreground ratio: 0.024
+
+FAMILY: organic
+ARCHETYPE: seed-fruit
+SELECTED: gumnut_black_01
+SOURCE: openclipart-source/svg/food/fruit/gumnut_black_01.svg
+SCORE: 240
+SIMILAR CANDIDATES DISCARDED:
+1. gumnut_shaded_01 — distance 0.0347 — openclipart-source/svg/food/fruit/gumnut_shaded_01.svg
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: vine
+SELECTED: celtic-vine-corner_steve_01
+SOURCE: openclipart-source/svg/recreation/games/cards/celtic-vine-corner_steve_01.svg
+SCORE: 188
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- unusual foreground ratio: 0.059
+
+FAMILY: everyday
+ARCHETYPE: glass
+SELECTED: drinking_glass_with_red_punch_01
+SOURCE: openclipart-source/svg/food/beverages/drinking_glass_with_red_punch_01.svg
+SCORE: 330
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: knife
+SELECTED: Knife
+SOURCE: openclipart-source/svg/unsorted/Knife.svg
+SCORE: 229
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: clock
+SELECTED: feraliminal-Alarm-Clock
+SOURCE: openclipart-source/svg/clock/feraliminal-Alarm-Clock.svg
+SCORE: 294
+SIMILAR CANDIDATES DISCARDED:
+1. feraliminal_Alarm_Clock — distance 0 — openclipart-source/svg/clock/feraliminal_Alarm_Clock.svg
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: scissors
+SELECTED: Angelo_Gemmi_scissors_silhouette
+SOURCE: openclipart-source/svg/silhouettes/Angelo_Gemmi_scissors_silhouette.svg
+SCORE: 321
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: umbrella
+SELECTED: canada_umbrella_ganson
+SOURCE: openclipart-source/svg/geography/canada_umbrella_ganson.svg
+SCORE: 271
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: bottle
+SELECTED: Hand-Spray-Bottle
+SOURCE: openclipart-source/svg/unsorted/Hand-Spray-Bottle.svg
+SCORE: 240
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: chair
+SELECTED: beach_chair_silhouette_2
+SOURCE: openclipart-source/svg/seasons/summer/beach_chair_silhouette_2.svg
+SCORE: 328
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: key
+SELECTED: key-01
+SOURCE: openclipart-source/svg/unsorted/key-01.svg
+SCORE: 232
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: engine
+SELECTED: engine
+SOURCE: openclipart-source/svg/unsorted/engine.svg
+SCORE: 271
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: mask
+SELECTED: thief_mask
+SOURCE: openclipart-source/svg/unsorted/thief_mask.svg
+SCORE: 257
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: gear
+SELECTED: rusty_gearwheel_02
+SOURCE: openclipart-source/svg/unsorted/rusty_gearwheel_02.svg
+SCORE: 284
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: tool
+SELECTED: mystica_Hammer_(Silhouette)
+SOURCE: openclipart-source/svg/silhouettes/mystica_Hammer_(Silhouette).svg
+SCORE: 318
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: statue
+SELECTED: Christ-The-Redeemer-Statue-Silhouette
+SOURCE: openclipart-source/svg/unsorted/Christ-The-Redeemer-Statue-Silhouette.svg
+SCORE: 342
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: helmet
+SELECTED: helmet_icon
+SOURCE: openclipart-source/svg/icons/helmet_icon.svg
+SCORE: 178
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- unusual foreground ratio: 1.000
+
+FAMILY: artifact
+ARCHETYPE: camera-radio
+SELECTED: radio-01
+SOURCE: openclipart-source/svg/unsorted/radio-01.svg
+SCORE: 221
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: instrument-mechanism
+SELECTED: Mechanical_Carpenters_Pencil
+SOURCE: openclipart-source/svg/unsorted/Mechanical_Carpenters_Pencil.svg
+SCORE: 178
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- multiple components: 9
+- high element count: 177
+
+FAMILY: human
+ARCHETYPE: body-pose
+SELECTED: Female-Yoga-Pose-Silhouette-28
+SOURCE: openclipart-source/svg/unsorted/Female-Yoga-Pose-Silhouette-28.svg
+SCORE: 358
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: body-pose
+SELECTED: Female-Yoga-Pose-Silhouette-16
+SOURCE: openclipart-source/svg/unsorted/Female-Yoga-Pose-Silhouette-16.svg
+SCORE: 337
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: body-pose
+SELECTED: Female-Yoga-Pose-Silhouette-23
+SOURCE: openclipart-source/svg/unsorted/Female-Yoga-Pose-Silhouette-23.svg
+SCORE: 319
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-female
+SELECTED: nicubunu_Woman_Silhouette_27
+SOURCE: openclipart-source/svg/silhouettes/nicubunu_Woman_Silhouette_27.svg
+SCORE: 313
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: pregnant
+SELECTED: molumen_pregnancy_silhouet_1
+SOURCE: openclipart-source/svg/silhouettes/molumen_pregnancy_silhouet_1.svg
+SCORE: 305
+SIMILAR CANDIDATES DISCARDED:
+1. molumen_pregnancy_silhouet_4 — distance 0.0043 — openclipart-source/svg/silhouettes/molumen_pregnancy_silhouet_4.svg
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-female
+SELECTED: nicubunu_Woman_Silhouette_2
+SOURCE: openclipart-source/svg/silhouettes/nicubunu_Woman_Silhouette_2.svg
+SCORE: 298
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-male
+SELECTED: silhouette_male_1
+SOURCE: openclipart-source/svg/people/silhouette_male_1.svg
+SCORE: 297
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: pregnant
+SELECTED: pregnancy_silhouet_mo_02
+SOURCE: openclipart-source/svg/people/pregnancy_silhouet_mo_02.svg
+SCORE: 286
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-female
+SELECTED: nicubunu_Woman_Silhouette_07
+SOURCE: openclipart-source/svg/silhouettes/nicubunu_Woman_Silhouette_07.svg
+SCORE: 283
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-male
+SELECTED: pitr_man_silhouette
+SOURCE: openclipart-source/svg/silhouettes/pitr_man_silhouette.svg
+SCORE: 280
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: pregnant
+SELECTED: molumen_pregnancy_silhouet_2
+SOURCE: openclipart-source/svg/silhouettes/molumen_pregnancy_silhouet_2.svg
+SCORE: 269
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-female
+SELECTED: nicubunu_Woman_Silhouette_28
+SOURCE: openclipart-source/svg/silhouettes/nicubunu_Woman_Silhouette_28.svg
+SCORE: 269
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: body-pose
+SELECTED: Ballet-Dancer-Silhouette
+SOURCE: openclipart-source/svg/unsorted/Ballet-Dancer-Silhouette.svg
+SCORE: 265
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: standing-male
+SELECTED: Wheelchair-Man_silhouette
+SOURCE: openclipart-source/svg/silhouettes/Wheelchair-Man_silhouette.svg
+SCORE: 264
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: hand
+SELECTED: left_hand_print_benji_pa_01
+SOURCE: openclipart-source/svg/people/bodypart/left_hand_print_benji_pa_01.svg
+SCORE: 254
+SIMILAR CANDIDATES DISCARDED:
+1. left_hand_print_benji_pa_01 — distance 0 — openclipart-source/svg/people/left_hand_print_benji_pa_01.svg
+2. left_hand_print_benji_pa_01 — distance 0 — openclipart-source/svg/unsorted/left_hand_print_benji_pa_01.svg
+ANOMALIES:
+none
+
+FAMILY: human
+ARCHETYPE: pregnant
+SELECTED: pregnancy_silhouet_mo_01
+SOURCE: openclipart-source/svg/people/pregnancy_silhouet_mo_01.svg
+SCORE: 254
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: bird
+SELECTED: drunken_duck_crow_silhouette
+SOURCE: openclipart-source/svg/silhouettes/drunken_duck_crow_silhouette.svg
+SCORE: 307
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: deer
+SELECTED: deer
+SOURCE: openclipart-source/svg/unsorted/deer.svg
+SCORE: 250
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: horse
+SELECTED: johnny_automatic_horse_silhouette_1
+SOURCE: openclipart-source/svg/silhouettes/johnny_automatic_horse_silhouette_1.svg
+SCORE: 248
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- high element count: 106
+
+FAMILY: animal
+ARCHETYPE: fox
+SELECTED: contour_fox
+SOURCE: openclipart-source/svg/animals/contour_fox.svg
+SCORE: 240
+SIMILAR CANDIDATES DISCARDED:
+1. contour_fox — distance 0 — openclipart-source/svg/animals/mammals/contour_fox.svg
+2. contour_fox — distance 0 — openclipart-source/svg/unsorted/contour_fox.svg
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: whale
+SELECTED: Anonymous-Whale
+SOURCE: openclipart-source/svg/unsorted/Anonymous-Whale.svg
+SCORE: 237
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: horse
+SELECTED: horse
+SOURCE: openclipart-source/svg/transportation/horse.svg
+SCORE: 226
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: bird
+SELECTED: bird-silhouette-04
+SOURCE: openclipart-source/svg/animals/birds/bird-silhouette-04.svg
+SCORE: 222
+SIMILAR CANDIDATES DISCARDED:
+1. A found bird Chinese calligraphy style — distance 0 — openclipart-source/svg/animals/birds/A found bird Chinese calligraphy style.svg
+2. A readymade bird China style — distance 0 — openclipart-source/svg/animals/birds/A readymade bird China style.svg
+3. Armenian Orphanage Aleppo   singing Bird song   April 1920 thumbnail — distance 0 — openclipart-source/svg/animals/birds/Armenian Orphanage Aleppo   singing Bird song   April 1920 thumbnail.svg
+4. bird_20042015_almeidah — distance 0 — openclipart-source/svg/animals/birds/bird_20042015_almeidah.svg
+ANOMALIES:
+- unusual foreground ratio: 1.000
+
+FAMILY: animal
+ARCHETYPE: fox
+SELECTED: red-fox
+SOURCE: openclipart-source/svg/unsorted/red-fox.svg
+SCORE: 220
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: horse
+SELECTED: winged_horse
+SOURCE: openclipart-source/svg/unsorted/winged_horse.svg
+SCORE: 199
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: snake
+SELECTED: SpearheadSnake
+SOURCE: openclipart-source/svg/unsorted/SpearheadSnake.svg
+SCORE: 197
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- multiple components: 7
+
+FAMILY: animal
+ARCHETYPE: fox
+SELECTED: Fox_remix
+SOURCE: openclipart-source/svg/unsorted/Fox_remix.svg
+SCORE: 194
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: bird
+SELECTED: ben_Eastern_Island_Bird_man
+SOURCE: openclipart-source/svg/animals/birds/ben_Eastern_Island_Bird_man.svg
+SCORE: 183
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: animal
+ARCHETYPE: snake
+SELECTED: trump-snake
+SOURCE: openclipart-source/svg/unsorted/trump-snake.svg
+SCORE: 180
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- unusual foreground ratio: 0.781
+
+FAMILY: animal
+ARCHETYPE: whale
+SELECTED: johnny_automatic_whale_icon
+SOURCE: openclipart-source/svg/icons/johnny_automatic_whale_icon.svg
+SCORE: 178
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- unusual foreground ratio: 0.812
+
+FAMILY: animal
+ARCHETYPE: horse
+SELECTED: crazy-horse
+SOURCE: openclipart-source/svg/people/famous people/crazy-horse.svg
+SCORE: 178
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- multiple components: 8
+
+FAMILY: animal
+ARCHETYPE: insect
+SELECTED: dancing_beetle
+SOURCE: openclipart-source/svg/unsorted/dancing_beetle.svg
+SCORE: 177
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- high element count: 34
+
+FAMILY: organic
+ARCHETYPE: tree
+SELECTED: Barren-Tree-Silhouette-3
+SOURCE: openclipart-source/svg/unsorted/Barren-Tree-Silhouette-3.svg
+SCORE: 294
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- multiple components: 8
+
+FAMILY: organic
+ARCHETYPE: leaf
+SELECTED: Anonymous-cannabis-leaf
+SOURCE: openclipart-source/svg/unsorted/Anonymous-cannabis-leaf.svg
+SCORE: 246
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: roots-branches
+SELECTED: tree_branches_and_roots_01
+SOURCE: openclipart-source/svg/plants/tree_branches_and_roots_01.svg
+SCORE: 233
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: leaf
+SELECTED: cannabis_leaf_anonymous_
+SOURCE: openclipart-source/svg/plants/cannabis_leaf_anonymous_.svg
+SCORE: 231
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: seed-fruit
+SELECTED: apple_bw
+SOURCE: openclipart-source/svg/food/fruit/apple_bw.svg
+SCORE: 224
+SIMILAR CANDIDATES DISCARDED:
+1. applf — distance 0 — openclipart-source/svg/food/fruit/applf.svg
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: mushroom
+SELECTED: magic_mushroom-01
+SOURCE: openclipart-source/svg/unsorted/magic_mushroom-01.svg
+SCORE: 220
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: flower
+SELECTED: dream_flower_janet_theob_01
+SOURCE: openclipart-source/svg/plants/flowers/dream_flower_janet_theob_01.svg
+SCORE: 217
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: roots-branches
+SELECTED: tree-branches-and-root-01r
+SOURCE: openclipart-source/svg/plants/trees/tree-branches-and-root-01r.svg
+SCORE: 212
+SIMILAR CANDIDATES DISCARDED:
+1. tree_branches_and_root_01r — distance 0 — openclipart-source/svg/plants/trees/tree_branches_and_root_01r.svg
+ANOMALIES:
+- multiple components: 6
+
+FAMILY: organic
+ARCHETYPE: leaf
+SELECTED: simple_leaf
+SOURCE: openclipart-source/svg/seasons/spring/simple_leaf.svg
+SCORE: 210
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: seed-fruit
+SELECTED: cherry_jean_victor_balin_
+SOURCE: openclipart-source/svg/food/fruit/cherry_jean_victor_balin_.svg
+SCORE: 206
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: tree
+SELECTED: erlandh_Gum_Tree_and_Nuts
+SOURCE: openclipart-source/svg/plants/trees/erlandh_Gum_Tree_and_Nuts.svg
+SCORE: 205
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: mushroom
+SELECTED: food-mushroom
+SOURCE: openclipart-source/svg/food/food-mushroom.svg
+SCORE: 202
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: flower
+SELECTED: cie_blue_flower
+SOURCE: openclipart-source/svg/plants/flowers/cie_blue_flower.svg
+SCORE: 198
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: leaf
+SELECTED: johnny_automatic_leaf_silhouette
+SOURCE: openclipart-source/svg/silhouettes/johnny_automatic_leaf_silhouette.svg
+SCORE: 191
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- high element count: 110
+
+FAMILY: organic
+ARCHETYPE: fern
+SELECTED: SweetFern
+SOURCE: openclipart-source/svg/unsorted/SweetFern.svg
+SCORE: 190
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: organic
+ARCHETYPE: tree
+SELECTED: dead_tree_silhouette
+SOURCE: openclipart-source/svg/silhouettes/dead_tree_silhouette.svg
+SCORE: 189
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: chair
+SELECTED: beach_chair_silhouette
+SOURCE: openclipart-source/svg/seasons/summer/beach_chair_silhouette.svg
+SCORE: 321
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: clock
+SELECTED: alarm_clock_gerald_g._02
+SOURCE: openclipart-source/svg/clock/alarm_clock_gerald_g._02.svg
+SCORE: 267
+SIMILAR CANDIDATES DISCARDED:
+1. Gerald_G_Alarm_Clock_(Simple) — distance 0 — openclipart-source/svg/clock/Gerald_G_Alarm_Clock_(Simple).svg
+2. Gerald-G-Alarm-Clock-Simple — distance 0 — openclipart-source/svg/clock/Gerald-G-Alarm-Clock-Simple.svg
+3. alarm_clock_gerald_g._01 — distance 0 — openclipart-source/svg/signs_and_symbols/clocks/alarm_clock_gerald_g._01.svg
+ANOMALIES:
+- multiple components: 5
+
+FAMILY: everyday
+ARCHETYPE: umbrella
+SELECTED: Umbrella-Revolution-Symbol-3-2014100213
+SOURCE: openclipart-source/svg/unsorted/Umbrella-Revolution-Symbol-3-2014100213.svg
+SCORE: 262
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: scissors
+SELECTED: scissors
+SOURCE: openclipart-source/svg/education/scissors.svg
+SCORE: 261
+SIMILAR CANDIDATES DISCARDED:
+1. scissors — distance 0 — openclipart-source/svg/office/scissors.svg
+2. scissors — distance 0 — openclipart-source/svg/tools/scissors.svg
+3. scissors — distance 0 — openclipart-source/svg/unsorted/scissors.svg
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: umbrella
+SELECTED: man_w_umbrella
+SOURCE: openclipart-source/svg/signs_and_symbols/signs/road_signs/man_w_umbrella.svg
+SCORE: 238
+SIMILAR CANDIDATES DISCARDED:
+1. man_w_umbrella — distance 0 — openclipart-source/svg/transportation/roadsigns/man_w_umbrella.svg
+2. man_w_umbrella — distance 0 — openclipart-source/svg/unsorted/man_w_umbrella.svg
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: chair
+SELECTED: man_in_chair_-_thinking_01
+SOURCE: openclipart-source/svg/people/man_in_chair_-_thinking_01.svg
+SCORE: 234
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: scissors
+SELECTED: scissors_02
+SOURCE: openclipart-source/svg/education/scissors_02.svg
+SCORE: 232
+SIMILAR CANDIDATES DISCARDED:
+1. scissors_01 — distance 0 — openclipart-source/svg/office/scissors_01.svg
+2. scissors_02 — distance 0 — openclipart-source/svg/office/scissors_02.svg
+3. scissors_03 — distance 0 — openclipart-source/svg/office/scissors_03.svg
+4. scissors_02 — distance 0 — openclipart-source/svg/tools/scissors_02.svg
+5. scissors_03 — distance 0 — openclipart-source/svg/tools/scissors_03.svg
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: bottle
+SELECTED: bottle_jean_victor_balin_
+SOURCE: openclipart-source/svg/tools/bottle_jean_victor_balin_.svg
+SCORE: 225
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: umbrella
+SELECTED: umbrella
+SOURCE: openclipart-source/svg/misc/umbrella.svg
+SCORE: 222
+SIMILAR CANDIDATES DISCARDED:
+1. umbrella — distance 0 — openclipart-source/svg/tools/umbrella.svg
+2. umbrella — distance 0 — openclipart-source/svg/unsorted/umbrella.svg
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: clock
+SELECTED: TzeenieWheenie-Mechanical-alarm-clock-number-tiles-1
+SOURCE: openclipart-source/svg/clock/TzeenieWheenie-Mechanical-alarm-clock-number-tiles-1.svg
+SCORE: 220
+SIMILAR CANDIDATES DISCARDED:
+1. TzeenieWheenie_Mechanical_alarm_clock_number_tiles_1 — distance 0 — openclipart-source/svg/clock/TzeenieWheenie_Mechanical_alarm_clock_number_tiles_1.svg
+2. TzeenieWheenie_Mechanical_alarm_clock_number_tiles_10 — distance 0 — openclipart-source/svg/clock/TzeenieWheenie_Mechanical_alarm_clock_number_tiles_10.svg
+3. TzeenieWheenie_Mechanical_alarm_clock_number_tiles_2 — distance 0 — openclipart-source/svg/clock/TzeenieWheenie_Mechanical_alarm_clock_number_tiles_2.svg
+4. TzeenieWheenie_Mechanical_alarm_clock_number_tiles_3 — distance 0 — openclipart-source/svg/clock/TzeenieWheenie_Mechanical_alarm_clock_number_tiles_3.svg
+5. TzeenieWheenie_Mechanical_alarm_clock_number_tiles_4 — distance 0 — openclipart-source/svg/clock/TzeenieWheenie_Mechanical_alarm_clock_number_tiles_4.svg
+ANOMALIES:
+- unusual foreground ratio: 1.000
+
+FAMILY: everyday
+ARCHETYPE: key
+SELECTED: Key-yellow
+SOURCE: openclipart-source/svg/unsorted/Key-yellow.svg
+SCORE: 219
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: scissors
+SELECTED: pitr_scissors_half-open_icon
+SOURCE: openclipart-source/svg/icons/pitr_scissors_half-open_icon.svg
+SCORE: 213
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: glass
+SELECTED: glass
+SOURCE: openclipart-source/svg/computer/icons/etiquette-theme/stock/glass.svg
+SCORE: 207
+SIMILAR CANDIDATES DISCARDED:
+1. glass — distance 0 — openclipart-source/svg/food/beverages/glass.svg
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: umbrella
+SELECTED: Umbrella-Revolution-Hong-Kong-Symbol-2014100517
+SOURCE: openclipart-source/svg/unsorted/Umbrella-Revolution-Hong-Kong-Symbol-2014100517.svg
+SCORE: 207
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: key
+SELECTED: key_juliane_krug_01
+SOURCE: openclipart-source/svg/computer/icons/key_juliane_krug_01.svg
+SCORE: 204
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: everyday
+ARCHETYPE: knife
+SELECTED: knife
+SOURCE: openclipart-source/svg/recreation/toys/knife.svg
+SCORE: 204
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: tool
+SELECTED: hammer_peterm1
+SOURCE: openclipart-source/svg/unsorted/hammer_peterm1.svg
+SCORE: 276
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: gear
+SELECTED: gear-wheels2
+SOURCE: openclipart-source/svg/unsorted/gear-wheels2.svg
+SCORE: 242
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: tool
+SELECTED: hammer
+SOURCE: openclipart-source/svg/signs_and_symbols/symbols/hammer.svg
+SCORE: 228
+SIMILAR CANDIDATES DISCARDED:
+1. hammer_nicu_buculei_01 — distance 0 — openclipart-source/svg/unsorted/hammer_nicu_buculei_01.svg
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: gear
+SELECTED: simple_Gear
+SOURCE: openclipart-source/svg/unsorted/simple_Gear.svg
+SCORE: 217
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: camera-radio
+SELECTED: digital_camera_nicu_bucu_01
+SOURCE: openclipart-source/svg/computer/hardware/digital_camera_nicu_bucu_01.svg
+SCORE: 208
+SIMILAR CANDIDATES DISCARDED:
+1. digital_camera_nicu_bucu_01 — distance 0 — openclipart-source/svg/tools/digital_camera_nicu_bucu_01.svg
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: engine
+SELECTED: JetEngine
+SOURCE: openclipart-source/svg/unsorted/JetEngine.svg
+SCORE: 207
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- multiple components: 10
+
+FAMILY: artifact
+ARCHETYPE: mask
+SELECTED: eye_mask
+SOURCE: openclipart-source/svg/holidays/halloween/eye_mask.svg
+SCORE: 206
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: gear
+SELECTED: gearGreen
+SOURCE: openclipart-source/svg/unsorted/gearGreen.svg
+SCORE: 202
+SIMILAR CANDIDATES DISCARDED:
+1. gearRed — distance 0 — openclipart-source/svg/unsorted/gearRed.svg
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: camera-radio
+SELECTED: camera_unmount
+SOURCE: openclipart-source/svg/computer/icons/lemon-theme/devices/camera_unmount.svg
+SCORE: 194
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: tool
+SELECTED: method-Adjustable-wrench-icon-style-1
+SOURCE: openclipart-source/svg/icons/method-Adjustable-wrench-icon-style-1.svg
+SCORE: 192
+SIMILAR CANDIDATES DISCARDED:
+1. method_Adjustable_wrench_-_icon_style_1 — distance 0 — openclipart-source/svg/icons/method_Adjustable_wrench_-_icon_style_1.svg
+2. method_Adjustable_wrench_-_icon_style — distance 0 — openclipart-source/svg/icons/method_Adjustable_wrench_-_icon_style.svg
+3. method-Adjustable-wrench-icon-style — distance 0 — openclipart-source/svg/icons/method-Adjustable-wrench-icon-style.svg
+ANOMALIES:
+- high element count: 70
+
+FAMILY: artifact
+ARCHETYPE: mask
+SELECTED: Kendo-mask
+SOURCE: openclipart-source/svg/unsorted/Kendo-mask.svg
+SCORE: 192
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: gear
+SELECTED: gear
+SOURCE: openclipart-source/svg/computer/icons/flat-theme/action/gear.svg
+SCORE: 185
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: camera-radio
+SELECTED: camera_michael_tunniclif_01
+SOURCE: openclipart-source/svg/computer/icons/camera_michael_tunniclif_01.svg
+SCORE: 176
+SIMILAR CANDIDATES DISCARDED:
+1. camera_michael_tunniclif_01 — distance 0 — openclipart-source/svg/electronics/camera_michael_tunniclif_01.svg
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: mask
+SELECTED: Scuba_half_mask
+SOURCE: openclipart-source/svg/unsorted/Scuba_half_mask.svg
+SCORE: 168
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+none
+
+FAMILY: artifact
+ARCHETYPE: instrument-mechanism
+SELECTED: johnny_automatic_mechanical_man_side_view
+SOURCE: openclipart-source/svg/unsorted/johnny_automatic_mechanical_man_side_view.svg
+SCORE: 161
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- multiple components: 15
+- high element count: 303
+
+FAMILY: artifact
+ARCHETYPE: helmet
+SELECTED: helmet
+SOURCE: openclipart-source/svg/recreation/sports/helmet.svg
+SCORE: 157
+SIMILAR CANDIDATES DISCARDED:
+none
+ANOMALIES:
+- high element count: 42
+

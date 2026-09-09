@@ -8,6 +8,7 @@ export const BRAIN_MODEL_SCHEME = 'brain-model'
 const ALLOWED_MODEL_FILES = new Set([
   'pornmaster-sd15-onnx/text_encoder/model.onnx',
   'pornmaster-sd15-onnx/unet/model.onnx',
+  'psicofantasma/repertoire.json',
 ])
 
 export function registerBrainModelScheme(): void {
@@ -45,7 +46,12 @@ export function brainModelRelativePath(requestUrl: string): string | null {
 }
 
 async function findModelFile(relativePath: string): Promise<string | null> {
-  for (const directory of modelDirectories()) {
+  const directories = relativePath.startsWith('psicofantasma/')
+    ? app.isPackaged
+      ? [path.join(app.getAppPath(), 'dist/brain-models')]
+      : [path.join(app.getAppPath(), relativePath.endsWith('.json') ? 'config' : '.model-artifacts')]
+    : modelDirectories()
+  for (const directory of directories) {
     const candidate = path.resolve(directory, relativePath)
     if (!candidate.startsWith(`${path.resolve(directory)}${path.sep}`)) continue
     try {

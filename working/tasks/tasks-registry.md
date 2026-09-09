@@ -826,3 +826,24 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **TASK-033-03 [DONE]**: 33 test mirati, typecheck e lint.
 - [ ] **TASK-033-04 [TODO]**: collaudo fullscreen reale su asincronia, residuo,
   silenzio/ripresa, freeze e low power; poi valutare gli interventi subordinati.
+
+## PsicoFantasma — MACRO-034 / PIANO-043
+
+- [x] **TASK-034-01 [DONE]**: brief Visual, nome, piano e verifiche filosofiche.
+- [x] **TASK-034-02 [DONE — SUPERATO]**: byte/hash e smoke CLIP storici; encoder ritirato dopo 034-17. Profiling CPU geometrico/SD reale completato in 034-11.
+- [x] **TASK-034-03 [DONE]**: formato/loader e import deterministico delle impronte morfologiche in contorni runtime.
+- [x] **TASK-034-04 [DONE]**: pacchetto approvato importato: 120 SVG, 24 per famiglia, 40/40 archetipi, hash verificati.
+- [x] **TASK-034-05 [DONE]**: preparazione geometrica CPU al cambio immagine, cache e nessun modello/Worker/VRAM.
+- [x] **TASK-034-06 [DONE]**: ranking per concetto, gate a quattro condizioni, misura strutturale e diagnostica.
+- [x] **TASK-034-07 [DONE]**: grammatica Canvas, cache blur/mask, quattro varianti e memoria fuori istanza.
+- [x] **TASK-034-08 [DONE]**: UI, registry e pool dei quattro regimi; dominanza DELIQUESCENCE invariata.
+- [x] **TASK-034-09 [DONE]**: test negativi e test del ciclo `update()` reale con Canvas simulato.
+- [x] **TASK-034-10 [DONE]**: 72 file / 674 test, typecheck, lint e build completa app/ZIP/DMG; repertorio V2 verificato dentro `app.asar`.
+- [ ] **TASK-034-11 [IN_PROGRESS]**: profiling simultaneo Psichedel completato; resta collaudo Visual 1–12 sul repertorio reale, con 20–40% solo come giudizio a schermo.
+- [x] **TASK-034-12 [DONE]**: ciclo senza ripartenza, residuo e fase fuori istanza, trasporto raster precomputato e crossfade continuo; pixel verificati nel Canvas reale nel silenzio e dopo ricreazione.
+- [x] **TASK-034-13 [DONE]**: disponibilità condizionata al repertorio, validazione e bundle JSON; crescita oltre V1 senza modifica al codice.
+- [x] **TASK-034-14 [DONE — SUPERATO]**: vecchia cache/Worker CLIP ritirati dal matcher geometrico 034-17.
+- [x] **TASK-034-15 [DONE]**: selezione PsicoFantasma imposta Manuale; anteprima senza repertorio pronta senza fetch/Worker, esclusa da entrambe le modalità automatiche. Typecheck, lint e 662 test passati; app/DMG/ZIP aggiornati, blockmap ZIP completata alle 01:17:35.
+- [x] **TASK-034-16 [DONE]**: de-squadratura delle zone di riconoscimento. Maschera risolta a livello di pixel (split figura/fondo al punto medio, gate massa dilatato, box-blur+soglia ×2, componente più grande, buchi riempiti); griglia 64×36 solo per trovare la massa. Nuovo `PsicoFantasmaRegion.contour`. 663 test, typecheck, lint. Collaudo a schermo pendente.
+- [x] **TASK-034-17 [DONE]**: matcher geometrico autorizzato e implementato; CLIP/encoder/Worker rimossi, confronto nello stesso dominio di sagoma.
+- [x] **TASK-034-18 [DONE]**: slot rotante della forma raggiunta, morph fra immagini subordinato al gate, decadimento senza match, silenzio e low power. 671 test, typecheck/lint, smoke Canvas reale A→B→C e build app/ZIP/DMG; collaudo percettivo resta in 034-11.

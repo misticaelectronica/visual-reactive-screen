@@ -80,6 +80,44 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
   - Se un criterio non scatta mai dal vivo, non va tarato: va rimosso.
   - Segnalare la sovrastrutturazione quando arriva dall'alto — **anche quando il brief è firmato da un Capo Supremo**: se chiede un meccanismo che duplica qualcosa di già esistente, va riportato prima di essere implementato, non eseguito silenziosamente.
 
+### Autonomia Dei Renderer (regola permanente, disposizione del Capo Supremo 2026-09-07)
+
+**Ogni renderer di Brain è un plugin autonomo. La sua grammatica, la sua
+analisi del raster e le sue tarature vivono dentro il suo modulo. Una
+modifica fatta per un renderer non deve poter cambiare il comportamento di
+un altro.**
+
+Cosa vuol dire in pratica:
+
+- **Resta condivisa solo l'infrastruttura che non è grammatica**: il
+  contratto del plugin ([`brainRendererPlugin`](src/renderer/output/brain/brainRendererPlugin.ts)),
+  il crossfade delle transizioni, lo smoothing del moto
+  ([`BrainCanvasMotionSmoother`](src/renderer/output/brain/brainCanvasMotionSmoother.ts)),
+  l'accento ritmico ([`brainRhythm`](src/renderer/output/brain/brainRhythm.ts)),
+  lo store fuori istanza, `setPerception` e il vocabolario di pattern/moto
+  del frame. Questo è telaio, non linguaggio visivo: può stare in comune.
+- **L'analisi del raster è grammatica, non infrastruttura.** Estrazione di
+  zone di colore, segmentazione, campi di occupazione, silhouette, palette,
+  salienza, classificazione dei materiali: ognuna di queste vive nel modulo
+  del renderer che la usa, tarata per quel renderer soltanto.
+- **La duplicazione di codice di analisi fra renderer è accettata e
+  voluta.** Non va rifattorizzata in un modulo comune. Due renderer che
+  classificano i pixel per tinta e luminanza nello stesso modo vanno bene
+  così: sono liberi di divergere quando serve, senza rompere l'altro.
+- **Se durante un'implementazione serve un'analisi che esiste già altrove,
+  va riportato invece di importarla.** La scelta se duplicarla, adattarla o
+  (in casi rari) promuoverla a infrastruttura è del Capo Supremo, non
+  dell'implementazione.
+- **Riferimento**: `analyzeMaterialPixels`
+  ([`brainMaterialAnalysis`](src/renderer/output/brain/brainMaterialAnalysis.ts))
+  nasce come analisi di Material-Morph ed è oggi importata anche da
+  Dream-Segmentation, Fractal-Spiral e Bauhaus (via `brainBauhausAnalysis`).
+  È un accoppiamento accettato per ragioni storiche, non un modello da
+  estendere: nessun nuovo renderer deve importarla, e le sue tarature non
+  vanno toccate per servire un renderer diverso da Material-Morph senza una
+  disposizione esplicita. DELIQUESCENCE è stato disaccoppiato (estrae le sue
+  zone di colore in casa, `extractDeliquescenceColorZones`).
+
 ### Protocollo Obbligatorio Di Verifica Filosofia Visiva
 
 Prima di proporre qualsiasi modifica, diagnosi o soluzione visiva, l'agente DEVE verificare il rispetto di questi 3 vincoli fondamentali:

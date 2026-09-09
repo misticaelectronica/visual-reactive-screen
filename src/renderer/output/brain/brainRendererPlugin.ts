@@ -1,5 +1,5 @@
 import type { BrainRendererId } from '@shared/types'
-import type { DreamStory, PsychedelScene } from '@shared/brain/brainTypes'
+import type { DreamStory, ImageRenderMode, PsychedelScene } from '@shared/brain/brainTypes'
 import type { BrainPrint2dMode } from './brainPrint2dCanvas'
 import type { BrainSceneRendererController } from './brainSvgScene'
 
@@ -22,6 +22,12 @@ export type BrainRendererPluginContext = {
   frameEnergy: number
   frameIndex: number
   frameCount: number
+  /**
+   * Modalità di resa della raster del fotogramma corrente; `undefined` per
+   * fotogrammi archiviati/riusati. PsicoFantasma non gira su `interlude`
+   * (4 step di denoising, 448×256): il gate vive in `brainRendererSelector`.
+   */
+  frameRenderMode?: ImageRenderMode
 }
 
 export type BrainRendererPlugin = {

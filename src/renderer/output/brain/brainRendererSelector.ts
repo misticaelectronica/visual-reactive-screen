@@ -4,7 +4,9 @@ import {
   type AppSettings,
   type BrainRendererId,
 } from '@shared/types'
+import type { ImageRenderMode } from '@shared/brain/brainTypes'
 import type { BrainBioRegime } from './brainBioPerception'
+import { isPsicoFantasmaBundled } from '@shared/psicoFantasmaAvailability'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
 const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>([])
@@ -25,6 +27,7 @@ const LOW_REGIME_RENDERERS = new Set<BrainRendererId>([
   'bauhaus-morph',
   'dream-segmentation',
   'filter-psiche',
+  'psicofantasma',
 ])
 // DELIQUESCENCE è la grammatica del Respiro Profondo: quando il regime entra
 // in `respiro-profondo` deve essere il **95% della rotazione** (Capo Supremo,
@@ -69,6 +72,7 @@ const HIGH_REGIME_SECONDARY_RENDERERS = new Set<BrainRendererId>([
   'material-morph',
   'bauhaus-morph',
   'dream-segmentation',
+  'psicofantasma',
 ])
 // DELIQUESCENCE è escluso dal Respiro Alto per costruzione (dichiarato, non
 // emergente): la sua grammatica è quella del Respiro Profondo.
@@ -82,13 +86,21 @@ const BOOTSTRAP_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
 
 // `pressurized`: nessuna esclusione né preferenza — è un passaggio, non uno
 // stato abitato con un pool proprio.
-function excludedForRegime(regime: BrainBioRegime): ReadonlySet<BrainRendererId> {
-  if (regime === 'decompression' || regime === 'respiro-profondo') {
-    return REGIME_EXCLUDED_RENDERERS
-  }
-  if (regime === 'respiro-alto') return HIGH_REGIME_EXCLUDED_RENDERERS
-  if (regime === 'unresolved') return BOOTSTRAP_EXCLUDED_RENDERERS
-  return AUTOMATICALLY_EXCLUDED_RENDERERS
+//
+// `frameRenderMode`: PsicoFantasma osserva la materia del raster al pixel e non
+// regge un input a 4 step di denoising (`interlude`, 448×256). Disposizione del
+// Capo Supremo (2026-09-08, PIANO-043 034-20): escluso solo su `interlude`;
+// `standard`/`enhanced`/`high-quality` e i fotogrammi archiviati (modalità
+// assente) sono ammessi. La selezione manuale è risolta prima di questo filtro.
+function excludedForRegime(
+  regime: BrainBioRegime,
+  frameRenderMode?: ImageRenderMode,
+): ReadonlySet<BrainRendererId> {
+  const excluded = regime === 'decompression' || regime === 'respiro-profondo' ? REGIME_EXCLUDED_RENDERERS
+    : regime === 'respiro-alto' ? HIGH_REGIME_EXCLUDED_RENDERERS
+      : regime === 'unresolved' ? BOOTSTRAP_EXCLUDED_RENDERERS : AUTOMATICALLY_EXCLUDED_RENDERERS
+  const psicoFantasmaBlocked = !isPsicoFantasmaBundled() || frameRenderMode === 'interlude'
+  return psicoFantasmaBlocked ? new Set([...excluded, 'psicofantasma' as const]) : excluded
 }
 
 // Rango di preferenza del renderer nel regime corrente: 0 = prioritario o
@@ -124,6 +136,7 @@ const HEAVY_RENDERERS_UNDER_PRESSURE = new Set<BrainRendererId>([
   'material-morph',
   'dream-segmentation',
   'fractal-spiral-degeneration',
+  'psicofantasma',
 ])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
@@ -136,6 +149,7 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'glitch-morph',
   'fractal-spiral-degeneration',
   'deliquescence',
+  'psicofantasma',
 ])
 // Un renderer persistente è un invariante onirico (filosofia.md §2): deve
 // durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2
@@ -206,6 +220,7 @@ export class BrainRendererSelector {
     private readonly getPressureHint?: () => boolean,
     private readonly getBoostHint?: () => boolean,
     private readonly getRegime?: () => BrainBioRegime,
+    private readonly getFrameRenderMode?: () => ImageRenderMode | undefined,
   ) {
     this.activeId = availableIds.includes(initialId)
       ? initialId
@@ -221,8 +236,12 @@ export class BrainRendererSelector {
     return result
   }
 
+  private currentlyExcluded(): ReadonlySet<BrainRendererId> {
+    return excludedForRegime(this.getRegime?.() ?? 'unresolved', this.getFrameRenderMode?.())
+  }
+
   private automaticIds(): BrainRendererId[] {
-    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const regimeExcluded = this.currentlyExcluded()
     const enabled = this.availableIds.filter(
       (id) => !AUTOMATICALLY_EXCLUDED_RENDERERS.has(id) && !regimeExcluded.has(id),
     )
@@ -230,7 +249,7 @@ export class BrainRendererSelector {
   }
 
   private regimeAllows(id: BrainRendererId): boolean {
-    return !excludedForRegime(this.getRegime?.() ?? 'unresolved').has(id)
+    return !this.currentlyExcluded().has(id)
   }
 
   /**
@@ -240,7 +259,7 @@ export class BrainRendererSelector {
    * Il boost non partecipa alla decisione: il regime resta l'autorità finale.
    */
   private reconcileCurrentRegime(now: number): boolean {
-    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const regimeExcluded = this.currentlyExcluded()
     if (regimeExcluded.size === 0) return false
 
     this.waitingDeck = this.waitingDeck.filter((id) => !regimeExcluded.has(id))
@@ -276,7 +295,7 @@ export class BrainRendererSelector {
     // L'esclusione per regime NON dipende da `boosted`: il regime vince
     // sempre sull'evento tecnico (brief §13/§14 della nota Visual), a
     // differenza del filtro pressione GPU qui sotto.
-    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const regimeExcluded = this.currentlyExcluded()
     const excluded = new Set<BrainRendererId>([...storyCycleExcluded, ...regimeExcluded])
     const enabled = this.availableIds.filter((id) => !excluded.has(id))
     const base = enabled.length > 0 ? enabled : this.automaticIds()

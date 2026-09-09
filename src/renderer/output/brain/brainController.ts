@@ -4,6 +4,7 @@ import type {
   BrainStatus,
   DreamFrame,
   DreamStory,
+  ImageRenderMode,
   PsychedelScene,
 } from '@shared/brain/brainTypes'
 import {
@@ -807,6 +808,9 @@ export function createBrainController(
     'marea',
   )
   let previousFrameMorphPattern: BrainFrameMorphPattern | null = null
+  // Modalità di resa della raster del fotogramma corrente: alimenta il gate
+  // `interlude` di PsicoFantasma nel selettore (PIANO-043 034-20).
+  let currentFrameRenderMode: ImageRenderMode | undefined
   let currentSvg: BrainSvgController | null = null
   let outgoingSvg: BrainSvgController | null = null
   const offlineWindow = new BrainOfflineGenerationWindow({
@@ -839,6 +843,7 @@ export function createBrainController(
     () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
     () => revisionCycleActive,
     getBioRegime,
+    () => currentFrameRenderMode,
   )
   let transitionCounterpartShapes: BrainMorphShape[] = []
   let lastSentPerceptionState: BrainBioPerceptionState | null = null
@@ -1174,6 +1179,9 @@ export function createBrainController(
     const scene = currentProduction.scenes[index]
     const frame = currentProduction.story.frames[index]
     if (!scene || !frame) return
+    // Prima di ogni `brainRendererSelector.resolve`: il gate `interlude` di
+    // PsicoFantasma legge questa modalità (PIANO-043 034-20).
+    currentFrameRenderMode = scene.renderMode
     const hadVisibleFrame = currentSvg !== null
     outgoingSvg?.destroy()
     outgoingSvg = currentSvg
@@ -1282,6 +1290,7 @@ export function createBrainController(
             frameEnergy: frame.energy,
             frameIndex: index,
             frameCount: currentProduction.story.frames.length,
+            frameRenderMode: scene.renderMode,
           },
           (settings, now) => brainRendererSelector.resolve(settings, now),
           latestPayload?.settings

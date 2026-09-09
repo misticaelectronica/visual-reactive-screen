@@ -8,6 +8,7 @@ import type { ModelId } from 'web-txt2img'
 import { AutoTokenizer } from '@huggingface/transformers'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import { PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE } from '@shared/brain/imageModelManifest'
+import type { ImageRenderMode } from '@shared/brain/brainTypes'
 import { brainLog, brainWarn } from './brainLog'
 import { Sd15OnnxWebGpuRuntime } from './sd15OnnxWebGpu'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
@@ -23,11 +24,7 @@ export interface PsychedelImageGenerator {
   destroy(): void
 }
 
-export type ImageRenderMode =
-  | 'standard'
-  | 'interlude'
-  | 'high-quality'
-  | 'enhanced'
+export type { ImageRenderMode } from '@shared/brain/brainTypes'
 
 const LEGACY_STANDARD_MODEL: ModelId = 'sd-turbo'
 const LEGACY_HIGH_QUALITY_MODEL: ModelId = 'janus-pro-1b'

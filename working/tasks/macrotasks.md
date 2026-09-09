@@ -108,6 +108,14 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-034`: PsicoFantasma
+- **Stato**: IN PROGRESS — matcher, persistenza e repertorio V2 da 120 sagome integrati; profiling simultaneo Psichedel completato. Resta il collaudo Visual 1–12 a schermo. CLIP ritirato.
+- **Piano**: `working/plans/piano-043-psicofantasma.md`.
+- **Priorità**: rotazione normale; nessuno slittamento DELIQUESCENCE.
+- **Prova manuale**: PsicoFantasma selezionabile dall'elenco; con il
+  repertorio approvato partecipa anche ai cicli automatici ammessi.
+
+
 > **Chiusura registro (Consigliere, 2026-09-07):** gli otto piani renderer
 > (Psycho2D, Materia Morph, Vector Morph, FilterPsiche, Bauhaus Morph, Dream
 > Segmentation, Glitch Morph, Fractal Spiral Degeneration) sono marcati

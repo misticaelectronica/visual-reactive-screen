@@ -1,0 +1,20 @@
+{
+  "selected": 120,
+  "target": 120,
+  "guideArchetypesResolved": "40/40",
+  "unresolved": 0,
+  "uniqueIds": true,
+  "uniqueSourceFiles": true,
+  "uniqueHashes": true,
+  "familyCounts": {
+    "human": 24,
+    "animal": 24,
+    "organic": 24,
+    "everyday": 24,
+    "artifact": 24
+  },
+  "outputSvgCount": 120,
+  "unreadableSvg": 0,
+  "jsonValid": true,
+  "networkAccess": false
+}

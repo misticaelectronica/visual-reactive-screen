@@ -1,8 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 
 describe('Brain renderer registry', () => {
-  it('registra i dieci renderer Brain, incluso Dream Segmentation, Fractal Spiral Degeneration e Deliquescence', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it('keeps PsicoFantasma available for manual preview when its bundle is absent', () => {
+    vi.stubGlobal('__PSICOFANTASMA_AVAILABLE__', false)
+    expect(createDefaultBrainRendererRegistry().ids()).toContain('psicofantasma')
+  })
+  it('registra gli undici renderer Brain, incluso PsicoFantasma', () => {
+    vi.stubGlobal('__PSICOFANTASMA_AVAILABLE__', true)
     const registry = createDefaultBrainRendererRegistry()
     expect(registry.ids()).toEqual([
       'print2d',
@@ -15,6 +21,7 @@ describe('Brain renderer registry', () => {
       'glitch-morph',
       'fractal-spiral-degeneration',
       'deliquescence',
+      'psicofantasma',
     ])
     expect(registry.get('psycho2d')?.capabilities).toEqual({
       multipleImages: true,

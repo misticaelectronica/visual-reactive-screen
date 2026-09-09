@@ -322,6 +322,7 @@ export class Psichedel {
               description: `${frame.title}: ${frame.description}`,
               svg: reusableScene.svg,
               raster: reusableScene.raster,
+              renderMode: reusableScene.renderMode,
             }
             scenesByFrame.set(frame.id, deadlineScene)
             onSceneReady?.(deadlineScene, index)
@@ -443,6 +444,7 @@ export class Psichedel {
               description: `${frame.title}: ${frame.description}`,
               svg: RASTER_FALLBACK_SVG,
               raster: raster.blob,
+              renderMode: mode,
             }
             brainLog('psichedel', `fotogramma raster ${index + 1} pronto per Canvas 2D`, {
               rasterBytes: raster.blob.size,
@@ -461,6 +463,7 @@ export class Psichedel {
                   description: `${frame.title}: ${frame.description}`,
                   svg: reusableScene.svg,
                   raster: reusableScene.raster,
+                  renderMode: reusableScene.renderMode,
                 }
                 brainWarn(
                   'psichedel',

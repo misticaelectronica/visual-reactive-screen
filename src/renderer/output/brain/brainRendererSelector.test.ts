@@ -1,10 +1,100 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
-import { BRAIN_RENDERER_IDS } from '@shared/types'
+import { BRAIN_RENDERER_IDS, type BrainRendererId } from '@shared/types'
 import {
   BrainRendererSelector,
   selectBrainRendererHoldFrames,
 } from './brainRendererSelector'
+
+beforeEach(() => vi.stubGlobal('__PSICOFANTASMA_AVAILABLE__', true))
+afterEach(() => vi.unstubAllGlobals())
+
+it('allows manual PsicoFantasma preview without introducing it into either automatic mode', () => {
+  vi.stubGlobal('__PSICOFANTASMA_AVAILABLE__', false)
+  const selector = new BrainRendererSelector(BRAIN_RENDERER_IDS, 'psicofantasma')
+  const settings = { ...DEFAULT_SETTINGS, brainRendererId: 'psicofantasma' as const,
+    brainRendererMode: 'manual' as const }
+  expect(selector.resolve(settings, 0)).toBe('psicofantasma')
+  expect(selector.resolve({ ...settings, brainRendererMode: 'rotation' }, 1)).not.toBe('psicofantasma')
+  expect(selector.resolve(settings, 2)).toBe('psicofantasma')
+  const automatic = { ...settings, brainRendererMode: 'story-cycle' as const }
+  selector.beginStory('preview-exclusion', automatic)
+  for (let frame = 0; frame < 30; frame++) {
+    expect(selector.resolve(automatic, frame + 3)).not.toBe('psicofantasma')
+    selector.advanceStoryRenderer('preview-exclusion', automatic, frame + 3)
+  }
+})
+
+describe('BrainRendererSelector — gate qualità immagine PsicoFantasma (PIANO-043 034-20)', () => {
+  const storyCycle = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
+  const pair = ['filter-psiche', 'psicofantasma'] as BrainRendererId[]
+
+  it('esclude PsicoFantasma sui fotogrammi interlude e lo ammette su standard', () => {
+    const onInterlude = new BrainRendererSelector(
+      pair, 'filter-psiche', () => 0.99, () => false, () => false,
+      () => 'respiro-alto', () => 'interlude',
+    )
+    onInterlude.beginStory('s-interlude', storyCycle)
+    const seenInterlude = new Set<BrainRendererId>()
+    for (let frame = 0; frame < 40; frame++) {
+      seenInterlude.add(onInterlude.resolve(storyCycle, frame))
+      onInterlude.advanceStoryRenderer('s-interlude', storyCycle, frame)
+    }
+    expect(seenInterlude).toEqual(new Set(['filter-psiche']))
+
+    const onStandard = new BrainRendererSelector(
+      pair, 'filter-psiche', Math.random, () => false, () => false,
+      () => 'respiro-alto', () => 'standard',
+    )
+    onStandard.beginStory('s-standard', storyCycle)
+    const seenStandard = new Set<BrainRendererId>()
+    for (let frame = 0; frame < 40; frame++) {
+      seenStandard.add(onStandard.resolve(storyCycle, frame))
+      onStandard.advanceStoryRenderer('s-standard', storyCycle, frame)
+    }
+    expect(seenStandard.has('psicofantasma')).toBe(true)
+  })
+
+  it('un fotogramma senza modalità (archiviato) non esclude PsicoFantasma', () => {
+    const selector = new BrainRendererSelector(
+      pair, 'filter-psiche', Math.random, () => false, () => false,
+      () => 'respiro-alto', () => undefined,
+    )
+    selector.beginStory('s-archived', storyCycle)
+    const seen = new Set<BrainRendererId>()
+    for (let frame = 0; frame < 40; frame++) {
+      seen.add(selector.resolve(storyCycle, frame))
+      selector.advanceStoryRenderer('s-archived', storyCycle, frame)
+    }
+    expect(seen.has('psicofantasma')).toBe(true)
+  })
+
+  it('sostituisce PsicoFantasma quando il fotogramma passa a interlude a metà hold', () => {
+    let mode: 'standard' | 'interlude' = 'standard'
+    const selector = new BrainRendererSelector(
+      pair, 'psicofantasma', () => 0.99, () => false, () => false,
+      () => 'respiro-alto', () => mode,
+    )
+    const manual = { ...DEFAULT_SETTINGS, brainRendererId: 'psicofantasma' as const,
+      brainRendererMode: 'manual' as const }
+    // parte manuale su PsicoFantasma, poi passa ad automatico story-cycle
+    expect(selector.resolve(manual, 0)).toBe('psicofantasma')
+    expect(selector.resolve(storyCycle, 1)).toBe('psicofantasma')
+    mode = 'interlude'
+    expect(selector.resolve(storyCycle, 2)).toBe('filter-psiche')
+  })
+
+  it('la selezione manuale ignora il gate (strumento di sviluppo)', () => {
+    const selector = new BrainRendererSelector(
+      BRAIN_RENDERER_IDS, 'psicofantasma', Math.random, () => false, () => false,
+      () => 'respiro-alto', () => 'interlude',
+    )
+    const manual = { ...DEFAULT_SETTINGS, brainRendererId: 'psicofantasma' as const,
+      brainRendererMode: 'manual' as const }
+    expect(selector.resolve(manual, 0)).toBe('psicofantasma')
+    expect(selector.resolve(manual, 1)).toBe('psicofantasma')
+  })
+})
 
 describe('selectBrainRendererHoldFrames — boost del Ciclo di Revisione', () => {
   it('senza boost resta nel range invariante onirico standard [2,3]', () => {
@@ -666,9 +756,10 @@ describe('BrainRendererSelector — esclusione per regime (PIANO-040 §4/§17.1)
     'material-morph',
     'bauhaus-morph',
     'dream-segmentation',
+    'psicofantasma',
   ])
 
-  it('in decompression/respiro-profondo compare soltanto la whitelist normativa di sei renderer', () => {
+  it('in decompression/respiro-profondo compare soltanto la whitelist normativa con PsicoFantasma', () => {
     for (const regime of ['decompression', 'respiro-profondo'] as const) {
       for (const boosted of [false, true]) {
         const selector = new BrainRendererSelector(
@@ -886,7 +977,7 @@ describe('RESPIRO PROFONDO — dominanza DELIQUESCENCE (Item 5)', () => {
     expect(deliq / total).toBeGreaterThan(0.92)
     expect(deliq / total).toBeLessThan(0.98)
     // gli altri non sono esclusi: almeno uno del pool basso compare.
-    const others = ['vector-morph', 'material-morph', 'bauhaus-morph', 'dream-segmentation', 'filter-psiche']
+    const others = ['vector-morph', 'material-morph', 'bauhaus-morph', 'dream-segmentation', 'filter-psiche', 'psicofantasma']
     expect(others.some((id) => (counts.get(id) ?? 0) > 0)).toBe(true)
     // nessun renderer fuori dal pool basso.
     for (const id of counts.keys()) {

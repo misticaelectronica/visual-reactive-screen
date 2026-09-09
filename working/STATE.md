@@ -1,5 +1,48 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## PsicoFantasma — PIANO-043 / MACRO-034 — 2026-09-08
+
+Matcher geometrico già autorizzato e implementato in 034-17: CLIP, encoder e
+Worker ritirati. I numeri CLIP nei resoconti precedenti sono storici.
+
+**Repertorio V2 approvato e integrato:** 120 SVG, 24 per famiglia, 40/40
+archetipi guida. Hash e file corrispondono al manifest; il normalizzatore
+deterministico produce contorni runtime dalle impronte 32×32 consegnate.
+Il bundle rende PsicoFantasma disponibile anche nella rotazione normale.
+
+Completato tecnicamente **034-18, persistenza fra immagini**: uno slot rotante
+fuori istanza conserva la deformazione raggiunta, silhouette, bbox,
+completamento e decadimento. L'immagine successiva mantiene la traccia;
+se il nuovo gate passa, parte un morph fra forme preparato al cambio immagine.
+Senza match la traccia decade in 12 secondi percettivi, senza ritornare alla
+foto precedente. Silenzio e hold congelano i pixel. Le istanze uscenti non
+possono riscrivere lo slot dell'immagine nuova. Rimane separato il checkpoint
+della stessa immagine per ricreazione dell'istanza.
+
+Budget continuità: un passaggio ereditato, massimo 18 stadi 480×270
+(9 in lowPowerMode), precomputati. Lo slot trattiene due stadi già esistenti;
+a runtime solo compositing, senza analisi o riallocazioni. Gate, reattività
+034-19/21, feather 034-22, regioni 034-23 e gate qualità 034-20 invariati.
+DELIQUESCENCE e lavori concorrenti non modificati.
+
+Verifiche precedenti: **71 file / 671 test**, typecheck e lint. Canvas reale Electron
+con fixture tecniche: match A → match B, traccia su C senza regione, decadimento
+completo, silenzio con pixel identici; B/C in lowPowerMode. Sono prove
+tecniche, non curatela o taratura Visual. Build finale completa: app, ZIP e DMG.
+
+034-04 è completato. Ranking reale: 120/120 descrittori finiti e coerenza
+strutturale esatta; 115 sagome esatte passano il gate, 5 collisioni vengono
+rifiutate correttamente per margine zero. Profiling simultaneo reale:
+PsicoFantasma CPU 44,6 ms/~1,7 MB heap mentre Psichedel WebGPU completa in
+34,301 s (riferimento caldo 34,840 s), senza impatto misurabile e senza VRAM.
+Validazione finale: **72 file / 674 test**, typecheck, lint e build completa
+app/ZIP/DMG. Il JSON dentro `app.asar` contiene 120 sagome e coincide per hash
+con il file normalizzato (`141978d9…`).
+
+**Ancora aperto:** parte percettiva 034-11, Test Visual 1–12 e giudizio a
+schermo sul 20–40%. È criterio di collaudo, non quota runtime. Piano attivo,
+non dichiarato completato.
+
 ## Chiusura piani + `1.0.0-rc.3` — 2026-09-07
 
 - Disposizione del Consigliere: commit del working tree in unità separate

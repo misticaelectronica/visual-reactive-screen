@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { PSICOFANTASMA_FAMILIES, loadPsicoFantasmaRepertoire } from './src/renderer/output/brain/psicofantasma/repertoire'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron/simple'
@@ -9,6 +10,17 @@ const sharedAlias = {
   '@shared': path.resolve(__dirname, 'src/shared'),
 }
 const prototypeOnly = process.env.PSYCHEDEL_PROTOTYPE === '1'
+const psicoRepertoirePath = path.resolve(__dirname, 'config/psicofantasma/repertoire.json')
+const psicoAvailable = fs.existsSync(psicoRepertoirePath)
+if (psicoAvailable) {
+  // Il matcher è geometrico (PIANO-043 034-17): serve solo il repertorio curato,
+  // nessun encoder da verificare.
+  const repertoire = loadPsicoFantasmaRepertoire(JSON.parse(fs.readFileSync(psicoRepertoirePath, 'utf8')))
+  if (repertoire.silhouettes.length < 120
+    || PSICOFANTASMA_FAMILIES.some(family => repertoire.silhouettes.filter(shape => shape.family === family).length < 24)) {
+    throw new Error('Repertorio PsicoFantasma V1 incompleto: servono almeno 120 sagome, 24 per famiglia')
+  }
+}
 
 const ORT_WASM_FILES = [
   'ort-wasm-simd-threaded.wasm',
@@ -90,10 +102,38 @@ function brainModelAssets(): Plugin {
   }
 }
 
+function psicoFantasmaRepertoireAsset(): Plugin {
+  const sourcePath = path.resolve(__dirname, 'config/psicofantasma/repertoire.json')
+  return {
+    name: 'psicofantasma-repertoire-asset',
+    configureServer(server) {
+      server.middlewares.use('/psicofantasma/repertoire.json', (_request, response, next) => {
+        if (!fs.existsSync(sourcePath)) { next(); return }
+        response.statusCode = 200
+        response.setHeader('Content-Type', 'application/json; charset=utf-8')
+        response.setHeader('Cache-Control', 'no-cache')
+        fs.createReadStream(sourcePath).pipe(response)
+      })
+    },
+    generateBundle() {
+      // The renderer remains safely unavailable until Visual delivers the
+      // curated slice. Once present, the same file is embedded in every build.
+      if (!fs.existsSync(sourcePath)) return
+      this.emitFile({
+        type: 'asset',
+        fileName: 'brain-models/psicofantasma/repertoire.json',
+        source: fs.readFileSync(sourcePath),
+      })
+    },
+  }
+}
+
 export default defineConfig({
+  define: { __PSICOFANTASMA_AVAILABLE__: JSON.stringify(psicoAvailable) },
   plugins: [
     ortWasmAssets(),
     brainModelAssets(),
+    psicoFantasmaRepertoireAsset(),
     react(),
     ...(prototypeOnly
       ? []
