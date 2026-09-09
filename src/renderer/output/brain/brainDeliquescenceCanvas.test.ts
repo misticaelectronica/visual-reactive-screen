@@ -7,6 +7,7 @@ import {
   deliquescenceNoise,
   deliquescenceTonemap,
   estimateOccupationField,
+  extractDeliquescenceColorZones,
   interiorDisplacement,
   pickCollapseMode,
   silhouetteDivergence,
@@ -134,6 +135,54 @@ describe('estimateOccupationField — la fascia intermedia È il bordo', () => {
     // esiste una fascia di valori intermedi (il bordo), non solo 0 e 1.
     const intermediate = [...occ].filter((v) => v > 0.3 && v < 0.7).length
     expect(intermediate).toBeGreaterThan(20)
+  })
+})
+
+describe('extractDeliquescenceColorZones — analisi locale, nessuna dipendenza condivisa', () => {
+  it('separa due bande di colore in zone distinte con bbox e colore medio', () => {
+    const width = 64
+    const height = 48
+    const rgba = new Uint8ClampedArray(width * height * 4)
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = (y * width + x) * 4
+        // metà sinistra rossa satura, metà destra blu satura.
+        const [r, g, b] = x < width / 2 ? [210, 40, 40] : [40, 50, 205]
+        rgba[i] = r
+        rgba[i + 1] = g
+        rgba[i + 2] = b
+        rgba[i + 3] = 255
+      }
+    }
+    const zones = extractDeliquescenceColorZones(rgba, width, height, 8)
+    expect(zones.length).toBe(2)
+    const left = zones.find((zone) => zone.centroidX < 0.5)
+    const right = zones.find((zone) => zone.centroidX >= 0.5)
+    expect(left?.averageColor[0]).toBeGreaterThan(left?.averageColor[2] ?? 0)
+    expect(right?.averageColor[2]).toBeGreaterThan(right?.averageColor[0] ?? 0)
+    // il bordo inferiore di ogni zona è l'ultima riga di pixel.
+    expect(left?.maxY).toBe(height - 1)
+  })
+
+  it('scarta le macchie sotto la soglia di area e rispetta maxZones', () => {
+    const width = 40
+    const height = 40
+    const rgba = new Uint8ClampedArray(width * height * 4)
+    for (let i = 0; i < rgba.length; i += 4) {
+      rgba[i] = rgba[i + 1] = rgba[i + 2] = 200
+      rgba[i + 3] = 255
+    }
+    // un singolo pixel di classe diversa: troppo piccolo, non diventa zona.
+    rgba[0] = 10
+    rgba[1] = 10
+    rgba[2] = 10
+    const zones = extractDeliquescenceColorZones(rgba, width, height, 4)
+    expect(zones.length).toBe(1)
+    expect(zones[0].id).toBe(0)
+  })
+
+  it('raster non valido → nessuna zona (nessun lancio)', () => {
+    expect(extractDeliquescenceColorZones(new Uint8ClampedArray(0), 0, 0)).toEqual([])
   })
 })
 

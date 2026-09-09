@@ -13,7 +13,6 @@ import { BrainCanvasMotionSmoother } from './brainCanvasMotionSmoother'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import { brainLog, brainWarn } from './brainLog'
 import { brainPerformanceMetrics } from './brainPerformanceMetrics'
-import { analyzeMaterialPixels, type MaterialRegion } from './brainMaterialAnalysis'
 
 // DELIQUESCENCE — riscrittura attorno al CAMPO DI OCCUPAZIONE (spec
 // team/briefs/brief-deliquescence-specifica.md §3bis, §10 passo 3).
@@ -500,6 +499,157 @@ export function silhouetteDivergence(a: Float32Array, b: Float32Array): number {
   return union > 0 ? diff / union : 0
 }
 
+// --- Zone di colore per la colata — ESTRAZIONE LOCALE (spec §3bis, brief
+// disaccoppiamento 2026-09-07) --------------------------------------------
+//
+// DELIQUESCENCE è un plugin autonomo: la sua analisi vive dentro il suo
+// modulo. In precedenza il gocciolamento chiamava `analyzeMaterialPixels`
+// (modulo condiviso con Material-Morph, Dream-Segmentation, Fractal-Spiral):
+// una taratura fatta per un altro renderer poteva spostare la colata qui.
+// Ora l'estrazione è locale e mirata a ciò che serve alla colata soltanto —
+// il bordo inferiore warpato e il colore medio di ogni zona. Niente campo
+// edge, niente densità, niente salienza, niente palette, nessun `focal`:
+// tutto ciò che `analyzeMaterialPixels` calcola per gli altri renderer e
+// che qui non è mai stato usato. La duplicazione della classificazione
+// cromatica con quel modulo è voluta, non un refactor mancato.
+
+export type DeliquescenceColorZone = {
+  id: number
+  /** centroide orizzontale normalizzato 0..1 (origine della colata). */
+  centroidX: number
+  /** estensione orizzontale in pixel (larghezza della macchia che cola). */
+  minX: number
+  maxX: number
+  /** bordo inferiore in pixel: da qui parte la colata verso il basso. */
+  maxY: number
+  averageColor: readonly [number, number, number]
+}
+
+/**
+ * Classe cromatica grossolana di un pixel: banda di luminanza pura quando è
+ * poco saturo, banda di tinta + chiaro/scuro quando è saturo. Stessa idea
+ * di `materialClass` altrove, tenuta qui perché è la grammatica della
+ * colata di DELIQUESCENCE e deve poter essere tarata senza toccare nessun
+ * altro renderer.
+ */
+function deliquescenceColorClass(red: number, green: number, blue: number): number {
+  const light = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255
+  const maximum = Math.max(red, green, blue)
+  const minimum = Math.min(red, green, blue)
+  const saturation = maximum <= 0 ? 0 : (maximum - minimum) / maximum
+  if (saturation < 0.12) return Math.min(3, Math.floor(light * 4))
+  const hueBand = maximum === red ? 0 : maximum === green ? 1 : 2
+  return 4 + hueBand * 2 + (light >= 0.5 ? 1 : 0)
+}
+
+/**
+ * Zone di colore riconoscibili dal raster ORIGINALE (prima del tonemap):
+ * componenti connesse 4-vicini di classe cromatica uguale, scartate quelle
+ * troppo piccole, tenute le più estese fino a `maxZones`, ordinate per
+ * area. Per ognuna: centroide orizzontale, bounding box orizzontale, bordo
+ * inferiore, colore medio. Nessuna dipendenza esterna.
+ */
+export function extractDeliquescenceColorZones(
+  rgba: Uint8ClampedArray,
+  width: number,
+  height: number,
+  maxZones = 8,
+): DeliquescenceColorZone[] {
+  const pixelCount = width * height
+  if (width <= 1 || height <= 1 || rgba.length !== pixelCount * 4) return []
+
+  const classes = new Uint8Array(pixelCount)
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    const offset = pixel * 4
+    classes[pixel] = deliquescenceColorClass(
+      rgba[offset],
+      rgba[offset + 1],
+      rgba[offset + 2],
+    )
+  }
+
+  const visited = new Uint8Array(pixelCount)
+  const queue = new Int32Array(pixelCount)
+  const minimumPixels = Math.max(8, Math.floor(pixelCount * 0.0015))
+  type MutableZone = {
+    pixels: number
+    sumRed: number
+    sumGreen: number
+    sumBlue: number
+    sumX: number
+    minX: number
+    maxX: number
+    maxY: number
+  }
+  const zones: MutableZone[] = []
+
+  for (let start = 0; start < pixelCount; start += 1) {
+    if (visited[start]) continue
+    const targetClass = classes[start]
+    let read = 0
+    let write = 0
+    queue[write++] = start
+    visited[start] = 1
+    const zone: MutableZone = {
+      pixels: 0,
+      sumRed: 0,
+      sumGreen: 0,
+      sumBlue: 0,
+      sumX: 0,
+      minX: width,
+      maxX: 0,
+      maxY: 0,
+    }
+    while (read < write) {
+      const index = queue[read++]
+      const x = index % width
+      const y = Math.floor(index / width)
+      const offset = index * 4
+      zone.pixels += 1
+      zone.sumRed += rgba[offset]
+      zone.sumGreen += rgba[offset + 1]
+      zone.sumBlue += rgba[offset + 2]
+      zone.sumX += x
+      if (x < zone.minX) zone.minX = x
+      if (x > zone.maxX) zone.maxX = x
+      if (y > zone.maxY) zone.maxY = y
+      const neighbours = [
+        x > 0 ? index - 1 : -1,
+        x + 1 < width ? index + 1 : -1,
+        y > 0 ? index - width : -1,
+        y + 1 < height ? index + width : -1,
+      ]
+      for (const neighbour of neighbours) {
+        if (
+          neighbour >= 0 &&
+          !visited[neighbour] &&
+          classes[neighbour] === targetClass
+        ) {
+          visited[neighbour] = 1
+          queue[write++] = neighbour
+        }
+      }
+    }
+    if (zone.pixels >= minimumPixels) zones.push(zone)
+  }
+
+  return zones
+    .sort((left, right) => right.pixels - left.pixels)
+    .slice(0, Math.max(1, maxZones))
+    .map((zone, id): DeliquescenceColorZone => ({
+      id,
+      centroidX: zone.sumX / zone.pixels / Math.max(1, width - 1),
+      minX: zone.minX,
+      maxX: zone.maxX,
+      maxY: zone.maxY,
+      averageColor: [
+        Math.round(zone.sumRed / zone.pixels),
+        Math.round(zone.sumGreen / zone.pixels),
+        Math.round(zone.sumBlue / zone.pixels),
+      ],
+    }))
+}
+
 function bandActivity(bands: BandEnergies, movingAverages?: BandEnergies): number {
   const drive = (value: number, avg: number | undefined) =>
     clamp((value - Math.max(0.02, avg ?? value * 0.8)) / 0.35 + value * 0.4)
@@ -540,7 +690,7 @@ type PreparedSource = {
   palette: HTMLCanvasElement
   occ: Float32Array
   /** zone di colore riconoscibili (spec: il collasso agisce su queste). */
-  regions: MaterialRegion[]
+  regions: DeliquescenceColorZone[]
 }
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
@@ -578,8 +728,9 @@ async function prepareSource(
     const image = context.getImageData(0, 0, width, height)
     const occ = estimateOccupationField(image.data, width, height, OCC_COLS, OCC_ROWS)
     // Zone di colore dai pixel ORIGINALI, prima del tonemap (spec: il
-    // collasso agisce su regioni cromatiche riconoscibili).
-    const regions = analyzeMaterialPixels(image.data, width, height, 8).regions
+    // collasso agisce su regioni cromatiche riconoscibili). Estrazione
+    // locale al modulo — nessuna chiamata a moduli di analisi condivisi.
+    const regions = extractDeliquescenceColorZones(image.data, width, height, 8)
     const data = image.data
     for (let i = 0; i < data.length; i += 4) {
       const [r, g, b] = deliquescenceTonemap(data[i], data[i + 1], data[i + 2])
