@@ -93,6 +93,14 @@ matcher → persistenza fra immagini.
     (archiviato) = ammesso.
   - 4 test nuovi in `brainRendererSelector.test.ts`. 668 test, typecheck,
     lint e build finale (app + ZIP + DMG) puliti. Collaudo a schermo da fare.
+- [x] 034-24: **verifica eleggibilità nei quattro regimi e osservabilità
+  esatta.** Il §36 è già rispettato dai pool: nessuna correzione applicata.
+  Documentati i filtri trasversali che possono azzerare la presenza
+  (`interlude`, `HEAVY_RENDERERS_UNDER_PRESSURE`) e la collocazione secondaria
+  nel Respiro Alto. `brainController.applyFrame` emette ora un marker
+  `brainRendererSelector.resolve per fotogramma` con l'esito effettivo e il
+  contesto necessario a calcolare la permanenza. Regressione diretta sui
+  quattro regimi; suite 72/681, typecheck, lint e build verdi.
 - [x] 034-21: **reattività musicale.** «Non è reattivo alla musica».
   `brainPsicoFantasmaCanvas.ts` `update()`: la separazione ottica ora oscilla
   con ampiezza percepibile — fondo `worldDefocus = focusRamp·(0.5 + bandDrive·0.4
@@ -253,6 +261,21 @@ senza modello o VRAM. Dettagli e cinque collisioni per asset in
 Validazione finale: 72 file / 674 test, typecheck, lint e build completa
 app/ZIP/DMG. Il repertorio estratto da `app.asar` contiene 120 sagome, 40
 archetipi e coincide per hash con `config/psicofantasma/repertoire.json`.
+
+### Diagnosi log live — 2026-09-09
+
+Il matcher è entrato realmente in funzione dopo la consegna del repertorio:
+49 decisioni riportano un `candidateId`, affinità, margine e coerenza, quindi
+non sono semplici attivazioni del renderer. Finestre osservate: 8 settembre
+23:00:58–23:06:00 CEST (22 decisioni) e 9 settembre 14:34:54–14:40:13 CEST
+(27 decisioni).
+
+Nessuna delle 49 decisioni ha superato il gate: 24 rifiuti per affinità, 17
+per margine e 8 per coerenza strutturale. La persistenza era già maturata
+(circa 1,37–1,73 s). Nei log disponibili non compare alcun
+`recognized: true`: il riconoscimento viene eseguito, ma finora non autorizza
+mai l'attrazione verso l'archetipo. Il risultato live osservato è 0%, sotto
+il criterio Visual 20–40%; nessuna soglia viene modificata in questa diagnosi.
 
 ## 6. Avanzamento e numeri verificati
 

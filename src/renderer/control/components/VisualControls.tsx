@@ -85,7 +85,7 @@ export function VisualControls({ settings, onChange }: Props) {
                 : settings.brainRendererMode,
             })}
           />
-          <strong>Alternate with Brain (80/20)</strong>
+          <strong>Alternate with Brain (80/20) — deprecata</strong>
         </label>
         <label>
           Algoritmo morphing

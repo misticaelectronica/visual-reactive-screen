@@ -1,5 +1,5 @@
-// Ciclo di Revisione (PIANO-034): ogni 2-4 storie (casuale, sempre a
-// confine di storia) la generazione si sospende del tutto e il sistema fa
+// Ciclo di Revisione (PIANO-034): dopo ogni storia, sempre al confine di
+// storia, la generazione si sospende del tutto e il sistema fa
 // ritornare, deformate da un morphing intensificato, immagini già
 // generate — non nuovo stimolo, ma rielaborazione di ciò che è già stato
 // immaginato. Coerente con filosofia.md §1 (Lowen: carica/scarica,
@@ -11,8 +11,19 @@
 export type OneiricPhase = 'soglia' | 'metamorfosi' | 'condensazione' | 'eco'
 export type BioenergeticState = 'tensione' | 'rilascio' | 'quiete'
 
-export const REVISION_CYCLE_MIN_STORIES = 2
-export const REVISION_CYCLE_MAX_STORIES = 4
+export type RevisionImageRenderMode =
+  | 'interlude'
+  | 'standard'
+  | 'enhanced'
+  | 'high-quality'
+
+export type RevisionImageCandidate<T> = {
+  value: T
+  frameIndex: number
+  renderMode?: RevisionImageRenderMode
+}
+
+export const REVISION_STORY_IMAGE_COUNT = 3
 export const REVISION_CYCLE_MIN_IMAGES = 5
 export const REVISION_CYCLE_MAX_IMAGES = 9
 export const REVISION_CYCLE_ARCHIVE_CAP_PER_TAG = 24
@@ -22,6 +33,69 @@ export const REVISION_CYCLE_BOOST_MULTIPLIER = 1.35
 // ripetutamente si consuma più in fretta, non si dilata.
 export const REVISION_CYCLE_LAPS = 3
 export const REVISION_CYCLE_FIRST_LAP_DURATION_FACTOR = 0.7
+
+const REVISION_IMAGE_QUALITY: Record<RevisionImageRenderMode, number> = {
+  interlude: 0,
+  standard: 1,
+  enhanced: 2,
+  'high-quality': 3,
+}
+
+/**
+ * Fissa le immagini rappresentative una sola volta usando un dato già
+ * presente nella pipeline: la qualità di generazione effettiva. Il ranking
+ * decide quali immagini entrano nella terna; l'output torna poi nell'ordine
+ * originale dei fotogrammi, che è l'ordine di apparizione richiesto.
+ */
+export function selectRevisionStoryImages<T>(
+  candidates: readonly RevisionImageCandidate<T>[],
+  count = REVISION_STORY_IMAGE_COUNT,
+): T[] {
+  return [...candidates]
+    .sort((left, right) =>
+      (REVISION_IMAGE_QUALITY[right.renderMode ?? 'interlude'] -
+        REVISION_IMAGE_QUALITY[left.renderMode ?? 'interlude']) ||
+      left.frameIndex - right.frameIndex,
+    )
+    .slice(0, Math.max(0, count))
+    .sort((left, right) => left.frameIndex - right.frameIndex)
+    .map((candidate) => candidate.value)
+}
+
+/** Memoria stabile della sola sessione corrente, ordinata per storia. */
+export class RevisionSessionMemory<T> {
+  private readonly order: string[] = []
+  private readonly selections = new Map<string, readonly T[]>()
+
+  remember(storyId: string, images: readonly T[]): boolean {
+    if (this.selections.has(storyId)) return false
+    if (images.length !== REVISION_STORY_IMAGE_COUNT) return false
+    this.order.push(storyId)
+    this.selections.set(storyId, [...images])
+    return true
+  }
+
+  selectionFor(storyId: string): readonly T[] | null {
+    return this.selections.get(storyId) ?? null
+  }
+
+  imagesBefore(storyId: string): T[] {
+    const storyIndex = this.order.indexOf(storyId)
+    if (storyIndex < 0) return []
+    return this.order
+      .slice(0, storyIndex)
+      .flatMap((id) => [...(this.selections.get(id) ?? [])])
+  }
+
+  storyIds(): readonly string[] {
+    return [...this.order]
+  }
+
+  clear(): void {
+    this.order.length = 0
+    this.selections.clear()
+  }
+}
 export const REVISION_CYCLE_LATER_LAP_DURATION_FACTOR = 0.5
 
 export type DreamImageArchiveEntry = {
@@ -76,24 +150,6 @@ export function deriveBioenergeticState(
 
 export function combineRevisionTag(phase: OneiricPhase, state: BioenergeticState): string {
   return `${phase}+${state}`
-}
-
-export function pickStoriesUntilNextRevisionCycle(random: () => number = Math.random): number {
-  const span = REVISION_CYCLE_MAX_STORIES - REVISION_CYCLE_MIN_STORIES + 1
-  return REVISION_CYCLE_MIN_STORIES +
-    Math.floor(Math.min(0.999_999, Math.max(0, random())) * span)
-}
-
-/**
- * La Riattivazione dipende dal proprio contatore e dal confine di storia,
- * non dalla disponibilità della prossima produzione né dal regime visivo.
- */
-export function shouldStartRevisionCycleAtBoundary(
-  storiesUntilNextCycle: number,
-  active: boolean,
-  starting: boolean,
-): boolean {
-  return storiesUntilNextCycle <= 0 && !active && !starting
 }
 
 export function pickRevisionImageCount(random: () => number = Math.random): number {

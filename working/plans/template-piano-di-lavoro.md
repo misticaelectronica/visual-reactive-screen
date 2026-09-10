@@ -20,12 +20,16 @@
   - `src/...`
   - `working/...`
 - **Dipendenze Operative**: [Eventuali prerequisiti tecnici o decisioni architetturali]
+- **Audit preventivo `working/DEPRECATED.md`**:
+  - `[ID] — [NON COINVOLTO | MANTENERE | AGGIORNARE | DISMETTERE]`:
+    [motivazione; per MANTENERE indicare anche il criterio di uscita]
 
 ---
 
 ## 3. ⚠️ Regole e Vincoli di Sviluppo (da `agents.md`)
 
 - [ ] Verificare che le modifiche non violino le regole fondamentali di `agents.md` (es. `backgroundThrottling: false`, gestione microfono macOS, camera stabile, ecc.).
+- [ ] Completare l'audit dei deprecati prima di definire le modifiche.
 - [ ] Mantenere il supporto a `lowPowerMode`.
 - [ ] Non introdurre DevTools automatici.
 

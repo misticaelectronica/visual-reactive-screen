@@ -398,9 +398,18 @@ File chiave:
   `team/briefs/brief-deliquescence-specifica.md`.
 - `src/renderer/output/brain/brainRendererHost.ts` — gestisce COSA SI VEDE
   davvero: il layer `active`/`incoming` con crossfade interno
-  (`SWITCH_DURATION_MS`), e il layer separato `denoisingFilterPsiche`
+  (`SWITCH_DURATION_MS = 1800`), e il layer separato `denoisingFilterPsiche`
   (z-index sopra `active`) che copre tutto quando `shouldSuspendPlugin` è
-  vero.
+  vero. **CONTAMINATION** (Transition System Slice 01, 2026-09-09): il cambio
+  Morph→Morph a **immagine invariata** non è più un crossfade simmetrico —
+  `contaminationEnvelope` dà curve asimmetriche (l'entrante sale entro il ~40%,
+  l'uscente cede da ~metà; somma > 1 al centro = coesistenza), durata
+  `CONTAMINATION_DURATION_MS = 3400`, tetto `COEXIST_CAP` + `mixBlendMode`
+  `overlay` sul solo layer entrante nella fascia ibrida. Fallback al crossfade
+  simmetrico se: coppia in `CONTAMINATION_EXCLUDED_PAIRS` (vuota, si popola a
+  collaudo), degradati (low power/pressione/offlineHold), o `hasFailed()`
+  sull'uscente (sostituzione d'emergenza). `data-brain-contamination` =
+  `enter`/`coexist`/`cede`. Non tocca il contratto plugin né i renderer.
 - `src/renderer/output/brain/brainController.ts` — `applyFrame` crea un
   **nuovo** `brainRendererHost` a ogni singolo fotogramma/immagine (non lo
   riusa fra immagini anche quando il renderer "persiste" logicamente); la
@@ -469,13 +478,19 @@ Regole/insidie note (già risolte, non ripartire da zero):
   di testa a `brainRendererHost.ts`).
 - Un renderer che fallisce il proprio controllo qualità interno
   (`hasFailed()`, es. Vector Morph "meno di cinque forme riconoscibili")
-  non recupera da solo: la rete di sicurezza dell'host mostra un
-  passthrough (Print2D durante la Riattivazione, FilterPsiche altrimenti),
-  ma SENZA notificare il selettore quel passthrough resta in scena per
-  l'intera durata residua del fotogramma (fino a ~20s), non solo per il
-  tempo di preparare un renderer sostitutivo. Fix: `onRendererFailed`
-  (parametro dell'host) → `BrainRendererSelector.reportRendererFailure()`
-  fa avanzare subito il mazzo oltre l'entrata fallita.
+  non recupera da solo: la rete di sicurezza dell'host lo sostituisce.
+  **2026-09-10 (disp. Vice Consigliere):** il sostituto non è più fissato su
+  FilterPsiche/Print2D — è scelto **a caso** fra
+  `BrainRendererSelector.eligibleRenderers()` (= `storyCycleIds()`: whitelist
+  di regime + esclusione Print2D + filtro pressione), meno il renderer appena
+  fallito e quelli in cooldown `retryRendererAfter`. Il callback
+  `getEligibleRenderers` è l'8° arg di `createBrainRendererHost`; se assente o
+  pool vuoto → comportamento storico (`print2d` in Riattivazione fuori regime
+  basso, altrimenti `filter-psiche`). Il resto della gestione failure è
+  invariato: `onRendererFailed` (parametro dell'host) →
+  `BrainRendererSelector.reportRendererFailure()` fa avanzare subito il mazzo
+  oltre l'entrata fallita, così il passthrough non resta in scena per
+  l'intera durata residua del fotogramma.
 - Durante la Riattivazione (boost) il filtro pressione di
   `storyCycleIds()` va **saltato del tutto**, non solo attenuato: la
   Riattivazione stessa, cambiando renderer ogni 1-2 fotogrammi, genera

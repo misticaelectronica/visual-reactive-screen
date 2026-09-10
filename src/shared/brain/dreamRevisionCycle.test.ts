@@ -1,21 +1,57 @@
 import { describe, expect, it } from 'vitest'
 import {
   REVISION_CYCLE_MAX_IMAGES,
-  REVISION_CYCLE_MAX_STORIES,
   REVISION_CYCLE_MIN_IMAGES,
-  REVISION_CYCLE_MIN_STORIES,
+  REVISION_STORY_IMAGE_COUNT,
+  RevisionSessionMemory,
   combineRevisionTag,
   computeRevisionLapDurationMs,
   deriveBioenergeticState,
   deriveOneiricPhase,
   pickRevisionEntries,
   pickRevisionImageCount,
-  pickStoriesUntilNextRevisionCycle,
   pruneArchiveEntriesForTag,
   selectRevisionPool,
-  shouldStartRevisionCycleAtBoundary,
+  selectRevisionStoryImages,
   type DreamImageArchiveEntry,
 } from './dreamRevisionCycle'
+
+describe('selezione e memoria di sessione della Riattivazione', () => {
+  it('sceglie le tre qualità migliori e le restituisce nell\'ordine originale', () => {
+    const selected = selectRevisionStoryImages([
+      { value: 'eco', frameIndex: 3, renderMode: 'standard' },
+      { value: 'soglia', frameIndex: 0, renderMode: 'enhanced' },
+      { value: 'condensazione', frameIndex: 2, renderMode: 'high-quality' },
+      { value: 'metamorfosi', frameIndex: 1, renderMode: 'interlude' },
+    ])
+    expect(selected).toEqual(['soglia', 'condensazione', 'eco'])
+    expect(selected).toHaveLength(REVISION_STORY_IMAGE_COUNT)
+  })
+
+  it('fissa una sola terna per storyId e non la rivaluta', () => {
+    const memory = new RevisionSessionMemory<string>()
+    expect(memory.remember('story-1', ['a1', 'a2', 'a3'])).toBe(true)
+    expect(memory.remember('story-1', ['x1', 'x2', 'x3'])).toBe(false)
+    expect(memory.selectionFor('story-1')).toEqual(['a1', 'a2', 'a3'])
+  })
+
+  it('accumula soltanto le storie precedenti in ordine cronologico', () => {
+    const memory = new RevisionSessionMemory<string>()
+    memory.remember('story-1', ['a1', 'a2', 'a3'])
+    memory.remember('story-2', ['b1', 'b2', 'b3'])
+    memory.remember('story-3', ['c1', 'c2', 'c3'])
+    expect(memory.imagesBefore('story-1')).toEqual([])
+    expect(memory.imagesBefore('story-2')).toEqual(['a1', 'a2', 'a3'])
+    expect(memory.imagesBefore('story-3')).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'b3'])
+    expect(memory.storyIds()).toEqual(['story-1', 'story-2', 'story-3'])
+  })
+
+  it('rifiuta associazioni incomplete', () => {
+    const memory = new RevisionSessionMemory<string>()
+    expect(memory.remember('story-1', ['a1', 'a2'])).toBe(false)
+    expect(memory.storyIds()).toEqual([])
+  })
+})
 
 function entry(overrides: Partial<DreamImageArchiveEntry> = {}): DreamImageArchiveEntry {
   return {
@@ -69,26 +105,6 @@ describe('deriveBioenergeticState', () => {
 describe('combineRevisionTag', () => {
   it('combina fase e stato con un separatore stabile', () => {
     expect(combineRevisionTag('condensazione', 'tensione')).toBe('condensazione+tensione')
-  })
-})
-
-describe('pickStoriesUntilNextRevisionCycle', () => {
-  it('resta sempre nel range [2,4]', () => {
-    for (let index = 0; index < 50; index += 1) {
-      const value = pickStoriesUntilNextRevisionCycle(() => index / 50)
-      expect(value).toBeGreaterThanOrEqual(REVISION_CYCLE_MIN_STORIES)
-      expect(value).toBeLessThanOrEqual(REVISION_CYCLE_MAX_STORIES)
-    }
-  })
-})
-
-describe('shouldStartRevisionCycleAtBoundary', () => {
-  it('autorizza la Riattivazione dal solo contatore, senza dipendere dalla prossima produzione', () => {
-    expect(shouldStartRevisionCycleAtBoundary(0, false, false)).toBe(true)
-    expect(shouldStartRevisionCycleAtBoundary(-1, false, false)).toBe(true)
-    expect(shouldStartRevisionCycleAtBoundary(1, false, false)).toBe(false)
-    expect(shouldStartRevisionCycleAtBoundary(0, true, false)).toBe(false)
-    expect(shouldStartRevisionCycleAtBoundary(0, false, true)).toBe(false)
   })
 })
 

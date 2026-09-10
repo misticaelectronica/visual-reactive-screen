@@ -25,6 +25,45 @@ it('allows manual PsicoFantasma preview without introducing it into either autom
   }
 })
 
+describe('BrainRendererSelector.eligibleRenderers — base per la rete di sicurezza al failure', () => {
+  it('mantiene PsicoFantasma eleggibile in tutti e quattro i regimi', () => {
+    for (const regime of [
+      'respiro-alto',
+      'pressurized',
+      'decompression',
+      'respiro-profondo',
+    ] as const) {
+      const selector = new BrainRendererSelector(
+        BRAIN_RENDERER_IDS, 'filter-psiche', Math.random, () => false, () => false,
+        () => regime, () => 'standard',
+      )
+      expect(selector.eligibleRenderers(), regime).toContain('psicofantasma')
+    }
+  })
+
+  it('rispetta whitelist di regime, esclusione story-cycle di Print2D e filtro pressione', () => {
+    const low = new BrainRendererSelector(
+      BRAIN_RENDERER_IDS, 'filter-psiche', Math.random, () => false, () => false,
+      () => 'decompression',
+    )
+    const eligibleLow = low.eligibleRenderers()
+    expect(eligibleLow).not.toContain('print2d')
+    expect(eligibleLow).not.toContain('psycho2d') // fuori dalla whitelist del regime basso
+    expect(eligibleLow).toContain('filter-psiche')
+    expect(eligibleLow).toContain('deliquescence')
+
+    const underPressure = new BrainRendererSelector(
+      BRAIN_RENDERER_IDS, 'filter-psiche', Math.random, () => true, () => false,
+      () => 'decompression',
+    )
+    const eligiblePressure = underPressure.eligibleRenderers()
+    // I renderer ad analisi multi-sorgente vengono tolti sotto pressione GPU.
+    expect(eligiblePressure).not.toContain('bauhaus-morph')
+    expect(eligiblePressure).not.toContain('material-morph')
+    expect(eligiblePressure).toContain('filter-psiche')
+  })
+})
+
 describe('BrainRendererSelector — gate qualità immagine PsicoFantasma (PIANO-043 034-20)', () => {
   const storyCycle = { ...DEFAULT_SETTINGS, brainRendererMode: 'story-cycle' as const }
   const pair = ['filter-psiche', 'psicofantasma'] as BrainRendererId[]

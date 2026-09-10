@@ -74,6 +74,18 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non applicare oscillazioni, derive laterali, rotazioni, zoom o pulsazioni ritmiche all’intero quadro: possono causare mal di mare. Distribuire sempre il movimento fra segmenti con fasi differenti e mantenere la camera stabile.
 - Non simulare reattività musicale con oscillazioni temporali autonome: le curve devono usare fase riallineata al beat e transienti distinti per `low`, `lowMid`, `mid` e `high`. In silenzio il movimento geometrico deve essere quasi nullo.
 - Non rimuovere `lowPowerMode`: serve per ridurre carico CPU/FPS/layer durante live lunghi o su macchine calde.
+- **Audit preventivo dei deprecati**: prima di pianificare o modificare codice,
+  leggere integralmente [`working/DEPRECATED.md`](working/DEPRECATED.md), anche
+  quando la richiesta non nomina funzioni deprecate. Per ogni elemento
+  registrato indicare nell'avvio del piano o nello storico della sessione una
+  decisione esplicita fra `NON COINVOLTO`, `MANTENERE`, `AGGIORNARE` e
+  `DISMETTERE`. La decisione va rivalutata a ogni intervento: un deprecato non
+  si conserva o aggiorna per inerzia. `MANTENERE` richiede una ragione di
+  compatibilità e un criterio di uscita; `AGGIORNARE` è ammesso solo per
+  compatibilità, sicurezza o decisione esplicita e non deve estenderne il
+  perimetro; `DISMETTERE` deve includere migrazione di impostazioni, UI, test e
+  documentazione coinvolti. Aggiornare il registro quando cambiano stato,
+  dipendenze, sostituto o criterio di rimozione.
 - **Divieto di sovrastrutturazione** (regola permanente, brief del braccio destro 2026-08-28, PIANO-040): tre round di collaudo negativi sul respiro bio-percettivo sono nati dalla stessa causa — a ogni problema è stato aggiunto un meccanismo nuovo invece di verificare se uno già esistente rispondeva già alla domanda (firma organizzativa, significatività rispetto alla dispersione, qualificazione del kick a quattro condizioni: nessuno ha mai funzionato dal vivo, ognuno ha richiesto un round per essere ritirato). Da applicare sempre:
   - Prima di aggiungere un meccanismo, verificare se un segnale già presente risponde alla domanda.
   - Una condizione a più requisiti è quasi sempre un errore di progetto, non una specifica precisa: se il corpo/l'occhio riconosce una cosa in mezzo battito, il codice non dovrebbe avere bisogno di quattro verifiche incrociate.
@@ -152,10 +164,12 @@ Prima di proporre qualsiasi modifica, diagnosi o soluzione visiva, l'agente DEVE
    crossfade allineati al beat, mai un taglio o un salto di posizione. La
    continuità visiva ha priorità sulla velocità del cambio.
 
-6. 🧭 **Check Alternanza**: L'opzione `Alternate with Brain (80/20)` è una
-   regola di programmazione, non un nuovo linguaggio visivo. L'80% indica la
-   prevalenza temporale di Brain; il 20% deve usare la rotazione morphing già
-   definita, con i suoi preset, profili, limiti di costo e transizioni.
+6. 🧭 **Check Alternanza**: L'opzione `Alternate with Brain (80/20)` è
+   deprecata e resta attiva soltanto per compatibilità, come registrato in
+   [`working/DEPRECATED.md`](working/DEPRECATED.md). Finché non viene dismessa
+   resta una regola di programmazione, non un nuovo linguaggio visivo: il 20%
+   usa la rotazione morphing già definita con preset, profili, limiti di costo
+   e transizioni. Non estenderla senza una decisione esplicita dell'audit.
 
 7. 🌡️ **Check Costo**: Ogni intensificazione deve avere un budget esplicito.
    Prima si riusano buffer e immagini già preparati; poi si riducono layer,
@@ -458,6 +472,7 @@ Per garantire la continuità operativa, la tracciabilità delle decisioni e la p
 ### 1. Struttura Obbligatoria della Cartella `working/`
 
 - **[`working/STATE.md`](working/STATE.md)**: Quadro sintetico aggiornato ad ogni sessione con lo stato globale, il Macrotask attivo ed i Prossimi Passi (Next Steps).
+- **[`working/DEPRECATED.md`](working/DEPRECATED.md)**: Registro canonico delle funzionalità deprecate, delle dipendenze ancora attive e dei criteri di dismissione.
 - **[`working/tasks/macrotasks.md`](working/tasks/macrotasks.md)**: Elenco e stato dei Macrotask (passati, in corso, pianificati).
 - **[`working/tasks/tasks-registry.md`](working/tasks/tasks-registry.md)**: Registro di tutti i micro-task atomici (stati `[TODO]`, `[IN_PROGRESS]`, `[DONE]`, `[BLOCKED]`).
 - **`working/plans/`**:
@@ -468,7 +483,7 @@ Per garantire la continuità operativa, la tracciabilità delle decisioni e la p
 ### 2. Workflow Obbligatorio dell'Agente con i Piani di Lavoro
 
 1. **Fase Iniziale (Avvio Turno / Sessione)**:
-   - Prima di intraprendere qualsiasi modifica, leggere [`working/STATE.md`](working/STATE.md) e [`working/tasks/macrotasks.md`](working/tasks/macrotasks.md) per acquisire il contesto corrente del progetto.
+   - Prima di intraprendere qualsiasi modifica, leggere [`working/STATE.md`](working/STATE.md), [`working/tasks/macrotasks.md`](working/tasks/macrotasks.md) e integralmente [`working/DEPRECATED.md`](working/DEPRECATED.md) per acquisire il contesto corrente del progetto ed eseguire l'audit preventivo dei deprecati.
    - Verificare l'eventuale presenza di un Piano di Lavoro attivo in `working/plans/`.
 
 2. **Creazione di un Piano di Lavoro ("Piano di Lavoro")**:

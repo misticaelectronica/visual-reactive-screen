@@ -86,6 +86,7 @@ export interface AppSettings {
   selectedAudioInputId: string | null
   useMorphing: boolean
   useBrain: boolean
+  /** @deprecated Compatibilità con sessioni salvate; non estendere. Vedi working/DEPRECATED.md. */
   alternateBrainWithMorphing: boolean
   brainRendererId: BrainRendererId
   brainRendererMode: BrainRendererMode

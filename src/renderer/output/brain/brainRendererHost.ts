@@ -100,6 +100,53 @@ function smootherstep(value: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10)
 }
 
+// --- CONTAMINATION — Transition System, Slice 01 (brief Visual definitivo
+// "Slice 01", via libera Consigliere 2026-09-09) -------------------------
+//
+// Morph -> Morph SULLA STESSA IMMAGINE non e' un crossfade simmetrico.
+// L'ingresso di B precede l'uscita di A; nella fascia centrale entrambi
+// restano alti (la somma delle opacita' supera 1) e la stessa figura mostra
+// insieme le due grammatiche. Solo host: nessuno stato ereditato, nessun
+// framebuffer, nessun compositing nuovo (brief §12/§13). Ambito ristretto a
+// questo solo caso (brief §25): image->image, cambio raster, INHERITANCE ecc.
+// restano fuori.
+const CONTAMINATION_DURATION_MS = 3_400
+// Tetto di opacita' in coesistenza: mentre convivono, nessuno dei due copre
+// del tutto l'altro, cosi' la fascia ibrida resta leggibile (brief §17).
+const CONTAMINATION_COEXIST_CAP = 0.82
+// Blend del SOLO layer entrante durante la coesistenza; 'normal' fuori. Stesso
+// meccanismo CSS gia' usato per denoisingPsycho2d ('lighten') e per la
+// Riattivazione ('lighter') — non e' compositing nuovo ai sensi del §13.
+const CONTAMINATION_COEXIST_BLEND = 'overlay'
+// Coppie (from->to) per cui la contaminazione risulta percettivamente sporca:
+// tornano al crossfade simmetrico. VUOTO: si popola SOLO al collaudo — il §24
+// dice che la contaminazione non si forza dove sporca, non che si escluda per
+// prudenza.
+const CONTAMINATION_EXCLUDED_PAIRS = new Set<string>([])
+
+/** Inviluppo asimmetrico della Slice 01. `t` in [0,1].
+ *  - `inOpacity`: ingresso anticipato di B (sale entro ~il 40% della
+ *    transizione, poi resta alto);
+ *  - `outOpacity`: uscita ritardata di A (piena fino a ~meta', poi cede);
+ *  - nel centro entrambe alte (somma > 1) = coesistenza; li' un tetto morbido
+ *    tiene i due sotto 1 senza produrre scatti ai bordi della fascia.
+ */
+function contaminationEnvelope(t: number, cap: number): {
+  inOpacity: number; outOpacity: number; coexisting: boolean
+} {
+  const x = clamp(t)
+  const rawIn = smootherstep(x / 0.4)
+  const rawOut = 1 - smootherstep((x - 0.5) / 0.5)
+  // 0 ai bordi, ~1 nel centro: quanto la coesistenza e' piena.
+  const central = smootherstep(rawIn) * smootherstep(rawOut)
+  const blendCap = (raw: number) => raw * (1 - central) + Math.min(raw, cap) * central
+  return {
+    inOpacity: blendCap(rawIn),
+    outOpacity: blendCap(rawOut),
+    coexisting: central > 0.25,
+  }
+}
+
 export function createBrainRendererHost(
   container: HTMLElement,
   registry: BrainRendererRegistry,
@@ -113,6 +160,11 @@ export function createBrainRendererHost(
   // senza di esso il comportamento resta quello di sempre (`print2d` durante
   // la Riattivazione).
   getBioRegime?: () => BrainBioRegime,
+  // Rete di sicurezza al failure di un renderer: elenco dei renderer eleggibili
+  // per lo stato/regime corrente (di norma `BrainRendererSelector.eligibleRenderers`).
+  // Se presente, il sostituto e' scelto a caso qui dentro invece di essere
+  // fissato su FilterPsiche. Opzionale, retrocompatibile.
+  getEligibleRenderers?: () => BrainRendererId[],
 ): BrainSceneRendererController {
   const root = document.createElement('div')
   Object.assign(root.style, {
@@ -131,6 +183,9 @@ export function createBrainRendererHost(
   let transitionProgress = 1
   let transitionRole: 'enter' | 'exit' = 'enter'
   let switchStartedAt: number | null = null
+  // CONTAMINATION: il blend del layer entrante si accende/spegne una sola
+  // volta per fascia, non ad ogni frame.
+  let contaminationBlendOn = false
   let latestPerception: BrainBioPerceptionState | null = null
   const retryRendererAfter = new Map<BrainRendererId, number>()
 
@@ -280,6 +335,7 @@ export function createBrainRendererHost(
         destroyLayer(incoming)
         incoming = null
         switchStartedAt = null
+        contaminationBlendOn = false
         active.root.style.opacity = '1'
       }
       return
@@ -289,6 +345,7 @@ export function createBrainRendererHost(
     destroyLayer(incoming)
     incoming = null
     switchStartedAt = null
+    contaminationBlendOn = false
     try {
       incoming = createLayer(id, now)
       incoming.root.style.opacity = '0'
@@ -531,24 +588,35 @@ export function createBrainRendererHost(
       // già gestito sotto) non deve restare a schermo per l'intera durata
       // del fotogramma — es. Vector Morph quando la vettorializzazione
       // viene respinta dal controllo qualità mostra solo il raster di
-      // sfondo finché nessuno lo nota. Print2D è pensato come rete di
-      // sicurezza semplice che non fallisce mai per lo stesso motivo, ma
-      // Print2D deve girare SOLO durante la Riattivazione (PIANO-034,
-      // regressione segnalata dal Capo Supremo: usarlo qui sempre lo
-      // faceva comparire anche fuori dal ciclo) — fuori dalla Riattivazione
-      // la rete di sicurezza usa FilterPsiche, già impiegato altrove in
-      // questo stesso file come passthrough leggero e affidabile.
+      // sfondo finché nessuno lo nota. Il sostituto deve appartenere allo
+      // stesso pool eleggibile del selettore; il vecchio Print2D/FilterPsiche
+      // resta soltanto come fallback retrocompatibile quando quel pool non è
+      // disponibile.
       //
-      // PIANO-040 (brief §4/§6.1/§17.1): Print2D non è eleggibile nel
-      // regime basso — il regime vince sempre sull'evento tecnico, quindi
-      // anche durante la Riattivazione la rete di sicurezza usa FilterPsiche
-      // se il regime è `decompression`/`respiro-profondo`. Nessun cambio per
-      // `pressurized`/`unresolved`/regime non disponibile: comportamento
-      // identico a oggi.
+      // PIANO-040 (brief §4/§6.1/§17.1): il regime vince sempre sull'evento
+      // tecnico. In particolare Print2D resta ineleggibile in
+      // `decompression`/`respiro-profondo`, anche durante la Riattivazione.
       const bioRegime = getBioRegime?.()
       const regimeAllowsPrint2d = bioRegime !== 'decompression' && bioRegime !== 'respiro-profondo'
-      const safetyNetId: BrainRendererId =
+      // Rete di sicurezza al failure: se l'host conosce i renderer eleggibili
+      // per lo stato corrente (`getEligibleRenderers`, dal selettore), il
+      // sostituto e' scelto A CASO fra quelli — escluso il renderer appena
+      // fallito e quelli in cooldown (`retryRendererAfter`, stato gia'
+      // esistente). Cosi' il fallback non converge sempre su FilterPsiche e
+      // resta dentro whitelist/esclusioni di regime. Se il callback manca o
+      // non restituisce nulla, si ricade sul comportamento storico
+      // (`print2d` in Riattivazione fuori regime basso, altrimenti
+      // `filter-psiche`).
+      const eligibleFallback = (getEligibleRenderers?.() ?? []).filter(
+        (id) => id !== active.id
+          && time >= (retryRendererAfter.get(id) ?? 0)
+          && registry.get(id) !== undefined,
+      )
+      const legacySafetyNetId: BrainRendererId =
         getBoostHint?.() === true && regimeAllowsPrint2d ? 'print2d' : 'filter-psiche'
+      const safetyNetId: BrainRendererId = eligibleFallback.length > 0
+        ? eligibleFallback[Math.floor(Math.random() * eligibleFallback.length)]
+        : legacySafetyNetId
       if (active.controller.hasFailed?.() === true && active.id !== safetyNetId) {
         brainWarn('render', 'renderer Brain attivo fallito; passo alla rete di sicurezza', {
           active: active.id,
@@ -577,6 +645,7 @@ export function createBrainRendererHost(
         destroyLayer(incoming)
         incoming = null
         switchStartedAt = null
+        contaminationBlendOn = false
         active.root.style.opacity = '1'
         return
       }
@@ -594,20 +663,49 @@ export function createBrainRendererHost(
         return
       }
       if (switchStartedAt === null) switchStartedAt = time
-      const duration = settings.lowPowerMode || resourcePressure || offlineHold
-        ? SWITCH_DURATION_MS * 0.6
-        : SWITCH_DURATION_MS
-      const progress = smootherstep((time - switchStartedAt) / duration)
-      active.root.style.opacity = String(1 - progress)
-      incoming.root.style.opacity = String(progress)
-      if (progress < 1) return
+      const degraded = settings.lowPowerMode || resourcePressure || offlineHold
+      // CONTAMINATION (Slice 01) sul cambio renderer a immagine invariata:
+      // curve asimmetriche, ingresso prima dell'uscita, fascia ibrida al
+      // centro. Fallback al crossfade simmetrico quando: la coppia e' esclusa
+      // (brief §24); si e' degradati (low power / pressione / offline hold);
+      // oppure il renderer uscente ha fallito il proprio QC (`hasFailed`) —
+      // li' e' una sostituzione d'emergenza, deve essere rapida, non una
+      // convivenza artistica.
+      const pairKey = `${active.id}->${incoming.id}`
+      const contaminate = !degraded
+        && active.controller.hasFailed?.() !== true
+        && !CONTAMINATION_EXCLUDED_PAIRS.has(pairKey)
+      const duration = contaminate
+        ? CONTAMINATION_DURATION_MS
+        : degraded ? SWITCH_DURATION_MS * 0.6 : SWITCH_DURATION_MS
+      const t = (time - switchStartedAt) / duration
+      if (contaminate) {
+        const envelope = contaminationEnvelope(t, CONTAMINATION_COEXIST_CAP)
+        active.root.style.opacity = String(envelope.outOpacity)
+        incoming.root.style.opacity = String(envelope.inOpacity)
+        if (envelope.coexisting !== contaminationBlendOn) {
+          contaminationBlendOn = envelope.coexisting
+          incoming.root.style.mixBlendMode = envelope.coexisting ? CONTAMINATION_COEXIST_BLEND : 'normal'
+        }
+        root.dataset.brainContamination = envelope.coexisting
+          ? 'coexist'
+          : clamp(t) < 0.5 ? 'enter' : 'cede'
+      } else {
+        const progress = smootherstep(t)
+        active.root.style.opacity = String(1 - progress)
+        incoming.root.style.opacity = String(progress)
+      }
+      if (t < 1) return
 
       const previous = active
       active = incoming
       root.dataset.activeRenderer = active.id
       incoming = null
       switchStartedAt = null
+      contaminationBlendOn = false
       active.root.style.opacity = '1'
+      active.root.style.mixBlendMode = 'normal'
+      delete root.dataset.brainContamination
       destroyLayer(previous)
       brainLog('render', 'cambio renderer Brain completato', {
         active: active.id,

@@ -1,5 +1,162 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## PsicoFantasma — eleggibilità verificata e log per fotogramma — 2026-09-11
+
+Verificato il §36 del brief Visual prima di intervenire: PsicoFantasma è già
+eleggibile nei quattro regimi. È nella whitelist di decompressione/Respiro
+Profondo, nel pool generale di pressurizzazione e fra i compatibili secondari
+del Respiro Alto. Nessuna correzione dei pool applicata.
+
+I motivi operativi che possono produrre zero permanenza sono trasversali al
+regime: il gate `interlude` e il filtro `HEAVY_RENDERERS_UNDER_PRESSURE`. Il
+selettore alimenta quest'ultimo con `longFrameBlockedUntil` (9–20 s dopo un gap
+RAF); PsicoFantasma viene quindi tolto dai nuovi mazzi mentre quel filtro è
+attivo. Nel Respiro Alto ordinario, inoltre, il rango secondario cade oltre la
+capienza tipica di una storia da quattro fotogrammi.
+
+`brainController.applyFrame` registra ora
+`brainRendererSelector.resolve per fotogramma` una volta per ogni immagine
+messa in onda, con sequenza, storia/fotogramma, renderer, superficie, regime,
+qualità, filtro pressione, Riattivazione, durata prevista e istante di avvio.
+Le percentuali di permanenza possono essere ricostruite dai marker reali di
+messa in onda, senza usare i marker asincroni di preparazione come proxy.
+
+Regressione esplicita sui quattro regimi aggiunta. Validazione: test selettore
+55/55, suite completa **72 file / 681 test**, typecheck, lint e build completa
+app/ZIP/DMG verdi. Audit deprecati: DEP-001 `NON COINVOLTO`.
+
+## Diagnosi Respiri — gate quasi invalicabile nel segnale live — 2026-09-11
+
+Analizzati i tre log più recenti (`00-13-49`, `00-18-21`, `00-29-01`). Il
+Respiro Profondo non è assente: compare 10 volte; nell'ultima sessione il
+tratto iniziato alle 22:34:08 UTC resta l'ultimo regime loggato almeno fino
+alle 22:35:49, con Deliquescence già attivo. Il Respiro Alto compare zero
+volte nei log del 9–11 settembre.
+
+Causa a monte dei renderer:
+- `pressureTrend` cambia regime con intervallo mediano 1,68–1,73 s;
+- il 94–98% degli intervalli è inferiore ai 9 s richiesti da
+  `PRESSURE_SETTLE_CONFIRM_MS`;
+- ogni cambio di trend azzera `pressureFlatMs`, quindi una stasi musicale
+  ordinaria quasi mai raggiunge il gate;
+- il Profondo conserva una via diretta dopo 2 s di silenzio; l'Alto non ha
+  una via simmetrica e dipende dall'atterraggio di 9 s o dalla lenta
+  ri-promozione di `reference`;
+- i test end-to-end raggiungono l'Alto con blocchi artificiali di 60 s a
+  bande/transienti costanti, non con traiettorie musicali reali.
+
+Conclusione: non è una taratura dei renderer. Il criterio di stasi continuo
+non descrive il segnale live e non va semplicemente abbassato; secondo la
+regola anti-sovrastrutturazione va prima rivalutato o ritirato usando i
+segnali già presenti. Nessuna modifica runtime applicata in questa diagnosi.
+
+## Deprecati — audit preventivo obbligatorio — 2026-09-10
+
+Creato [`working/DEPRECATED.md`](DEPRECATED.md) come registro canonico. Ogni
+intervento deve leggerlo integralmente prima del piano e decidere per ciascun
+elemento: `NON COINVOLTO`, `MANTENERE`, `AGGIORNARE` o `DISMETTERE`.
+
+`Alternate with Brain (80/20)` è `DEPRECATO — ATTIVO PER COMPATIBILITÀ`:
+default spento, configurazioni salvate ancora rispettate, nessuna nuova
+estensione. Audit corrente: `MANTENERE` fino a una dismissione completa con
+migrazione di impostazioni, UI, runtime, test e documentazione.
+Typecheck, lint e build completa app/ZIP/DMG verdi.
+
+## Riattivazione — memoria stabile dopo ogni storia — 2026-09-10
+
+La cadenza variabile 2–4, poi provvisoriamente 1–2 e 1–1, è stata sostituita
+con una relazione diretta. La chiusura della storia è l'unica autorità del
+Ciclo di Riattivazione; contatore, estrazione casuale della cadenza e reset
+del contatore sono stati rimossi dal runtime.
+
+Implementazione corrente:
+- alla chiusura di ogni storia ordinaria vengono scelte una sola volta le tre
+  immagini con la qualità di generazione effettiva più alta già disponibile;
+  il ranking non introduce classificatori o metadati semantici;
+- una `RevisionSessionMemory` conserva in RAM l'associazione stabile
+  `storyId → 3 raster` fino alla distruzione del controller, cioè per l'intera
+  sessione Brain;
+- la prima storia fissa la propria terna ma non ha un passato da riattivare;
+  dalla seconda storia ogni chiusura avvia una Riattivazione con tutte le
+  terne delle storie precedenti;
+- storie e immagini sono riprodotte nell'ordine cronologico originale, senza
+  rimescolamento fra i giri già previsti dal ciclo;
+- l'archivio su disco continua a essere alimentato dalla pipeline esistente,
+  ma non decide più la cadenza né la selezione del ciclo della sessione;
+- renderer, durata per fotogramma, intensità, numero di giri, tag I/O,
+  metadati semantici e criteri narrativi non sono stati modificati.
+
+Conseguenza prevista dal brief: i raster trattenuti e la durata complessiva
+della Riattivazione crescono linearmente con il numero di storie concluse.
+Validazione finale: **72 file / 680 test**, typecheck, lint e build completa
+app/ZIP/DMG verdi; nessun vecchio simbolo di cadenza rimasto in `src/`.
+
+## Rete di sicurezza al failure — scelta casuale fra gli eleggibili — 2026-09-10
+
+Disposizione Vice Consigliere. Al failure del QC di un renderer, `brainRendererHost`
+non fissava più il sostituto su `filter-psiche` (o `print2d` in Riattivazione):
+ora lo sceglie **a caso fra i renderer eleggibili per lo stato/regime corrente**.
+
+- Nuovo `BrainRendererSelector.eligibleRenderers()` — espone `storyCycleIds()`
+  (whitelist di regime + esclusione story-cycle di Print2D + filtro pressione GPU),
+  la stessa base con cui il selettore costruisce i mazzi. Nessun pool nuovo.
+- `createBrainRendererHost` accetta un 8° callback opzionale `getEligibleRenderers`;
+  `brainController` gli passa `() => brainRendererSelector.eligibleRenderers()`.
+- Nel ramo failure: `eligibleFallback = eligibili − {renderer appena fallito} −
+  {in cooldown `retryRendererAfter`}`; `safetyNetId = pick casuale`. Se il
+  callback manca o il pool è vuoto → comportamento storico (`print2d`/`filter-psiche`).
+- Gestione del failure invariata per il resto (`retryRendererAfter += 30 s`,
+  `requestRenderer`, `onRendererFailed` → `reportRendererFailure`).
+- 2 test nuovi (host: pick casuale ≠ fallito ≠ sempre filter-psiche; selettore:
+  `eligibleRenderers` rispetta whitelist/print2d/pressione). 678 test verdi.
+
+`psicofantasma` poco selezionato nella finestra automatica del 2026-09-10:
+**nessun bug**. Eleggibilità corretta (`LOW_REGIME_RENDERERS` +
+`HIGH_REGIME_SECONDARY_RENDERERS`, `isPsicoFantasmaBundled()` = true confermato
+da una comparsa reale). Cause coerenti con l'architettura: apertura manuale di
+140 s che ha impostato `activeId` (primo mazzo story-cycle lo evita a pos. 0);
+storie da 4 fotogrammi + hold persistente 2-3 → ~2 renderer per storia;
+`HEAVY_RENDERERS_UNDER_PRESSURE` (psicofantasma incluso, come bauhaus/material/
+dream-seg) tolto dai mazzi quando `getPressureHint()` è vero, sessione
+pressure-heavy; gate `interlude` 034-20; regime mai salito in `respiro-alto`/
+`respiro-profondo`; campione piccolo (~8,8 min). Fermati e riportato, nessuna
+ritaratura.
+
+## Transition System — Slice 01 «CONTAMINATION» — 2026-09-09
+
+Via libera del Consigliere. Prima e unica Slice di questa fase (§25 del brief
+Visual in vigore: nient'altro del Transition System si implementa ora).
+
+Ambito: **Morph → Morph sulla stessa immagine** (cambio renderer, raster
+invariato) — livello interno di `brainRendererHost.ts` (`active`/`incoming`).
+Image→Image, cambio raster, INHERITANCE, maschere, compositing nuovo: **fuori**.
+
+Fatto, solo `brainRendererHost.ts` (nessun tocco al contratto plugin né ai
+renderer):
+- **Curve di opacità asimmetriche** (`contaminationEnvelope`): l'entrante sale
+  entro ~il 40% della transizione, l'uscente resta pieno fino a ~metà poi cede;
+  nella fascia centrale la somma supera 1 (coesistenza). Non più un crossfade
+  simmetrico.
+- **Durata** `CONTAMINATION_DURATION_MS = 3400` (entro il tetto tecnico 2.5–4 s,
+  dentro la `holdMs` del fotogramma) contro i 1800 ms del crossfade simmetrico.
+- **Leve di taratura a vista, per coppia** (autorizzate, meccanismi CSS già
+  presenti): tetto di opacità in coesistenza `CONTAMINATION_COEXIST_CAP = 0.82`
+  (blend morbido ai bordi della fascia, nessuno scatto) + `mixBlendMode`
+  `overlay` sul **solo** layer entrante durante la coesistenza, `normal` fuori.
+- **Fallback al crossfade simmetrico** quando: coppia in
+  `CONTAMINATION_EXCLUDED_PAIRS` (costante **vuota**, si popola solo al
+  collaudo — §24: non si esclude per prudenza); degradati (low power /
+  pressione / offline hold); l'uscente ha fallito il QC (`hasFailed` →
+  sostituzione d'emergenza, deve restare rapida).
+- Osservabilità: `data-brain-contamination` = `enter` / `coexist` / `cede`.
+- 2 test nuovi in `brainRendererHost.test.ts` (asimmetria + fascia ibrida +
+  blend + promozione pulita; fallback degradato). 676 test, typecheck, lint,
+  build puliti.
+
+Da tarare a schermo: `CONTAMINATION_DURATION_MS` (2.5–4 s), `COEXIST_CAP`,
+`COEXIST_BLEND`, popolamento di `CONTAMINATION_EXCLUDED_PAIRS` — tutti valori
+di collaudo, per coppia (Test Visual 1–7 del brief Slice 01).
+
 ## PsicoFantasma — PIANO-043 / MACRO-034 — 2026-09-08
 
 Matcher geometrico già autorizzato e implementato in 034-17: CLIP, encoder e
@@ -42,6 +199,12 @@ con il file normalizzato (`141978d9…`).
 **Ancora aperto:** parte percettiva 034-11, Test Visual 1–12 e giudizio a
 schermo sul 20–40%. È criterio di collaudo, non quota runtime. Piano attivo,
 non dichiarato completato.
+
+Diagnosi log live 2026-09-09: il matcher PsicoFantasma è attivo e ha prodotto
+49 decisioni con candidati reali in due finestre (8 settembre 23:00–23:06 e
+9 settembre 14:34–14:40 CEST), ma **0 riconoscimenti accettati**. Rifiuti:
+24 affinità, 17 margine, 8 coerenza; persistenza sempre maturata. Il dato
+osservato è 0%, sotto il criterio Visual 20–40%. Nessuna taratura applicata.
 
 ## Chiusura piani + `1.0.0-rc.3` — 2026-09-07
 

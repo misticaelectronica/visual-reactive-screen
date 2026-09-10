@@ -1,5 +1,58 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Verifica eleggibilità PsicoFantasma — 2026-09-11
+
+- [x] **`TASK-034-24`** `DONE`: verificare PsicoFantasma nei quattro regimi
+  prima di correggere; confermati i pool esistenti, individuati gate
+  `interlude`, filtro pressione 9–20 s e rango secondario nel Respiro Alto;
+  nessun pool modificato. Aggiunto il log autoritativo di `resolve()` per ogni
+  fotogramma messo in onda e la regressione sui quattro regimi. Suite completa,
+  typecheck, lint e build verdi. DEP-001 `NON COINVOLTO`.
+
+## Diagnosi Respiri — 2026-09-11
+
+- [x] **`TASK-ENG-2026-09-11-01`** `DONE`: analizzare l'assenza percepita di
+  Respiro Alto/Profondo sui tre log più recenti. Accertati Respiro Profondo
+  presente ma spesso poco leggibile, Respiro Alto assente dal 9 settembre e
+  gate di atterraggio da 9 s incompatibile con cambi live mediani ogni ~1,7 s.
+  Nessuna modifica a soglie, segnali o renderer.
+
+## Ripresa Ingegneria — 2026-09-10
+
+- [x] **`TASK-ENG-2026-09-10-09`** `DONE`: creare il registro canonico dei
+  deprecati e rendere obbligatorio in `AGENTS.md` il suo audit preventivo con
+  decisione esplicita a ogni intervento; registrare `Alternate with Brain
+  (80/20)` come deprecato ma attivo per compatibilità, senza modificarne il
+  comportamento runtime.
+- [x] **`TASK-ENG-2026-09-10-01`** `DONE`: completare la Slice 01
+  `CONTAMINATION` per i cambi Morph→Morph sulla stessa immagine, con inviluppo
+  asimmetrico, fallback degradato e verifiche automatiche. La taratura a
+  schermo per coppia resta di competenza Visual.
+- [x] **`TASK-ENG-2026-09-10-02`** `DONE`: sostituire il fallback fisso dopo
+  failure QC con una scelta casuale nel pool già eleggibile per regime,
+  Riattivazione e pressione, escludendo renderer fallito e cooldown.
+- [x] **`TASK-ENG-2026-09-10-03`** `DONE`: garantire una Riattivazione a
+  qualità media dai raster già in memoria quando l'archivio ad alta qualità
+  è vuoto o non caricabile; soluzione successivamente superata dalla memoria
+  stabile per storia richiesta nel task 07.
+- [x] **`TASK-ENG-2026-09-10-04`** `DONE`: applicare la disposizione sulla
+  cadenza della Riattivazione portando il range inizialmente da 2–4 a 1–2 storie, senza
+  modificare durata, immagini, giri, selezione renderer o altri aspetti del
+  Ciclo di Revisione.
+- [x] **`TASK-ENG-2026-09-10-05`** `DONE`: eliminare il rinvio casuale residuo
+  e programmare la Riattivazione dopo ogni singola storia (1–1); il contatore
+  1–1 è stato poi rimosso integralmente dal task 07.
+- [x] **`TASK-ENG-2026-09-10-06`** `DONE`: audit conclusivo, test mirati,
+  suite completa, typecheck, lint e build; nessuna taratura percettiva o
+  modifica ai file di frasi concorrenti.
+- [x] **`TASK-ENG-2026-09-10-07`** `DONE`: sostituire il contatore con il
+  confine diretto di storia; fissare una sola volta tre immagini per `storyId`
+  nella memoria della sessione e riattivare, dalla seconda chiusura, tutte le
+  storie precedenti in ordine cronologico.
+- [x] **`TASK-ENG-2026-09-10-08`** `DONE`: validare suite completa,
+  typecheck, lint, build e coerenza dei registri per la nuova cadenza; nessuna
+  modifica a renderer, durata, intensità, tag I/O o metadati semantici.
+
 ## Collaudo `test-1.mp3` — 2026-09-04
 
 - [x] **`TASK-040-76`** `DONE`: analizzare il campione reale, eliminare la

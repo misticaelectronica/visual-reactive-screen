@@ -1,5 +1,83 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-09-11-DIAGNOSI-RESPIRI
+
+- Audit preventivo deprecati: DEP-001 Alternanza 80/20 `NON COINVOLTO`; non
+  partecipa alla macchina bio-percettiva.
+- Analizzati i log `session-2026-09-11-00-13-49`, `00-18-21` e `00-29-01`.
+  Transizioni: 32, 186 e almeno 117; intervallo mediano 1,73 / 1,70 / 1,68 s;
+  rispettivamente 30/31, 181/185 e 109/116 intervalli sotto i 9 s.
+- Respiro Profondo accertato: 1 + 1 + 8 ingressi. Quasi tutti inizialmente
+  autorizzati dal silenzio; nell'ultima sessione compaiono poi `stasis-held`
+  e un tratto ancora attivo oltre 100 s con Deliquescence già selezionato.
+- Respiro Alto: zero ingressi nei log datati 9, 10 e 11 settembre. Il suo
+  accesso dipende da `pressureJustLanded` (9 s continui senza cambio trend) o
+  dalla ri-promozione lenta di `reference`; non possiede la via diretta del
+  silenzio riservata al Profondo.
+- Causa strutturale: `pressureFlatMs` viene azzerato a ogni variazione del
+  trend, mentre il segnale live oscilla ogni ~1,7 s. Il gate non rappresenta
+  una stasi musicale ordinaria. I test positivi usano segmenti costanti da
+  60 s e non coprono questa traiettoria reale.
+- Nessuna correzione applicata: soglie, segnali, renderer e selettore restano
+  invariati. Prossima decisione tecnica: rivalutare o ritirare il criterio di
+  atterraggio esistente prima di introdurre qualunque nuovo meccanismo.
+
+## SESSION-2026-09-10-RIPRESA-INGEGNERIA
+
+- Audit deprecati introdotto come fase preventiva obbligatoria in `AGENTS.md`:
+  lettura integrale del registro e decisione `NON COINVOLTO`, `MANTENERE`,
+  `AGGIORNARE` o `DISMETTERE` prima di ogni intervento.
+- Creato `working/DEPRECATED.md`. `Alternate with Brain (80/20)` è registrato
+  come deprecato ma attivo per compatibilità; default spento, UI marcata e
+  proprietà TypeScript annotata. Decisione corrente: `MANTENERE` fino a una
+  dismissione completa delle impostazioni, UI, runtime, test e documentazione.
+- Validazione della deprecazione documentale/UI: typecheck, lint e build
+  completa app macOS arm64, ZIP e DMG verdi; comportamento runtime invariato.
+- Applicata la disposizione finale del Vice Consigliere: rimossi dal runtime
+  il contatore e i range 2–4 / 1–2 / 1–1. La chiusura della storia è ora
+  l'unica autorità della Riattivazione.
+- Aggiunta memoria stabile della sessione `storyId → 3 raster`: la terna viene
+  scelta una volta con il `renderMode` già prodotto dalla pipeline, non può
+  essere sostituita e resta disponibile fino alla distruzione del controller.
+- La prima storia fissa la terna senza ciclo; dalla seconda, ogni chiusura
+  riattiva tutte le storie precedenti in ordine cronologico. Rimosso anche il
+  rimescolamento delle immagini fra i giri.
+- Archivio storico su disco ancora alimentato, ma escluso dall'autorità di
+  cadenza e selezione della sessione. Nessun tag I/O, metadato semantico,
+  classificatore, criterio narrativo o renderer aggiunto o modificato.
+- Validazione finale della disposizione: 72 file / 680 test, typecheck, lint,
+  build completa app macOS arm64, ZIP e DMG; ricerca statica senza vecchi
+  simboli di cadenza in `src/`.
+- Ripresi e verificati i tre interventi tecnici presenti nel working tree:
+  CONTAMINATION Slice 01, rete di sicurezza casuale fra renderer eleggibili e
+  fallback della Riattivazione sui raster a qualità media già in memoria.
+- Applicata la disposizione del Capo Supremo sulla sola cadenza:
+  `REVISION_CYCLE_MIN/MAX_STORIES` da 2–4 a 1–2. Registrato come voluto che,
+  con cicli da 2–3,5 minuti, la Riattivazione possa occupare oltre metà serata.
+- Correzione finale della cadenza: eliminata la variabilità residua 1–2;
+  `REVISION_CYCLE_MIN/MAX_STORIES` è ora 1–1, quindi la Riattivazione viene
+  programmata dopo ogni storia.
+- Audit dei confini: nessun movimento di camera/quadro, nessun nuovo segnale
+  audio, nessuna grammatica raster condivisa, silenzio e low power invariati;
+  la taratura percettiva di CONTAMINATION resta separata.
+- Corrette le descrizioni tecniche rimaste ancorate al vecchio fallback fisso
+  Print2D/FilterPsiche e riallineato il registro dei task.
+- Validazione: test mirati, suite completa, typecheck, lint e build. Il solo
+  `git diff --check` globale segnala spazi finali nel file di frasi modificato
+  da un lavoro concorrente, lasciato intatto.
+
+## SESSION-2026-09-09-PSICOFANTASMA-DIAGNOSI-LOG
+
+- Analizzati tutti i log runtime disponibili e distinti gli ingressi del
+  renderer dalle decisioni effettive del matcher.
+- Dopo l'integrazione del repertorio: 49 decisioni con candidati, 0 accolte;
+  24 rifiuti `affinity`, 17 `margin`, 8 `structure`.
+- Finestre: 2026-09-08 23:00:58–23:06:00 CEST e 2026-09-09
+  14:34:54–14:40:13 CEST. Persistenza osservata 1,37–1,73 s, quindi non è il
+  vincolo che impedisce il riconoscimento.
+- Esito: matching attivo, gate mai superato, 0% osservato rispetto al criterio
+  Visual 20–40%. Nessuna modifica a codice o soglie.
+
 ## SESSION-2026-09-08-PSICOFANTASMA-REPERTORIO-V2
 
 - Importato senza modificare gli SVG il pacchetto approvato: 120 silhouette,
@@ -2347,3 +2425,17 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - Stato finale: PIANO-042 implementato, live pendente. Wash-out, impulso locale
   e lock leggibile subordinati. Nessuna modifica a brainController.ts o al
   documento del Varco; nessun commit effettuato.
+
+## SESSION-2026-09-11-PSICOFANTASMA-ELIGIBILITY — 00:49 Europe/Rome
+
+- Verificato prima di correggere il §36 del brief Visual: PsicoFantasma è già
+  ammesso in Respiro Alto, pressurizzazione, decompressione e Respiro Profondo;
+  nessun pool cambiato.
+- Individuati i limiti effettivi: esclusione su `interlude`, esclusione dai
+  nuovi mazzi durante `longFrameBlockedUntil` tramite
+  `HEAVY_RENDERERS_UNDER_PRESSURE`, rango secondario nel Respiro Alto.
+- Aggiunto in `applyFrame` un log di `brainRendererSelector.resolve()` per ogni
+  immagine messa in onda, con identità, contesto selettore e durata prevista;
+  aggiunta regressione esplicita dei quattro regimi.
+- Audit deprecati: DEP-001 `NON COINVOLTO`. Verifiche: selettore 55/55, suite
+  completa 72 file / 681 test, typecheck, lint e build app/ZIP/DMG verdi.

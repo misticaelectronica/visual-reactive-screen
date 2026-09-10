@@ -9,16 +9,12 @@ import type {
 } from '@shared/brain/brainTypes'
 import {
   REVISION_CYCLE_LAPS,
+  RevisionSessionMemory,
   combineRevisionTag,
   computeRevisionLapDurationMs,
   deriveBioenergeticState,
   deriveOneiricPhase,
-  pickRevisionEntries,
-  pickRevisionImageCount,
-  pickStoriesUntilNextRevisionCycle,
-  selectRevisionPool,
-  shouldStartRevisionCycleAtBoundary,
-  type DreamImageArchiveEntry,
+  selectRevisionStoryImages,
 } from '@shared/brain/dreamRevisionCycle'
 import type {
   BandEnergies,
@@ -261,6 +257,15 @@ export type BrainControllerOptions = {
   // separata da `bioPerceptionSource` per non gonfiare il payload passato ai
   // renderer via `setPerception`. Opzionale: senza, il log resta com'era.
   bioRegimeReasonSource?: () => BrainBioRegimeReason | null
+}
+
+type RevisionSessionImage = {
+  storyId: string
+  frameId: string
+  frameIndex: number
+  title: string
+  energy: number
+  raster: Blob
 }
 
 export function createBrainController(
@@ -662,6 +667,9 @@ export function createBrainController(
   }
 
   let destroyed = false
+  // Contatore locale della messa in onda: rende ogni esito di `resolve()`
+  // identificabile senza dedurlo dai marker asincroni di preparazione plugin.
+  let rendererResolutionSequence = 0
   // `longFrameBlockedUntil` (9-20s) serve al pacing della PROSSIMA
   // generazione, non alla ricchezza visiva del renderer attivo: con gap
   // RAF frequenti quella finestra resta quasi sempre estesa, e
@@ -887,23 +895,15 @@ export function createBrainController(
   let consciousnessMotionPausedAt: number | null = null
   const consciousnessMotionMemoryIds = new Set<string>()
   const consciousnessMotionStoryIds = new Set<string>()
-  // Ciclo di Revisione (PIANO-034): ogni 2-4 storie (casuale, sempre a
-  // confine di storia) la generazione si sospende e immagini già
-  // generate ad alta qualità ritornano, deformate da un morphing
+  // Ciclo di Revisione (PIANO-034): alla chiusura di ogni storia vengono
+  // fissate tre immagini. Dalla seconda storia, le terne di tutte le storie
+  // precedenti ritornano in ordine cronologico, deformate da un morphing
   // intensificato — filosofia.md §1 (Lowen: carica/scarica) e §2
   // (invarianti onirici, "un elemento ritorna deformato").
-  let storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
+  const revisionSessionMemory = new RevisionSessionMemory<RevisionSessionImage>()
   let revisionCycleActive = false
   let revisionCycleActiveUntil = 0
   let pendingProductionAfterRevisionCycle: BrainProduction | null = null
-  // `beginRevisionCycle` attende una IPC async (`loadDreamImages`) prima
-  // di chiamare `startProduction`: finché non risolve, `nextProduction`
-  // resta non nullo e `recyclingStoryFrames` resta vero, quindi
-  // `advanceTimeline` può rientrare nello stesso ramo più volte durante
-  // l'attesa e innescare il ciclo due volte in parallelo. Questa guardia
-  // lo impedisce.
-  let revisionCycleStarting = false
-  let cachedDreamImageEntries: DreamImageArchiveEntry[] = []
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -1200,6 +1200,11 @@ export function createBrainController(
     )
     const frameKey = `${currentProduction.story.id}:${frame.id}`
     const synchronizedRaster = scene.raster ?? rasterPreviewBlobs.get(frameKey)
+    const rendererSettings = latestPayload?.settings
+    const rendererResolveNow = performance.now()
+    const resolvedRendererId = synchronizedRaster && rendererSettings
+      ? brainRendererSelector.resolve(rendererSettings, rendererResolveNow)
+      : synchronizedRaster ? 'print2d' : null
     const productionForRenderer = currentProduction
     const getRendererImageSources = (): BrainRendererImageSource[] => {
       const sources: BrainRendererImageSource[] = []
@@ -1293,15 +1298,11 @@ export function createBrainController(
             frameRenderMode: scene.renderMode,
           },
           (settings, now) => brainRendererSelector.resolve(settings, now),
-          latestPayload?.settings
-            ? brainRendererSelector.resolve(
-                latestPayload.settings,
-                performance.now(),
-              )
-            : 'print2d',
+          resolvedRendererId ?? 'print2d',
           () => revisionCycleActive,
           (id, settings, now) => brainRendererSelector.reportRendererFailure(id, settings, now),
           getBioRegime,
+          () => brainRendererSelector.eligibleRenderers(),
         )
       : createBrainSvgScene(
           svgHost,
@@ -1325,6 +1326,26 @@ export function createBrainController(
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
     frameStartedAt = performance.now()
+    rendererResolutionSequence += 1
+    brainLog('render', 'brainRendererSelector.resolve per fotogramma', {
+      sequence: rendererResolutionSequence,
+      storyId: currentProduction.story.id,
+      storyTitle: currentProduction.story.title,
+      frameId: frame.id,
+      frameIndex: index,
+      frameNumber: index + 1,
+      frameCount: currentProduction.story.frames.length,
+      rendererId: resolvedRendererId,
+      surface: synchronizedRaster ? 'brain-renderer' : 'svg-fallback',
+      brainRendererMode: rendererSettings?.brainRendererMode ?? null,
+      bioRegime: getBioRegime(),
+      frameRenderMode: scene.renderMode ?? null,
+      pressureFilterActive:
+        rendererResolveNow < thermalScheduler.getSnapshot().longFrameBlockedUntil,
+      revisionCycleActive,
+      plannedDurationMs: activeFrameTiming.totalMs,
+      startedAtMs: frameStartedAt,
+    })
     transitionStartedAt = hadVisibleFrame
       ? frameStartedAt
       : frameStartedAt -
@@ -1428,14 +1449,6 @@ export function createBrainController(
 
   // --- Ciclo di Revisione (PIANO-034) ---------------------------------
 
-  const refreshDreamImageArchiveCache = (): void => {
-    const api = window.fxOutput
-    if (!api) return
-    void api.queryDreamImageEntries()
-      .then((entries) => { cachedDreamImageEntries = entries })
-      .catch(() => undefined)
-  }
-
   const findStoryById = (storyId: string): DreamStory | null => {
     if (currentProduction?.story.id === storyId) return currentProduction.story
     if (nextProduction?.story.id === storyId) return nextProduction.story
@@ -1467,55 +1480,41 @@ export function createBrainController(
         title: frame.title,
         bytes,
       })
-      refreshDreamImageArchiveCache()
     } catch (error) {
       brainWarn('render', 'salvataggio nell’archivio del Ciclo di Revisione fallito', { error })
     }
   }
 
   const buildRevisionProduction = (
-    loaded: readonly { fileName: string; bytes: Uint8Array }[],
-    entriesByFileName: ReadonlyMap<string, DreamImageArchiveEntry>,
+    images: readonly RevisionSessionImage[],
     palette: DreamStory['palette'],
   ): BrainProduction | null => {
     const storyId = `revision:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`
-    const usable = loaded.filter((image) => entriesByFileName.has(image.fileName))
-    if (usable.length === 0) return null
+    if (images.length === 0) return null
     const baseDurationMs = getBrainRenderingConfig().timing.frameDurationMs
-    const shuffleImages = <T,>(list: readonly T[]): T[] => {
-      const copy = [...list]
-      for (let index = copy.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1))
-        ;[copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]
-      }
-      return copy
-    }
     const frames: DreamFrame[] = []
     const scenes: PsychedelScene[] = []
     // Le immagini scelte non passano una volta sola: girano per
     // REVISION_CYCLE_LAPS giri, ciascuno più breve del precedente (un
-    // ricordo richiamato ripetutamente si consuma più in fretta) — ordine
-    // rimescolato a ogni giro per varietà.
+    // ricordo richiamato ripetutamente si consuma più in fretta). L'ordine
+    // cronologico originale resta identico in ogni giro.
     for (let lap = 0; lap < REVISION_CYCLE_LAPS; lap += 1) {
-      const order = shuffleImages(usable)
       const lapDurationMs = computeRevisionLapDurationMs(baseDurationMs, lap)
-      order.forEach((image, index) => {
-        const entry = entriesByFileName.get(image.fileName)
-        if (!entry) return
+      images.forEach((image, index) => {
         const frameId = `${storyId}-lap${lap}-${index}`
         frames.push({
           id: frameId,
-          title: entry.title || 'Eco',
-          description: entry.title || '',
+          title: image.title || 'Eco',
+          description: image.title || '',
           visualIntent: '',
-          energy: entry.energy,
+          energy: image.energy,
           durationMs: lapDurationMs,
         })
         scenes.push({
           frameId,
-          description: entry.title || '',
+          description: image.title || '',
           svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
-          raster: new Blob([new Uint8Array(image.bytes)], { type: 'image/webp' }),
+          raster: image.raster,
         })
       })
     }
@@ -1533,65 +1532,56 @@ export function createBrainController(
     return { story, scenes }
   }
 
-  const beginRevisionCycle = async (
+  const rememberCompletedStory = (production: BrainProduction): boolean => {
+    const storyId = production.story.id
+    if (storyId.startsWith('revision:')) return false
+    if (revisionSessionMemory.selectionFor(storyId)) return true
+    const selected = selectRevisionStoryImages(
+      production.scenes.flatMap((scene, index) => {
+        const frame = production.story.frames[index]
+        const raster = scene.raster ?? (
+          frame ? rasterPreviewBlobs.get(`${storyId}:${frame.id}`) : undefined
+        )
+        if (!frame || !raster) return []
+        return [{
+          frameIndex: index,
+          renderMode: scene.renderMode,
+          value: {
+            storyId,
+            frameId: frame.id,
+            frameIndex: index,
+            title: frame.title,
+            energy: frame.energy,
+            raster,
+          },
+        }]
+      }),
+    )
+    if (!revisionSessionMemory.remember(storyId, selected)) {
+      brainWarn('pipeline', 'terna Riattivazione non fissata; immagini insufficienti', {
+        storyId,
+        selectedImages: selected.length,
+      })
+      return false
+    }
+    brainLog('pipeline', 'terna Riattivazione fissata per la storia', {
+      storyId,
+      frameIds: selected.map((image) => image.frameId),
+      storiesInSessionMemory: revisionSessionMemory.storyIds().length,
+    })
+    return true
+  }
+
+  const beginRevisionCycle = (
+    images: readonly RevisionSessionImage[],
     realNextProduction: BrainProduction | null,
     beatDurationMs: number,
     beatIndex: number,
-  ): Promise<void> => {
-    const api = window.fxOutput
-    const referenceStory = currentProduction?.story ?? null
-    const referenceFrame = referenceStory?.frames[frameIndex] ?? null
-    const currentPhase = referenceStory && referenceFrame
-      ? deriveOneiricPhase(frameIndex, referenceStory.frames.length)
-      : 'eco'
-    const currentState = referenceFrame
-      ? deriveBioenergeticState(
-        referenceFrame.energy,
-        frameIndex > 0 ? referenceStory?.frames[frameIndex - 1]?.energy ?? null : null,
-      )
-      : 'quiete'
-    // Il cache viene aggiornato in background a ogni salvataggio, ma il
-    // confine della Riattivazione non deve dipendere da quale Promise abbia
-    // terminato per ultima: rilettura puntuale dello stesso archivio esistente.
-    if (api) {
-      cachedDreamImageEntries = await api.queryDreamImageEntries()
-        .catch(() => cachedDreamImageEntries)
-      if (destroyed) return
-    }
-    const pool = api ? selectRevisionPool(cachedDreamImageEntries, currentPhase, currentState) : null
-    const continueWithoutRevision = (): void => {
-      if (realNextProduction) {
-        startProduction(realNextProduction, beatDurationMs, beatIndex)
-        return
-      }
-      recycleCurrentStoryFrame(beatDurationMs, beatIndex)
-      if (!generating) void generateNext()
-    }
-    if (!api || !pool) {
-      // Archivio vuoto o bridge non disponibile: si salta silenziosamente
-      // il ciclo, la storia successiva parte normalmente.
-      continueWithoutRevision()
-      return
-    }
-    const chosen = pickRevisionEntries(pool.entries, pickRevisionImageCount())
-    const loaded = await api.loadDreamImages(chosen.map((entry) => entry.fileName))
-      .catch(() => [])
-    if (destroyed) return
-    if (loaded.length === 0) {
-      continueWithoutRevision()
-      return
-    }
-    const entriesByFileName = new Map(chosen.map((entry) => [entry.fileName, entry]))
+  ): void => {
     const palette = currentProduction?.story.palette ?? realNextProduction?.story.palette
-    if (!palette) {
-      continueWithoutRevision()
-      return
-    }
-    const revisionProduction = buildRevisionProduction(loaded, entriesByFileName, palette)
-    if (!revisionProduction) {
-      continueWithoutRevision()
-      return
-    }
+    if (!palette) return
+    const revisionProduction = buildRevisionProduction(images, palette)
+    if (!revisionProduction) return
     pendingProductionAfterRevisionCycle = realNextProduction
     revisionCycleActive = true
     root.dataset.revisionCycleActive = 'true'
@@ -1608,8 +1598,10 @@ export function createBrainController(
       revisionProduction.story.frames.reduce((total, frame) => total + frame.durationMs, 0)
     setBrainRevisionBoost(true)
     brainLog('pipeline', 'riattivazione iniziata', {
-      tag: pool.tagUsed,
-      images: revisionProduction.story.frames.length,
+      fonte: 'memoria stabile della sessione',
+      stories: new Set(images.map((image) => image.storyId)).size,
+      imagesPerLap: images.length,
+      totalFrames: revisionProduction.story.frames.length,
     })
     startProduction(revisionProduction, beatDurationMs, beatIndex)
   }
@@ -1619,14 +1611,15 @@ export function createBrainController(
     beatDurationMs: number,
     beatIndex: number,
   ): boolean => {
-    if (!shouldStartRevisionCycleAtBoundary(
-      storiesUntilNextRevisionCycle,
-      revisionCycleActive,
-      revisionCycleStarting,
-    )) return false
-    revisionCycleStarting = true
-    void beginRevisionCycle(realNextProduction, beatDurationMs, beatIndex)
-      .finally(() => { revisionCycleStarting = false })
+    if (revisionCycleActive || !currentProduction) return false
+    const completedStoryId = currentProduction.story.id
+    if (completedStoryId.startsWith('revision:')) return false
+    if (!rememberCompletedStory(currentProduction)) return false
+    const previousImages = revisionSessionMemory.imagesBefore(completedStoryId)
+    // La prima storia crea la prima terna ma non ha ancora un passato da
+    // riattivare. Dalla seconda chiusura il ciclo parte sempre.
+    if (previousImages.length === 0) return false
+    beginRevisionCycle(previousImages, realNextProduction, beatDurationMs, beatIndex)
     return true
   }
 
@@ -1635,12 +1628,7 @@ export function createBrainController(
     beatDurationMs: number,
     beatIndex: number,
   ): void => {
-    if (storiesUntilNextRevisionCycle > 0) {
-      storiesUntilNextRevisionCycle -= 1
-      startProduction(readyNextProduction, beatDurationMs, beatIndex)
-      return
-    }
-    requestRevisionCycleAtBoundary(readyNextProduction, beatDurationMs, beatIndex)
+    startProduction(readyNextProduction, beatDurationMs, beatIndex)
   }
 
   // ---------------------------------------------------------------------
@@ -2193,7 +2181,6 @@ export function createBrainController(
         // anteprime).
         rasterMonitor.style.transition = 'opacity 600ms ease'
         rasterMonitor.style.opacity = '0.546'
-        storiesUntilNextRevisionCycle = pickStoriesUntilNextRevisionCycle()
         const resumedProduction = pendingProductionAfterRevisionCycle
         pendingProductionAfterRevisionCycle = null
         brainLog('pipeline', 'riattivazione conclusa; generazione ripresa', {
@@ -2221,8 +2208,8 @@ export function createBrainController(
     if (!beatAligned && storyCycle) return
     if (!beatAligned && elapsed < activeFrameTiming.totalMs + 2_000) return
     if (recyclingStoryFrames) {
-      // La Riattivazione è autonoma dalla generazione: se il suo contatore è
-      // scaduto, entra anche mentre la storia successiva non è ancora pronta.
+      // La chiusura della storia resta l'unica autorità: la Riattivazione può
+      // entrare anche mentre la storia successiva non è ancora pronta.
       if (requestRevisionCycleAtBoundary(
         nextProduction,
         beatDurationMs,
@@ -2274,6 +2261,10 @@ export function createBrainController(
       }
       return
     }
+    // La terna appartiene al confine della storia, quindi viene fissata prima
+    // anche dell'eventuale interludio 80/20. Alla ripresa, la richiesta del
+    // ciclo ritrova la stessa associazione e non esegue una riselezione.
+    rememberCompletedStory(currentProduction)
     if (
       storyCycle &&
       rendererSettings?.alternateBrainWithMorphing === true &&
@@ -2290,8 +2281,8 @@ export function createBrainController(
       options.onStoryCycleComplete(completion)
       return
     }
-    // Stesso invariante al primo confine della storia: non serve entrare nel
-    // ricircolo e attendere WebGPU prima di poter riattivare l'archivio.
+    // La chiusura della storia fissa la terna e, dalla seconda storia in poi,
+    // avvia subito la memoria cronologica delle storie precedenti.
     if (requestRevisionCycleAtBoundary(
       nextProduction,
       beatDurationMs,
@@ -2482,7 +2473,6 @@ export function createBrainController(
   rafId = requestAnimationFrame(render)
   brainLog('pipeline', 'attesa produzione AI reale; nessun fotogramma simulato')
   void generateNext()
-  refreshDreamImageArchiveCache()
 
   return {
     setOpacity(opacity: number) {
@@ -2541,6 +2531,7 @@ export function createBrainController(
       currentSvg?.destroy()
       outgoingSvg?.destroy()
       transitionCounterpartShapes = []
+      revisionSessionMemory.clear()
       rasterPreviewBlobs.clear()
       print2dModes.clear()
       brainVectorSceneCache.clear()

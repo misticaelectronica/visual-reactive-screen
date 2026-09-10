@@ -521,6 +521,16 @@ export class BrainRendererSelector {
     this.advanceStoryRenderer(this.storyId, settings, now)
   }
 
+  /** Renderer eleggibili per lo stato/regime corrente (whitelist di regime,
+   * regola Print2D ordinario/Riattivazione, filtro pressione GPU) — la stessa
+   * base con cui il selettore costruisce i mazzi. Esposta per la rete di
+   * sicurezza dell'host: quando un renderer fallisce il proprio QC, il
+   * sostituto va scelto a caso QUI dentro, non fissato su FilterPsiche.
+   * Nessun pool nuovo. */
+  eligibleRenderers(): BrainRendererId[] {
+    return this.storyCycleIds()
+  }
+
   resolve(settings: AppSettings, now: number): BrainRendererId {
     const requested = isBrainRendererId(settings.brainRendererId) &&
       this.availableIds.includes(settings.brainRendererId)
