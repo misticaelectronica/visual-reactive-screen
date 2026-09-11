@@ -1,5 +1,57 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Respiri — corretto il reset del gate di atterraggio, resta un secondo blocco — 2026-09-11
+
+Diagnosi Vice Consigliere, verificata su `respiro-profondo.mp3`,
+`respiro-profondo-1.mp3`, `respirto-profondo-3.mp3` (harness
+`scripts/calibration/diagnose-respiro-profondo.mjs`, riusa il modulo di
+produzione reale).
+
+**Difetto 1 (corretto)**: in `advanceBioRegime`, `pressureFlatMs` si
+azzerava a ogni cambio dell'ETICHETTA `pressureTrend`, anche quando `pp`
+restava continuamente entro `PRESSURE_SETTLE_EPSILON` dalla propria linea
+ritardata (`landingNow` vero). `REFERENCE_PRESSURE_DEADBAND` e
+`PRESSURE_SETTLE_EPSILON` sono lo stesso valore per costruzione: l'ingresso
+in rising/falling da 'stable' coincide già con la perdita di `landingNow`,
+quindi quella protezione non serviva; l'isteresi in USCITA da rising/falling
+lasciava invece che l'etichetta cambiasse ben dopo che `pp` aveva già
+smesso di muoversi, e ogni micro-rientro azzerava il conteggio. Sul segnale
+reale l'etichetta cambia con cadenza mediana ~1.7s (Diagnosi Respiri
+2026-09-10/11), sempre sotto ai 9s richiesti: `pressureLanded` non
+diventava mai vero. Corretto: il reset dipende ora solo da `landingNow`.
+Verificato: `pressureLanded` ora diventa vero su tutti e tre i file
+(prima: mai, su nessuno). Due test di regressione aggiunti in
+`brainBioPerception.test.ts` per il meccanismo esatto.
+
+**Difetto 2 (non corretto, in attesa di indicazione)**: anche con
+`pressureLanded` vero, nessuno dei tre file raggiunge `respiro-profondo`.
+Causa: i tre campioni iniziano con un tratto lungo e piatto (l'intro reale
+più il riscaldamento di rumore rosa che lo precede nell'harness) che
+consuma quasi per intero il bootstrap di `reference` (`everPromoted` resta
+falso finché il mondo non viene confermato) — `gatedLevel` resta forzato
+`null` per tutta quella finestra anche se `pressureJustLanded` scatta,
+perché il gate `everPromoted ? settledLevel : null` lo azzera in bootstrap.
+Il livello viene poi effettivamente classificato (via
+`reference.justSettled`, non via `pressureJustLanded`) solo quando il
+tratto piatto sta già finendo: sui tre file, `pressureLanded` e
+`level !== null` non sono MAI risultati veri nello stesso fotogramma
+(misurato direttamente, zero secondi di sovrapposizione su tutti e tre).
+Il regime resta quindi `pressurized`/`decompression` per l'intero file:
+nessuno dei tre raggiunge `respiro-alto`/`respiro-profondo` nemmeno dopo
+la correzione del Difetto 1.
+
+**Regressione**: rieseguito l'intero corpus (`compare-audio-regimes.mjs`,
+11 file) e `test-1.mp3` (`analyze-sample.mjs`, gate storico
+"`respiro-alto` deve restare 0" — verde). Nessun file già classificato
+correttamente ha guadagnato un respiro spurio; unico cambiamento osservato,
+un incremento di pochi decimi di secondo del tempo già in `respiro-alto` su
+`pressurizzazione.mp3`/`pressurizzazione1.mp3` (dove era già presente prima
+della correzione). Suite completa (73 file/685 test), typecheck e lint
+verdi. `audioMode='experimental'` (PIANO-044) eredita lo stesso
+comportamento perché in questa fase delega integralmente alla baseline
+(scaffold, nessuna semantica propria ancora) — non è stato toccato nulla
+nel file `brainBioPerceptionExperimental.ts`.
+
 ## PsicoFantasma — eleggibilità verificata e log per fotogramma — 2026-09-11
 
 Verificato il §36 del brief Visual prima di intervenire: PsicoFantasma è già

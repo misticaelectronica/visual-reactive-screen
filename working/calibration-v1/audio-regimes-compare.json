@@ -3,17 +3,17 @@
     "file": "docs/campioni/decompresisone-1.mp3",
     "baseline": {
       "durationSeconds": {
-        "unresolved": 5.479909297052177,
+        "unresolved": 6.26938775510207,
         "pressurized": 8.637823129251746,
-        "decompression": 36.47854875283373
+        "decompression": 35.689070294783775
       },
       "transitions": 8
     },
     "experimental": {
       "durationSeconds": {
-        "unresolved": 5.479909297052177,
+        "unresolved": 6.26938775510207,
         "pressurized": 8.637823129251746,
-        "decompression": 36.47854875283373
+        "decompression": 35.689070294783775
       },
       "transitions": 8
     }
@@ -62,8 +62,8 @@
       "durationSeconds": {
         "unresolved": 0.39473922902494335,
         "decompression": 0.6037188208616779,
-        "pressurized": 11.795736961451317,
-        "respiro-alto": 42.260317460317225
+        "pressurized": 11.099138321995529,
+        "respiro-alto": 42.95691609977307
       },
       "transitions": 3
     },
@@ -71,8 +71,8 @@
       "durationSeconds": {
         "unresolved": 0.39473922902494335,
         "decompression": 0.6037188208616779,
-        "pressurized": 11.795736961451317,
-        "respiro-alto": 42.260317460317225
+        "pressurized": 11.099138321995529,
+        "respiro-alto": 42.95691609977307
       },
       "transitions": 3
     }
@@ -82,8 +82,8 @@
     "baseline": {
       "durationSeconds": {
         "unresolved": 0.16253968253968257,
-        "pressurized": 11.215238095238162,
-        "respiro-alto": 5.804988662131544,
+        "pressurized": 11.006258503401424,
+        "respiro-alto": 6.01396825396828,
         "decompression": 11.122358276644055
       },
       "transitions": 3
@@ -91,8 +91,8 @@
     "experimental": {
       "durationSeconds": {
         "unresolved": 0.16253968253968257,
-        "pressurized": 11.215238095238162,
-        "respiro-alto": 5.804988662131544,
+        "pressurized": 11.006258503401424,
+        "respiro-alto": 6.01396825396828,
         "decompression": 11.122358276644055
       },
       "transitions": 3

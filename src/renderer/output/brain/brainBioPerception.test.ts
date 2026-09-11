@@ -711,6 +711,54 @@ describe('advanceBioRegime — silenzio diretto, livello con isteresi, nessuna c
     expect(regime.reason).toBe('stasis-inherited-alto')
   })
 
+  // Diagnosi Vice Consigliere 2026-09-11: sul corpus reale (respiro-profondo.mp3
+  // e varianti) `pressureTrend` raggiungeva 'stable' per il 27-43% del tempo
+  // ma `regimeReason` restava sempre `pressure-rising`/`pressure-falling` —
+  // mai uno stato `stasis-*`, nemmeno `stasis-level-indeterminate`. Causa:
+  // `pressureFlatMs` si azzerava a ogni cambio dell'ETICHETTA `pressureTrend`,
+  // anche quando `pp` restava continuamente entro `PRESSURE_SETTLE_EPSILON`
+  // dalla propria linea ritardata (`landingNow` vero) — l'isteresi in uscita
+  // da rising/falling lascia che l'etichetta cambi molto dopo che `pp` ha
+  // già smesso di muoversi. Sul segnale reale l'etichetta cambia con cadenza
+  // mediana ~1.7s, sempre sotto ai 9s richiesti: il gate non scattava mai.
+  it('un cambio di sola etichetta pressureTrend non azzera pressureFlatMs se pp resta atterrata', () => {
+    const almostLanded: BrainBioRegimeState = {
+      ...createInitialBioRegimeState(),
+      pressureTrend: 'rising',
+      pressureLagged: 0.399,
+      pressureFlatMs: 8_500,
+    }
+    // pp=0.4, pressureLagged=0.399 → |diff|=0.001, ben dentro PRESSURE_SETTLE_EPSILON
+    // (0.02): `landingNow` è vero. L'etichetta passa da 'rising' a 'stable'
+    // nello stesso campione (esattamente lo scenario osservato dal vivo).
+    const regime = advanceBioRegime(
+      almostLanded,
+      baseSignals({ pressureTrend: 'stable', perceptualPressure: 0.4 }),
+      0.4,
+      100,
+    )
+    expect(regime.pressureFlatMs).toBeGreaterThan(8_500)
+  })
+
+  it('un vero nuovo passaggio (pp esce dalla banda di atterraggio) azzera comunque pressureFlatMs', () => {
+    const almostLanded: BrainBioRegimeState = {
+      ...createInitialBioRegimeState(),
+      pressureTrend: 'stable',
+      pressureLagged: 0.4,
+      pressureFlatMs: 8_500,
+    }
+    // pp salta a 0.1: |diff|=0.3, ben oltre PRESSURE_SETTLE_EPSILON —
+    // `landingNow` è falso, la protezione contro l'eredità di secondi
+    // piatti da un passaggio appena iniziato resta intatta.
+    const regime = advanceBioRegime(
+      almostLanded,
+      baseSignals({ pressureTrend: 'falling', perceptualPressure: 0.1 }),
+      0.4,
+      100,
+    )
+    expect(regime.pressureFlatMs).toBe(0)
+  })
+
   it('un livello ereditato senza contrasto con la mediana non viene revocato (ordine Capo Supremo 2026-09-05)', () => {
     const ref = { pressure: 0.04, everPromoted: true, justSettled: false }
     let regime: BrainBioRegimeState = {

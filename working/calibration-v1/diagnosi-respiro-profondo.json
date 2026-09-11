@@ -3,6 +3,7 @@
     "file": "docs/campioni/respiro-profondo.mp3",
     "framesScored": 2115,
     "everReachedStable": true,
+    "stableEntries": 31,
     "trendSeconds": {
       "rising": 16.07,
       "stable": 23.15,
@@ -14,6 +15,10 @@
       "pressurized": 22.43,
       "decompression": 26.59
     },
+    "levelSeconds": {
+      "null": 29.54,
+      "alto": 19.57
+    },
     "reasonSecondsOverall": {
       "bootstrap": 0.09,
       "pressure-rising": 22.43,
@@ -23,12 +28,23 @@
       "bootstrap": 0.09,
       "pressure-rising": 6.36,
       "pressure-falling": 16.7
-    }
+    },
+    "maxPressureFlatMs": 36386,
+    "everLanded": true,
+    "tripleConditionSeconds": 0,
+    "tripleConditionRegime": {},
+    "landedWithLevelTrendSeconds": {},
+    "landedEpisodes": 1,
+    "firstLandedAtSeconds": 0.01,
+    "firstLandedBootstrapping": true,
+    "firstLevelSetAtSeconds": 29.54,
+    "firstLevelSetBootstrapping": false
   },
   {
     "file": "docs/campioni/respiro-profondo-1.mp3",
     "framesScored": 2115,
     "everReachedStable": true,
+    "stableEntries": 34,
     "trendSeconds": {
       "rising": 14.98,
       "stable": 19.46,
@@ -40,6 +56,10 @@
       "decompression": 27.61,
       "pressurized": 21.01
     },
+    "levelSeconds": {
+      "null": 28.17,
+      "alto": 20.94
+    },
     "reasonSecondsOverall": {
       "bootstrap": 0.49,
       "pressure-falling": 27.61,
@@ -49,12 +69,23 @@
       "bootstrap": 0.49,
       "pressure-falling": 12.93,
       "pressure-rising": 6.04
-    }
+    },
+    "maxPressureFlatMs": 36780,
+    "everLanded": true,
+    "tripleConditionSeconds": 0,
+    "tripleConditionRegime": {},
+    "landedWithLevelTrendSeconds": {},
+    "landedEpisodes": 1,
+    "firstLandedAtSeconds": 0.01,
+    "firstLandedBootstrapping": true,
+    "firstLevelSetAtSeconds": 28.17,
+    "firstLevelSetBootstrapping": false
   },
   {
     "file": "docs/campioni/respirto-profondo-3.mp3",
     "framesScored": 2115,
     "everReachedStable": true,
+    "stableEntries": 20,
     "trendSeconds": {
       "rising": 13.61,
       "stable": 13.54,
@@ -66,6 +97,10 @@
       "pressurized": 16.74,
       "decompression": 32.18
     },
+    "levelSeconds": {
+      "null": 33.88,
+      "profondo": 15.23
+    },
     "reasonSecondsOverall": {
       "bootstrap": 0.19,
       "pressure-rising": 16.74,
@@ -75,6 +110,16 @@
       "bootstrap": 0.19,
       "pressure-rising": 3.13,
       "pressure-falling": 10.22
-    }
+    },
+    "maxPressureFlatMs": 36479,
+    "everLanded": true,
+    "tripleConditionSeconds": 0,
+    "tripleConditionRegime": {},
+    "landedWithLevelTrendSeconds": {},
+    "landedEpisodes": 1,
+    "firstLandedAtSeconds": 0.01,
+    "firstLandedBootstrapping": true,
+    "firstLevelSetAtSeconds": 33.89,
+    "firstLevelSetBootstrapping": false
   }
 ]

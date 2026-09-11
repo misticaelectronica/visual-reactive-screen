@@ -1,5 +1,23 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Correzione Gate Di Atterraggio Respiri — 2026-09-11
+
+- [x] **`TASK-ENG-2026-09-11-02`** `DONE` (parziale, vedi STATE.md): diagnosi
+  Vice Consigliere sui tre campioni `respiro-profondo*`. Individuato e
+  corretto il reset di `pressureFlatMs` su ogni cambio di etichetta
+  `pressureTrend` (azzerava il gate di atterraggio anche quando `pp` restava
+  atterrata) in `advanceBioRegime`. `pressureLanded` ora diventa vero su
+  tutti e tre i file (prima: mai). Individuato un secondo blocco distinto,
+  non corretto in questo task: `pressureLanded` e `level !== null` non
+  risultano mai veri nello stesso fotogramma sui tre file (bootstrap di
+  `reference` consuma l'intero tratto piatto iniziale), quindi nessuno dei
+  tre raggiunge ancora `respiro-alto`/`respiro-profondo`. Aggiunta
+  diagnostica additiva (`pressureFlatMs`/`pressureLanded` in
+  `BrainBioRegimeDiagnostics`) e due test di regressione mirati. Rieseguito
+  l'intero corpus + `test-1.mp3`: nessuna regressione, nessun falso respiro
+  introdotto. Non toccato `rhythmConstraint`, `classifyLevel`, né il regime
+  Audio sperimentale. Suite completa, typecheck e lint verdi.
+
 ## Regime Audio Sperimentale — Checkpoint 1 — 2026-09-11
 
 - [x] **`TASK-044-01`** `DONE`: impianto a due percorsi per il regime Audio

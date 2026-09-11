@@ -111,10 +111,23 @@ function diagnose(file) {
   const trendCounts = { rising: 0, stable: 0, falling: 0 }
   const reasonCounts = {}
   const stableReasonCounts = {}
+  const levelCounts = {}
   let framesScored = 0
   let firstStableAtSeconds = null
-  let maxPressureFlatObservedMs = 0
+  let stableEntries = 0
+  let previousTrend = null
+  let maxPressureFlatMs = 0
+  let everLanded = false
+  let tripleConditionMs = 0
+  const tripleConditionRegime = {}
+  const landedWithLevelTrend = {}
   const regimeCounts = {}
+  let firstLandedAtSeconds = null
+  let firstLandedBootstrapping = null
+  let firstLevelSetAtSeconds = null
+  let firstLevelSetBootstrapping = null
+  let landedEpisodes = 0
+  let wasLanded = false
   for (let frame = 0, offset = 0; offset + FFT_SIZE <= samples.length; frame += 1, offset += FFT_SIZE) {
     const now = (frame + 1) * FRAME_MS
     const currentBands = bands(fftMagnitude(offset))
@@ -128,12 +141,37 @@ function diagnose(file) {
     regimeCounts[state.regime] = (regimeCounts[state.regime] ?? 0) + 1
     const diagnostics = bioClock.getRegimeDiagnostics()
     reasonCounts[diagnostics.regimeReason] = (reasonCounts[diagnostics.regimeReason] ?? 0) + 1
+    levelCounts[String(diagnostics.level)] = (levelCounts[String(diagnostics.level)] ?? 0) + 1
+    maxPressureFlatMs = Math.max(maxPressureFlatMs, diagnostics.pressureFlatMs)
+    const localSeconds = (now - WARMUP_SECONDS * 1_000) / 1_000
+    if (diagnostics.pressureLanded) {
+      everLanded = true
+      if (firstLandedAtSeconds === null) {
+        firstLandedAtSeconds = +localSeconds.toFixed(2)
+        firstLandedBootstrapping = diagnostics.bootstrapping
+      }
+      if (!wasLanded) landedEpisodes += 1
+    }
+    wasLanded = diagnostics.pressureLanded
+    if (diagnostics.level !== null && firstLevelSetAtSeconds === null) {
+      firstLevelSetAtSeconds = +localSeconds.toFixed(2)
+      firstLevelSetBootstrapping = diagnostics.bootstrapping
+    }
+    if (state.signals.pressureTrend === 'stable' && diagnostics.pressureLanded && diagnostics.level !== null) {
+      tripleConditionMs += FRAME_MS
+      tripleConditionRegime[state.regime] = (tripleConditionRegime[state.regime] ?? 0) + 1
+    }
+    if (diagnostics.pressureLanded && diagnostics.level !== null) {
+      landedWithLevelTrend[state.signals.pressureTrend] = (landedWithLevelTrend[state.signals.pressureTrend] ?? 0) + 1
+    }
     if (state.signals.pressureTrend === 'stable') {
       stableReasonCounts[diagnostics.regimeReason] = (stableReasonCounts[diagnostics.regimeReason] ?? 0) + 1
       if (firstStableAtSeconds === null) {
         firstStableAtSeconds = (now - WARMUP_SECONDS * 1_000) / 1_000
       }
+      if (previousTrend !== 'stable') stableEntries += 1
     }
+    previousTrend = state.signals.pressureTrend
   }
   const toSeconds = (counts) => Object.fromEntries(
     Object.entries(counts).map(([key, frames]) => [key, +(frames * FRAME_MS / 1_000).toFixed(2)]),
@@ -142,11 +180,23 @@ function diagnose(file) {
     file,
     framesScored,
     everReachedStable: trendCounts.stable > 0,
+    stableEntries,
     trendSeconds: toSeconds(trendCounts),
     firstStableAtSeconds,
     regimeSeconds: toSeconds(regimeCounts),
+    levelSeconds: toSeconds(levelCounts),
     reasonSecondsOverall: toSeconds(reasonCounts),
     reasonSecondsWhileStable: toSeconds(stableReasonCounts),
+    maxPressureFlatMs: +maxPressureFlatMs.toFixed(0),
+    everLanded,
+    tripleConditionSeconds: +(tripleConditionMs / 1000).toFixed(2),
+    tripleConditionRegime,
+    landedWithLevelTrendSeconds: toSeconds(landedWithLevelTrend),
+    landedEpisodes,
+    firstLandedAtSeconds,
+    firstLandedBootstrapping,
+    firstLevelSetAtSeconds,
+    firstLevelSetBootstrapping,
   }
 }
 
@@ -167,14 +217,19 @@ const outputPath = 'working/calibration-v1/diagnosi-respiro-profondo.json'
 writeFileSync(outputPath, JSON.stringify(results, null, 2) + '\n')
 
 for (const r of results) {
-  console.log(`\n${r.file}`)
-  console.log(`  pressureTrend mai 'stable'?  ${r.everReachedStable ? 'SI' : 'NO'}`)
-  console.log(`  trend (s): ${JSON.stringify(r.trendSeconds)}`)
-  if (r.everReachedStable) {
-    console.log(`  primo 'stable' a +${r.firstStableAtSeconds}s (dopo il warmup)`)
-    console.log(`  regimeReason mentre trend='stable' (s): ${JSON.stringify(r.reasonSecondsWhileStable)}`)
-  }
-  console.log(`  regimeReason su tutto il file (s): ${JSON.stringify(r.reasonSecondsOverall)}`)
-  console.log(`  regime risultante (s): ${JSON.stringify(r.regimeSeconds)}`)
+  console.log(`\nFILE: ${r.file}`)
+  console.log(`  pressureTrend entra in stable: ${r.everReachedStable ? 'si' : 'no'}`)
+  console.log(`  numero ingressi in stable: ${r.stableEntries}`)
+  console.log(`  durata complessiva in stable: ${r.trendSeconds.stable ?? 0}s (di ${(r.framesScored * FRAME_MS / 1000).toFixed(1)}s totali)`)
+  console.log(`  reason (s): ${JSON.stringify(r.reasonSecondsOverall)}`)
+  console.log(`  reason mentre trend='stable' (s): ${JSON.stringify(r.reasonSecondsWhileStable)}`)
+  console.log(`  livello classificato (s): ${JSON.stringify(r.levelSeconds)}`)
+  console.log(`  pressureFlatMs massimo raggiunto: ${r.maxPressureFlatMs}ms (soglia richiesta: 9000ms)`)
+  console.log(`  pressureLanded mai vero (gate superato): ${r.everLanded ? 'si' : 'no'}`)
+  console.log(`  tempo con landed+level insieme, per trend (s): ${JSON.stringify(r.landedWithLevelTrendSeconds)}`)
+  console.log(`  tempo con trend=stable+landed+level (dovrebbe dare un respiro): ${r.tripleConditionSeconds}s, regime osservato in quei frame: ${JSON.stringify(r.tripleConditionRegime)}`)
+  console.log(`  episodi 'landed' distinti: ${r.landedEpisodes}`)
+  console.log(`  primo landed a +${r.firstLandedAtSeconds}s (bootstrapping=${r.firstLandedBootstrapping})`)
+  console.log(`  primo level non-null a +${r.firstLevelSetAtSeconds}s (bootstrapping=${r.firstLevelSetBootstrapping})`)
 }
 console.log(`\nOutput: ${outputPath}`)
