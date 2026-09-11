@@ -38,8 +38,8 @@ const ANCHOR_TREND_DEADBAND = 0.02
 // superano mai per tutta la durata: legarla al valore sopprimerebbe
 // respiro-profondo ovunque su quei file, non solo all'avvio).
 const ANCHOR_WARMUP_GRACE_MS = 1_500
-// Permanenza minima di stato: vedi commento su `resolveRegime` nella classe.
-const REGIME_MIN_DWELL_MS = 2_000
+// Conferma per persistenza: vedi commento su `resolveRegime` nella classe.
+const REGIME_CONFIRM_MS = 2_000
 
 export type ExperimentalBin = {
   bands: BandEnergies
@@ -261,29 +261,35 @@ export class BrainBioPerceptionExperimentalClock {
   private awaitingRecovery = false
   private diagnostics = initialDiagnostics()
   private emittedRegime: BrainBioRegime = 'unresolved'
-  private emittedRegimeAt = Number.NEGATIVE_INFINITY
+  private candidateRegime: BrainBioRegime = 'unresolved'
+  private candidateSince = Number.NEGATIVE_INFINITY
 
-  // Permanenza minima di stato (bug evidente, segnalato dal Capo Supremo
+  // Conferma per persistenza (bug evidente, segnalato dal Capo Supremo
   // 2026-09-11: cambi troppo rapidi fra pressurized/decompression "senza
   // dare tempo al corpo di capire" — confermato dal log della sessione live
   // dell'11/9: 42 cambi in 322s, 21 segmenti su 43 sotto i 2s, 12 sotto 1s).
-  // La classificazione prima cambiava a ogni singola analisi (ogni 500ms)
-  // appena l'ancoraggio superava il deadband per un solo campione. Non è un
-  // problema di ampiezza (già tarata e ritarata sul corpus): è l'assenza di
-  // un tempo minimo di permanenza, indipendente dalla sorgente audio. Una
-  // volta emesso un regime, il prossimo cambio (tranne l'uscita iniziale da
-  // `unresolved`, che non deve aspettare) resta sospeso finché non sono
-  // passati REGIME_MIN_DWELL_MS — stesso principio già in uso nella
-  // baseline per le finestre di conferma (`PRESSURE_SETTLE_CONFIRM_MS`,
-  // `REFERENCE_CONFIRM_MS`), qui applicato al cambio di etichetta invece
-  // che al criterio di assestamento.
+  // Un primo tentativo (permanenza minima: accettare comunque il candidato
+  // corrente dopo un'attesa fissa) è stato insufficiente in collaudo dal
+  // vivo: i cambi cadevano quasi tutti esattamente sul bordo dell'attesa
+  // (2.0s, 2.166s, 2.0s, 2.5s...) — il timer non verificava NULLA sul
+  // candidato stesso, si limitava a lasciar passare quello che c'era in
+  // quell'istante. Sostituito con una vera conferma per persistenza, stesso
+  // principio già in uso nella baseline per `reference`
+  // (`REFERENCE_CONFIRM_MS`: la nuova lettura deve restare la stessa per
+  // tutta la finestra, non solo comparire una volta al suo scadere): il
+  // regime cambia solo quando lo stesso candidato si ripete stabilmente per
+  // REGIME_CONFIRM_MS, non quando scade un timer indipendente da cosa sta
+  // succedendo davvero.
   private resolveRegime(now: number): BrainBioRegime {
     const candidate = classifyExperimentalRegime(this.diagnostics)
+    if (candidate !== this.candidateRegime) {
+      this.candidateRegime = candidate
+      this.candidateSince = now
+    }
     if (candidate === this.emittedRegime) return this.emittedRegime
-    const dwellExempt = this.emittedRegime === 'unresolved'
-    if (dwellExempt || now - this.emittedRegimeAt >= REGIME_MIN_DWELL_MS) {
-      this.emittedRegime = candidate
-      this.emittedRegimeAt = now
+    const confirmExempt = this.emittedRegime === 'unresolved'
+    if (confirmExempt || now - this.candidateSince >= REGIME_CONFIRM_MS) {
+      this.emittedRegime = this.candidateRegime
     }
     return this.emittedRegime
   }

@@ -53,9 +53,14 @@ describe('BrainBioPerceptionExperimentalClock — baseline isolata e memoria tem
   // della sessione live: 42 cambi in 322s, 21 segmenti su 43 sotto i 2s):
   // il regime cambiava a ogni singola analisi (500ms) appena l'ancoraggio
   // attraversava il deadband per un solo campione — "troppo veloce, senza
-  // dare tempo al corpo di capire". `resolveRegime` impone ora una
-  // permanenza minima di 2s fra un cambio e il successivo.
-  it('non cambia regime più spesso della permanenza minima anche con materiale che oscilla di continuo', () => {
+  // dare tempo al corpo di capire". Un primo tentativo (permanenza minima:
+  // accettare comunque il candidato dopo un'attesa fissa) è risultato
+  // insufficiente in collaudo dal vivo — i cambi cadevano quasi tutti
+  // esattamente sul bordo dell'attesa, perché il timer non verificava nulla
+  // sul candidato stesso. `resolveRegime` ora richiede che lo stesso
+  // candidato si ripeta stabilmente per REGIME_CONFIRM_MS prima di essere
+  // accettato — una vera conferma per persistenza, non un timer cieco.
+  it('non cambia regime finché lo stesso candidato non si ripete stabilmente, anche con materiale che oscilla di continuo', () => {
     const experimental = new BrainBioPerceptionExperimentalClock()
     let now = 0
     let lastRegime: string | null = null
