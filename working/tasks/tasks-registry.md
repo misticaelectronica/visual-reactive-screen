@@ -1,5 +1,23 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Regime Audio Sperimentale — Checkpoint 1 — 2026-09-11
+
+- [x] **`TASK-044-01`** `DONE`: impianto a due percorsi per il regime Audio
+  (`PIANO-044`/`MACRO-035`). `AppSettings.audioMode`, nuovo
+  `BrainBioPerceptionExperimentalClock` (scaffold che delega alla baseline),
+  wiring in `OutputApp.tsx` con i due clock alimentati in parallelo sullo
+  stesso ingest, selettore in `VisualControls.tsx`, harness offline
+  `scripts/calibration/compare-audio-regimes.mjs`. Verificato su tutto
+  `docs/campioni/*.mp3` (11 file): baseline ed experimental producono lo
+  stesso `durationSeconds`/transizioni su ognuno, come atteso da uno
+  scaffold senza nuova semantica. Effetto collaterale osservativo: nel
+  corpus reale il log conferma di nuovo l'esito della Diagnosi Respiri
+  dell'11/9 — `respiro-profondo` non compare mai (nemmeno nei file
+  esplicitamente nominati così) e `respiro-alto` compare solo su due dei
+  tre campioni "pressurizzazione". Nessuna modifica alla baseline, a
+  renderer, colori, morphing, Riattivazione o Coscienza Onirica. Suite
+  completa (73 file/683 test), typecheck e lint verdi.
+
 ## Verifica eleggibilità PsicoFantasma — 2026-09-11
 
 - [x] **`TASK-034-24`** `DONE`: verificare PsicoFantasma nei quattro regimi

@@ -31,6 +31,7 @@ import {
   type BrainBioRegimeDiagnostics,
   type BrainBioRegimeReason,
 } from './brain/brainBioPerception'
+import { BrainBioPerceptionExperimentalClock } from './brain/brainBioPerceptionExperimental'
 import {
   calculateStoryMorphingInterludeMs,
   createAlternateBrainStorySettings,
@@ -584,11 +585,22 @@ export function OutputApp() {
     // valore cambia davvero, non ad ogni frame RAF).
     const bioPerceptionClock = new BrainBioPerceptionClock()
     let bioPerceptionState = bioPerceptionClock.getState()
-    const bioPerceptionSource = () => bioPerceptionState
+    // Regime Audio sperimentale (PIANO-044): girato sempre in parallelo alla
+    // baseline, sullo stesso ingest — così il confronto A/B non richiede una
+    // seconda acquisizione. `audioMode` sceglie solo quale stato esporre ai
+    // consumer (controller/renderer), non quale clock viene alimentato.
+    const bioExperimentalClock = new BrainBioPerceptionExperimentalClock()
+    let bioExperimentalState = bioExperimentalClock.getState()
+    let audioMode: AppSettings['audioMode'] = 'baseline'
+    const activeBioPerceptionState = () =>
+      audioMode === 'experimental' ? bioExperimentalState : bioPerceptionState
+    const bioPerceptionSource = () => activeBioPerceptionState()
     // Motivo dell'ultimo regime (chiusura Item 2 §3): aggiornato allo stesso
     // ingest, letto dal controller solo quando logga un cambio di regime.
     let bioRegimeReason = bioPerceptionClock.getRegimeDiagnostics().regimeReason
-    const bioRegimeReasonSource = () => bioRegimeReason
+    let bioExperimentalRegimeReason = bioExperimentalClock.getRegimeDiagnostics().regimeReason
+    const bioRegimeReasonSource = () =>
+      audioMode === 'experimental' ? bioExperimentalRegimeReason : bioRegimeReason
     let rhythmRafId = 0
     const projectRhythm = (now: number) => {
       rhythmState = rhythmClock.projectState(performance.timeOrigin + now)
@@ -654,6 +666,11 @@ export function OutputApp() {
         // ricalcolata a ogni frame (§10/§17.3 del brief). `rhythmState.bandTransients`
         // è l'ultima proiezione disponibile (leggermente in ritardo rispetto a questo
         // campione): tollerabile; il regime applica comunque 3 s di conferma.
+        const bioRhythmInput = {
+          kickEnvelope: rhythmState.kickEnvelope,
+          beatPulse: rhythmState.beatPulse,
+          active: rhythmState.active ?? false,
+        }
         bioPerceptionState = bioPerceptionClock.ingestSample(
           inputState.bandEnergies,
           inputState.audioTimestampMs ?? receivedAt,
@@ -661,20 +678,37 @@ export function OutputApp() {
           // Brief Audio 2026-08-31: la leggibilità della griglia ritmica entra
           // in `perceptualPressure`. Nessun segnale nuovo — kick/pulsazione
           // dal clock ritmico già proiettato.
-          {
-            kickEnvelope: rhythmState.kickEnvelope,
-            beatPulse: rhythmState.beatPulse,
-            active: rhythmState.active ?? false,
-          },
+          bioRhythmInput,
         )
+        // Regime sperimentale (PIANO-044): stesso ingest della baseline,
+        // sempre calcolato — così il cambio di `audioMode` non deve
+        // aspettare che il clock "recuperi" stato da zero.
+        bioExperimentalState = bioExperimentalClock.ingestSample(
+          inputState.bandEnergies,
+          inputState.audioTimestampMs ?? receivedAt,
+          rhythmState.bandTransients,
+          bioRhythmInput,
+        )
+        const nextAudioMode = inputState.settings?.audioMode === 'experimental'
+          ? 'experimental'
+          : 'baseline'
+        if (nextAudioMode !== audioMode) {
+          audioMode = nextAudioMode
+          brainLog('perception', `regime Audio selezionato: ${audioMode}`, { audioMode })
+        }
         // PIANO-040: overlay diagnostico — solo lettura, nessun effetto sul
         // comportamento. `previousBioRegimeRef` distingue "primo valore mai
         // visto" (non è un cambio, è l'arrivo del primo dato) da un cambio
         // di regime vero, che è invece l'evento che il Capo Supremo ha
         // chiesto di rendere visibile ("se resta bloccato sullo stesso
         // valore per tutto il set, quello è il dato che serve").
+        // Overlay e log 1Hz restano sulla baseline anche quando
+        // `audioMode='experimental'` è selezionato: è diagnostica PIANO-040,
+        // non il segnale che guida i renderer (quello viene da
+        // `bioPerceptionSource`, già commutato sopra).
         const bioDiagnostics = bioPerceptionClock.getRegimeDiagnostics()
         bioRegimeReason = bioDiagnostics.regimeReason
+        bioExperimentalRegimeReason = bioExperimentalClock.getRegimeDiagnostics().regimeReason
         setBioOverlayState(bioPerceptionState)
         setBioRegimePending(bioDiagnostics)
         const bioSampleAt = inputState.audioTimestampMs ?? receivedAt

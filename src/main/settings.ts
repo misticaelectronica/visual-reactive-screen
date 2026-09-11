@@ -2,6 +2,7 @@ import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
+  isAudioMode,
   isBrainRendererId,
   isBrainRendererMode,
   isFlashMode,
@@ -72,6 +73,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     morphingAlgorithm: isMorphingAlgorithm(settings.morphingAlgorithm)
       ? settings.morphingAlgorithm
       : 'liquid',
+    audioMode: isAudioMode(settings.audioMode) ? settings.audioMode : 'baseline',
     flashMode: isFlashMode(settings.flashMode) ? settings.flashMode : 'mid',
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
