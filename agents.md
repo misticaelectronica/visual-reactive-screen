@@ -92,6 +92,34 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
   - Se un criterio non scatta mai dal vivo, non va tarato: va rimosso.
   - Segnalare la sovrastrutturazione quando arriva dall'alto — **anche quando il brief è firmato da un Capo Supremo**: se chiede un meccanismo che duplica qualcosa di già esistente, va riportato prima di essere implementato, non eseguito silenziosamente.
 
+### Precisione Delle Formulazioni Nei Documenti Di Progetto (regola permanente, richiamo dello Stalliere del Vice Consigliere 2026-09-11)
+
+In un progetto dove un documento diventa un brief e un brief diventa codice,
+una formulazione imprecisa non resta un problema di stile: diventa
+un'implementazione diversa da quella voluta. Caso all'origine del richiamo:
+*«il corpo è il luogo nel quale l'organizzazione ritmica acquista
+significato»* riportato come *«il ritmo da solo non significa niente»* — la
+prima frase indica dove il significato si manifesta, la seconda afferma che
+senza corpo non esiste. Non sono la stessa cosa: la seconda è più netta e
+non era nel testo originale.
+
+Vale per tutti i ruoli, compreso chi lo redige — il caso all'origine è suo:
+
+- **Si scrive per la precisione, non per l'effetto.** Una formulazione che
+  suona più forte, più netta o più definitiva dell'originale è una modifica
+  del contenuto, non una riscrittura o un riassunto legittimo.
+- **Chi riporta il pensiero di un altro ruolo non lo rafforza.** Se una
+  formulazione altrui sembra debole, ambigua o poco convincente, si segnala
+  a chi l'ha scritta invece di correggerla riscrivendola al suo posto.
+- **Si distingue sempre fatto verificato, interpretazione, ipotesi e
+  decisione già assunta.** Mescolarli in un documento rende impossibile
+  capire, rileggendolo, cosa sia stato deciso e cosa dedotto — vale per
+  diagnosi tecniche quanto per brief percettivi/filosofici.
+- **Un principio entra nei documenti normativi (`agents.md`, `filosofia.md`,
+  brief, piani) solo se qualcuno lo ha esplicitamente stabilito.** Non per
+  saturazione, non perché deriva plausibilmente da altri principi già
+  scritti.
+
 ### Autonomia Dei Renderer (regola permanente, disposizione del Capo Supremo 2026-09-07)
 
 **Ogni renderer di Brain è un plugin autonomo. La sua grammatica, la sua
