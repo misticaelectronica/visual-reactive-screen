@@ -4177,6 +4177,915 @@
     }
   },
   {
+    "file": "docs/campioni/respiro-alto-2.mp3",
+    "meanPhysicalPulse": 0.008691327977211281,
+    "meanLowEnd": 0.8382743911513514,
+    "meanGridDensity": 0.03817132911345234,
+    "meanRhythmConstraint": 0.01924978671597943,
+    "meanPersistence": 0.9394778265054695,
+    "meanChange": 0.10825396704121919,
+    "meanBeatConfirmation": 0,
+    "metricGridAlignment": 0.4978287584781618,
+    "gridPeriodicity": {
+      "correlation": 0.6759322550809116,
+      "periodMs": 441.1791383219955
+    },
+    "lowPeriodicity": {
+      "correlation": 0.42214441731940805,
+      "periodMs": 859.1383219954648
+    },
+    "rawLowPeriodicity": {
+      "correlation": 0.32926587941164775,
+      "periodMs": 859.1383219954648
+    },
+    "rawBandPeriodicity": {
+      "correlation": 0.303374288303955,
+      "periodMs": 441.1791383219955
+    },
+    "rollingRawBandPeriodicity": {
+      "meanCorrelation": 0.7152964422962899,
+      "correlationStdDev": 0.10964832879120434,
+      "periodConsistency": 1,
+      "windows": [
+        {
+          "startSeconds": 0,
+          "correlation": 0.2373517525406473,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 1.9969160997732427,
+          "correlation": 0.7632552772965941,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 3.9938321995464854,
+          "correlation": 0.7518224986785336,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 5.990748299319728,
+          "correlation": 0.7538621709051917,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 7.987664399092971,
+          "correlation": 0.7370573832097901,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 9.984580498866213,
+          "correlation": 0.7340861645079026,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 11.981496598639456,
+          "correlation": 0.7491192697440221,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 13.978412698412697,
+          "correlation": 0.7284325758601616,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 15.975328798185942,
+          "correlation": 0.7501400520299988,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 17.972244897959182,
+          "correlation": 0.6879533824446203,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 19.969160997732427,
+          "correlation": 0.5932666106474631,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 21.966077097505668,
+          "correlation": 0.4677396759775285,
+          "periodMs": 441.1791383219955
+        },
+        {
+          "startSeconds": 23.962993197278912,
+          "correlation": 0.5707617130668176,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 25.959909297052153,
+          "correlation": 0.706962867744651,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 27.956825396825394,
+          "correlation": 0.7330011135933384,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 29.95374149659864,
+          "correlation": 0.7479545382344183,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 31.950657596371883,
+          "correlation": 0.7891446143373122,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 33.94757369614513,
+          "correlation": 0.7967081978723705,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 35.944489795918365,
+          "correlation": 0.7898727407193702,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 37.94140589569161,
+          "correlation": 0.7243762126546792,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 39.938321995464854,
+          "correlation": 0.6824156780803852,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 41.93523809523809,
+          "correlation": 0.6959155833081563,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 43.932154195011336,
+          "correlation": 0.6919162947126326,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 45.92907029478458,
+          "correlation": 0.6901891802972089,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 47.925986394557825,
+          "correlation": 0.6888477578770528,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 49.92290249433106,
+          "correlation": 0.7101068323352687,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 51.919818594104306,
+          "correlation": 0.7757354972640675,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 53.91673469387755,
+          "correlation": 0.7811889309054625,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 55.91365079365079,
+          "correlation": 0.7597113818383864,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 57.91056689342404,
+          "correlation": 0.794655227302819,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 59.90748299319728,
+          "correlation": 0.808482990406501,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 61.904399092970515,
+          "correlation": 0.8093877349579166,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 63.901315192743766,
+          "correlation": 0.8131309075995758,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 65.89823129251701,
+          "correlation": 0.8055262291230191,
+          "periodMs": 859.1383219954648
+        }
+      ]
+    },
+    "beats": 0,
+    "referencePhaseSeconds": {
+      "awaiting-confirmation": 4.527891156462585,
+      "stable": 71.3317006802721
+    },
+    "experimentalTemporal": {
+      "meanRecurrence": 0.5084189860974695,
+      "meanCyclePersistence": 0.9298385695512064,
+      "meanPhysicalConfirmation": 0.49402407668529036,
+      "meanAnchor": 0.4719666777576717,
+      "meanConstraint": 0.3580818850239249,
+      "meanSettlement": 0.8349619269254954,
+      "oscillatingShare": 0,
+      "directionSeconds": {
+        "stable": 65.64281179138322,
+        "rising": 9.7059410430839,
+        "falling": 0.5108390022675737
+      },
+      "timeline": [
+        {
+          "second": 0,
+          "recurrence": 0.09232239303980506,
+          "cyclePersistence": 0.9646403547165956,
+          "anchor": 0.09677527649173215,
+          "constraint": 0.04947825809972087,
+          "settlement": 0.920094070772016,
+          "direction": "stable"
+        },
+        {
+          "second": 1,
+          "recurrence": 0.14720394718297514,
+          "cyclePersistence": 0.9385157468115048,
+          "anchor": 0.10553762386991299,
+          "constraint": 0.056572683472522145,
+          "settlement": 0.865322647900683,
+          "direction": "stable"
+        },
+        {
+          "second": 2,
+          "recurrence": 0.3794221206931723,
+          "cyclePersistence": 0.9226700352644045,
+          "anchor": 0.21288445478290524,
+          "constraint": 0.1245468030867297,
+          "settlement": 0.788316100592679,
+          "direction": "rising"
+        },
+        {
+          "second": 3,
+          "recurrence": 0.4926175622530429,
+          "cyclePersistence": 0.9306877650361285,
+          "anchor": 0.29943635171317035,
+          "constraint": 0.18912621563517235,
+          "settlement": 0.7287772052744811,
+          "direction": "rising"
+        },
+        {
+          "second": 4,
+          "recurrence": 0.5042052061893156,
+          "cyclePersistence": 0.9159176168665786,
+          "anchor": 0.36427232535491244,
+          "constraint": 0.24998033140125633,
+          "settlement": 0.6506342057758473,
+          "direction": "rising"
+        },
+        {
+          "second": 5,
+          "recurrence": 0.5360288290601466,
+          "cyclePersistence": 0.9204813333901789,
+          "anchor": 0.41407654051199305,
+          "constraint": 0.3011617053300441,
+          "settlement": 0.6614053309363915,
+          "direction": "rising"
+        },
+        {
+          "second": 6,
+          "recurrence": 0.5224176314884686,
+          "cyclePersistence": 0.9128966137432007,
+          "anchor": 0.4419831465351607,
+          "constraint": 0.34129291632639497,
+          "settlement": 0.7215556066322306,
+          "direction": "rising"
+        },
+        {
+          "second": 7,
+          "recurrence": 0.503017061496974,
+          "cyclePersistence": 0.9189755110768134,
+          "anchor": 0.454963547336636,
+          "constraint": 0.3690172816776186,
+          "settlement": 0.7628442085263021,
+          "direction": "rising"
+        },
+        {
+          "second": 8,
+          "recurrence": 0.5229090928215246,
+          "cyclePersistence": 0.9388194760273167,
+          "anchor": 0.46329769447554187,
+          "constraint": 0.39353074958177314,
+          "settlement": 0.8516170942871124,
+          "direction": "rising"
+        },
+        {
+          "second": 9,
+          "recurrence": 0.5165735804094213,
+          "cyclePersistence": 0.9130861258515252,
+          "anchor": 0.46775370502289404,
+          "constraint": 0.4086794404194383,
+          "settlement": 0.8505462812746033,
+          "direction": "rising"
+        },
+        {
+          "second": 10,
+          "recurrence": 0.5429480521535722,
+          "cyclePersistence": 0.9235504739076879,
+          "anchor": 0.4790642374219096,
+          "constraint": 0.41919472254380824,
+          "settlement": 0.8597787919399064,
+          "direction": "rising"
+        },
+        {
+          "second": 11,
+          "recurrence": 0.5048855452148437,
+          "cyclePersistence": 0.9216747718923379,
+          "anchor": 0.4770799562713928,
+          "constraint": 0.41523985842373184,
+          "settlement": 0.8553170389974661,
+          "direction": "stable"
+        },
+        {
+          "second": 12,
+          "recurrence": 0.526790399938097,
+          "cyclePersistence": 0.9117815558256355,
+          "anchor": 0.4803703148477075,
+          "constraint": 0.4133665721172927,
+          "settlement": 0.8312059987367049,
+          "direction": "stable"
+        },
+        {
+          "second": 13,
+          "recurrence": 0.5018752732087413,
+          "cyclePersistence": 0.9356295429921155,
+          "anchor": 0.4784530344890805,
+          "constraint": 0.40669055627587697,
+          "settlement": 0.834241630000257,
+          "direction": "stable"
+        },
+        {
+          "second": 14,
+          "recurrence": 0.5231560811219396,
+          "cyclePersistence": 0.9255146125602124,
+          "anchor": 0.48007377777667776,
+          "constraint": 0.40615639201571335,
+          "settlement": 0.801610526501406,
+          "direction": "stable"
+        },
+        {
+          "second": 15,
+          "recurrence": 0.5704594975059664,
+          "cyclePersistence": 0.937597608988886,
+          "anchor": 0.4921727404797268,
+          "constraint": 0.40861585075711676,
+          "settlement": 0.8236746104936605,
+          "direction": "stable"
+        },
+        {
+          "second": 16,
+          "recurrence": 0.538105743166007,
+          "cyclePersistence": 0.9322504133694982,
+          "anchor": 0.4992581107105888,
+          "constraint": 0.40783071161972734,
+          "settlement": 0.8259602431373189,
+          "direction": "stable"
+        },
+        {
+          "second": 17,
+          "recurrence": 0.5349403424756208,
+          "cyclePersistence": 0.940161866087538,
+          "anchor": 0.49813174383357905,
+          "constraint": 0.4021993054236829,
+          "settlement": 0.8558239693122279,
+          "direction": "stable"
+        },
+        {
+          "second": 18,
+          "recurrence": 0.5297285483371859,
+          "cyclePersistence": 0.9295982378747668,
+          "anchor": 0.497532641449984,
+          "constraint": 0.397024864925374,
+          "settlement": 0.8595225465470465,
+          "direction": "stable"
+        },
+        {
+          "second": 19,
+          "recurrence": 0.5035353405156758,
+          "cyclePersistence": 0.9307468219831193,
+          "anchor": 0.49320471682991507,
+          "constraint": 0.39024756257838555,
+          "settlement": 0.8426880938017031,
+          "direction": "stable"
+        },
+        {
+          "second": 20,
+          "recurrence": 0.5143513750858728,
+          "cyclePersistence": 0.9254796884141958,
+          "anchor": 0.489089145293295,
+          "constraint": 0.3866991053115336,
+          "settlement": 0.8415782138766399,
+          "direction": "stable"
+        },
+        {
+          "second": 21,
+          "recurrence": 0.5011757133720935,
+          "cyclePersistence": 0.9307010769746696,
+          "anchor": 0.48328081894968555,
+          "constraint": 0.3863110553858836,
+          "settlement": 0.847375842111125,
+          "direction": "stable"
+        },
+        {
+          "second": 22,
+          "recurrence": 0.5086723442505289,
+          "cyclePersistence": 0.9176761076140287,
+          "anchor": 0.48479708929048476,
+          "constraint": 0.38961817135819027,
+          "settlement": 0.8412659383901817,
+          "direction": "stable"
+        },
+        {
+          "second": 23,
+          "recurrence": 0.4974198919221005,
+          "cyclePersistence": 0.9380105204243965,
+          "anchor": 0.47922020701769363,
+          "constraint": 0.3882772583634205,
+          "settlement": 0.8545395366095276,
+          "direction": "stable"
+        },
+        {
+          "second": 24,
+          "recurrence": 0.4826276303380192,
+          "cyclePersistence": 0.9333736130276847,
+          "anchor": 0.4761398887717003,
+          "constraint": 0.38831118731240716,
+          "settlement": 0.8530260430521874,
+          "direction": "stable"
+        },
+        {
+          "second": 25,
+          "recurrence": 0.49711482372860616,
+          "cyclePersistence": 0.9115858280980207,
+          "anchor": 0.4706368054487816,
+          "constraint": 0.38402781393220575,
+          "settlement": 0.8269139792766745,
+          "direction": "stable"
+        },
+        {
+          "second": 26,
+          "recurrence": 0.475110998371471,
+          "cyclePersistence": 0.915120259799114,
+          "anchor": 0.46369646882867566,
+          "constraint": 0.37554987936235545,
+          "settlement": 0.8230664971517703,
+          "direction": "stable"
+        },
+        {
+          "second": 27,
+          "recurrence": 0.4472166085812595,
+          "cyclePersistence": 0.9040879953418278,
+          "anchor": 0.4520911581111122,
+          "constraint": 0.36859960138370934,
+          "settlement": 0.8178772522782185,
+          "direction": "stable"
+        },
+        {
+          "second": 28,
+          "recurrence": 0.42194475488682726,
+          "cyclePersistence": 0.9114810047195891,
+          "anchor": 0.4369983110028166,
+          "constraint": 0.35518476971120716,
+          "settlement": 0.80866895569147,
+          "direction": "stable"
+        },
+        {
+          "second": 29,
+          "recurrence": 0.39934197563323764,
+          "cyclePersistence": 0.9077538169223187,
+          "anchor": 0.4211968129852243,
+          "constraint": 0.341144510234211,
+          "settlement": 0.8055761522533716,
+          "direction": "stable"
+        },
+        {
+          "second": 30,
+          "recurrence": 0.338765232309341,
+          "cyclePersistence": 0.8980467506189385,
+          "anchor": 0.39770504664552725,
+          "constraint": 0.32000082561837584,
+          "settlement": 0.8025913160911861,
+          "direction": "stable"
+        },
+        {
+          "second": 31,
+          "recurrence": 0.3317204458448284,
+          "cyclePersistence": 0.9078909870578638,
+          "anchor": 0.37629609887523013,
+          "constraint": 0.3000525060948864,
+          "settlement": 0.8334842817589261,
+          "direction": "falling"
+        },
+        {
+          "second": 32,
+          "recurrence": 0.42117057549220904,
+          "cyclePersistence": 0.9266075758207377,
+          "anchor": 0.3763306766496709,
+          "constraint": 0.2986711547078204,
+          "settlement": 0.8561399842180224,
+          "direction": "stable"
+        },
+        {
+          "second": 33,
+          "recurrence": 0.489061419977292,
+          "cyclePersistence": 0.9079105296363146,
+          "anchor": 0.3982111438375254,
+          "constraint": 0.31020292004735295,
+          "settlement": 0.8275624264332547,
+          "direction": "stable"
+        },
+        {
+          "second": 34,
+          "recurrence": 0.5010145633772944,
+          "cyclePersistence": 0.9235262776732516,
+          "anchor": 0.4218269227800929,
+          "constraint": 0.3288917571117926,
+          "settlement": 0.8378461664029296,
+          "direction": "stable"
+        },
+        {
+          "second": 35,
+          "recurrence": 0.5254758982567311,
+          "cyclePersistence": 0.9178403215950995,
+          "anchor": 0.4433898993796493,
+          "constraint": 0.3425311827721503,
+          "settlement": 0.822970520287875,
+          "direction": "stable"
+        },
+        {
+          "second": 36,
+          "recurrence": 0.5500639024077558,
+          "cyclePersistence": 0.9325692483810378,
+          "anchor": 0.46606884386512404,
+          "constraint": 0.354972052681863,
+          "settlement": 0.8322356169868539,
+          "direction": "stable"
+        },
+        {
+          "second": 37,
+          "recurrence": 0.5076249480813025,
+          "cyclePersistence": 0.9280501407331295,
+          "anchor": 0.4723581379129397,
+          "constraint": 0.35449440404205984,
+          "settlement": 0.8296826652709041,
+          "direction": "stable"
+        },
+        {
+          "second": 38,
+          "recurrence": 0.5563549798844347,
+          "cyclePersistence": 0.9427457409836576,
+          "anchor": 0.48985763200832977,
+          "constraint": 0.36845150531557835,
+          "settlement": 0.8403155242911279,
+          "direction": "stable"
+        },
+        {
+          "second": 39,
+          "recurrence": 0.5706196708299152,
+          "cyclePersistence": 0.9224517165021007,
+          "anchor": 0.506904501364033,
+          "constraint": 0.37419149363769183,
+          "settlement": 0.8293203187185558,
+          "direction": "stable"
+        },
+        {
+          "second": 40,
+          "recurrence": 0.5751332389307302,
+          "cyclePersistence": 0.9338360872210603,
+          "anchor": 0.5202192972956959,
+          "constraint": 0.38160742897758676,
+          "settlement": 0.8537191742155249,
+          "direction": "stable"
+        },
+        {
+          "second": 41,
+          "recurrence": 0.5886018281318478,
+          "cyclePersistence": 0.9378563240323634,
+          "anchor": 0.527254460871899,
+          "constraint": 0.38898408582384564,
+          "settlement": 0.8379583428282853,
+          "direction": "stable"
+        },
+        {
+          "second": 42,
+          "recurrence": 0.6164872210028003,
+          "cyclePersistence": 0.9228754396549288,
+          "anchor": 0.5449054689100783,
+          "constraint": 0.40330379011194817,
+          "settlement": 0.8313501935014779,
+          "direction": "stable"
+        },
+        {
+          "second": 43,
+          "recurrence": 0.5933001077816118,
+          "cyclePersistence": 0.9373770999005803,
+          "anchor": 0.5490578767393899,
+          "constraint": 0.3997684066571653,
+          "settlement": 0.8489384200295191,
+          "direction": "stable"
+        },
+        {
+          "second": 44,
+          "recurrence": 0.6084078882725534,
+          "cyclePersistence": 0.9323114044843216,
+          "anchor": 0.5543429530321324,
+          "constraint": 0.4101804283543685,
+          "settlement": 0.8486971444555175,
+          "direction": "stable"
+        },
+        {
+          "second": 45,
+          "recurrence": 0.5776452867968311,
+          "cyclePersistence": 0.9352178597445169,
+          "anchor": 0.5526885476709471,
+          "constraint": 0.41429451816675855,
+          "settlement": 0.8462955833892414,
+          "direction": "stable"
+        },
+        {
+          "second": 46,
+          "recurrence": 0.5708650159550762,
+          "cyclePersistence": 0.9302389319831722,
+          "anchor": 0.54835707690321,
+          "constraint": 0.40923236207321223,
+          "settlement": 0.8428339380194386,
+          "direction": "stable"
+        },
+        {
+          "second": 47,
+          "recurrence": 0.5707576771126437,
+          "cyclePersistence": 0.9239471802656688,
+          "anchor": 0.5445358361213236,
+          "constraint": 0.40713502845721206,
+          "settlement": 0.835533496601885,
+          "direction": "stable"
+        },
+        {
+          "second": 48,
+          "recurrence": 0.5765835325804366,
+          "cyclePersistence": 0.9341255350363328,
+          "anchor": 0.5442938721768049,
+          "constraint": 0.40661296465254254,
+          "settlement": 0.8392385692819568,
+          "direction": "stable"
+        },
+        {
+          "second": 49,
+          "recurrence": 0.5476255639677445,
+          "cyclePersistence": 0.9160652353715767,
+          "anchor": 0.53547732434249,
+          "constraint": 0.4075754821961342,
+          "settlement": 0.8293739909410385,
+          "direction": "stable"
+        },
+        {
+          "second": 50,
+          "recurrence": 0.5681924398398687,
+          "cyclePersistence": 0.9224299868052885,
+          "anchor": 0.5314829447331377,
+          "constraint": 0.4009719799798077,
+          "settlement": 0.8373870337315465,
+          "direction": "stable"
+        },
+        {
+          "second": 51,
+          "recurrence": 0.553707295990693,
+          "cyclePersistence": 0.9259253707871962,
+          "anchor": 0.5285351768947889,
+          "constraint": 0.3987572452232749,
+          "settlement": 0.8447509954579521,
+          "direction": "stable"
+        },
+        {
+          "second": 52,
+          "recurrence": 0.5832188818085353,
+          "cyclePersistence": 0.9328689977208594,
+          "anchor": 0.5332517264535874,
+          "constraint": 0.3985780362665281,
+          "settlement": 0.8512962433373682,
+          "direction": "stable"
+        },
+        {
+          "second": 53,
+          "recurrence": 0.538704691633876,
+          "cyclePersistence": 0.9115525506890323,
+          "anchor": 0.5269315429759128,
+          "constraint": 0.38655511058543707,
+          "settlement": 0.8180481653524011,
+          "direction": "stable"
+        },
+        {
+          "second": 54,
+          "recurrence": 0.5262325279797433,
+          "cyclePersistence": 0.9274946928108111,
+          "anchor": 0.518947659215277,
+          "constraint": 0.37969188915582114,
+          "settlement": 0.8335238232585391,
+          "direction": "stable"
+        },
+        {
+          "second": 55,
+          "recurrence": 0.5215849329439697,
+          "cyclePersistence": 0.9266061845683765,
+          "anchor": 0.512449101048472,
+          "constraint": 0.37160395909395355,
+          "settlement": 0.8225921354002427,
+          "direction": "stable"
+        },
+        {
+          "second": 56,
+          "recurrence": 0.4949979932762569,
+          "cyclePersistence": 0.9278380657959184,
+          "anchor": 0.5040090898879771,
+          "constraint": 0.3625256156880707,
+          "settlement": 0.8234897441171485,
+          "direction": "stable"
+        },
+        {
+          "second": 57,
+          "recurrence": 0.4721486859686194,
+          "cyclePersistence": 0.943496522434188,
+          "anchor": 0.4937003224608744,
+          "constraint": 0.35359211807408636,
+          "settlement": 0.8457117290180004,
+          "direction": "stable"
+        },
+        {
+          "second": 58,
+          "recurrence": 0.45245894694403743,
+          "cyclePersistence": 0.9506715137362362,
+          "anchor": 0.4827397950952514,
+          "constraint": 0.34201839389334665,
+          "settlement": 0.8594709502982286,
+          "direction": "stable"
+        },
+        {
+          "second": 59,
+          "recurrence": 0.4263872629006595,
+          "cyclePersistence": 0.9426984963131112,
+          "anchor": 0.46914985231686696,
+          "constraint": 0.3306088224426126,
+          "settlement": 0.8574118656688582,
+          "direction": "stable"
+        },
+        {
+          "second": 60,
+          "recurrence": 0.49778325055030753,
+          "cyclePersistence": 0.9522882612912411,
+          "anchor": 0.46742186311996187,
+          "constraint": 0.3292551472025248,
+          "settlement": 0.8673324615658878,
+          "direction": "stable"
+        },
+        {
+          "second": 61,
+          "recurrence": 0.512744123074898,
+          "cyclePersistence": 0.940483792026864,
+          "anchor": 0.47158354063474345,
+          "constraint": 0.3307663177140512,
+          "settlement": 0.8762470245696032,
+          "direction": "stable"
+        },
+        {
+          "second": 62,
+          "recurrence": 0.5136671089749487,
+          "cyclePersistence": 0.9522215451452587,
+          "anchor": 0.4766357863252798,
+          "constraint": 0.33910527060067314,
+          "settlement": 0.8794639792269289,
+          "direction": "stable"
+        },
+        {
+          "second": 63,
+          "recurrence": 0.5281342812426022,
+          "cyclePersistence": 0.9417183691333137,
+          "anchor": 0.484781981648608,
+          "constraint": 0.3399237765673655,
+          "settlement": 0.864594954143176,
+          "direction": "stable"
+        },
+        {
+          "second": 64,
+          "recurrence": 0.5070404385701723,
+          "cyclePersistence": 0.9370294724679316,
+          "anchor": 0.4818814651288098,
+          "constraint": 0.33900851894114287,
+          "settlement": 0.8745394866361228,
+          "direction": "stable"
+        },
+        {
+          "second": 65,
+          "recurrence": 0.527936811423319,
+          "cyclePersistence": 0.9481868627254835,
+          "anchor": 0.48601817446357526,
+          "constraint": 0.3457067330484308,
+          "settlement": 0.8811924275434762,
+          "direction": "stable"
+        },
+        {
+          "second": 66,
+          "recurrence": 0.5302332193594222,
+          "cyclePersistence": 0.9477604012210227,
+          "anchor": 0.4917890184677286,
+          "constraint": 0.34880471071612973,
+          "settlement": 0.8642187726354474,
+          "direction": "stable"
+        },
+        {
+          "second": 67,
+          "recurrence": 0.5430320539939515,
+          "cyclePersistence": 0.9588387069143327,
+          "anchor": 0.4994419701442867,
+          "constraint": 0.35534273694516455,
+          "settlement": 0.8768878201075805,
+          "direction": "stable"
+        },
+        {
+          "second": 68,
+          "recurrence": 0.5424934600114873,
+          "cyclePersistence": 0.9494393761957163,
+          "anchor": 0.506588025408339,
+          "constraint": 0.3640950034148601,
+          "settlement": 0.8694730283818329,
+          "direction": "stable"
+        },
+        {
+          "second": 69,
+          "recurrence": 0.5298976979061768,
+          "cyclePersistence": 0.9576024699408784,
+          "anchor": 0.5075777084182084,
+          "constraint": 0.3648595603709734,
+          "settlement": 0.8886817869938938,
+          "direction": "stable"
+        },
+        {
+          "second": 70,
+          "recurrence": 0.5285975135532961,
+          "cyclePersistence": 0.9418313771575371,
+          "anchor": 0.5071101490643957,
+          "constraint": 0.361652091235386,
+          "settlement": 0.8835670133362306,
+          "direction": "stable"
+        },
+        {
+          "second": 71,
+          "recurrence": 0.5489554915314807,
+          "cyclePersistence": 0.9561956890944419,
+          "anchor": 0.5124646221254662,
+          "constraint": 0.3647815057670846,
+          "settlement": 0.88868476021078,
+          "direction": "stable"
+        },
+        {
+          "second": 72,
+          "recurrence": 0.5447445668900993,
+          "cyclePersistence": 0.9516083188640648,
+          "anchor": 0.5167528378397556,
+          "constraint": 0.36526596228142866,
+          "settlement": 0.8803369546509302,
+          "direction": "stable"
+        },
+        {
+          "second": 73,
+          "recurrence": 0.544309572000998,
+          "cyclePersistence": 0.9544265183215265,
+          "anchor": 0.5176189712596558,
+          "constraint": 0.3678224917187579,
+          "settlement": 0.8833353155702984,
+          "direction": "stable"
+        },
+        {
+          "second": 74,
+          "recurrence": 0.5437199814406471,
+          "cyclePersistence": 0.9539442437937646,
+          "anchor": 0.5168060457060065,
+          "constraint": 0.36681374475164596,
+          "settlement": 0.8801640948896856,
+          "direction": "stable"
+        },
+        {
+          "second": 75,
+          "recurrence": 0.5136118437487819,
+          "cyclePersistence": 0.9191134035942554,
+          "anchor": 0.5108641706669649,
+          "constraint": 0.35822657824231957,
+          "settlement": 0.8319405260401532,
+          "direction": "stable"
+        }
+      ]
+    }
+  },
+  {
     "file": "docs/campioni/respiro-profondo-1.mp3",
     "meanPhysicalPulse": 0.015241442003828928,
     "meanLowEnd": 0.806915047932674,

@@ -24,6 +24,13 @@ const CONSTRAINT_TRAJECTORY_MS = 2_500
 // dall'evidenza già misurata sul corpus (non un numero a caso): C04
 // (respiro-profondo) = 0,109; C06 (respiro-alto-1) = 0,252 — a metà.
 const ALTO_CONSTRAINT_THRESHOLD = 0.18
+// Deadband per anchoring.gaining/losing (bug evidente, MVP 2026-09-11):
+// a 0,005 il rumore campione-a-campione di `anchor` in un tratto stabile
+// (fino a ~0,011 misurato su respiro-alto-2.mp3) veniva letto come
+// passaggio reale, spezzando respiro-alto in pressurized/decompression
+// spuri per tutta la durata del brano. Le transizioni reali osservate sullo
+// stesso file restano ≥0,012.
+const ANCHOR_TREND_DEADBAND = 0.012
 
 export type ExperimentalBin = {
   bands: BandEnergies
@@ -301,8 +308,8 @@ export class BrainBioPerceptionExperimentalClock {
       : trajectoryDelta < -0.035
         ? 'falling'
         : 'stable'
-    const gaining = this.anchor > previousAnchor + 0.005
-    const losing = this.anchor < previousAnchor - 0.005
+    const gaining = this.anchor > previousAnchor + ANCHOR_TREND_DEADBAND
+    const losing = this.anchor < previousAnchor - ANCHOR_TREND_DEADBAND
     if (this.hadAnchor && losing && this.anchor < 0.2) this.awaitingRecovery = true
     const recovered = this.awaitingRecovery && gaining && this.anchor >= 0.2
     if (recovered) this.awaitingRecovery = false

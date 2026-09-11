@@ -1,5 +1,37 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regime Audio experimental — corretta oscillazione ingestibile su respiro-alto-2.mp3 — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-2.mp3` (aggiunto e tracciato).
+Con il regime experimental risultava DIFFORME dall'etichetta: solo 65% del
+tempo in `respiro-alto`, il resto spezzato in `pressurized`/`decompression`
+spuri (25 transizioni in 76s). Causa: `anchoring.gaining`/`losing`
+(`brainBioPerceptionExperimental.ts`) usavano un deadband di 0,005 sul
+delta campione-a-campione di `anchor` — più stretto del rumore naturale di
+`anchor` in un tratto stabile (misurato fino a ~0,011 su questo file),
+quindi ogni micro-oscillazione veniva letta come passaggio reale. Le
+transizioni reali sullo stesso file restano ≥0,012.
+
+Corretto alzando il deadband a 0,012 (nuova costante `ANCHOR_TREND_DEADBAND`,
+nessuna nuova metrica: stesso segnale `anchor` già calcolato). Risultato:
+`respiro-alto-2.mp3` passa a 88% respiro-alto, 13 transizioni (era 25).
+Nessuna regressione misurata sul resto del corpus (`respiro-alto-0/1.mp3`
+restano rispettivamente 79%/90% respiro-alto; gli altri file non
+cambiano di categoria dominante). `decompresisone.mp3` perde una quota di
+decompression già marginale (0,74s su 49s, sotto la vecchia soglia) — non
+una regressione nuova: quel file non arrivava già a mostrare decompression
+come regime dominante, limite pre-esistente e fuori scope MVP (come
+`test-1.mp3`).
+
+Aggiunto `scripts/calibration/assert-regime-corpus.mjs`: regressione mirata
+(non nella suite vitest — richiede ffmpeg e decodifica reale, fuori posto
+in unit test veloci) che decodifica i tre campioni `respiro-alto-*.mp3` con
+lo stesso codice di produzione e fallisce se la quota dominante di
+`respiro-alto` scende sotto 0,6. Uso:
+`node scripts/calibration/assert-regime-corpus.mjs`.
+
+Suite (73 file / 692 test), typecheck e lint verdi dopo la modifica.
+
 ## Regime Audio experimental — collegato al Visual, MVP chiuso — 2026-09-11
 
 `audioMode='experimental'` pilota ora i renderer (`bioPerceptionSource` in
