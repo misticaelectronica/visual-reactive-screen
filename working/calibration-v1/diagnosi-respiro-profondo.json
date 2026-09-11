@@ -1,0 +1,80 @@
+[
+  {
+    "file": "docs/campioni/respiro-profondo.mp3",
+    "framesScored": 2115,
+    "everReachedStable": true,
+    "trendSeconds": {
+      "rising": 16.07,
+      "stable": 23.15,
+      "falling": 9.89
+    },
+    "firstStableAtSeconds": 0.007981859410429025,
+    "regimeSeconds": {
+      "unresolved": 0.09,
+      "pressurized": 22.43,
+      "decompression": 26.59
+    },
+    "reasonSecondsOverall": {
+      "bootstrap": 0.09,
+      "pressure-rising": 22.43,
+      "pressure-falling": 26.59
+    },
+    "reasonSecondsWhileStable": {
+      "bootstrap": 0.09,
+      "pressure-rising": 6.36,
+      "pressure-falling": 16.7
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-profondo-1.mp3",
+    "framesScored": 2115,
+    "everReachedStable": true,
+    "trendSeconds": {
+      "rising": 14.98,
+      "stable": 19.46,
+      "falling": 14.68
+    },
+    "firstStableAtSeconds": 0.007981859410429025,
+    "regimeSeconds": {
+      "unresolved": 0.49,
+      "decompression": 27.61,
+      "pressurized": 21.01
+    },
+    "reasonSecondsOverall": {
+      "bootstrap": 0.49,
+      "pressure-falling": 27.61,
+      "pressure-rising": 21.01
+    },
+    "reasonSecondsWhileStable": {
+      "bootstrap": 0.49,
+      "pressure-falling": 12.93,
+      "pressure-rising": 6.04
+    }
+  },
+  {
+    "file": "docs/campioni/respirto-profondo-3.mp3",
+    "framesScored": 2115,
+    "everReachedStable": true,
+    "trendSeconds": {
+      "rising": 13.61,
+      "stable": 13.54,
+      "falling": 21.97
+    },
+    "firstStableAtSeconds": 0.007981859410429025,
+    "regimeSeconds": {
+      "unresolved": 0.19,
+      "pressurized": 16.74,
+      "decompression": 32.18
+    },
+    "reasonSecondsOverall": {
+      "bootstrap": 0.19,
+      "pressure-rising": 16.74,
+      "pressure-falling": 32.18
+    },
+    "reasonSecondsWhileStable": {
+      "bootstrap": 0.19,
+      "pressure-rising": 3.13,
+      "pressure-falling": 10.22
+    }
+  }
+]
