@@ -46,6 +46,9 @@ la sperimentazione.
   `respiro-alto`/`respiro-profondo`/`unresolved`), nessun nuovo stato.
 - [x] Nessuna modifica a renderer, colori, morphing, Riattivazione, Coscienza
   Onirica in questa fase.
+- [x] Visual scollegato dall'output sperimentale finché il corpus non supera i
+  discriminanti: `experimental` gira e viene loggato, ma i consumer ricevono
+  ancora la baseline.
 
 ## 4. 🛠️ Fasi di Implementazione e Checklist Task
 
@@ -70,17 +73,28 @@ la sperimentazione.
   mappa C01–C09: non serve, il nome file è già l'etichetta percettiva).
 - [x] Task 1.6: test di parità del contratto per il clock sperimentale.
 
-### Fase 2 — Osservabilità del fenomeno (prossimo checkpoint, non in questa consegna)
-- [ ] Task 2.1: conferma metrica fisica (allineamento beat previsto ↔
-  transiente reale).
-- [ ] Task 2.2: persistenza inter-ciclo dell'ancoraggio motorio.
-- [ ] Task 2.3: perdita/recupero dell'ancoraggio.
+### Fase 2 — Osservabilità del fenomeno (in corso)
+- [x] Task 2.1: conferma metrica fisica (allineamento beat previsto ↔
+  transiente reale). Esito negativo sul clock corrente: 0 beat rilevati in
+  entrambi i campioni `respiro-alto-*`; non può essere l'unica autorità.
+- [x] Task 2.2: persistenza inter-ciclo dell'ancoraggio motorio, osservata
+  offline tramite autocorrelazione normalizzata dei fronti raw di banda su
+  finestre da 8 s. Nessuna nuova grandezza runtime.
+- [x] Task 2.3: perdita/recupero dell'ancoraggio resi osservabili come serie
+  delle finestre (correlazione, periodo e stabilità fra finestre) nel report.
 - [ ] Task 2.4: assestamento reale (varianza sostenuta, non media a zero) —
-  criterio discriminante su `test-1.mp3`.
+  criterio discriminante su `test-1.mp3`. La periodicità da sola è stata
+  smentita: resta forte anche in `test-1.mp3` e nei file di trasformazione.
+- [x] Task 2.5: memoria runtime autonoma da 8 s nel clock sperimentale,
+  materia/fronti per banda, ricorrenza multibanda e confronto di sei cicli
+  completi; diagnostica live inclusa nel log 1 Hz.
 
 ### Fase 3 — Costrizione motoria, direzione, classificazione (dopo Fase 2)
-- [ ] Task 3.1: costrizione motoria come grandezza percettiva.
-- [ ] Task 3.2: direzione (crescita/cessione della presa).
+- [x] Task 3.1: prima rappresentazione diagnostica della costrizione motoria
+  come presa temporale persistente × attività organizzata. Sul corpus noto:
+  C03=0,351 > C04=0,109 e C06=0,252 > C04.
+- [ ] Task 3.2: direzione (crescita/cessione della presa). Traiettoria runtime
+  implementata, certificazione C02/C09 sospesa perché la mappa file manca.
 - [ ] Task 3.3: classificazione degli stati nel vocabolario esistente.
 - [ ] Task 3.4: confronto completo con la baseline sul corpus.
 
@@ -107,3 +121,14 @@ la sperimentazione.
 - **2026-09-11**: Checkpoint 1 completato: impianto a due percorsi, nessuna
   nuova semantica. `audioMode=experimental` delega alla baseline finché la
   Fase 2 non introduce l'osservabilità del fenomeno.
+- **2026-09-11 — Checkpoint 2 parziale**: ritirato il tentativo a range sulla
+  baseline (nessun target profondo riconosciuto). Esteso il solo harness A/B
+  con osservabili motori e report `motor-observables.json`. Periodicità raw
+  efficace per separare i tre campioni profondi dai due alti, ma non per
+  separare stati assestati da pressurizzazione/decompressione o dal falso
+  positivo obbligatorio `test-1.mp3`; nessuna semantica runtime introdotta.
+- **2026-09-11 — Prima consegna sostanziale**: recepita la direttiva del Vice
+  Consigliere. `BrainBioPerceptionExperimentalClock` possiede ora memoria e
+  diagnostica autonome; il contratto di regime resta temporaneamente baseline
+  e il Visual è scollegato. Report tecnico in
+  `team/briefs/risposta-ingegneria-regime-audio-experimental-prima-consegna-2026-09-11.md`.

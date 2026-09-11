@@ -1,5 +1,103 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regime Audio experimental — collegato al Visual, MVP chiuso — 2026-09-11
+
+`audioMode='experimental'` pilota ora i renderer (`bioPerceptionSource` in
+`OutputApp.tsx` sceglie fra i due clock); `baseline` resta il default e
+resta disponibile e invariata. Aggiunta la sola classificazione mancante
+per esporre un `regime` (`classifyExperimentalRegime` in
+`brainBioPerceptionExperimental.ts`): `anchoring.gaining`/`losing` (già
+calcolati) fanno da passaggio, `constraint.value` (già calcolato) decide
+alto/profondo sopra/sotto 0,18 — soglia presa dall'evidenza già misurata
+(C04=0,109, C06=0,252), non da una nuova formula.
+
+Bug evidente trovato e corretto in collaudo, prima di dichiarare l'MVP
+chiuso: la prima versione usava `constraint.direction`, che non rientra mai
+in `falling` dopo l'assestamento iniziale (doppio smoothing) — risultato,
+`decompresisone.mp3` restava `respiro-alto` per 40 dei 49s osservati,
+comportamento palesemente invertito. Sostituito con
+`anchoring.gaining`/`losing`, reattivi sample a sample.
+
+Limite noto, non riaperto in questa fase (già segnalato nella consegna
+precedente): `test-1.mp3` mostra ancora una quota rilevante di
+`respiro-alto` (31,6s su 49s) — il discriminante bidirezionale resta
+imperfetto. Nessuna nuova metrica introdotta per inseguirlo, per
+disposizione esplicita di questa fase.
+
+Verifica: harness offline sull'intero corpus (stesso codice di produzione,
+non un test visivo dal vivo — non disponibile in questo ambiente):
+respiro-alto-0/1 e pressurizzazione.mp3 restano dominati da respiro-alto
+coerente; i tre respiro-profondo* passano da "sempre profondo, zero
+transizioni" (bug) a maggioranza profondo con passaggi reali; decompresisone*
+guadagna una quota di decompression prima assente. Suite completa (73
+file/692 test, 3 nuovi test sul classificatore), typecheck e lint verdi.
+Nessuna modifica a `classifyLevel`, `rhythmConstraint`, `pressureLanded`,
+baseline.
+
+## Regime Audio experimental — prima consegna sostanziale — 2026-09-11
+
+Recepita la direttiva del Vice Consigliere. La baseline e il lavoro aperto su
+`pressureLanded` restano presenti ma accantonati; nessun file baseline è
+stato modificato. DEP-001 `NON COINVOLTO`.
+
+`BrainBioPerceptionExperimentalClock` dispone ora di una memoria propria da
+8 s: conserva materia e fronti separati per banda in celle da 25 ms, stima la
+ricorrenza multibanda, verifica la conferma low/lowMid allo stesso periodo,
+confronta sei cicli completi e mantiene attacco, perdita e recupero
+dell'ancoraggio. Produce diagnostica separata per organizzazione,
+entrainment, ancoraggio, prima costrizione, traiettoria e assestamento. Il log
+1 Hz registra questi dati; il Visual continua a ricevere solo la baseline.
+
+Corpus reale: C03=`respiro-alto-0` produce costrizione media 0,351,
+C04=`respiro-profondo` 0,109, C06=`respiro-alto-1` 0,252. Sono soddisfatti i
+due confronti verificabili `C03 > C04` e `C06 > C04`. La mappa C02/C08/C09
+non è conservata e non è stata ricostruita per congettura.
+
+Limite aperto: `test-1.mp3` conserva ricorrenza e persistenza inter-ciclo
+alte anche nel nuovo osservatore; non è ancora discriminato come
+trasformazione bidirezionale. Nessuna soglia o classificazione finale è
+stata quindi promossa. Risposta completa in
+`team/briefs/risposta-ingegneria-regime-audio-experimental-prima-consegna-2026-09-11.md`.
+
+Validazione: 73 file / 689 test, typecheck e lint verdi; build Vite/Electron e
+ZIP arm64 riusciti. Il solo DMG non è stato rigenerato: `hdiutil create`
+fallisce sul sistema host dopo i retry automatici (16 GiB liberi, nessuna
+immagine montata). Il DMG rc.4 già presente è quello delle 00:47 e non include
+questa consegna.
+
+## Regime Audio sperimentale — osservabili motori, criterio a range ritirato — 2026-09-11
+
+Ripreso l'intervento sospeso sul gate dei Respiri. Il criterio a escursione
+min/max di `pressureLagged` è stato **ritirato**: non riconosceva nessuno dei
+tre `respiro-profondo*`, modificava la baseline che PIANO-044 dichiara
+congelata e aggiungeva stato (`settleFloor`/`settleCeiling`) senza rispondere
+alla domanda. Restano conservate qui le misure che lo hanno smentito:
+l'escursione minima di `perceptualPressure` su 9 s è 0.059–0.106 nei tre
+campioni profondi, 0.070 in `test-1.mp3`, ma soltanto 0.016–0.017 in due
+campioni di trasformazione. Nessuna soglia sulla sola ampiezza della
+traiettoria separa quindi stasi e trasformazione nel corpus.
+
+Proseguita invece PIANO-044/Fase 2 nel solo harness A/B. Il confronto ora
+registra, senza cambiare il runtime, gli osservabili già disponibili
+(`pulse`, `lowEnd`, `gridDensity`, `rhythmConstraint`, persistence/change),
+la conferma fisica sui beat del clock e la periodicità dei fronti reali di
+banda, globale e su finestre scorrevoli da 8 s.
+
+**Evidenza misurata:** il clock corrente rileva 0 beat in entrambi i file
+`respiro-alto-*`; non può quindi essere l'autorità esclusiva
+dell'entrainment sperimentale. L'autocorrelazione dei fronti raw recupera
+organizzazione periodica nei due file alti (correlazione globale 0.26/0.24;
+media mobile 0.72/0.50) e resta bassa nei tre profondi (globale 0.05–0.09;
+media mobile 0.17–0.23). Ma la stessa periodicità resta forte nei file di
+pressurizzazione/decompressione e in `test-1.mp3` (globale 0.43, media mobile
+0.68, periodo stabile): prova diretta che **periodicità/entrainment distingue
+il livello motorio, non l'assestamento**. Non è stata promossa alcuna formula
+di regime; il prossimo passo resta trovare, nel percorso sperimentale, la
+persistenza inter-ciclo che separi una relazione ripetuta da una migrazione
+fra configurazioni.
+
+Baseline di produzione nuovamente invariata. Audit DEP-001: `NON COINVOLTO`.
+
 ## Respiri — ricostruzione temporale del secondo blocco — 2026-09-11 (aggiornamento)
 
 Ricostruita la timeline evento-per-evento (`scripts/calibration/

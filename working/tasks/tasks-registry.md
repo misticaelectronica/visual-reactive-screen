@@ -1,5 +1,42 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Regime Audio Experimental — MVP Collegato Al Visual — 2026-09-11
+
+- [x] **`TASK-044-MVP-01`** `DONE`: `audioMode='experimental'` collegato al
+  Visual (`bioPerceptionSource` in `OutputApp.tsx`); baseline resta
+  disponibile e invariata. Aggiunta `classifyExperimentalRegime` (unica
+  logica mancante per esporre un `regime`, non un nuovo osservabile: legge
+  `anchoring.gaining/losing` e `constraint.value`, già calcolati). Bug
+  evidente trovato e corretto in collaudo: la prima versione usava
+  `constraint.direction`, che non rientrava mai in `falling` dopo
+  l'assestamento iniziale — `decompresisone.mp3` restava `respiro-alto` per
+  40/49s. Corretto con `anchoring.gaining/losing`. Limite noto non
+  riaperto: `test-1.mp3` mostra ancora 31,6/49s di `respiro-alto`
+  (discriminante bidirezionale imperfetto, già segnalato in precedenza).
+  Verifica via harness offline sul corpus reale (stesso codice di
+  produzione); nessun test visivo dal vivo disponibile in questo ambiente.
+  Suite completa (73 file/692 test), typecheck e lint verdi. Nessuna
+  modifica a baseline/`classifyLevel`/`rhythmConstraint`/`pressureLanded`.
+
+## Regime Audio Experimental — Prima Consegna Sostanziale — 2026-09-11
+
+- [x] **`TASK-044-03`** `DONE`: implementare memoria temporale autonoma nel
+  solo clock experimental, con materia/fronti per banda, ricorrenza,
+  conferma fisica, persistenza inter-ciclo, ancoraggio e prima costrizione;
+  esporre diagnostica separata e inserirla nel log 1 Hz senza collegarla al
+  Visual. Verificati C03>C04 e C06>C04. `test-1.mp3` resta discriminante
+  aperto; nessuna classificazione finale promossa. Baseline invariata.
+
+## Regime Audio Sperimentale — Osservabilità Motoria — 2026-09-11
+
+- [x] **`TASK-044-02`** `DONE` (checkpoint diagnostico): ritirare dalla
+  baseline il criterio a range smentito dal corpus; estendere l'harness A/B
+  con conferma fisica del beat, componenti motorie esistenti e periodicità
+  globale/mobile dei fronti raw. Accertato che il clock corrente rileva zero
+  beat nei due `respiro-alto-*` e che la periodicità separa livello alto/basso
+  sui cinque campioni di respiro, ma non assestamento/trasformazione né
+  `test-1.mp3`. Nessuna formula o stato runtime nuovo; Task 2.4 resta aperto.
+
 ## Correzione Gate Di Atterraggio Respiri — 2026-09-11
 
 - [x] **`TASK-ENG-2026-09-11-02`** `DONE` (parziale, vedi STATE.md): diagnosi

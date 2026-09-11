@@ -142,7 +142,7 @@ export function VisualControls({ settings, onChange }: Props) {
             onChange={(e) => onChange({ audioMode: e.target.value as AppSettings['audioMode'] })}
           >
             <option value="baseline">Baseline — pressione percettiva</option>
-            <option value="experimental">Sperimentale — ballabilità (PIANO-044)</option>
+            <option value="experimental">Sperimentale — ancoraggio motorio (MVP, pilota il Visual)</option>
           </select>
         </label>
         <label>

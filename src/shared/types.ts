@@ -10,7 +10,8 @@ export type MotionProfile = 'dub' | 'techno' | 'ambient'
 // (pressione aggregata, brainBioPerception.ts, congelato); `experimental` è
 // il regime sotto collaudo (ballabilità/entrainment/costrizione motoria,
 // brainBioPerceptionExperimental.ts). Selezione esplicita, nessuna migrazione
-// automatica: i due percorsi devono restare confrontabili sullo stesso input.
+// automatica: nella prima consegna experimental è solo diagnostico e il
+// Visual resta collegato alla baseline.
 export type AudioMode = 'baseline' | 'experimental'
 const AUDIO_MODES: AudioMode[] = ['baseline', 'experimental']
 

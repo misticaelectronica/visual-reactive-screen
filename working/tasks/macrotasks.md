@@ -108,6 +108,16 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-035`: Regime Audio Sperimentale
+- **Descrizione**: costruire e confrontare un percorso Audio separato basato
+  su entrainment e costrizione motoria, mantenendo congelata la baseline.
+- **Stato**: 🟡 IN PROGRESS — impianto A/B e prima memoria runtime experimental
+  completi; C03>C04 e C06>C04 verificati sulla prima rappresentazione della
+  costrizione. Visual ancora scollegato. L'assestamento discriminante resta
+  aperto: `test-1.mp3` conserva ricorrenza inter-ciclo alta e non è stata
+  promossa alcuna classificazione finale.
+- **Piano di Lavoro**: `working/plans/piano-044-regime-audio-sperimentale.md`
+
 ### `MACRO-034`: PsicoFantasma
 - **Stato**: IN PROGRESS — matcher, persistenza e repertorio V2 da 120 sagome integrati; profiling simultaneo Psichedel completato. Resta il collaudo Visual 1–12 a schermo. CLIP ritirato.
 - **Piano**: `working/plans/piano-043-psicofantasma.md`.

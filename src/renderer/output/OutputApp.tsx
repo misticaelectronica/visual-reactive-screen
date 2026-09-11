@@ -586,21 +586,19 @@ export function OutputApp() {
     const bioPerceptionClock = new BrainBioPerceptionClock()
     let bioPerceptionState = bioPerceptionClock.getState()
     // Regime Audio sperimentale (PIANO-044): girato sempre in parallelo alla
-    // baseline, sullo stesso ingest — così il confronto A/B non richiede una
-    // seconda acquisizione. `audioMode` sceglie solo quale stato esporre ai
-    // consumer (controller/renderer), non quale clock viene alimentato.
+    // baseline, sullo stesso ingest — così il cambio di `audioMode` non deve
+    // aspettare che il clock "recuperi" stato da zero. MVP (Vice Consigliere
+    // 2026-09-11): collegato al Visual, selezionabile — `bioPerceptionSource`
+    // sceglie quale stato esporre in base ad `audioMode`. La baseline resta
+    // sempre disponibile e invariata.
     const bioExperimentalClock = new BrainBioPerceptionExperimentalClock()
-    let bioExperimentalState = bioExperimentalClock.getState()
     let audioMode: AppSettings['audioMode'] = 'baseline'
-    const activeBioPerceptionState = () =>
-      audioMode === 'experimental' ? bioExperimentalState : bioPerceptionState
-    const bioPerceptionSource = () => activeBioPerceptionState()
+    const bioPerceptionSource = () =>
+      audioMode === 'experimental' ? bioExperimentalClock.getState() : bioPerceptionState
     // Motivo dell'ultimo regime (chiusura Item 2 §3): aggiornato allo stesso
     // ingest, letto dal controller solo quando logga un cambio di regime.
     let bioRegimeReason = bioPerceptionClock.getRegimeDiagnostics().regimeReason
-    let bioExperimentalRegimeReason = bioExperimentalClock.getRegimeDiagnostics().regimeReason
-    const bioRegimeReasonSource = () =>
-      audioMode === 'experimental' ? bioExperimentalRegimeReason : bioRegimeReason
+    const bioRegimeReasonSource = () => bioRegimeReason
     let rhythmRafId = 0
     const projectRhythm = (now: number) => {
       rhythmState = rhythmClock.projectState(performance.timeOrigin + now)
@@ -683,7 +681,7 @@ export function OutputApp() {
         // Regime sperimentale (PIANO-044): stesso ingest della baseline,
         // sempre calcolato — così il cambio di `audioMode` non deve
         // aspettare che il clock "recuperi" stato da zero.
-        bioExperimentalState = bioExperimentalClock.ingestSample(
+        bioExperimentalClock.ingestSample(
           inputState.bandEnergies,
           inputState.audioTimestampMs ?? receivedAt,
           rhythmState.bandTransients,
@@ -708,7 +706,6 @@ export function OutputApp() {
         // `bioPerceptionSource`, già commutato sopra).
         const bioDiagnostics = bioPerceptionClock.getRegimeDiagnostics()
         bioRegimeReason = bioDiagnostics.regimeReason
-        bioExperimentalRegimeReason = bioExperimentalClock.getRegimeDiagnostics().regimeReason
         setBioOverlayState(bioPerceptionState)
         setBioRegimePending(bioDiagnostics)
         const bioSampleAt = inputState.audioTimestampMs ?? receivedAt
@@ -733,6 +730,7 @@ export function OutputApp() {
             },
             signals: bioPerceptionState.signals,
             diagnostics: bioDiagnostics,
+            experimentalDiagnostics: bioExperimentalClock.getExperimentalDiagnostics(),
             regime: bioPerceptionState.regime,
             audioMarker: bioAudioMarkerRef.current,
             activeRenderer,

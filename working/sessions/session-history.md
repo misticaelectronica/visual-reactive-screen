@@ -1,5 +1,39 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-09-11-EXPERIMENTAL-PRIMA-CONSEGNA
+
+- Direttiva completa del Vice Consigliere acquisita; DEP-001 `NON COINVOLTO`.
+- Baseline, `rhythmConstraint`, `classifyLevel` e `pressureLanded` invariati.
+- Implementata nel clock experimental una memoria temporale multibanda da
+  8 s, analizzata ogni 500 ms: ricorrenza, conferma low/lowMid, confronto di
+  sei cicli, ancoraggio con perdita/recupero, prima costrizione e traiettoria.
+- Il contratto pubblico resta baseline e il Visual è scollegato; la nuova
+  diagnostica entra nel logger 1 Hz e nell'harness A/B.
+- Corpus verificato: C03 0,351 > C04 0,109; C06 0,252 > C04. C02/C08/C09 non
+  mappati nel repository. `test-1.mp3` resta non discriminato: nessuna
+  classificazione finale autorizzata.
+- Test mirati 6/6; suite completa 73 file / 689 test, typecheck e lint verdi.
+  Build applicativa e ZIP arm64 riusciti; packaging DMG fallito esclusivamente
+  in `hdiutil create` dopo i retry automatici. Nessuna immagine montata e
+  16 GiB disponibili; il DMG rc.4 preesistente non è stato sovrascritto.
+
+## SESSION-2026-09-11-REGIME-SPERIMENTALE-OSSERVABILITA
+
+- Ripreso il tentativo sospeso sul gate Respiri. Audit DEP-001:
+  `NON COINVOLTO`.
+- Ritirato il criterio a range `settleFloor`/`settleCeiling`: non riconosceva
+  nessuno dei tre `respiro-profondo*`, aggiungeva stato senza risolvere il
+  problema e violava il congelamento della baseline stabilito da PIANO-044.
+- Esteso `compare-audio-regimes.mjs` nel solo dominio diagnostico con
+  componenti motorie esistenti, conferma fisica dei beat, autocorrelazione
+  normalizzata dei fronti raw e finestre scorrevoli da 8 s.
+- Evidenza: il clock attuale conta zero beat nei due campioni
+  `respiro-alto-*`. La periodicità raw separa i campioni di Respiro Alto dai
+  tre Profondi, ma resta alta anche in trasformazioni e `test-1.mp3`: misura
+  entrainment/livello, non assestamento. Nessuna formula runtime promossa.
+- Stato finale: PIANO-044 Fase 2 parziale; Task 2.4 aperto. Baseline di
+  produzione invariata.
+
 ## SESSION-2026-09-11-DIAGNOSI-RESPIRI
 
 - Audit preventivo deprecati: DEP-001 Alternanza 80/20 `NON COINVOLTO`; non
