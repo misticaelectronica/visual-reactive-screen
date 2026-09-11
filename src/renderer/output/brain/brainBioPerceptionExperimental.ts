@@ -24,13 +24,20 @@ const CONSTRAINT_TRAJECTORY_MS = 2_500
 // dall'evidenza già misurata sul corpus (non un numero a caso): C04
 // (respiro-profondo) = 0,109; C06 (respiro-alto-1) = 0,252 — a metà.
 const ALTO_CONSTRAINT_THRESHOLD = 0.18
-// Deadband per anchoring.gaining/losing (bug evidente, MVP 2026-09-11):
-// a 0,005 il rumore campione-a-campione di `anchor` in un tratto stabile
-// (fino a ~0,011 misurato su respiro-alto-2.mp3) veniva letto come
-// passaggio reale, spezzando respiro-alto in pressurized/decompression
-// spuri per tutta la durata del brano. Le transizioni reali osservate sullo
-// stesso file restano ≥0,012.
-const ANCHOR_TREND_DEADBAND = 0.012
+// anchoring.gaining/losing (bug evidente, MVP 2026-09-11): deadband sul
+// delta campione-a-campione di `anchor`, retarato sui 4 campioni
+// respiro-alto-*.mp3 del corpus (0.012 bastava sui primi 3, non sul 4°:
+// vedi scripts/calibration/assert-regime-corpus.mjs).
+const ANCHOR_TREND_DEADBAND = 0.02
+// Transitorio d'avvio della memoria (bug evidente, MVP 2026-09-11): appena
+// `ready` diventa vero, `anchor`/`constraint` sono ancora vicini a zero per
+// costruzione (nessun ciclo ancora confermato) — non è un vero
+// respiro-profondo (stasi assestata), è l'istante prima che l'ancoraggio
+// abbia potuto formarsi. Grace temporale breve, non legata al VALORE
+// raggiunto da `anchor` (i file realmente a bassa costrizione non lo
+// superano mai per tutta la durata: legarla al valore sopprimerebbe
+// respiro-profondo ovunque su quei file, non solo all'avvio).
+const ANCHOR_WARMUP_GRACE_MS = 1_500
 
 export type ExperimentalBin = {
   bands: BandEnergies
@@ -42,7 +49,7 @@ export type ExperimentalMotorDiagnostics = {
   observedMs: number
   organization: { periodMs: number; recurrence: number; eventActivity: number }
   entrainment: { physicalConfirmation: number; cyclePersistence: number }
-  anchoring: { value: number; gaining: boolean; losing: boolean; recovered: boolean }
+  anchoring: { value: number; gaining: boolean; losing: boolean; recovered: boolean; warmedUp: boolean }
   constraint: {
     value: number
     trajectory: number
@@ -204,6 +211,14 @@ export function classifyExperimentalRegime(diagnostics: ExperimentalMotorDiagnos
   if (!diagnostics.ready) return 'unresolved'
   if (diagnostics.anchoring.gaining) return 'pressurized'
   if (diagnostics.anchoring.losing) return 'decompression'
+  // `warmedUp` (bug evidente, MVP 2026-09-11): appena la memoria diventa
+  // `ready`, `anchor`/`constraint` sono ancora vicini a zero per
+  // costruzione (nessun ciclo ancora confermato) — non è un vero
+  // respiro-profondo (stasi assestata su bassa costrizione), è il
+  // transitorio d'avvio della memoria stessa. Osservato su
+  // respiro-alto-3.mp3: primo secondo dopo `ready` letto come
+  // respiro-profondo prima che l'ancoraggio avesse potuto formarsi.
+  if (!diagnostics.anchoring.warmedUp) return 'pressurized'
   return diagnostics.constraint.value >= ALTO_CONSTRAINT_THRESHOLD ? 'respiro-alto' : 'respiro-profondo'
 }
 
@@ -213,7 +228,7 @@ function initialDiagnostics(): ExperimentalMotorDiagnostics {
     observedMs: 0,
     organization: { periodMs: 0, recurrence: 0, eventActivity: 0 },
     entrainment: { physicalConfirmation: 0, cyclePersistence: 0 },
-    anchoring: { value: 0, gaining: false, losing: false, recovered: false },
+    anchoring: { value: 0, gaining: false, losing: false, recovered: false, warmedUp: false },
     constraint: { value: 0, trajectory: 0, direction: 'stable' },
     settlement: {
       configurationPersistence: 0,
@@ -238,6 +253,7 @@ export class BrainBioPerceptionExperimentalClock {
   private lastSampleAt = Number.NaN
   private lastAnalysisAt = Number.NEGATIVE_INFINITY
   private anchor = 0
+  private readyAt = Number.NaN
   private constraintTrajectory = 0
   private hadAnchor = false
   private awaitingRecovery = false
@@ -281,6 +297,7 @@ export class BrainBioPerceptionExperimentalClock {
       return
     }
     this.lastAnalysisAt = now
+    if (Number.isNaN(this.readyAt)) this.readyAt = now
     const observation = analyzeExperimentalTemporalWindow(this.bins)
     // Ricorrenza e persistenza devono essere entrambe presenti: nessuna delle
     // due autorizza l'ancoraggio da sola.
@@ -328,7 +345,7 @@ export class BrainBioPerceptionExperimentalClock {
         physicalConfirmation: observation.physicalConfirmation,
         cyclePersistence: observation.cyclePersistence,
       },
-      anchoring: { value: this.anchor, gaining, losing, recovered },
+      anchoring: { value: this.anchor, gaining, losing, recovered, warmedUp: now - this.readyAt >= ANCHOR_WARMUP_GRACE_MS },
       constraint: {
         value: constraint,
         trajectory: this.constraintTrajectory,

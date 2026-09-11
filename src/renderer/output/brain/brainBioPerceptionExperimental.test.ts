@@ -72,7 +72,7 @@ describe('classifyExperimentalRegime — collegamento Visual (MVP)', () => {
     observedMs: 8_000,
     organization: { periodMs: 500, recurrence: 0.8, eventActivity: 0.5 },
     entrainment: { physicalConfirmation: 0.8, cyclePersistence: 0.9 },
-    anchoring: { value: 0.5, gaining: false, losing: false, recovered: false },
+    anchoring: { value: 0.5, gaining: false, losing: false, recovered: false, warmedUp: true },
     constraint: { value: 0.3, trajectory: 0.3, direction: 'stable' },
     settlement: { configurationPersistence: 0.8, evidence: 0.7, oscillatingTransformation: false },
     ...overrides,
@@ -83,9 +83,9 @@ describe('classifyExperimentalRegime — collegamento Visual (MVP)', () => {
   })
 
   it('ancoraggio in costruzione/erosione sono passaggi diretti, come pressureTrend nella baseline', () => {
-    expect(classifyExperimentalRegime(base({ anchoring: { value: 0.4, gaining: true, losing: false, recovered: false } })))
+    expect(classifyExperimentalRegime(base({ anchoring: { value: 0.4, gaining: true, losing: false, recovered: false, warmedUp: true } })))
       .toBe('pressurized')
-    expect(classifyExperimentalRegime(base({ anchoring: { value: 0.4, gaining: false, losing: true, recovered: false } })))
+    expect(classifyExperimentalRegime(base({ anchoring: { value: 0.4, gaining: false, losing: true, recovered: false, warmedUp: true } })))
       .toBe('decompression')
   })
 
@@ -94,6 +94,13 @@ describe('classifyExperimentalRegime — collegamento Visual (MVP)', () => {
       .toBe('respiro-alto')
     expect(classifyExperimentalRegime(base({ constraint: { value: 0.11, trajectory: 0.11, direction: 'stable' } })))
       .toBe('respiro-profondo')
+  })
+
+  it('prima che l\'ancoraggio abbia mai costruito una presa reale, la costrizione ancora vicina a zero non è letta come respiro-profondo', () => {
+    expect(classifyExperimentalRegime(base({
+      anchoring: { value: 0.1, gaining: false, losing: false, recovered: false, warmedUp: false },
+      constraint: { value: 0.05, trajectory: 0.05, direction: 'stable' },
+    }))).toBe('pressurized')
   })
 })
 

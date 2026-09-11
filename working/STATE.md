@@ -1,5 +1,61 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regime Audio experimental — respiro-alto-3.mp3, deadband retarato e transitorio d'avvio corretto — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-3.mp3` (aggiunto e tracciato).
+Requisito esplicito: mai `respiro-profondo`, mai `decompression`, sempre
+dominante `respiro-alto`.
+
+Due correzioni:
+
+1. `ANCHOR_TREND_DEADBAND` (0,012 → 0,02): il valore precedente, tarato solo
+   sui primi 3 campioni respiro-alto, non bastava sul 4°. Retarato
+   sull'insieme dei 4 file; nessuna regressione misurata sul resto del
+   corpus.
+
+2. Bug evidente nel transitorio d'avvio: appena la memoria di 8s diventa
+   `ready`, `anchor`/`constraint` sono ancora vicini a zero per
+   costruzione (nessun ciclo confermato) — letto come un falso
+   `respiro-profondo` invece che come "ancora in costruzione". Aggiunto
+   `anchoring.warmedUp` (bug evidente, non nuova metrica: usa `readyAt`,
+   il momento in cui `ready` è diventato vero, già implicito nello stato
+   della classe) — per `ANCHOR_WARMUP_GRACE_MS=1500` dopo `ready`,
+   `classifyExperimentalRegime` restituisce `pressurized` (ancora in
+   costruzione) invece di valutare la soglia alto/profondo. Prima
+   correzione tentata (gate sul VALORE di `anchor` invece che sul tempo)
+   si è rivelata sbagliata in verifica: sopprimeva `respiro-profondo` per
+   l'intera durata dei file genuinamente a bassa costrizione
+   (`respiro-profondo-1.mp3`, `respirto-profondo-3.mp3` — il loro anchor
+   non supera mai la soglia usata, per definizione). Ritirata subito,
+   sostituita con il gate temporale.
+
+Trovato anche un artefatto del metodo di collaudo, non della produzione:
+`scripts/calibration/assert-regime-corpus.mjs` prependeva 40s di rumore
+rosa prima del contenuto reale (stessa convenzione di tutti gli script di
+questo corpus, per stabilizzare rhythmClock), ma la finestra di 8s
+dell'experimental clock diventa `ready` già a 8s di rumore rosa — molto
+prima che il contenuto reale inizi a 40s. Il transitorio d'avvio
+(`ANCHOR_WARMUP_GRACE_MS`) risultava quindi già esaurito nel momento in cui
+iniziava il materiale reale, mascherando l'effetto della correzione al
+punto 2 (risultati identici prima/dopo nello script di verifica). Corretto
+istanziando l'experimental clock solo all'inizio del contenuto reale in
+`assert-regime-corpus.mjs` — non esiste dal vivo, dove non c'è rumore rosa
+prima del materiale. `scripts/calibration/compare-audio-regimes.mjs`
+(diagnostica generale, non regressione di accettazione) non è stato
+toccato: continua a mostrare pochi secondi residui di questo stesso
+artefatto sui file respiro-alto-*, da tenere presente leggendo i suoi
+output.
+
+`scripts/calibration/assert-regime-corpus.mjs` esteso: soglia di dominanza
+ora calcolata sul tempo risolto (esclude `unresolved`, l'8s strutturale di
+avvio a freddo — stessa logica già in uso nel progetto per il tempo di
+Varco, altrimenti un file corto fallisce solo per il costo fisso della
+finestra); aggiunto supporto per stati vietati (`forbidden`). Tutti e 4 i
+campioni respiro-alto-*.mp3 passano: dominanza ≥0,82 sul tempo risolto,
+zero `respiro-profondo`, zero `decompression`.
+
+Suite (73 file / 693 test), typecheck e lint verdi dopo la modifica.
+
 ## Regime Audio experimental — corretta oscillazione ingestibile su respiro-alto-2.mp3 — 2026-09-11
 
 Nuovo campione corpus `docs/campioni/respiro-alto-2.mp3` (aggiunto e tracciato).

@@ -5086,6 +5086,377 @@
     }
   },
   {
+    "file": "docs/campioni/respiro-alto-3.mp3",
+    "meanPhysicalPulse": 0.010892324725238581,
+    "meanLowEnd": 0.8223287935011161,
+    "meanGridDensity": 0.04015908939910546,
+    "meanRhythmConstraint": 0.021217070381232425,
+    "meanPersistence": 0.8490356449816701,
+    "meanChange": 0.21258168505035763,
+    "meanBeatConfirmation": 0,
+    "metricGridAlignment": 0.4999811537913543,
+    "gridPeriodicity": {
+      "correlation": 0.5939393192665743,
+      "periodMs": 859.1383219954648
+    },
+    "lowPeriodicity": {
+      "correlation": 0.682036286138163,
+      "periodMs": 859.1383219954648
+    },
+    "rawLowPeriodicity": {
+      "correlation": 0.33967544739752475,
+      "periodMs": 859.1383219954648
+    },
+    "rawBandPeriodicity": {
+      "correlation": 0.23029290145511952,
+      "periodMs": 859.1383219954648
+    },
+    "rollingRawBandPeriodicity": {
+      "meanCorrelation": 0.6480551995534102,
+      "correlationStdDev": 0.18212540807970073,
+      "periodConsistency": 1,
+      "windows": [
+        {
+          "startSeconds": 0,
+          "correlation": 0.14225983174562903,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 1.9969160997732427,
+          "correlation": 0.8144866866437451,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 3.9938321995464854,
+          "correlation": 0.7687777533127698,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 5.990748299319728,
+          "correlation": 0.7522652465780146,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 7.987664399092971,
+          "correlation": 0.6710471881580665,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 9.984580498866213,
+          "correlation": 0.6456510531079649,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 11.981496598639456,
+          "correlation": 0.6784293664212095,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 13.978412698412697,
+          "correlation": 0.7376024447356123,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 15.975328798185942,
+          "correlation": 0.7906989238111317,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 17.972244897959182,
+          "correlation": 0.6406612120887947,
+          "periodMs": 859.1383219954648
+        },
+        {
+          "startSeconds": 19.969160997732427,
+          "correlation": 0.48672748848457287,
+          "periodMs": 859.1383219954648
+        }
+      ]
+    },
+    "beats": 0,
+    "referencePhaseSeconds": {
+      "awaiting-confirmation": 9.520181405895691,
+      "stable": 18.784943310657596
+    },
+    "experimentalTemporal": {
+      "meanRecurrence": 0.5056934667443445,
+      "meanCyclePersistence": 0.9132497917206462,
+      "meanPhysicalConfirmation": 0.5779510203907696,
+      "meanAnchor": 0.4541218931842998,
+      "meanConstraint": 0.3287506145094876,
+      "meanSettlement": 0.7935905136244722,
+      "oscillatingShare": 0,
+      "directionSeconds": {
+        "stable": 18.552743764172334,
+        "rising": 9.195102040816327,
+        "falling": 0.5572789115646258
+      },
+      "timeline": [
+        {
+          "second": 0,
+          "recurrence": 0.09232239303980506,
+          "cyclePersistence": 0.9646403547165956,
+          "anchor": 0.09677527649173215,
+          "constraint": 0.04947825809972087,
+          "settlement": 0.920094070772016,
+          "direction": "stable"
+        },
+        {
+          "second": 1,
+          "recurrence": 0.1343667987418814,
+          "cyclePersistence": 0.9401857730870736,
+          "anchor": 0.10255626253343658,
+          "constraint": 0.054580293972406164,
+          "settlement": 0.8675536277877564,
+          "direction": "stable"
+        },
+        {
+          "second": 2,
+          "recurrence": 0.31795482302736483,
+          "cyclePersistence": 0.9189342413552058,
+          "anchor": 0.15494808942571384,
+          "constraint": 0.08910227982534587,
+          "settlement": 0.7955248120207195,
+          "direction": "stable"
+        },
+        {
+          "second": 3,
+          "recurrence": 0.46568810500050145,
+          "cyclePersistence": 0.9195715771552913,
+          "anchor": 0.25385294062517055,
+          "constraint": 0.15426029395516663,
+          "settlement": 0.748837526463201,
+          "direction": "rising"
+        },
+        {
+          "second": 4,
+          "recurrence": 0.5238737738496709,
+          "cyclePersistence": 0.9035622226676236,
+          "anchor": 0.33984424265735436,
+          "constraint": 0.21880155773284293,
+          "settlement": 0.6946546061772533,
+          "direction": "rising"
+        },
+        {
+          "second": 5,
+          "recurrence": 0.5198910547978559,
+          "cyclePersistence": 0.9216650287514152,
+          "anchor": 0.39401938671231024,
+          "constraint": 0.26447125248136905,
+          "settlement": 0.7134578837488948,
+          "direction": "rising"
+        },
+        {
+          "second": 6,
+          "recurrence": 0.5873493175767351,
+          "cyclePersistence": 0.9218736865652308,
+          "anchor": 0.44947632048693936,
+          "constraint": 0.3173506192790062,
+          "settlement": 0.7544904232267146,
+          "direction": "rising"
+        },
+        {
+          "second": 7,
+          "recurrence": 0.5892989298963189,
+          "cyclePersistence": 0.9364986566085115,
+          "anchor": 0.4874767489247266,
+          "constraint": 0.3575016465033341,
+          "settlement": 0.7973855283729475,
+          "direction": "rising"
+        },
+        {
+          "second": 8,
+          "recurrence": 0.6305867383453188,
+          "cyclePersistence": 0.9233704879410695,
+          "anchor": 0.5208452248162128,
+          "constraint": 0.39571396948925497,
+          "settlement": 0.8114720622580948,
+          "direction": "rising"
+        },
+        {
+          "second": 9,
+          "recurrence": 0.6292717005482884,
+          "cyclePersistence": 0.9271314200213034,
+          "anchor": 0.5492351536402438,
+          "constraint": 0.4217284046474421,
+          "settlement": 0.8334063671573024,
+          "direction": "rising"
+        },
+        {
+          "second": 10,
+          "recurrence": 0.6343517025470563,
+          "cyclePersistence": 0.9394305969685597,
+          "anchor": 0.5673875782134276,
+          "constraint": 0.43867421373274745,
+          "settlement": 0.8485496543971813,
+          "direction": "rising"
+        },
+        {
+          "second": 11,
+          "recurrence": 0.6284290134189492,
+          "cyclePersistence": 0.9306651160841934,
+          "anchor": 0.5754210930526648,
+          "constraint": 0.4431068129553096,
+          "settlement": 0.8413962253336574,
+          "direction": "rising"
+        },
+        {
+          "second": 12,
+          "recurrence": 0.5938272189807128,
+          "cyclePersistence": 0.9232942132402349,
+          "anchor": 0.5724271029695,
+          "constraint": 0.43339176976400284,
+          "settlement": 0.8224587126736358,
+          "direction": "stable"
+        },
+        {
+          "second": 13,
+          "recurrence": 0.5478145298655377,
+          "cyclePersistence": 0.9022352129486866,
+          "anchor": 0.5602295973393976,
+          "constraint": 0.4264246878576324,
+          "settlement": 0.7881931900107799,
+          "direction": "stable"
+        },
+        {
+          "second": 14,
+          "recurrence": 0.5622825921766965,
+          "cyclePersistence": 0.9161267295365982,
+          "anchor": 0.5496676988959138,
+          "constraint": 0.41634982391664715,
+          "settlement": 0.7888198709954761,
+          "direction": "stable"
+        },
+        {
+          "second": 15,
+          "recurrence": 0.532110542809067,
+          "cyclePersistence": 0.8876988744939552,
+          "anchor": 0.5360507530536246,
+          "constraint": 0.4037305737461151,
+          "settlement": 0.7669841892852964,
+          "direction": "stable"
+        },
+        {
+          "second": 16,
+          "recurrence": 0.5043869556100996,
+          "cyclePersistence": 0.9057377202575688,
+          "anchor": 0.5195191651430707,
+          "constraint": 0.38772617337619,
+          "settlement": 0.8044894359636198,
+          "direction": "stable"
+        },
+        {
+          "second": 17,
+          "recurrence": 0.4596342058264239,
+          "cyclePersistence": 0.9056961844640126,
+          "anchor": 0.5029245040604334,
+          "constraint": 0.36448303969337953,
+          "settlement": 0.8185591780146649,
+          "direction": "stable"
+        },
+        {
+          "second": 18,
+          "recurrence": 0.46064449915707917,
+          "cyclePersistence": 0.9033766577731959,
+          "anchor": 0.4937977118458845,
+          "constraint": 0.36624404887246337,
+          "settlement": 0.8066720810646464,
+          "direction": "stable"
+        },
+        {
+          "second": 19,
+          "recurrence": 0.4520666946876106,
+          "cyclePersistence": 0.9139962803700341,
+          "anchor": 0.47764476243772164,
+          "constraint": 0.3450705797938211,
+          "settlement": 0.8047189663471641,
+          "direction": "stable"
+        },
+        {
+          "second": 20,
+          "recurrence": 0.4922279073522733,
+          "cyclePersistence": 0.9061618188031213,
+          "anchor": 0.47216373273123385,
+          "constraint": 0.3414914435010867,
+          "settlement": 0.7951092436075077,
+          "direction": "stable"
+        },
+        {
+          "second": 21,
+          "recurrence": 0.5206341258279847,
+          "cyclePersistence": 0.9109088026019201,
+          "anchor": 0.4720643139780107,
+          "constraint": 0.3438202235224885,
+          "settlement": 0.7878527926023668,
+          "direction": "stable"
+        },
+        {
+          "second": 22,
+          "recurrence": 0.487578067509275,
+          "cyclePersistence": 0.9210946126581294,
+          "anchor": 0.467329633008389,
+          "constraint": 0.3364619914380329,
+          "settlement": 0.816694044070538,
+          "direction": "stable"
+        },
+        {
+          "second": 23,
+          "recurrence": 0.5251666600518533,
+          "cyclePersistence": 0.9234148872271604,
+          "anchor": 0.4718453420064966,
+          "constraint": 0.33962223452977963,
+          "settlement": 0.8172077572919559,
+          "direction": "stable"
+        },
+        {
+          "second": 24,
+          "recurrence": 0.5225787286146402,
+          "cyclePersistence": 0.9113350663461321,
+          "anchor": 0.4791098789466794,
+          "constraint": 0.3493776393879213,
+          "settlement": 0.8131381172337541,
+          "direction": "stable"
+        },
+        {
+          "second": 25,
+          "recurrence": 0.5513075486658622,
+          "cyclePersistence": 0.9300944078993041,
+          "anchor": 0.4944358699579051,
+          "constraint": 0.3558237923009789,
+          "settlement": 0.8317700154221644,
+          "direction": "stable"
+        },
+        {
+          "second": 26,
+          "recurrence": 0.5343865906568588,
+          "cyclePersistence": 0.8992287209030149,
+          "anchor": 0.4909314452029591,
+          "constraint": 0.3457644387143086,
+          "settlement": 0.7990865418382829,
+          "direction": "stable"
+        },
+        {
+          "second": 27,
+          "recurrence": 0.4544525860131359,
+          "cyclePersistence": 0.883357133989446,
+          "anchor": 0.47558411658915783,
+          "constraint": 0.3331910340042078,
+          "settlement": 0.7657734408353347,
+          "direction": "stable"
+        },
+        {
+          "second": 28,
+          "recurrence": 0.39031508101649975,
+          "cyclePersistence": 0.7523427140530246,
+          "anchor": 0.44678523444598317,
+          "constraint": 0.2883013271991968,
+          "settlement": 0.5781941956471044,
+          "direction": "falling"
+        }
+      ]
+    }
+  },
+  {
     "file": "docs/campioni/respiro-profondo-1.mp3",
     "meanPhysicalPulse": 0.015241442003828928,
     "meanLowEnd": 0.806915047932674,

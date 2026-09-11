@@ -16,9 +16,10 @@ const FRAME_MS = FFT_SIZE / SAMPLE_RATE * 1_000
 const WARMUP_SECONDS = 40
 
 const EXPECTATIONS = [
-  { file: 'docs/campioni/respiro-alto-0.mp3', dominant: 'respiro-alto', minShare: 0.6 },
-  { file: 'docs/campioni/respiro-alto-1.mp3', dominant: 'respiro-alto', minShare: 0.6 },
-  { file: 'docs/campioni/respiro-alto-2.mp3', dominant: 'respiro-alto', minShare: 0.6 },
+  { file: 'docs/campioni/respiro-alto-0.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo'] },
+  { file: 'docs/campioni/respiro-alto-1.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo'] },
+  { file: 'docs/campioni/respiro-alto-2.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo'] },
+  { file: 'docs/campioni/respiro-alto-3.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo', 'decompression'] },
 ]
 
 const tempFiles = []
@@ -127,7 +128,17 @@ function regimeShares(file) {
   }
 
   const rhythmClock = new OutputRhythmClock()
-  const experimentalClock = new BrainBioPerceptionExperimentalClock()
+  // Il rumore rosa di warmup serve a stabilizzare rhythmClock/medie mobili
+  // prima del contenuto reale (§ metodo condiviso da tutti gli script di
+  // questo corpus), ma la memoria di 8s dell'experimental clock diventa
+  // `ready` già durante il rumore stesso (8s << 40s di warmup) — molto
+  // prima che il contenuto reale inizi. Istanziarlo da subito farebbe
+  // scadere il transitorio d'avvio (`ANCHOR_WARMUP_GRACE_MS`) durante il
+  // rumore, lasciandolo già "caldo" (e quindi inefficace) esattamente nel
+  // punto in cui il contenuto reale comincia — un artefatto del metodo di
+  // collaudo, non della produzione (dal vivo non esiste rumore rosa prima
+  // del materiale reale). Creato quindi solo all'inizio del contenuto vero.
+  let experimentalClock = null
   let moving = { low: 0.05, lowMid: 0.05, mid: 0.05, high: 0.05 }
   const duration = new Map()
   const warmupFrames = Math.floor(WARMUP_SECONDS * SAMPLE_RATE / FFT_SIZE)
@@ -137,8 +148,9 @@ function regimeShares(file) {
     moving = smooth(moving, currentBands, 280)
     rhythmClock.ingestSample(currentBands, now, moving, frame, now)
     const rhythm = rhythmClock.projectState(now)
-    const state = experimentalClock.ingestSample(currentBands, now, rhythm.bandTransients, rhythm)
+    if (frame === warmupFrames) experimentalClock = new BrainBioPerceptionExperimentalClock()
     if (frame < warmupFrames) continue
+    const state = experimentalClock.ingestSample(currentBands, now, rhythm.bandTransients, rhythm)
     duration.set(state.regime, (duration.get(state.regime) ?? 0) + FRAME_MS)
   }
   const totalMs = [...duration.values()].reduce((sum, value) => sum + value, 0)
@@ -146,12 +158,23 @@ function regimeShares(file) {
 }
 
 let failures = 0
-for (const { file, dominant, minShare } of EXPECTATIONS) {
+for (const { file, dominant, minShare, forbidden = [] } of EXPECTATIONS) {
   const shares = regimeShares(file)
-  const dominantRegime = Object.entries(shares).sort(([, a], [, b]) => b - a)[0]?.[0]
-  const share = shares[dominant] ?? 0
-  const ok = dominantRegime === dominant && share >= minShare
-  console.log(`${ok ? 'OK  ' : 'FAIL'} ${file}: atteso dominante=${dominant} (>=${minShare}), osservato=${dominantRegime} (${share.toFixed(3)})`)
+  // `unresolved` è l'8s di avvio a freddo della memoria sperimentale
+  // (nessun dato ancora), non una lettura del materiale: escluso dalla
+  // base della quota dominante, stessa logica già in uso nel progetto per
+  // il tempo di Varco — un file corto non deve fallire solo perché l'8s
+  // strutturale pesa di più sul suo totale.
+  const resolvedTotal = Object.entries(shares)
+    .filter(([regime]) => regime !== 'unresolved')
+    .reduce((sum, [, value]) => sum + value, 0)
+  const dominantRegime = Object.entries(shares)
+    .filter(([regime]) => regime !== 'unresolved')
+    .sort(([, a], [, b]) => b - a)[0]?.[0]
+  const share = resolvedTotal > 0 ? (shares[dominant] ?? 0) / resolvedTotal : 0
+  const forbiddenPresent = forbidden.filter((regime) => (shares[regime] ?? 0) > 0)
+  const ok = dominantRegime === dominant && share >= minShare && forbiddenPresent.length === 0
+  console.log(`${ok ? 'OK  ' : 'FAIL'} ${file}: atteso dominante=${dominant} (>=${minShare} sul tempo risolto), vietati=[${forbidden.join(', ')}], osservato=${dominantRegime} (${share.toFixed(3)})`)
   console.log(`     distribuzione: ${JSON.stringify(Object.fromEntries(Object.entries(shares).map(([k, v]) => [k, Number(v.toFixed(3))])))}`)
   if (!ok) failures += 1
 }
