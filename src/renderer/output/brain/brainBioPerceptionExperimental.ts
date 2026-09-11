@@ -38,6 +38,8 @@ const ANCHOR_TREND_DEADBAND = 0.02
 // superano mai per tutta la durata: legarla al valore sopprimerebbe
 // respiro-profondo ovunque su quei file, non solo all'avvio).
 const ANCHOR_WARMUP_GRACE_MS = 1_500
+// Permanenza minima di stato: vedi commento su `resolveRegime` nella classe.
+const REGIME_MIN_DWELL_MS = 2_000
 
 export type ExperimentalBin = {
   bands: BandEnergies
@@ -258,6 +260,33 @@ export class BrainBioPerceptionExperimentalClock {
   private hadAnchor = false
   private awaitingRecovery = false
   private diagnostics = initialDiagnostics()
+  private emittedRegime: BrainBioRegime = 'unresolved'
+  private emittedRegimeAt = Number.NEGATIVE_INFINITY
+
+  // Permanenza minima di stato (bug evidente, segnalato dal Capo Supremo
+  // 2026-09-11: cambi troppo rapidi fra pressurized/decompression "senza
+  // dare tempo al corpo di capire" — confermato dal log della sessione live
+  // dell'11/9: 42 cambi in 322s, 21 segmenti su 43 sotto i 2s, 12 sotto 1s).
+  // La classificazione prima cambiava a ogni singola analisi (ogni 500ms)
+  // appena l'ancoraggio superava il deadband per un solo campione. Non è un
+  // problema di ampiezza (già tarata e ritarata sul corpus): è l'assenza di
+  // un tempo minimo di permanenza, indipendente dalla sorgente audio. Una
+  // volta emesso un regime, il prossimo cambio (tranne l'uscita iniziale da
+  // `unresolved`, che non deve aspettare) resta sospeso finché non sono
+  // passati REGIME_MIN_DWELL_MS — stesso principio già in uso nella
+  // baseline per le finestre di conferma (`PRESSURE_SETTLE_CONFIRM_MS`,
+  // `REFERENCE_CONFIRM_MS`), qui applicato al cambio di etichetta invece
+  // che al criterio di assestamento.
+  private resolveRegime(now: number): BrainBioRegime {
+    const candidate = classifyExperimentalRegime(this.diagnostics)
+    if (candidate === this.emittedRegime) return this.emittedRegime
+    const dwellExempt = this.emittedRegime === 'unresolved'
+    if (dwellExempt || now - this.emittedRegimeAt >= REGIME_MIN_DWELL_MS) {
+      this.emittedRegime = candidate
+      this.emittedRegimeAt = now
+    }
+    return this.emittedRegime
+  }
 
   private appendMaterial(bands: BandEnergies, now: number): void {
     const binIndex = Math.floor(now / BIN_MS)
@@ -369,19 +398,20 @@ export class BrainBioPerceptionExperimentalClock {
   ): BrainBioPerceptionState {
     const baselineState = this.baseline.ingestSample(bands, now, transients, rhythm)
     if (Number.isFinite(this.lastSampleAt) && now <= this.lastSampleAt) {
-      return { ...baselineState, regime: classifyExperimentalRegime(this.diagnostics) }
+      return { ...baselineState, regime: this.resolveRegime(now) }
     }
     const deltaMs = Number.isFinite(this.lastSampleAt) ? Math.max(0, now - this.lastSampleAt) : 16
     this.lastSampleAt = now
     this.appendMaterial(bands, now)
     this.analyze(now, deltaMs)
     // Collegamento Visual (MVP): stesso `signals` della baseline (nessun
-    // nuovo contratto pubblico), `regime` dalla classificazione sperimentale.
-    return { ...baselineState, regime: classifyExperimentalRegime(this.diagnostics) }
+    // nuovo contratto pubblico), `regime` dalla classificazione sperimentale
+    // con permanenza minima di stato (`resolveRegime`).
+    return { ...baselineState, regime: this.resolveRegime(now) }
   }
 
   getState(): BrainBioPerceptionState {
-    return { ...this.baseline.getState(), regime: classifyExperimentalRegime(this.diagnostics) }
+    return { ...this.baseline.getState(), regime: this.resolveRegime(this.lastSampleAt) }
   }
 
   getRegimeDiagnostics(): BrainBioRegimeDiagnostics {

@@ -49,6 +49,35 @@ describe('BrainBioPerceptionExperimentalClock — baseline isolata e memoria tem
     expect(experimental.getRegimeDiagnostics()).toEqual(baseline.getRegimeDiagnostics())
   })
 
+  // Bug evidente segnalato dal Capo Supremo 2026-09-11 (confermato dal log
+  // della sessione live: 42 cambi in 322s, 21 segmenti su 43 sotto i 2s):
+  // il regime cambiava a ogni singola analisi (500ms) appena l'ancoraggio
+  // attraversava il deadband per un solo campione — "troppo veloce, senza
+  // dare tempo al corpo di capire". `resolveRegime` impone ora una
+  // permanenza minima di 2s fra un cambio e il successivo.
+  it('non cambia regime più spesso della permanenza minima anche con materiale che oscilla di continuo', () => {
+    const experimental = new BrainBioPerceptionExperimentalClock()
+    let now = 0
+    let lastRegime: string | null = null
+    let lastChangeAt = 0
+    const gaps: number[] = []
+    for (let i = 0; i < 400; i += 1) {
+      now += 250
+      const bands = i % 2 === 0 ? loud : silence
+      const state = experimental.ingestSample(bands, now, bands, rhythm)
+      if (lastRegime !== null && state.regime !== lastRegime && lastRegime !== 'unresolved') {
+        gaps.push(now - lastChangeAt)
+      }
+      if (state.regime !== lastRegime) {
+        lastRegime = state.regime
+        lastChangeAt = now
+      }
+    }
+    for (const gap of gaps) {
+      expect(gap).toBeGreaterThanOrEqual(1_750)
+    }
+  })
+
   it('espone la memoria sperimentale solo dopo una finestra realmente osservata', () => {
     const experimental = new BrainBioPerceptionExperimentalClock()
     let now = 0
