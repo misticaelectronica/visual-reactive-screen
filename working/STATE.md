@@ -1,5 +1,31 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Respiri — ricostruzione temporale del secondo blocco — 2026-09-11 (aggiornamento)
+
+Ricostruita la timeline evento-per-evento (`scripts/calibration/
+timeline-respiro-profondo.mjs`) su tutti e tre i file. Correzione alla
+diagnosi precedente in questa stessa pagina: l'ipotesi "il bootstrap
+consuma il tratto piatto iniziale" era sbagliata — il lungo `pressureFlatMs`
+osservato all'inizio era un artefatto del riscaldamento sintetico
+dell'harness (40s di rumore rosa, stazionario per costruzione), non un
+tratto piatto del brano reale: si rompe entro ~100ms dall'inizio del
+contenuto vero, in tutti e tre i file. Da lì fino alla fine del file,
+`pressureLanded` **non torna mai vero, nemmeno una volta**, su nessuno dei
+tre. Il livello (`gatedLevel`) diventa comunque noto più avanti, ma solo
+via `reference.justSettled` (non via `pressureJustLanded`, che non rifiora
+mai) — e a quel punto `pressureLanded` è già permanentemente falso, quindi
+`classifyRawBioRegime` riceve sempre `null` al posto del livello
+(`pressureLanded ? gatedLevel : null`). Non è un disallineamento episodico
+fra due gate: è che il gate di atterraggio, sul contenuto musicale reale di
+questi tre file, non si soddisfa mai dopo l'avvio — stessa causa già
+descritta nella prima voce Diagnosi Respiri (2026-09-10/11): `pressureTrend`
+(quindi `landingNow`, stessa soglia 0.02) cambia con cadenza troppo fitta
+per accumulare 9s continui. `everPromoted`/bootstrap non blocca nulla dopo
+essersi promosso una prima volta (resta vero per sempre): non è la causa.
+Nessuna modifica al codice di produzione in questo aggiornamento oltre a
+diagnostica additiva (`referencePhase`, `referenceJustSettled` in
+`BrainBioRegimeDiagnostics`; `classifyLevel` esportata, invariata).
+
 ## Respiri — corretto il reset del gate di atterraggio, resta un secondo blocco — 2026-09-11
 
 Diagnosi Vice Consigliere, verificata su `respiro-profondo.mp3`,

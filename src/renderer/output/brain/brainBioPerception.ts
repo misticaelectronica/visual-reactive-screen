@@ -855,7 +855,11 @@ export function classifyPressureTrend(
 
 export type BrainBioLevel = 'alto' | 'profondo' | null
 
-function classifyLevel(
+// Esportata per diagnostica offline (Vice Consigliere 2026-09-11): permette
+// di ricostruire `settledLevel` fuori dalla classe con lo stesso identico
+// calcolo, invece di duplicarne la logica in uno script — nessun cambio di
+// comportamento, la funzione resta pura e invariata.
+export function classifyLevel(
   configuredPressure: number,
   median: number,
   previous: BrainBioLevel,
@@ -1241,6 +1245,11 @@ export class BrainBioPerceptionClock {
   // rimette `reference.phase` a `awaiting-confirmation` ma il riferimento è già
   // stato affidabile una volta.
   private referenceEverPromoted = false
+  // Diagnostica additiva (Vice Consigliere 2026-09-11): cattura il
+  // `justSettled` locale dell'ultimo `ingestSample`, altrimenti perso a fine
+  // chiamata — nessuna decisione dipende da questo campo, solo l'overlay
+  // diagnostico e il collaudo offline.
+  private lastReferenceJustSettled = false
 
   ingestSample(
     bands: BandEnergies,
@@ -1290,6 +1299,7 @@ export class BrainBioPerceptionClock {
     const referenceJustSettled =
       referencePhaseBefore === 'awaiting-confirmation' && this.reference.phase === 'stable'
     if (referenceJustSettled) this.referenceEverPromoted = true
+    this.lastReferenceJustSettled = referenceJustSettled
     const change = calculateChange(this.envelopes.mid, this.reference.vector)
 
     // Mediana/dispersione restano aggiornate come contesto (§4 del brief) — e
@@ -1434,6 +1444,12 @@ export class BrainBioPerceptionClock {
       // reistanziare la macchina a stati fuori da questa classe.
       pressureFlatMs: this.regime.pressureFlatMs,
       pressureLanded: this.regime.pressureFlatMs >= PRESSURE_SETTLE_CONFIRM_MS,
+      // Diagnostica additiva (Vice Consigliere 2026-09-11): fase della
+      // macchina `reference` e se si è appena assestata in QUESTO campione —
+      // per ricostruire, fuori dalla classe, perché `gatedLevel` è null
+      // durante il bootstrap anche quando `pressureLanded` è già vero.
+      referencePhase: this.reference.phase,
+      referenceJustSettled: this.lastReferenceJustSettled,
     }
   }
 }
@@ -1479,4 +1495,8 @@ export type BrainBioRegimeDiagnostics = {
   pressureFlatMs: number
   /** `pressureFlatMs >= PRESSURE_SETTLE_CONFIRM_MS` — soglia che autorizza un respiro. */
   pressureLanded: boolean
+  /** Fase della macchina `reference` in questo campione. */
+  referencePhase: BrainBioReferencePhase
+  /** `reference` si è appena assestata (transizione a 'stable') in QUESTO campione. */
+  referenceJustSettled: boolean
 }
