@@ -1,5 +1,14 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regime Audio experimental — respiro-alto-4.mp3, nessuna modifica necessaria — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-4.mp3` (aggiunto e tracciato).
+Verificato con `scripts/calibration/assert-regime-corpus.mjs`: già soddisfa il
+requisito col codice esistente, nessuna modifica. 86,4% respiro-alto sul
+tempo risolto, zero respiro-profondo, zero decompression, 4 transizioni.
+Aggiunto alle 4 attese esistenti (ora 5 campioni respiro-alto-*.mp3 in
+regressione, tutti verdi).
+
 ## Regime Audio experimental — respiro-alto-3.mp3, deadband retarato e transitorio d'avvio corretto — 2026-09-11
 
 Nuovo campione corpus `docs/campioni/respiro-alto-3.mp3` (aggiunto e tracciato).

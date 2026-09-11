@@ -20,6 +20,7 @@ const EXPECTATIONS = [
   { file: 'docs/campioni/respiro-alto-1.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo'] },
   { file: 'docs/campioni/respiro-alto-2.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo'] },
   { file: 'docs/campioni/respiro-alto-3.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo', 'decompression'] },
+  { file: 'docs/campioni/respiro-alto-4.mp3', dominant: 'respiro-alto', minShare: 0.6, forbidden: ['respiro-profondo', 'decompression'] },
 ]
 
 const tempFiles = []
