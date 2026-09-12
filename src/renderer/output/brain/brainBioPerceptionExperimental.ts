@@ -24,11 +24,19 @@ const CONSTRAINT_TRAJECTORY_MS = 2_500
 // dall'evidenza già misurata sul corpus (non un numero a caso): C04
 // (respiro-profondo) = 0,109; C06 (respiro-alto-1) = 0,252 — a metà.
 const ALTO_CONSTRAINT_THRESHOLD = 0.18
-// anchoring.gaining/losing (bug evidente, MVP 2026-09-11): deadband sul
-// delta campione-a-campione di `anchor`, retarato sui 4 campioni
-// respiro-alto-*.mp3 del corpus (0.012 bastava sui primi 3, non sul 4°:
-// vedi scripts/calibration/assert-regime-corpus.mjs).
-const ANCHOR_TREND_DEADBAND = 0.02
+// anchoring.gaining/losing — bug evidente confermato dal vivo (2026-09-12,
+// segnalazione: "resta troppo in respiro-alto, salta pressurizzazione e
+// decompressione del tutto"). Confrontare `anchor` col solo campione
+// precedente (500ms) vede solo variazioni brusche: un cambiamento reale ma
+// GRADUALE (osservato dal vivo: 0.56→0.50 in 7s, poi 0.50→0.54 in 20s) ha
+// un delta per singolo passo troppo piccolo per superare qualunque soglia
+// ragionevole, pur essendo un vero passaggio percepito all'ascolto.
+// Confronta ora `anchor` con il proprio valore di ANCHOR_TREND_LAG_MS fa
+// (non il campione immediatamente precedente): la stessa deriva letta su
+// una finestra più lunga somma i piccoli passi in un segnale chiaro,
+// mentre il rumore campione-a-campione (non direzionale) non si accumula.
+const ANCHOR_TREND_LAG_MS = 6_000
+const ANCHOR_TREND_DEADBAND = 0.08
 // Transitorio d'avvio della memoria (bug evidente, MVP 2026-09-11): appena
 // `ready` diventa vero, `anchor`/`constraint` sono ancora vicini a zero per
 // costruzione (nessun ciclo ancora confermato) — non è un vero
@@ -282,6 +290,10 @@ export class BrainBioPerceptionExperimentalClock {
   private lastSampleAt = Number.NaN
   private lastAnalysisAt = Number.NEGATIVE_INFINITY
   private anchor = 0
+  // Storia di `anchor` per il confronto a lungo raggio (`ANCHOR_TREND_LAG_MS`):
+  // coppie [timestamp, valore] in ordine crescente di tempo, potatura di
+  // quelle più vecchie del raggio a ogni analisi.
+  private anchorHistory: Array<[number, number]> = []
   private previousPeriodBins = 0
   private readyAt = Number.NaN
   private constraintTrajectory = 0
@@ -389,8 +401,24 @@ export class BrainBioPerceptionExperimentalClock {
       : trajectoryDelta < -0.035
         ? 'falling'
         : 'stable'
-    const gaining = this.anchor > previousAnchor + ANCHOR_TREND_DEADBAND
-    const losing = this.anchor < previousAnchor - ANCHOR_TREND_DEADBAND
+    // Riferimento a lungo raggio: l'ultima voce della storia non più
+    // recente di `ANCHOR_TREND_LAG_MS`. Se la memoria è troppo giovane
+    // (subito dopo l'avvio), ricade sul campione precedente — stesso
+    // comportamento di prima, finché non c'è abbastanza storia per il
+    // confronto a lungo raggio.
+    const laggedTarget = now - ANCHOR_TREND_LAG_MS
+    let laggedAnchor = previousAnchor
+    for (const [t, value] of this.anchorHistory) {
+      if (t <= laggedTarget) laggedAnchor = value
+      else break
+    }
+    this.anchorHistory.push([now, this.anchor])
+    const pruneBefore = now - ANCHOR_TREND_LAG_MS * 2
+    while (this.anchorHistory.length > 0 && this.anchorHistory[0][0] < pruneBefore) {
+      this.anchorHistory.shift()
+    }
+    const gaining = this.anchor > laggedAnchor + ANCHOR_TREND_DEADBAND
+    const losing = this.anchor < laggedAnchor - ANCHOR_TREND_DEADBAND
     if (this.hadAnchor && losing && this.anchor < 0.2) this.awaitingRecovery = true
     const recovered = this.awaitingRecovery && gaining && this.anchor >= 0.2
     if (recovered) this.awaitingRecovery = false
