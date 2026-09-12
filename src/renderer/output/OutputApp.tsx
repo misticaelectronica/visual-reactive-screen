@@ -700,13 +700,23 @@ export function OutputApp() {
         // di regime vero, che è invece l'evento che il Capo Supremo ha
         // chiesto di rendere visibile ("se resta bloccato sullo stesso
         // valore per tutto il set, quello è il dato che serve").
-        // Overlay e log 1Hz restano sulla baseline anche quando
-        // `audioMode='experimental'` è selezionato: è diagnostica PIANO-040,
-        // non il segnale che guida i renderer (quello viene da
-        // `bioPerceptionSource`, già commutato sopra).
+        // BUG EVIDENTE corretto (2026-09-12): overlay, log 1Hz e conteggio
+        // cambi leggevano sempre `bioPerceptionState` (baseline), anche con
+        // `audioMode='experimental'` selezionato — deliberato quando questo
+        // overlay è nato (PIANO-040, prima che experimental esistesse), ma
+        // diventato un bug ora che experimental pilota davvero il Visual:
+        // chi guardava il pannello per verificare un fix vedeva sempre il
+        // regime della baseline (assai più mobile, mai il proprio). Root
+        // cause della segnalazione "alternanza senza senso" di questa
+        // sessione: il log 1Hz mostrava `decompression` (baseline) in un
+        // istante in cui il log dei cambi — che invece usa
+        // `bioPerceptionSource`, il segnale reale dei renderer — era ancora
+        // fermo su `respiro-alto` da 65s. Ora tutti e tre seguono
+        // `bioPerceptionSource()`, la stessa fonte dei renderer.
+        const currentBioState = bioPerceptionSource()
         const bioDiagnostics = bioPerceptionClock.getRegimeDiagnostics()
         bioRegimeReason = bioDiagnostics.regimeReason
-        setBioOverlayState(bioPerceptionState)
+        setBioOverlayState(currentBioState)
         setBioRegimePending(bioDiagnostics)
         const bioSampleAt = inputState.audioTimestampMs ?? receivedAt
         if (
@@ -728,17 +738,18 @@ export function OutputApp() {
               beatPulse: rhythmState.beatPulse,
               beatPhase: rhythmState.beatPhase,
             },
-            signals: bioPerceptionState.signals,
+            signals: currentBioState.signals,
             diagnostics: bioDiagnostics,
             experimentalDiagnostics: bioExperimentalClock.getExperimentalDiagnostics(),
-            regime: bioPerceptionState.regime,
+            regime: currentBioState.regime,
+            audioMode,
             audioMarker: bioAudioMarkerRef.current,
             activeRenderer,
           })
         }
         if (
           previousBioRegimeRef.current !== null &&
-          previousBioRegimeRef.current !== bioPerceptionState.regime
+          previousBioRegimeRef.current !== currentBioState.regime
         ) {
           setBioRegimeChangedAtLabel(new Date().toLocaleTimeString())
           setBioRegimeChangeCount((count) => count + 1)
@@ -751,7 +762,7 @@ export function OutputApp() {
             bioRegimeFlashTimeoutRef.current = null
           }, 2_500)
         }
-        previousBioRegimeRef.current = bioPerceptionState.regime
+        previousBioRegimeRef.current = currentBioState.regime
       }
       latestInputState = inputState
       const alternationEnabled = inputState.settings?.alternateBrainWithMorphing === true
