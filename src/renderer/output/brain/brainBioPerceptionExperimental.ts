@@ -161,7 +161,23 @@ function cyclePersistence(bins: ExperimentalBin[], periodBins: number): number {
   return sum / (descriptors.length - 1)
 }
 
-export function analyzeExperimentalTemporalWindow(bins: ExperimentalBin[]): {
+// Tracciamento del picco (revisione d'impianto, 2026-09-12, dopo ricerca
+// bibliografica — Müller, "Fundamentals of Music Processing", tempogram ad
+// autocorrelazione, audiolabs-erlangen.de/resources/MIR/FMP/C6/
+// C6S2_TempogramAutocorrelation.html): scegliere a ogni finestra il lag di
+// correlazione massima assoluta, senza inerzia verso il periodo già
+// riconosciuto, è instabile quando più candidati hanno forza simile — il
+// periodo rilevato salta fra valori vicini in ampiezza (osservato: 1075,
+// 750, 1025, 375, 275ms sullo stesso brano in pochi secondi) anche quando
+// il materiale non è cambiato. La tecnica documentata è dare inerzia al
+// periodo precedente: cambiarlo solo se un nuovo candidato è chiaramente
+// più forte, non ad ogni finestra.
+const PERIOD_SWITCH_MARGIN = 0.08
+
+export function analyzeExperimentalTemporalWindow(
+  bins: ExperimentalBin[],
+  previousPeriodBins = 0,
+): {
   periodMs: number
   recurrence: number
   physicalConfirmation: number
@@ -178,6 +194,17 @@ export function analyzeExperimentalTemporalWindow(bins: ExperimentalBin[]): {
     if (candidate > recurrence) {
       recurrence = candidate
       periodBins = lag
+    }
+  }
+  if (
+    previousPeriodBins >= minLag &&
+    previousPeriodBins <= maxLag &&
+    periodBins !== previousPeriodBins
+  ) {
+    const previousCorrelation = pearsonAtLag(bins, previousPeriodBins)
+    if (previousCorrelation >= recurrence - PERIOD_SWITCH_MARGIN) {
+      periodBins = previousPeriodBins
+      recurrence = previousCorrelation
     }
   }
   const physicalConfirmation = periodBins > 0
@@ -255,6 +282,7 @@ export class BrainBioPerceptionExperimentalClock {
   private lastSampleAt = Number.NaN
   private lastAnalysisAt = Number.NEGATIVE_INFINITY
   private anchor = 0
+  private previousPeriodBins = 0
   private readyAt = Number.NaN
   private constraintTrajectory = 0
   private hadAnchor = false
@@ -333,7 +361,8 @@ export class BrainBioPerceptionExperimentalClock {
     }
     this.lastAnalysisAt = now
     if (Number.isNaN(this.readyAt)) this.readyAt = now
-    const observation = analyzeExperimentalTemporalWindow(this.bins)
+    const observation = analyzeExperimentalTemporalWindow(this.bins, this.previousPeriodBins)
+    this.previousPeriodBins = Math.round(observation.periodMs / BIN_MS)
     // Ricorrenza e persistenza devono essere entrambe presenti: nessuna delle
     // due autorizza l'ancoraggio da sola.
     const anchorTarget = observation.recurrence * observation.cyclePersistence

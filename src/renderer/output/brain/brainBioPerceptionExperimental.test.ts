@@ -183,4 +183,22 @@ describe('analyzeExperimentalTemporalWindow — relazione fra cicli', () => {
     expect(result.recurrence).toBeLessThan(0.1)
     expect(result.cyclePersistence).toBeLessThan(0.1)
   })
+
+  // Revisione d'impianto (2026-09-12, dopo ricerca bibliografica — Müller,
+  // "Fundamentals of Music Processing", tempogram ad autocorrelazione):
+  // scegliere il lag di correlazione massima assoluta a ogni finestra, senza
+  // inerzia verso il periodo già riconosciuto, è instabile quando due
+  // candidati (qui: il periodo vero e la sua ottava, un'ambiguità nota in
+  // letteratura) hanno forza quasi identica — il periodo rilevato saltava
+  // fra i due a ogni finestra pur non essendo cambiato nulla nel materiale.
+  it('non cambia periodo riconosciuto se il vecchio resta comparabile al nuovo candidato (ambiguità di ottava)', () => {
+    const bins = makeBins(new Array(16).fill(0.8))
+    const withoutMemory = analyzeExperimentalTemporalWindow(bins)
+    // Il raddoppio del periodo vero è un candidato quasi altrettanto forte
+    // per un treno di impulsi perfettamente periodico (correla anche sui
+    // multipli) — condizione tipica dell'ambiguità di ottava.
+    const doublePeriodBins = Math.round(withoutMemory.periodMs / 25) * 2
+    const withMemory = analyzeExperimentalTemporalWindow(bins, doublePeriodBins)
+    expect(withMemory.periodMs).toBe(doublePeriodBins * 25)
+  })
 })
