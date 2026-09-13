@@ -24,19 +24,29 @@ const CONSTRAINT_TRAJECTORY_MS = 2_500
 // dall'evidenza già misurata sul corpus (non un numero a caso): C04
 // (respiro-profondo) = 0,109; C06 (respiro-alto-1) = 0,252 — a metà.
 const ALTO_CONSTRAINT_THRESHOLD = 0.18
-// anchoring.gaining/losing — bug evidente confermato dal vivo (2026-09-12,
-// segnalazione: "resta troppo in respiro-alto, salta pressurizzazione e
-// decompressione del tutto"). Confrontare `anchor` col solo campione
-// precedente (500ms) vede solo variazioni brusche: un cambiamento reale ma
-// GRADUALE (osservato dal vivo: 0.56→0.50 in 7s, poi 0.50→0.54 in 20s) ha
-// un delta per singolo passo troppo piccolo per superare qualunque soglia
-// ragionevole, pur essendo un vero passaggio percepito all'ascolto.
-// Confronta ora `anchor` con il proprio valore di ANCHOR_TREND_LAG_MS fa
-// (non il campione immediatamente precedente): la stessa deriva letta su
-// una finestra più lunga somma i piccoli passi in un segnale chiaro,
-// mentre il rumore campione-a-campione (non direzionale) non si accumula.
-const ANCHOR_TREND_LAG_MS = 6_000
-const ANCHOR_TREND_DEADBAND = 0.08
+// Disallineamento concettuale segnalato dall'Analisi Audio (brief
+// 2026-09-13, "risposta sulla sessione experimental dell'11/9"): la
+// direzione (pressurized/decompression) descrive la direzione della
+// COSTRIZIONE, non una variazione locale dell'ancoraggio. Una variazione
+// dell'anchoring è "evidenza possibile", non significato del regime. Il
+// codice usava finora `anchoring.gaining/losing` (delta dell'ancoraggio)
+// per decidere la direzione — sostituito con `constraint.direction`,
+// calcolato sulla costrizione stessa, con lo stesso confronto a lungo
+// raggio già validato per l'ancoraggio (compare col proprio valore di
+// qualche secondo fa, non col campione immediatamente precedente: un
+// passaggio reale ma graduale ha un delta per singolo passo troppo
+// piccolo per qualunque soglia sensata).
+const CONSTRAINT_TREND_LAG_MS = 6_000
+const CONSTRAINT_TREND_DEADBAND = 0.09
+// Seconda parte dello stesso disallineamento: un valore di `constraint`,
+// da solo, non autorizza respiro-alto/profondo — serve un vero
+// assestamento (§10/§11 del brief: "persistenza della configurazione →
+// assestamento", non "assenza di direzione dominante"). Soglia permissiva
+// (non discrimina bene: `evidence` misurato 0,62-0,84 su tutto il corpus,
+// compresi i file transitivi) — serve solo da pavimento contro un'evidenza
+// davvero insufficiente, non da criterio fine. La disposizione percettiva
+// esplicitamente non prescrive una lista tecnica di requisiti (§8).
+const SETTLEMENT_EVIDENCE_THRESHOLD = 0.5
 // Transitorio d'avvio della memoria (bug evidente, MVP 2026-09-11): appena
 // `ready` diventa vero, `anchor`/`constraint` sono ancora vicini a zero per
 // costruzione (nessun ciclo ancora confermato) — non è un vero
@@ -59,7 +69,7 @@ export type ExperimentalMotorDiagnostics = {
   observedMs: number
   organization: { periodMs: number; recurrence: number; eventActivity: number }
   entrainment: { physicalConfirmation: number; cyclePersistence: number }
-  anchoring: { value: number; gaining: boolean; losing: boolean; recovered: boolean; warmedUp: boolean }
+  anchoring: { value: number; warmedUp: boolean }
   constraint: {
     value: number
     trajectory: number
@@ -233,29 +243,27 @@ export function analyzeExperimentalTemporalWindow(
   }
 }
 
-// Collegamento Visual (MVP): stesso vocabolario della baseline, nessuno
-// stato nuovo. `anchoring.gaining`/`losing` (già calcolati, frame a frame
-// sull'ancoraggio stesso) fanno da passaggio/stasi, esattamente come
-// `pressureTrend` nella baseline; `constraint.value` (già calcolato) decide
-// alto/profondo dentro la stasi, esattamente come `level` nella baseline.
-// Non `constraint.direction`: quella traiettoria è doppiamente smussata
-// (EMA sull'ancoraggio, poi EMA da 2,5s sulla costrizione) e di fatto non
-// rientra mai in `falling` dopo l'assestamento iniziale — bug evidente
-// individuato in collaudo (decompresisone.mp3 restava respiro-alto per
-// 40 dei 49s). `anchoring.gaining`/`losing` reagiscono sample a sample e
-// producono passaggi anche a metà file.
+// Collegamento Visual, riscritto secondo la semantica stabilita
+// dall'Analisi Audio (brief 2026-09-13): direzione della costrizione →
+// trasformazione, persistenza della configurazione → assestamento.
+// `constraint.direction` (rising/falling, confronto a lungo raggio — vedi
+// `CONSTRAINT_TREND_LAG_MS`) decide passaggio/stasi; `settlement` (già
+// calcolato) autorizza l'ingresso in alto/profondo solo se la
+// configurazione è davvero assestata, non semplicemente perché la
+// direzione è "stable" — un'oscillazione a media nulla (falsa stasi,
+// caso di riferimento test-1.mp3) non è assestamento.
 export function classifyExperimentalRegime(diagnostics: ExperimentalMotorDiagnostics): BrainBioRegime {
   if (!diagnostics.ready) return 'unresolved'
-  if (diagnostics.anchoring.gaining) return 'pressurized'
-  if (diagnostics.anchoring.losing) return 'decompression'
-  // `warmedUp` (bug evidente, MVP 2026-09-11): appena la memoria diventa
-  // `ready`, `anchor`/`constraint` sono ancora vicini a zero per
-  // costruzione (nessun ciclo ancora confermato) — non è un vero
-  // respiro-profondo (stasi assestata su bassa costrizione), è il
-  // transitorio d'avvio della memoria stessa. Osservato su
-  // respiro-alto-3.mp3: primo secondo dopo `ready` letto come
-  // respiro-profondo prima che l'ancoraggio avesse potuto formarsi.
-  if (!diagnostics.anchoring.warmedUp) return 'pressurized'
+  // `warmedUp`: appena la memoria diventa `ready`, la costrizione è ancora
+  // vicina a zero per costruzione (nessun ciclo ancora confermato) — non è
+  // un'evidenza sufficiente per nessuno stato, `unresolved` è la lettura
+  // onesta finché l'ancoraggio non ha potuto formarsi.
+  if (!diagnostics.anchoring.warmedUp) return 'unresolved'
+  if (diagnostics.constraint.direction === 'rising') return 'pressurized'
+  if (diagnostics.constraint.direction === 'falling') return 'decompression'
+  const settled = diagnostics.settlement.evidence >= SETTLEMENT_EVIDENCE_THRESHOLD &&
+    !diagnostics.settlement.oscillatingTransformation
+  if (!settled) return 'unresolved'
   return diagnostics.constraint.value >= ALTO_CONSTRAINT_THRESHOLD ? 'respiro-alto' : 'respiro-profondo'
 }
 
@@ -265,7 +273,7 @@ function initialDiagnostics(): ExperimentalMotorDiagnostics {
     observedMs: 0,
     organization: { periodMs: 0, recurrence: 0, eventActivity: 0 },
     entrainment: { physicalConfirmation: 0, cyclePersistence: 0 },
-    anchoring: { value: 0, gaining: false, losing: false, recovered: false, warmedUp: false },
+    anchoring: { value: 0, warmedUp: false },
     constraint: { value: 0, trajectory: 0, direction: 'stable' },
     settlement: {
       configurationPersistence: 0,
@@ -290,15 +298,14 @@ export class BrainBioPerceptionExperimentalClock {
   private lastSampleAt = Number.NaN
   private lastAnalysisAt = Number.NEGATIVE_INFINITY
   private anchor = 0
-  // Storia di `anchor` per il confronto a lungo raggio (`ANCHOR_TREND_LAG_MS`):
-  // coppie [timestamp, valore] in ordine crescente di tempo, potatura di
-  // quelle più vecchie del raggio a ogni analisi.
-  private anchorHistory: Array<[number, number]> = []
   private previousPeriodBins = 0
   private readyAt = Number.NaN
   private constraintTrajectory = 0
-  private hadAnchor = false
-  private awaitingRecovery = false
+  // Storia di `constraint` per il confronto a lungo raggio
+  // (`CONSTRAINT_TREND_LAG_MS`): coppie [timestamp, valore] in ordine
+  // crescente di tempo, potatura di quelle più vecchie del raggio a ogni
+  // analisi.
+  private constraintHistory: Array<[number, number]> = []
   private diagnostics = initialDiagnostics()
   private emittedRegime: BrainBioRegime = 'unresolved'
   private candidateRegime: BrainBioRegime = 'unresolved'
@@ -378,7 +385,6 @@ export class BrainBioPerceptionExperimentalClock {
     // Ricorrenza e persistenza devono essere entrambe presenti: nessuna delle
     // due autorizza l'ancoraggio da sola.
     const anchorTarget = observation.recurrence * observation.cyclePersistence
-    const previousAnchor = this.anchor
     this.anchor = ema(
       this.anchor,
       anchorTarget,
@@ -389,40 +395,38 @@ export class BrainBioPerceptionExperimentalClock {
     // persistente domina davvero l'attività osservata. Non usa i pesi della
     // baseline e non incorpora energia/spettro in un totale acustico.
     const constraint = this.anchor * Math.sqrt(observation.eventActivity)
+    const previousConstraint = this.constraintTrajectory
     this.constraintTrajectory = ema(
       this.constraintTrajectory,
       constraint,
       Math.max(ANALYSIS_INTERVAL_MS, deltaMs),
       CONSTRAINT_TRAJECTORY_MS,
     )
-    const trajectoryDelta = constraint - this.constraintTrajectory
-    const direction = trajectoryDelta > 0.035
-      ? 'rising'
-      : trajectoryDelta < -0.035
-        ? 'falling'
-        : 'stable'
-    // Riferimento a lungo raggio: l'ultima voce della storia non più
-    // recente di `ANCHOR_TREND_LAG_MS`. Se la memoria è troppo giovane
-    // (subito dopo l'avvio), ricade sul campione precedente — stesso
-    // comportamento di prima, finché non c'è abbastanza storia per il
-    // confronto a lungo raggio.
-    const laggedTarget = now - ANCHOR_TREND_LAG_MS
-    let laggedAnchor = previousAnchor
-    for (const [t, value] of this.anchorHistory) {
-      if (t <= laggedTarget) laggedAnchor = value
+    // Direzione della costrizione (§4/§6 del brief Analisi Audio
+    // 2026-09-13): confronto con il proprio valore di
+    // `CONSTRAINT_TREND_LAG_MS` fa, non col campione immediatamente
+    // precedente — un passaggio reale ma graduale ha un delta per singolo
+    // passo troppo piccolo per qualunque soglia sensata; letto su una
+    // finestra più lunga i piccoli passi si sommano in un segnale chiaro,
+    // mentre il rumore campione-a-campione (non direzionale) non si
+    // accumula. Ricade sul campione precedente se la memoria è troppo
+    // giovane per il confronto a lungo raggio.
+    const laggedTarget = now - CONSTRAINT_TREND_LAG_MS
+    let laggedConstraint = previousConstraint
+    for (const [t, value] of this.constraintHistory) {
+      if (t <= laggedTarget) laggedConstraint = value
       else break
     }
-    this.anchorHistory.push([now, this.anchor])
-    const pruneBefore = now - ANCHOR_TREND_LAG_MS * 2
-    while (this.anchorHistory.length > 0 && this.anchorHistory[0][0] < pruneBefore) {
-      this.anchorHistory.shift()
+    this.constraintHistory.push([now, constraint])
+    const pruneBefore = now - CONSTRAINT_TREND_LAG_MS * 2
+    while (this.constraintHistory.length > 0 && this.constraintHistory[0][0] < pruneBefore) {
+      this.constraintHistory.shift()
     }
-    const gaining = this.anchor > laggedAnchor + ANCHOR_TREND_DEADBAND
-    const losing = this.anchor < laggedAnchor - ANCHOR_TREND_DEADBAND
-    if (this.hadAnchor && losing && this.anchor < 0.2) this.awaitingRecovery = true
-    const recovered = this.awaitingRecovery && gaining && this.anchor >= 0.2
-    if (recovered) this.awaitingRecovery = false
-    if (this.anchor >= 0.2) this.hadAnchor = true
+    const direction = constraint > laggedConstraint + CONSTRAINT_TREND_DEADBAND
+      ? 'rising'
+      : constraint < laggedConstraint - CONSTRAINT_TREND_DEADBAND
+        ? 'falling'
+        : 'stable'
     const settlementEvidence = observation.cyclePersistence *
       observation.configurationPersistence
     this.diagnostics = {
@@ -437,7 +441,7 @@ export class BrainBioPerceptionExperimentalClock {
         physicalConfirmation: observation.physicalConfirmation,
         cyclePersistence: observation.cyclePersistence,
       },
-      anchoring: { value: this.anchor, gaining, losing, recovered, warmedUp: now - this.readyAt >= ANCHOR_WARMUP_GRACE_MS },
+      anchoring: { value: this.anchor, warmedUp: now - this.readyAt >= ANCHOR_WARMUP_GRACE_MS },
       constraint: {
         value: constraint,
         trajectory: this.constraintTrajectory,

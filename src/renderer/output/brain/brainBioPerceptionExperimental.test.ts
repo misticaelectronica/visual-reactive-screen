@@ -100,13 +100,13 @@ describe('BrainBioPerceptionExperimentalClock — baseline isolata e memoria tem
   })
 })
 
-describe('classifyExperimentalRegime — collegamento Visual (MVP)', () => {
+describe('classifyExperimentalRegime — semantica Analisi Audio 2026-09-13 (direzione della costrizione, non dell\'ancoraggio)', () => {
   const base = (overrides: Partial<ExperimentalMotorDiagnostics> = {}): ExperimentalMotorDiagnostics => ({
     ready: true,
     observedMs: 8_000,
     organization: { periodMs: 500, recurrence: 0.8, eventActivity: 0.5 },
     entrainment: { physicalConfirmation: 0.8, cyclePersistence: 0.9 },
-    anchoring: { value: 0.5, gaining: false, losing: false, recovered: false, warmedUp: true },
+    anchoring: { value: 0.5, warmedUp: true },
     constraint: { value: 0.3, trajectory: 0.3, direction: 'stable' },
     settlement: { configurationPersistence: 0.8, evidence: 0.7, oscillatingTransformation: false },
     ...overrides,
@@ -116,25 +116,36 @@ describe('classifyExperimentalRegime — collegamento Visual (MVP)', () => {
     expect(classifyExperimentalRegime(base({ ready: false }))).toBe('unresolved')
   })
 
-  it('ancoraggio in costruzione/erosione sono passaggi diretti, come pressureTrend nella baseline', () => {
-    expect(classifyExperimentalRegime(base({ anchoring: { value: 0.4, gaining: true, losing: false, recovered: false, warmedUp: true } })))
+  it('la direzione della costrizione, non dell\'ancoraggio, decide passaggio/stasi', () => {
+    expect(classifyExperimentalRegime(base({ constraint: { value: 0.3, trajectory: 0.3, direction: 'rising' } })))
       .toBe('pressurized')
-    expect(classifyExperimentalRegime(base({ anchoring: { value: 0.4, gaining: false, losing: true, recovered: false, warmedUp: true } })))
+    expect(classifyExperimentalRegime(base({ constraint: { value: 0.3, trajectory: 0.3, direction: 'falling' } })))
       .toBe('decompression')
   })
 
-  it('ancoraggio stabile con costrizione sopra soglia è respiro-alto, sotto è respiro-profondo', () => {
+  it('costrizione stabile e assestata sopra soglia è respiro-alto, sotto è respiro-profondo', () => {
     expect(classifyExperimentalRegime(base({ constraint: { value: 0.35, trajectory: 0.35, direction: 'stable' } })))
       .toBe('respiro-alto')
     expect(classifyExperimentalRegime(base({ constraint: { value: 0.11, trajectory: 0.11, direction: 'stable' } })))
       .toBe('respiro-profondo')
   })
 
+  it('direzione stabile ma assestamento insufficiente (falsa stasi) resta unresolved, non alto/profondo', () => {
+    expect(classifyExperimentalRegime(base({
+      constraint: { value: 0.35, trajectory: 0.35, direction: 'stable' },
+      settlement: { configurationPersistence: 0.2, evidence: 0.2, oscillatingTransformation: false },
+    }))).toBe('unresolved')
+    expect(classifyExperimentalRegime(base({
+      constraint: { value: 0.35, trajectory: 0.35, direction: 'stable' },
+      settlement: { configurationPersistence: 0.8, evidence: 0.7, oscillatingTransformation: true },
+    }))).toBe('unresolved')
+  })
+
   it('prima che l\'ancoraggio abbia mai costruito una presa reale, la costrizione ancora vicina a zero non è letta come respiro-profondo', () => {
     expect(classifyExperimentalRegime(base({
-      anchoring: { value: 0.1, gaining: false, losing: false, recovered: false, warmedUp: false },
+      anchoring: { value: 0.1, warmedUp: false },
       constraint: { value: 0.05, trajectory: 0.05, direction: 'stable' },
-    }))).toBe('pressurized')
+    }))).toBe('unresolved')
   })
 })
 

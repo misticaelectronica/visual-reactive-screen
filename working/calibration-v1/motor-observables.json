@@ -156,8 +156,8 @@
       "meanSettlement": 0.7749291993319817,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 39.3578231292517,
-        "rising": 11.238458049886622
+        "stable": 39.86866213151927,
+        "rising": 10.727619047619047
       },
       "timeline": [
         {
@@ -194,7 +194,7 @@
           "anchor": 0.202096984500875,
           "constraint": 0.1234649427212498,
           "settlement": 0.686788851985289,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 4,
@@ -827,7 +827,7 @@
           "anchor": 0.1623176112611891,
           "constraint": 0.0916894056861519,
           "settlement": 0.7783592913181149,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 4,
@@ -836,7 +836,7 @@
           "anchor": 0.21031732618838372,
           "constraint": 0.1258646780390108,
           "settlement": 0.7034562390843283,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 5,
@@ -917,7 +917,7 @@
           "anchor": 0.44550406231026407,
           "constraint": 0.3446913595880798,
           "settlement": 0.6894407635729075,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 14,
@@ -1452,8 +1452,9 @@
       "meanSettlement": 0.7294803502682693,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 41.95845804988662,
-        "rising": 7.151746031746032
+        "stable": 39.91510204081632,
+        "rising": 8.684263038548751,
+        "falling": 0.5108390022675737
       },
       "timeline": [
         {
@@ -1535,7 +1536,7 @@
           "anchor": 0.2795168761683605,
           "constraint": 0.22261552989633088,
           "settlement": 0.699389828239697,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 9,
@@ -1706,7 +1707,7 @@
           "anchor": 0.28991778166062326,
           "constraint": 0.2488986680008148,
           "settlement": 0.7280096404854474,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 28,
@@ -1724,7 +1725,7 @@
           "anchor": 0.30641913792629266,
           "constraint": 0.262579698463816,
           "settlement": 0.7183744786283495,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 30,
@@ -1796,7 +1797,7 @@
           "anchor": 0.21134865091485466,
           "constraint": 0.16086413758982207,
           "settlement": 0.7228621020612849,
-          "direction": "stable"
+          "direction": "falling"
         },
         {
           "second": 38,
@@ -2105,7 +2106,7 @@
           "anchor": 0.16267546190714283,
           "constraint": 0.09997886532931746,
           "settlement": 0.6916433496454067,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 3,
@@ -2186,7 +2187,7 @@
           "anchor": 0.37764371477862946,
           "constraint": 0.36736696576836403,
           "settlement": 0.7556864091307615,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 12,
@@ -2689,9 +2690,8 @@
       "meanSettlement": 0.743004684115142,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 15.487709750566893,
-        "rising": 12.770975056689341,
-        "falling": 0.046439909297052155
+        "stable": 16.04498866213152,
+        "rising": 12.260136054421768
       },
       "timeline": [
         {
@@ -2719,7 +2719,7 @@
           "anchor": 0.20558588084576204,
           "constraint": 0.12471501986592987,
           "settlement": 0.7208355913447014,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 3,
@@ -3110,8 +3110,8 @@
       "meanSettlement": 0.8309588446738894,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 39.40426303854875,
-        "rising": 9.7059410430839
+        "stable": 38.893424036281175,
+        "rising": 10.216780045351474
       },
       "timeline": [
         {
@@ -3238,7 +3238,7 @@
           "anchor": 0.513298529096086,
           "constraint": 0.38721937633824977,
           "settlement": 0.8638535481882946,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 14,
@@ -3757,7 +3757,7 @@
           "anchor": 0.2083706630136734,
           "constraint": 0.13056471452144824,
           "settlement": 0.7245657591063963,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 4,
@@ -3820,7 +3820,7 @@
           "anchor": 0.33310307936467254,
           "constraint": 0.26957759297155126,
           "settlement": 0.7891614702084513,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 11,
@@ -4393,9 +4393,8 @@
       "meanSettlement": 0.8344418373996912,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 65.13197278911565,
-        "rising": 9.7059410430839,
-        "falling": 1.0216780045351475
+        "stable": 66.1536507936508,
+        "rising": 9.7059410430839
       },
       "timeline": [
         {
@@ -4423,7 +4422,7 @@
           "anchor": 0.20102191355550514,
           "constraint": 0.11760669283836105,
           "settlement": 0.788316100592679,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 3,
@@ -4504,7 +4503,7 @@
           "anchor": 0.47450180339962506,
           "constraint": 0.41299589109835005,
           "settlement": 0.8553170389974661,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 12,
@@ -4684,7 +4683,7 @@
           "anchor": 0.3725749321934176,
           "constraint": 0.29708530714753595,
           "settlement": 0.8334842817589261,
-          "direction": "falling"
+          "direction": "stable"
         },
         {
           "second": 32,
@@ -5187,9 +5186,8 @@
       "meanSettlement": 0.7932474867962068,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 18.041904761904764,
-        "rising": 9.7059410430839,
-        "falling": 0.5572789115646258
+        "stable": 18.088344671201813,
+        "rising": 10.216780045351474
       },
       "timeline": [
         {
@@ -5307,7 +5305,7 @@
           "anchor": 0.5723269088665922,
           "constraint": 0.43331591154667903,
           "settlement": 0.8224587126736358,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 13,
@@ -5451,7 +5449,7 @@
           "anchor": 0.4467838444073284,
           "constraint": 0.288300430235828,
           "settlement": 0.5781941956471044,
-          "direction": "falling"
+          "direction": "stable"
         }
       ]
     }
@@ -5626,7 +5624,7 @@
           "anchor": 0.2230167048240203,
           "constraint": 0.1317939565113789,
           "settlement": 0.7785627965084831,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 4,
@@ -5716,7 +5714,7 @@
           "anchor": 0.5185214323286423,
           "constraint": 0.4331503710506835,
           "settlement": 0.8518795314578684,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 14,
@@ -6733,8 +6731,9 @@
       "meanSettlement": 0.6301012071768626,
       "oscillatingShare": 0,
       "directionSeconds": {
-        "stable": 47.57768707482993,
-        "rising": 1.532517006802721
+        "stable": 46.556009070294785,
+        "falling": 0.5108390022675737,
+        "rising": 2.043356009070295
       },
       "timeline": [
         {
@@ -6942,7 +6941,7 @@
           "anchor": 0.0940662220962259,
           "constraint": 0.068487314997316,
           "settlement": 0.6022740844338473,
-          "direction": "stable"
+          "direction": "falling"
         },
         {
           "second": 23,
@@ -7014,7 +7013,7 @@
           "anchor": 0.17725497075209662,
           "constraint": 0.13837069051601783,
           "settlement": 0.6262343948010309,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 31,
@@ -7032,7 +7031,7 @@
           "anchor": 0.1988155622482244,
           "constraint": 0.15879474970924312,
           "settlement": 0.6417355351676332,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 33,
@@ -7041,7 +7040,7 @@
           "anchor": 0.19682950697711882,
           "constraint": 0.16080719630152684,
           "settlement": 0.6522011825260827,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 34,
@@ -7988,7 +7987,7 @@
           "anchor": 0.16190428368074206,
           "constraint": 0.10111598634035171,
           "settlement": 0.706515991912928,
-          "direction": "rising"
+          "direction": "stable"
         },
         {
           "second": 4,
@@ -8051,7 +8050,7 @@
           "anchor": 0.43240873818279146,
           "constraint": 0.3348911947448335,
           "settlement": 0.6847039126184284,
-          "direction": "stable"
+          "direction": "rising"
         },
         {
           "second": 11,
