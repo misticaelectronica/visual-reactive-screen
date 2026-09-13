@@ -1,5 +1,36 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regime Audio experimental — ritarato il deadband della direzione, corretto artefatto di warmup residuo — 2026-09-13
+
+Segnalato: "troppo in respiro alto, ritara gli altri stati basandoti sui
+campioni". Nel ritarare trovata un'inconsistenza fra i due strumenti di
+calibrazione: `compare-audio-regimes.mjs` istanziava l'experimental clock
+PRIMA del warmup di rumore rosa (non dopo, come già corretto in
+`assert-regime-corpus.mjs` due round fa) — la storia usata dal confronto a
+lungo raggio (`constraintHistory`) veniva quindi contaminata da 40s di
+rumore, dando numeri diversi (e sbagliati) fra i due script sullo stesso
+codice. Corretto anche qui: experimental clock istanziato solo all'inizio
+del contenuto reale.
+
+Con numeri ora affidabili, `CONSTRAINT_TREND_DEADBAND` ritarato da 0,09 a
+0,07 sull'intero corpus (non solo i 5 file respiro-alto-*): a 0,09 la
+direzione quasi non usciva mai da "stable" sui file transitivi
+(`decompression` praticamente assente ovunque tranne rari casi); a 0,05
+(troppo sensibile) rompeva `respiro-profondo.mp3` (da 47s a 13,6s
+dominante) e `respiro-alto-3.mp3`. A 0,07: tutti i 5 campioni
+respiro-alto-*.mp3 restano verdi, i file profondo restano dominanti
+(`respiro-profondo-1`/`respirto-profondo-3` 80,8%, `respiro-profondo.mp3`
+57,9% con transizioni reali verso pressurized/decompression invece di
+restare piatto), e i file transitivi mostrano ora varietà reale fra tutti
+gli stati (`pressurizzazione-2.mp3`: pressurized 7,1s, profondo 22,8s,
+alto 4,1s, decompression 5,6s — prima quasi solo alto).
+
+Limite residuo confermato ancora presente e non peggiorato:
+`decompresisone.mp3` e `test-1.mp3` non mostrano `decompression` — limite
+noto della metrica `constraint` (non del deadband), già documentato.
+
+Suite (73 file / 696 test), typecheck e lint verdi.
+
 ## Regime Audio experimental — riscritta la classificazione secondo la semantica dell'Analisi Audio — 2026-09-13
 
 Risposta dell'Analisi Audio al brief del 12/9

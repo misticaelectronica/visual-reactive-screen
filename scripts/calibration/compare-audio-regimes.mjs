@@ -137,7 +137,16 @@ function analyzeFile(file) {
 
   const rhythmClock = new OutputRhythmClock()
   const baselineClock = new BrainBioPerceptionClock()
-  const experimentalClock = new BrainBioPerceptionExperimentalClock()
+  // Il rumore rosa di warmup serve a stabilizzare rhythmClock/medie mobili
+  // prima del contenuto reale, ma la memoria di 8s dell'experimental clock
+  // diventa `ready` già durante il rumore stesso (8s << 40s di warmup) —
+  // molto prima che il contenuto reale inizi. Istanziarlo da subito
+  // contaminerebbe la storia usata dal confronto a lungo raggio
+  // (`constraintHistory`) con letture di puro rumore per i primi secondi
+  // di contenuto reale — artefatto del metodo di collaudo già corretto in
+  // assert-regime-corpus.mjs, propagato qui. Creato quindi solo all'inizio
+  // del contenuto vero.
+  let experimentalClock = null
   let moving = { low: 0.05, lowMid: 0.05, mid: 0.05, high: 0.05 }
   const duration = { baseline: new Map(), experimental: new Map() }
   let transitions = { baseline: 0, experimental: 0 }
@@ -185,8 +194,9 @@ function analyzeFile(file) {
     rhythmClock.ingestSample(currentBands, now, moving, frame, now)
     const rhythm = rhythmClock.projectState(now)
     const baselineState = baselineClock.ingestSample(currentBands, now, rhythm.bandTransients, rhythm)
-    const experimentalState = experimentalClock.ingestSample(currentBands, now, rhythm.bandTransients, rhythm)
+    if (frame === warmupFrames) experimentalClock = new BrainBioPerceptionExperimentalClock()
     if (frame < warmupFrames) continue
+    const experimentalState = experimentalClock.ingestSample(currentBands, now, rhythm.bandTransients, rhythm)
     const diagnostics = baselineClock.getRegimeDiagnostics()
     const experimentalDiagnostics = experimentalClock.getExperimentalDiagnostics()
     const physicalConfirmation = Math.min(

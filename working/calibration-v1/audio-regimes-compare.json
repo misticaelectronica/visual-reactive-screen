@@ -11,9 +11,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 5.247709750566915,
-        "pressurized": 10.72761904761911,
-        "respiro-alto": 34.620952380951486
+        "unresolved": 9.520181405895745,
+        "pressurized": 11.726077097505739,
+        "respiro-alto": 29.35002267573615
       },
       "transitions": 2
     }
@@ -30,9 +30,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 6.26938775510207,
-        "pressurized": 9.705941043083955,
-        "respiro-alto": 39.079183673468876
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 35.85160997732348
       },
       "transitions": 2
     }
@@ -49,11 +49,13 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 27.144126984126327,
-        "pressurized": 8.6842630385488,
-        "respiro-alto": 13.281814058956998
+        "unresolved": 9.520181405895745,
+        "pressurized": 7.128526077097541,
+        "respiro-profondo": 22.75555555555521,
+        "respiro-alto": 4.086712018140602,
+        "decompression": 5.619229024943334
       },
-      "transitions": 7
+      "transitions": 6
     }
   },
   {
@@ -69,9 +71,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 4.736870748299337,
-        "pressurized": 9.195102040816376,
-        "respiro-alto": 41.12253968253935
+        "unresolved": 9.520181405895745,
+        "pressurized": 10.193560090703006,
+        "respiro-alto": 35.340770975055854
       },
       "transitions": 2
     }
@@ -89,9 +91,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 4.226031746031759,
-        "pressurized": 12.260136054421842,
-        "respiro-alto": 11.818956916099843
+        "unresolved": 9.520181405895745,
+        "pressurized": 10.704399092970583,
+        "respiro-alto": 8.080544217687118
       },
       "transitions": 2
     }
@@ -108,9 +110,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 5.758548752834492,
-        "pressurized": 10.216780045351532,
-        "respiro-alto": 33.13487528344569
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 29.907301587300736
       },
       "transitions": 2
     }
@@ -127,9 +129,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 5.247709750566915,
-        "pressurized": 7.151746031746067,
-        "respiro-alto": 36.710748299319015
+        "unresolved": 9.520181405895745,
+        "pressurized": 8.661043083900273,
+        "respiro-alto": 30.92897959183581
       },
       "transitions": 2
     }
@@ -148,11 +150,12 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 4.226031746031759,
-        "pressurized": 9.705941043083955,
-        "respiro-alto": 61.9276190476205
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 53.59165532879892,
+        "decompression": 3.065034013605447
       },
-      "transitions": 2
+      "transitions": 4
     }
   },
   {
@@ -168,9 +171,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 4.736870748299337,
-        "pressurized": 10.216780045351532,
-        "respiro-alto": 13.351473922902576
+        "unresolved": 9.520181405895745,
+        "pressurized": 8.661043083900273,
+        "respiro-alto": 10.123900226757426
       },
       "transitions": 2
     }
@@ -188,9 +191,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 5.247709750566915,
-        "pressurized": 10.216780045351532,
-        "respiro-alto": 26.21532879818535
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 22.476916099772914
       },
       "transitions": 2
     }
@@ -207,9 +210,10 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 49.11020408163301
+        "unresolved": 9.520181405895745,
+        "respiro-profondo": 39.59002267573649
       },
-      "transitions": 0
+      "transitions": 1
     }
   },
   {
@@ -224,10 +228,12 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 47.066848072562536,
-        "pressurized": 2.043356009070292
+        "unresolved": 9.520181405895745,
+        "respiro-profondo": 28.351564625849598,
+        "pressurized": 6.130068027210912,
+        "decompression": 5.108390022675757
       },
-      "transitions": 2
+      "transitions": 9
     }
   },
   {
@@ -242,9 +248,10 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 49.11020408163301
+        "unresolved": 9.520181405895745,
+        "respiro-profondo": 39.59002267573649
       },
-      "transitions": 0
+      "transitions": 1
     }
   },
   {
@@ -259,9 +266,9 @@
     },
     "experimental": {
       "durationSeconds": {
-        "respiro-profondo": 5.758548752834492,
-        "pressurized": 7.151746031746067,
-        "respiro-alto": 36.1999092970514
+        "unresolved": 9.520181405895745,
+        "pressurized": 13.258594104308472,
+        "respiro-alto": 26.33142857142797
       },
       "transitions": 2
     }

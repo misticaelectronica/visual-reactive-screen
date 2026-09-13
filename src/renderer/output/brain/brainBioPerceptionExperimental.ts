@@ -37,7 +37,7 @@ const ALTO_CONSTRAINT_THRESHOLD = 0.18
 // passaggio reale ma graduale ha un delta per singolo passo troppo
 // piccolo per qualunque soglia sensata).
 const CONSTRAINT_TREND_LAG_MS = 6_000
-const CONSTRAINT_TREND_DEADBAND = 0.09
+const CONSTRAINT_TREND_DEADBAND = 0.07
 // Seconda parte dello stesso disallineamento: un valore di `constraint`,
 // da solo, non autorizza respiro-alto/profondo — serve un vero
 // assestamento (§10/§11 del brief: "persistenza della configurazione →
