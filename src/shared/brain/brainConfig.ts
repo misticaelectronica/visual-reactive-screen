@@ -50,14 +50,21 @@ export const BRAIN_CONFIG = {
   imageModelLocalBaseUrl: 'brain-model://local/pornmaster-sd15-onnx',
   imageGenerationTimeoutMs: 120_000,
   // I 120 secondi sono una finestra di refill, non una pausa da sommare alla
-  // produzione. Dopo 30 secondi di riposo restano 90 secondi per preparare il
-  // buffer successivo mantenendo cooldown e backoff fra le inferenze.
+  // produzione. Segnalato dal Capo Supremo 2026-09-14: il riciclo dei
+  // fotogrammi della storia precedente (`recycleCurrentStoryFrame`) scattava
+  // troppo spesso — la nuova storia non faceva in tempo a essere pronta
+  // prima che quella corrente finisse. Il margine di generazione è stato
+  // allargato da 90 a 105 secondi (15 secondi di riposo restano prima di
+  // iniziare, invece di 30) per dare più tempo al denoising di completare
+  // il buffer successivo mantenendo cooldown e backoff fra le inferenze.
   nextStoryTargetMs: 120_000,
-  nextStoryRefillLeadMs: 90_000,
+  nextStoryRefillLeadMs: 105_000,
   // Con tutti i renderer sulla stessa storia il primo attraversamento resta
   // libero da generazione. Il refill ha poi due attraversamenti di margine.
+  // Stesso allargamento del margine di generazione di `nextStoryRefillLeadMs`
+  // sopra (30s di riposo -> 15s), stessa segnalazione.
   storyCycleNextStoryTargetMs: 240_000,
-  storyCycleRefillLeadMs: 210_000,
+  storyCycleRefillLeadMs: 225_000,
   storyCycleRefillTransitionGuardMs: 10_000,
   nextStoryHardDeadlineMs: 180_000,
   // Esperimento MACRO-009: evita di ricreare text encoder, UNet e VAE a ogni
