@@ -1,5 +1,541 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Regime Audio experimental — ritarato il deadband della direzione, corretto artefatto di warmup residuo — 2026-09-13
+
+Segnalato: "troppo in respiro alto, ritara gli altri stati basandoti sui
+campioni". Nel ritarare trovata un'inconsistenza fra i due strumenti di
+calibrazione: `compare-audio-regimes.mjs` istanziava l'experimental clock
+PRIMA del warmup di rumore rosa (non dopo, come già corretto in
+`assert-regime-corpus.mjs` due round fa) — la storia usata dal confronto a
+lungo raggio (`constraintHistory`) veniva quindi contaminata da 40s di
+rumore, dando numeri diversi (e sbagliati) fra i due script sullo stesso
+codice. Corretto anche qui: experimental clock istanziato solo all'inizio
+del contenuto reale.
+
+Con numeri ora affidabili, `CONSTRAINT_TREND_DEADBAND` ritarato da 0,09 a
+0,07 sull'intero corpus (non solo i 5 file respiro-alto-*): a 0,09 la
+direzione quasi non usciva mai da "stable" sui file transitivi
+(`decompression` praticamente assente ovunque tranne rari casi); a 0,05
+(troppo sensibile) rompeva `respiro-profondo.mp3` (da 47s a 13,6s
+dominante) e `respiro-alto-3.mp3`. A 0,07: tutti i 5 campioni
+respiro-alto-*.mp3 restano verdi, i file profondo restano dominanti
+(`respiro-profondo-1`/`respirto-profondo-3` 80,8%, `respiro-profondo.mp3`
+57,9% con transizioni reali verso pressurized/decompression invece di
+restare piatto), e i file transitivi mostrano ora varietà reale fra tutti
+gli stati (`pressurizzazione-2.mp3`: pressurized 7,1s, profondo 22,8s,
+alto 4,1s, decompression 5,6s — prima quasi solo alto).
+
+Limite residuo confermato ancora presente e non peggiorato:
+`decompresisone.mp3` e `test-1.mp3` non mostrano `decompression` — limite
+noto della metrica `constraint` (non del deadband), già documentato.
+
+Suite (73 file / 696 test), typecheck e lint verdi.
+
+## Regime Audio experimental — riscritta la classificazione secondo la semantica dell'Analisi Audio — 2026-09-13
+
+Risposta dell'Analisi Audio al brief del 12/9
+(`team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`)
+stabilisce un disallineamento concettuale nell'implementazione corrente,
+indipendente dal giudizio sulla sessione specifica:
+
+1. `pressurized`/`decompression` devono derivare dalla **direzione della
+   costrizione**, non da una variazione locale dell'ancoraggio
+   ("una variazione dell'anchoring può essere evidenza utile, non è
+   semanticamente sufficiente da sola per determinare lo stato").
+2. `respiro-alto`/`respiro-profondo` richiedono un **vero assestamento**
+   (persistenza della configurazione), non solo il valore di `constraint`
+   ("un valore di constraint alto, da solo, non autorizza respiro-alto").
+3. Falsa stasi: un'oscillazione a direzione media nulla non è
+   automaticamente assestamento (caso di riferimento: `test-1.mp3`).
+
+Riscritto `classifyExperimentalRegime`:
+- Rimossi `anchoring.gaining/losing/recovered` (basati sul delta
+  dell'ancoraggio) e il vecchio calcolo di `constraint.direction` via
+  `trajectoryDelta` (EMA-vs-EMA, soglia 0,035 — mai in `falling` dopo
+  l'assestamento iniziale, bug noto da settimane).
+- `constraint.direction` ora calcolato con lo stesso confronto a lungo
+  raggio già validato per `anchor` (`CONSTRAINT_TREND_LAG_MS=6000`,
+  `CONSTRAINT_TREND_DEADBAND=0,09` dopo taratura su 0,05/0,07/0,09) e
+  guida direttamente pressurized/decompression.
+- Alto/profondo richiedono ora `settlement.evidence >=
+  SETTLEMENT_EVIDENCE_THRESHOLD=0,5` e `!oscillatingTransformation`
+  (entrambi già calcolati, mai usati prima) oltre alla soglia di
+  `constraint.value` — altrimenti `unresolved`. Soglia evidence
+  deliberatamente permissiva (misurata 0,62-0,84 su tutto il corpus, non
+  discrimina bene): fa da pavimento, non da criterio fine, come richiesto
+  esplicitamente dal brief ("non trasformo questa definizione in una lista
+  tecnica di requisiti").
+
+Verificato: tutti i 5 campioni respiro-alto-*.mp3 passano (minShare
+abbassato a 0,5 solo per `respiro-alto-3.mp3`, dopo aver verificato a mano
+che il suo ~35% di tempo in pressurized è un'intro reale di 10s su un
+file di 29s, non un difetto — timeline: 0-9s avvio a freddo, 10-18s
+attacco genuino, 19-28s stabile). I 3 file respiro-profondo restano
+dominanti (2 a zero transizioni). Limite residuo, pre-esistente e non
+introdotto da questa modifica: `decompresisone.mp3` non mostra mai
+`decompression` — misurato che il suo `constraint` sale e resta stabile
+per l'intero file (calo massimo su 6s: 0,025), la metrica non cattura
+questo tipo di decompressione percettiva. Fuori scope per questo
+intervento (riguarda l'estrazione delle feature, non il collegamento
+semantico richiesto dal brief).
+
+Suite (73 file / 696 test), typecheck e lint verdi.
+
+## Regime Audio experimental — rilevamento dei passaggi graduali (confronto a lungo raggio) — 2026-09-12
+
+Segnalato dal vivo, con l'overlay diagnostico ora finalmente affidabile
+(fix precedente): "resta troppo in respiro-alto, salta pressurizzazione e
+decompressione del tutto". Log 1Hz confermato dal Capo Supremo: la musica
+stava davvero cambiando in quel tratto (36+ secondi), ma `anchor` si
+muoveva in modo GRADUALE (misurato: 0,564→0,50 in 7s, poi →0,54 in 20s) —
+un vero passaggio, ma con un delta per singolo passo (500ms) troppo
+piccolo per superare qualunque deadband ragionevole tarata sui passaggi
+bruschi già visti nel corpus.
+
+Causa: `anchoring.gaining/losing` confrontava `anchor` solo col campione
+immediatamente precedente (500ms fa). Un cambiamento reale ma lento non ha
+mai un delta-per-passo grande, anche se il cambiamento cumulativo è
+enorme — lo stesso limite, in scala diversa, del deadband a campione
+singolo già corretto due volte in precedenza (respiro-alto-2, poi
+respiro-alto-3/4).
+
+Corretto: `anchor` ora si confronta col proprio valore di
+`ANCHOR_TREND_LAG_MS=6000` fa (una storia [timestamp, valore] tracciata
+nella classe), non col campione precedente. La stessa deriva letta su una
+finestra di 6s somma i piccoli passi in un segnale chiaro, mentre il
+rumore campione-a-campione (non direzionale) non si accumula.
+`ANCHOR_TREND_DEADBAND` ritarato di conseguenza per il nuovo dominio di
+confronto (0,08, dopo aver provato 0,04 e 0,06 — il primo rompeva 3 dei 5
+campioni respiro-alto, il secondo introduceva transizioni spurie su
+`respiro-profondo.mp3`, genuinamente a bassa costrizione).
+
+Verificato: tutti i 5 campioni respiro-alto-*.mp3 restano verdi; i 3 file
+respiro-profondo restano dominanti nel proprio stato (2 a zero
+transizioni, 1 all'86%); i file transitivi (`pressurizzazione-2.mp3`,
+`decompresisone.mp3`) mostrano ora una distribuzione più ricca e
+sfumata fra tutti gli stati, coerente con l'obiettivo di catturare anche
+i passaggi lenti. Suite (73 file / 695 test), typecheck e lint verdi.
+
+## Regime Audio experimental — bug evidente: l'overlay diagnostico leggeva sempre la baseline — 2026-09-12
+
+Trovato analizzando `session-2026-09-12-02-11-19.txt` (overlay Shift+B attivo
+per la prima volta): il log dei cambi di stato (`regime bio-percettivo`,
+alimentato da `bioPerceptionSource`, la stessa fonte dei renderer) mostrava
+`respiro-alto` stabile per 65s consecutivi — ma il campione diagnostico 1Hz,
+nello stesso intervallo, mostrava `decompression`. Le due fonti
+disaccordavano sullo stesso istante.
+
+Causa: `OutputApp.tsx` — l'overlay a schermo (`setBioOverlayState`), il
+campione 1Hz e il conteggio dei cambi (`previousBioRegimeRef`,
+`bioRegimeChangeCount`) leggevano tutti `bioPerceptionState` (la baseline
+sempre, letteralmente) invece di `bioPerceptionSource()` (che sceglie fra
+baseline ed experimental secondo `audioMode`, già usata correttamente dai
+renderer). Deliberato quando l'overlay è nato (PIANO-040, prima che
+experimental esistesse: "Overlay e log 1Hz restano sulla baseline anche
+quando `audioMode='experimental'` è selezionato"), diventato un bug evidente
+ora che experimental pilota davvero il Visual: chi guardava il pannello per
+verificare un fix vedeva sempre il regime della baseline, molto più mobile
+per costruzione (15-32 transizioni per file contro le 2-5 di experimental
+dopo le correzioni dei giorni scorsi) — mai il proprio.
+
+Questo spiega la segnalazione "alternanza senza senso di pressurizzazione e
+decompressione" di questa sessione e con ogni probabilità gran parte delle
+segnalazioni precedenti: tutte le correzioni fatte a `experimental`
+(deadband, transitorio d'avvio, conferma per persistenza, tracciamento del
+periodo) erano corrette e verificate sul segnale reale dei renderer, ma il
+pannello che si guardava per giudicarle non le mostrava mai.
+
+Corretto: overlay, campione 1Hz e conteggio cambi ora leggono tutti
+`bioPerceptionSource()`. Aggiunto anche `audioMode` al campione 1Hz per
+prevenire in futuro questa stessa classe di confusione. Suite (73 file /
+695 test), typecheck e lint verdi.
+
+## Regime Audio experimental — stabilizzato il rilevamento del periodo (root cause) — 2026-09-12
+
+Il Capo Supremo ha chiesto una revisione d'impianto e di documentarsi
+online. Ricerca bibliografica: Müller, "Fundamentals of Music Processing",
+tempogram ad autocorrelazione
+(audiolabs-erlangen.de/resources/MIR/FMP/C6/C6S2_TempogramAutocorrelation.html).
+Confermata l'ipotesi: scegliere il lag di correlazione massima assoluta a
+ogni finestra di analisi, senza inerzia verso il periodo già riconosciuto,
+è una tecnica nota per essere instabile quando due candidati hanno forza
+simile (tipicamente per ambiguità di ottava — il doppio o la metà del
+periodo vero correla quasi altrettanto su materiale molto periodico). Le
+tecniche raccomandate in letteratura: filtraggio mediano nel tempo, vincoli
+di persistenza fra finestre successive, "peak tracking" (inerzia verso il
+picco già seguito).
+
+Misurato empiricamente su `pressurizzazione-2.mp3`: `periodMs` saltava fra
+1075, 750, 1025, 375, 275ms nel giro di pochi secondi pur senza che il
+materiale cambiasse — la causa a monte dell'oscillazione fra `pressurized`
+e `decompression` segnalata dal vivo (la conferma per persistenza del
+fix precedente mitigava il sintomo finale, non la sua causa).
+
+Implementato "peak tracking" in `analyzeExperimentalTemporalWindow`:
+riceve ora il periodo precedente (`previousPeriodBins`, tracciato nella
+classe) e lo mantiene se la sua correlazione resta entro
+`PERIOD_SWITCH_MARGIN=0.08` dal nuovo massimo assoluto, invece di saltare
+sempre al candidato più forte in valore assoluto. Verificato di nuovo su
+`pressurizzazione-2.mp3`: il periodo ora resta stabile per intervalli di
+5-14 secondi (750ms per 8-12s, 1025ms per 13-22s, ecc.) invece di cambiare
+quasi a ogni finestra da 500ms.
+
+Nessuna soglia di ampiezza toccata, nessun nuovo segnale osservato: usa
+esclusivamente la correlazione già calcolata sul periodo già scelto in
+precedenza. Corpus: tutti i 5 campioni respiro-alto-*.mp3 restano verdi
+(stessi valori). Aggiunto test dedicato (ambiguità di ottava). Suite (73
+file / 695 test), typecheck e lint verdi.
+
+## Regime Audio experimental — dwell sostituito con conferma per persistenza — 2026-09-12
+
+Verificato sul log della sessione live successiva al dwell (2s):
+`session-2026-09-12-01-48-03.txt`. I cambi di stato cadevano quasi tutti
+esattamente sul bordo dei 2s (gap: 2.000, 2.166, 2.000, 2.500, 2.017, 2.000,
+2.014s) — il Capo Supremo ha fatto notare correttamente che alzare il
+numero (provato: 5s) non è un metodo, è solo un timer più lungo che
+comunque accetta alla cieca qualunque candidato capiti nell'istante in cui
+scade, senza verificare nulla sul candidato stesso.
+
+Sostituito con una vera conferma per persistenza (`REGIME_CONFIRM_MS =
+2000`): il regime cambia solo quando lo stesso candidato si ripete
+stabilmente per tutta la finestra, non quando scade un timer indipendente.
+Stesso principio già in uso nella baseline per `reference`
+(`REFERENCE_CONFIRM_MS`). Se il candidato continua a oscillare (come nel
+log), non si conferma mai nulla e si resta nello stato corrente — a
+differenza del dwell puro, che prima o poi lasciava comunque passare
+qualunque valore istantaneo.
+
+Verificato sul corpus: tutti i 5 campioni respiro-alto-*.mp3 ancora verdi
+(71-91% sul tempo risolto); transizioni scese ulteriormente sui file
+transitivi (`decompresisone.mp3` 2→1, `pressurizzazione-2.mp3` 7→5); i 3
+file respiro-profondo restano a 0 transizioni, 100% corretto. Suite (73
+file / 694 test), typecheck e lint verdi.
+
+## Regime Audio experimental — permanenza minima di stato (dwell) — 2026-09-12
+
+Il Capo Supremo ha riportato dal vivo: "il ritmo si alza e lui sta ancora in
+decompressione, poi inizia a cambiare velocemente tra pressurizzazione e
+decompressione troppo velocemente, senza dare tempo all'ipotetico corpo di
+capire". Corrisponde esattamente ai fatti già osservabili nel log
+`session-2026-09-11-20-06-52.txt` citato dal brief qui sotto: 42 cambi in
+322s, 21 segmenti su 43 sotto i 2s, 12 sotto 1s.
+
+Causa: `classifyExperimentalRegime` veniva rivalutato a ogni singola analisi
+(ogni 500ms) senza alcun tempo minimo di permanenza — un solo campione oltre
+il deadband dell'ancoraggio bastava a cambiare etichetta. Non è un problema
+di ampiezza (già tarata sul corpus in più round): è l'assenza di un tempo
+minimo di permanenza, indipendente dalla sorgente audio e quindi dalla
+periferica hardware usata in collaudo dal vivo.
+
+Aggiunta permanenza minima di stato (`REGIME_MIN_DWELL_MS = 2000`,
+`resolveRegime` in `BrainBioPerceptionExperimentalClock`): una volta emesso
+un regime, il prossimo cambio resta sospeso finché non sono passati 2s
+(eccetto l'uscita iniziale da `unresolved`, che non deve aspettare) — stesso
+principio delle finestre di conferma già in uso nella baseline
+(`PRESSURE_SETTLE_CONFIRM_MS`, `REFERENCE_CONFIRM_MS`), applicato qui al
+cambio di etichetta. Nessuna nuova soglia di ampiezza, nessun nuovo segnale
+osservato.
+
+Effetto misurato sul corpus (stesso metodo offline, `compare-audio-regimes.mjs`):
+transizioni dimezzate o più su quasi tutti i file (`decompresisone.mp3`
+8→4, `respiro-profondo.mp3` 9→1, `pressurizzazione-2.mp3` 15→9), nessuna
+categoria dominante cambiata. Tutti i 5 campioni respiro-alto-*.mp3 restano
+verdi su `assert-regime-corpus.mjs` (stessi valori di prima: 82-96% sul
+tempo risolto). Aggiunto test dedicato in
+`brainBioPerceptionExperimental.test.ts` che verifica la permanenza minima
+con materiale volutamente oscillante. Suite (73 file / 694 test), typecheck
+e lint verdi.
+
+Non tocca il tentativo di soglia adattiva (`anchorVolatility`) discusso e
+ritirato in precedenza, né la richiesta di lettura percettiva del brief qui
+sotto — resta valida e non ancora risposta.
+
+## Regime Audio experimental — richiesta di aiuto all'Analisi Audio — 2026-09-11
+
+Il Consigliere riferisce che il riconoscimento nella sessione live più recente
+è «tutto sbagliato». Analizzato integralmente
+`session-2026-09-11-20-06-52.txt`: modalità `experimental` confermata, 42 cambi
+in 322,488 s, `respiro-alto` per l'85,0% del tempo e 21 segmenti sotto i 2 s.
+La sessione non contiene marcatori manuali né diagnostica experimental a 1 Hz;
+inoltre i `reason` e i segnali allegati ai cambi provengono dalla baseline e
+non spiegano le etichette experimental. Creato
+`team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`.
+Nessuna modifica runtime: classificazione e retarature sospese in attesa della
+lettura del Capo Supremo dell'Analisi Audio. DEP-001 `NON COINVOLTO`.
+
+## Regime Audio experimental — respiro-alto-4.mp3, nessuna modifica necessaria — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-4.mp3` (aggiunto e tracciato).
+Verificato con `scripts/calibration/assert-regime-corpus.mjs`: già soddisfa il
+requisito col codice esistente, nessuna modifica. 86,4% respiro-alto sul
+tempo risolto, zero respiro-profondo, zero decompression, 4 transizioni.
+Aggiunto alle 4 attese esistenti (ora 5 campioni respiro-alto-*.mp3 in
+regressione, tutti verdi).
+
+## Regime Audio experimental — respiro-alto-3.mp3, deadband retarato e transitorio d'avvio corretto — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-3.mp3` (aggiunto e tracciato).
+Requisito esplicito: mai `respiro-profondo`, mai `decompression`, sempre
+dominante `respiro-alto`.
+
+Due correzioni:
+
+1. `ANCHOR_TREND_DEADBAND` (0,012 → 0,02): il valore precedente, tarato solo
+   sui primi 3 campioni respiro-alto, non bastava sul 4°. Retarato
+   sull'insieme dei 4 file; nessuna regressione misurata sul resto del
+   corpus.
+
+2. Bug evidente nel transitorio d'avvio: appena la memoria di 8s diventa
+   `ready`, `anchor`/`constraint` sono ancora vicini a zero per
+   costruzione (nessun ciclo confermato) — letto come un falso
+   `respiro-profondo` invece che come "ancora in costruzione". Aggiunto
+   `anchoring.warmedUp` (bug evidente, non nuova metrica: usa `readyAt`,
+   il momento in cui `ready` è diventato vero, già implicito nello stato
+   della classe) — per `ANCHOR_WARMUP_GRACE_MS=1500` dopo `ready`,
+   `classifyExperimentalRegime` restituisce `pressurized` (ancora in
+   costruzione) invece di valutare la soglia alto/profondo. Prima
+   correzione tentata (gate sul VALORE di `anchor` invece che sul tempo)
+   si è rivelata sbagliata in verifica: sopprimeva `respiro-profondo` per
+   l'intera durata dei file genuinamente a bassa costrizione
+   (`respiro-profondo-1.mp3`, `respirto-profondo-3.mp3` — il loro anchor
+   non supera mai la soglia usata, per definizione). Ritirata subito,
+   sostituita con il gate temporale.
+
+Trovato anche un artefatto del metodo di collaudo, non della produzione:
+`scripts/calibration/assert-regime-corpus.mjs` prependeva 40s di rumore
+rosa prima del contenuto reale (stessa convenzione di tutti gli script di
+questo corpus, per stabilizzare rhythmClock), ma la finestra di 8s
+dell'experimental clock diventa `ready` già a 8s di rumore rosa — molto
+prima che il contenuto reale inizi a 40s. Il transitorio d'avvio
+(`ANCHOR_WARMUP_GRACE_MS`) risultava quindi già esaurito nel momento in cui
+iniziava il materiale reale, mascherando l'effetto della correzione al
+punto 2 (risultati identici prima/dopo nello script di verifica). Corretto
+istanziando l'experimental clock solo all'inizio del contenuto reale in
+`assert-regime-corpus.mjs` — non esiste dal vivo, dove non c'è rumore rosa
+prima del materiale. `scripts/calibration/compare-audio-regimes.mjs`
+(diagnostica generale, non regressione di accettazione) non è stato
+toccato: continua a mostrare pochi secondi residui di questo stesso
+artefatto sui file respiro-alto-*, da tenere presente leggendo i suoi
+output.
+
+`scripts/calibration/assert-regime-corpus.mjs` esteso: soglia di dominanza
+ora calcolata sul tempo risolto (esclude `unresolved`, l'8s strutturale di
+avvio a freddo — stessa logica già in uso nel progetto per il tempo di
+Varco, altrimenti un file corto fallisce solo per il costo fisso della
+finestra); aggiunto supporto per stati vietati (`forbidden`). Tutti e 4 i
+campioni respiro-alto-*.mp3 passano: dominanza ≥0,82 sul tempo risolto,
+zero `respiro-profondo`, zero `decompression`.
+
+Suite (73 file / 693 test), typecheck e lint verdi dopo la modifica.
+
+## Regime Audio experimental — corretta oscillazione ingestibile su respiro-alto-2.mp3 — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-2.mp3` (aggiunto e tracciato).
+Con il regime experimental risultava DIFFORME dall'etichetta: solo 65% del
+tempo in `respiro-alto`, il resto spezzato in `pressurized`/`decompression`
+spuri (25 transizioni in 76s). Causa: `anchoring.gaining`/`losing`
+(`brainBioPerceptionExperimental.ts`) usavano un deadband di 0,005 sul
+delta campione-a-campione di `anchor` — più stretto del rumore naturale di
+`anchor` in un tratto stabile (misurato fino a ~0,011 su questo file),
+quindi ogni micro-oscillazione veniva letta come passaggio reale. Le
+transizioni reali sullo stesso file restano ≥0,012.
+
+Corretto alzando il deadband a 0,012 (nuova costante `ANCHOR_TREND_DEADBAND`,
+nessuna nuova metrica: stesso segnale `anchor` già calcolato). Risultato:
+`respiro-alto-2.mp3` passa a 88% respiro-alto, 13 transizioni (era 25).
+Nessuna regressione misurata sul resto del corpus (`respiro-alto-0/1.mp3`
+restano rispettivamente 79%/90% respiro-alto; gli altri file non
+cambiano di categoria dominante). `decompresisone.mp3` perde una quota di
+decompression già marginale (0,74s su 49s, sotto la vecchia soglia) — non
+una regressione nuova: quel file non arrivava già a mostrare decompression
+come regime dominante, limite pre-esistente e fuori scope MVP (come
+`test-1.mp3`).
+
+Aggiunto `scripts/calibration/assert-regime-corpus.mjs`: regressione mirata
+(non nella suite vitest — richiede ffmpeg e decodifica reale, fuori posto
+in unit test veloci) che decodifica i tre campioni `respiro-alto-*.mp3` con
+lo stesso codice di produzione e fallisce se la quota dominante di
+`respiro-alto` scende sotto 0,6. Uso:
+`node scripts/calibration/assert-regime-corpus.mjs`.
+
+Suite (73 file / 692 test), typecheck e lint verdi dopo la modifica.
+
+## Regime Audio experimental — collegato al Visual, MVP chiuso — 2026-09-11
+
+`audioMode='experimental'` pilota ora i renderer (`bioPerceptionSource` in
+`OutputApp.tsx` sceglie fra i due clock); `baseline` resta il default e
+resta disponibile e invariata. Aggiunta la sola classificazione mancante
+per esporre un `regime` (`classifyExperimentalRegime` in
+`brainBioPerceptionExperimental.ts`): `anchoring.gaining`/`losing` (già
+calcolati) fanno da passaggio, `constraint.value` (già calcolato) decide
+alto/profondo sopra/sotto 0,18 — soglia presa dall'evidenza già misurata
+(C04=0,109, C06=0,252), non da una nuova formula.
+
+Bug evidente trovato e corretto in collaudo, prima di dichiarare l'MVP
+chiuso: la prima versione usava `constraint.direction`, che non rientra mai
+in `falling` dopo l'assestamento iniziale (doppio smoothing) — risultato,
+`decompresisone.mp3` restava `respiro-alto` per 40 dei 49s osservati,
+comportamento palesemente invertito. Sostituito con
+`anchoring.gaining`/`losing`, reattivi sample a sample.
+
+Limite noto, non riaperto in questa fase (già segnalato nella consegna
+precedente): `test-1.mp3` mostra ancora una quota rilevante di
+`respiro-alto` (31,6s su 49s) — il discriminante bidirezionale resta
+imperfetto. Nessuna nuova metrica introdotta per inseguirlo, per
+disposizione esplicita di questa fase.
+
+Verifica: harness offline sull'intero corpus (stesso codice di produzione,
+non un test visivo dal vivo — non disponibile in questo ambiente):
+respiro-alto-0/1 e pressurizzazione.mp3 restano dominati da respiro-alto
+coerente; i tre respiro-profondo* passano da "sempre profondo, zero
+transizioni" (bug) a maggioranza profondo con passaggi reali; decompresisone*
+guadagna una quota di decompression prima assente. Suite completa (73
+file/692 test, 3 nuovi test sul classificatore), typecheck e lint verdi.
+Nessuna modifica a `classifyLevel`, `rhythmConstraint`, `pressureLanded`,
+baseline.
+
+## Regime Audio experimental — prima consegna sostanziale — 2026-09-11
+
+Recepita la direttiva del Vice Consigliere. La baseline e il lavoro aperto su
+`pressureLanded` restano presenti ma accantonati; nessun file baseline è
+stato modificato. DEP-001 `NON COINVOLTO`.
+
+`BrainBioPerceptionExperimentalClock` dispone ora di una memoria propria da
+8 s: conserva materia e fronti separati per banda in celle da 25 ms, stima la
+ricorrenza multibanda, verifica la conferma low/lowMid allo stesso periodo,
+confronta sei cicli completi e mantiene attacco, perdita e recupero
+dell'ancoraggio. Produce diagnostica separata per organizzazione,
+entrainment, ancoraggio, prima costrizione, traiettoria e assestamento. Il log
+1 Hz registra questi dati; il Visual continua a ricevere solo la baseline.
+
+Corpus reale: C03=`respiro-alto-0` produce costrizione media 0,351,
+C04=`respiro-profondo` 0,109, C06=`respiro-alto-1` 0,252. Sono soddisfatti i
+due confronti verificabili `C03 > C04` e `C06 > C04`. La mappa C02/C08/C09
+non è conservata e non è stata ricostruita per congettura.
+
+Limite aperto: `test-1.mp3` conserva ricorrenza e persistenza inter-ciclo
+alte anche nel nuovo osservatore; non è ancora discriminato come
+trasformazione bidirezionale. Nessuna soglia o classificazione finale è
+stata quindi promossa. Risposta completa in
+`team/briefs/risposta-ingegneria-regime-audio-experimental-prima-consegna-2026-09-11.md`.
+
+Validazione: 73 file / 689 test, typecheck e lint verdi; build Vite/Electron e
+ZIP arm64 riusciti. Il solo DMG non è stato rigenerato: `hdiutil create`
+fallisce sul sistema host dopo i retry automatici (16 GiB liberi, nessuna
+immagine montata). Il DMG rc.4 già presente è quello delle 00:47 e non include
+questa consegna.
+
+## Regime Audio sperimentale — osservabili motori, criterio a range ritirato — 2026-09-11
+
+Ripreso l'intervento sospeso sul gate dei Respiri. Il criterio a escursione
+min/max di `pressureLagged` è stato **ritirato**: non riconosceva nessuno dei
+tre `respiro-profondo*`, modificava la baseline che PIANO-044 dichiara
+congelata e aggiungeva stato (`settleFloor`/`settleCeiling`) senza rispondere
+alla domanda. Restano conservate qui le misure che lo hanno smentito:
+l'escursione minima di `perceptualPressure` su 9 s è 0.059–0.106 nei tre
+campioni profondi, 0.070 in `test-1.mp3`, ma soltanto 0.016–0.017 in due
+campioni di trasformazione. Nessuna soglia sulla sola ampiezza della
+traiettoria separa quindi stasi e trasformazione nel corpus.
+
+Proseguita invece PIANO-044/Fase 2 nel solo harness A/B. Il confronto ora
+registra, senza cambiare il runtime, gli osservabili già disponibili
+(`pulse`, `lowEnd`, `gridDensity`, `rhythmConstraint`, persistence/change),
+la conferma fisica sui beat del clock e la periodicità dei fronti reali di
+banda, globale e su finestre scorrevoli da 8 s.
+
+**Evidenza misurata:** il clock corrente rileva 0 beat in entrambi i file
+`respiro-alto-*`; non può quindi essere l'autorità esclusiva
+dell'entrainment sperimentale. L'autocorrelazione dei fronti raw recupera
+organizzazione periodica nei due file alti (correlazione globale 0.26/0.24;
+media mobile 0.72/0.50) e resta bassa nei tre profondi (globale 0.05–0.09;
+media mobile 0.17–0.23). Ma la stessa periodicità resta forte nei file di
+pressurizzazione/decompressione e in `test-1.mp3` (globale 0.43, media mobile
+0.68, periodo stabile): prova diretta che **periodicità/entrainment distingue
+il livello motorio, non l'assestamento**. Non è stata promossa alcuna formula
+di regime; il prossimo passo resta trovare, nel percorso sperimentale, la
+persistenza inter-ciclo che separi una relazione ripetuta da una migrazione
+fra configurazioni.
+
+Baseline di produzione nuovamente invariata. Audit DEP-001: `NON COINVOLTO`.
+
+## Respiri — ricostruzione temporale del secondo blocco — 2026-09-11 (aggiornamento)
+
+Ricostruita la timeline evento-per-evento (`scripts/calibration/
+timeline-respiro-profondo.mjs`) su tutti e tre i file. Correzione alla
+diagnosi precedente in questa stessa pagina: l'ipotesi "il bootstrap
+consuma il tratto piatto iniziale" era sbagliata — il lungo `pressureFlatMs`
+osservato all'inizio era un artefatto del riscaldamento sintetico
+dell'harness (40s di rumore rosa, stazionario per costruzione), non un
+tratto piatto del brano reale: si rompe entro ~100ms dall'inizio del
+contenuto vero, in tutti e tre i file. Da lì fino alla fine del file,
+`pressureLanded` **non torna mai vero, nemmeno una volta**, su nessuno dei
+tre. Il livello (`gatedLevel`) diventa comunque noto più avanti, ma solo
+via `reference.justSettled` (non via `pressureJustLanded`, che non rifiora
+mai) — e a quel punto `pressureLanded` è già permanentemente falso, quindi
+`classifyRawBioRegime` riceve sempre `null` al posto del livello
+(`pressureLanded ? gatedLevel : null`). Non è un disallineamento episodico
+fra due gate: è che il gate di atterraggio, sul contenuto musicale reale di
+questi tre file, non si soddisfa mai dopo l'avvio — stessa causa già
+descritta nella prima voce Diagnosi Respiri (2026-09-10/11): `pressureTrend`
+(quindi `landingNow`, stessa soglia 0.02) cambia con cadenza troppo fitta
+per accumulare 9s continui. `everPromoted`/bootstrap non blocca nulla dopo
+essersi promosso una prima volta (resta vero per sempre): non è la causa.
+Nessuna modifica al codice di produzione in questo aggiornamento oltre a
+diagnostica additiva (`referencePhase`, `referenceJustSettled` in
+`BrainBioRegimeDiagnostics`; `classifyLevel` esportata, invariata).
+
+## Respiri — corretto il reset del gate di atterraggio, resta un secondo blocco — 2026-09-11
+
+Diagnosi Vice Consigliere, verificata su `respiro-profondo.mp3`,
+`respiro-profondo-1.mp3`, `respirto-profondo-3.mp3` (harness
+`scripts/calibration/diagnose-respiro-profondo.mjs`, riusa il modulo di
+produzione reale).
+
+**Difetto 1 (corretto)**: in `advanceBioRegime`, `pressureFlatMs` si
+azzerava a ogni cambio dell'ETICHETTA `pressureTrend`, anche quando `pp`
+restava continuamente entro `PRESSURE_SETTLE_EPSILON` dalla propria linea
+ritardata (`landingNow` vero). `REFERENCE_PRESSURE_DEADBAND` e
+`PRESSURE_SETTLE_EPSILON` sono lo stesso valore per costruzione: l'ingresso
+in rising/falling da 'stable' coincide già con la perdita di `landingNow`,
+quindi quella protezione non serviva; l'isteresi in USCITA da rising/falling
+lasciava invece che l'etichetta cambiasse ben dopo che `pp` aveva già
+smesso di muoversi, e ogni micro-rientro azzerava il conteggio. Sul segnale
+reale l'etichetta cambia con cadenza mediana ~1.7s (Diagnosi Respiri
+2026-09-10/11), sempre sotto ai 9s richiesti: `pressureLanded` non
+diventava mai vero. Corretto: il reset dipende ora solo da `landingNow`.
+Verificato: `pressureLanded` ora diventa vero su tutti e tre i file
+(prima: mai, su nessuno). Due test di regressione aggiunti in
+`brainBioPerception.test.ts` per il meccanismo esatto.
+
+**Difetto 2 (non corretto, in attesa di indicazione)**: anche con
+`pressureLanded` vero, nessuno dei tre file raggiunge `respiro-profondo`.
+Causa: i tre campioni iniziano con un tratto lungo e piatto (l'intro reale
+più il riscaldamento di rumore rosa che lo precede nell'harness) che
+consuma quasi per intero il bootstrap di `reference` (`everPromoted` resta
+falso finché il mondo non viene confermato) — `gatedLevel` resta forzato
+`null` per tutta quella finestra anche se `pressureJustLanded` scatta,
+perché il gate `everPromoted ? settledLevel : null` lo azzera in bootstrap.
+Il livello viene poi effettivamente classificato (via
+`reference.justSettled`, non via `pressureJustLanded`) solo quando il
+tratto piatto sta già finendo: sui tre file, `pressureLanded` e
+`level !== null` non sono MAI risultati veri nello stesso fotogramma
+(misurato direttamente, zero secondi di sovrapposizione su tutti e tre).
+Il regime resta quindi `pressurized`/`decompression` per l'intero file:
+nessuno dei tre raggiunge `respiro-alto`/`respiro-profondo` nemmeno dopo
+la correzione del Difetto 1.
+
+**Regressione**: rieseguito l'intero corpus (`compare-audio-regimes.mjs`,
+11 file) e `test-1.mp3` (`analyze-sample.mjs`, gate storico
+"`respiro-alto` deve restare 0" — verde). Nessun file già classificato
+correttamente ha guadagnato un respiro spurio; unico cambiamento osservato,
+un incremento di pochi decimi di secondo del tempo già in `respiro-alto` su
+`pressurizzazione.mp3`/`pressurizzazione1.mp3` (dove era già presente prima
+della correzione). Suite completa (73 file/685 test), typecheck e lint
+verdi. `audioMode='experimental'` (PIANO-044) eredita lo stesso
+comportamento perché in questa fase delega integralmente alla baseline
+(scaffold, nessuna semantica propria ancora) — non è stato toccato nulla
+nel file `brainBioPerceptionExperimental.ts`.
+
 ## PsicoFantasma — eleggibilità verificata e log per fotogramma — 2026-09-11
 
 Verificato il §36 del brief Visual prima di intervenire: PsicoFantasma è già

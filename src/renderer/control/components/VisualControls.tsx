@@ -136,6 +136,16 @@ export function VisualControls({ settings, onChange }: Props) {
           </select>
         </label>
         <label>
+          Regime Audio (collaudo)
+          <select
+            value={settings.audioMode ?? 'baseline'}
+            onChange={(e) => onChange({ audioMode: e.target.value as AppSettings['audioMode'] })}
+          >
+            <option value="baseline">Baseline — pressione percettiva</option>
+            <option value="experimental">Sperimentale — ancoraggio motorio (MVP, pilota il Visual)</option>
+          </select>
+        </label>
+        <label>
           Renderer Brain
           <select
             value={settings.brainRendererId}

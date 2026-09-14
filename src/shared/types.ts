@@ -5,6 +5,19 @@ export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp' | '2001'
 export type FlashMode = 'high' | 'mid' | 'low' | 'off'
 export type MotionProfile = 'dub' | 'techno' | 'ambient'
+
+// Regime Audio bio-percettivo (PIANO-044): `baseline` è il regime corrente
+// (pressione aggregata, brainBioPerception.ts, congelato); `experimental` è
+// il regime sotto collaudo (ballabilità/entrainment/costrizione motoria,
+// brainBioPerceptionExperimental.ts). Selezione esplicita, nessuna migrazione
+// automatica: nella prima consegna experimental è solo diagnostico e il
+// Visual resta collegato alla baseline.
+export type AudioMode = 'baseline' | 'experimental'
+const AUDIO_MODES: AudioMode[] = ['baseline', 'experimental']
+
+export function isAudioMode(value: unknown): value is AudioMode {
+  return typeof value === 'string' && AUDIO_MODES.includes(value as AudioMode)
+}
 export type BrainRendererId =
   | 'print2d'
   | 'psycho2d'
@@ -94,6 +107,8 @@ export interface AppSettings {
   morphingAlgorithm: MorphingAlgorithm
   morphingPresetId: string
   motionProfile: MotionProfile
+  /** Regime Audio bio-percettivo: 'baseline' (default) o 'experimental' (PIANO-044). */
+  audioMode: AudioMode
   debugMorphingVisibility: boolean
   morphingOpacity: number
   morphingMinOpacity: number

@@ -1,5 +1,88 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Richiesta Aiuto Audio Su Riconoscimento Experimental — 2026-09-11
+
+- [x] **`TASK-044-AUDIO-01`** `DONE`: analizzare integralmente l'ultima
+  sessione live `session-2026-09-11-20-06-52.txt` e consegnare al Capo Supremo
+  dell'Analisi Audio un brief che separa giudizio d'ascolto, fatti del log,
+  limiti probatori e domande percettive. Verificati 42 cambi in 322,488 s,
+  dominio `respiro-alto` all'85,0% e 21 segmenti sotto i 2 s. Rilevata inoltre
+  l'assenza del campionamento sperimentale 1 Hz e la provenienza baseline di
+  `reason`/segnali allegati agli stati experimental. Nessuna modifica runtime.
+
+## Regime Audio Experimental — MVP Collegato Al Visual — 2026-09-11
+
+- [x] **`TASK-044-MVP-01`** `DONE`: `audioMode='experimental'` collegato al
+  Visual (`bioPerceptionSource` in `OutputApp.tsx`); baseline resta
+  disponibile e invariata. Aggiunta `classifyExperimentalRegime` (unica
+  logica mancante per esporre un `regime`, non un nuovo osservabile: legge
+  `anchoring.gaining/losing` e `constraint.value`, già calcolati). Bug
+  evidente trovato e corretto in collaudo: la prima versione usava
+  `constraint.direction`, che non rientrava mai in `falling` dopo
+  l'assestamento iniziale — `decompresisone.mp3` restava `respiro-alto` per
+  40/49s. Corretto con `anchoring.gaining/losing`. Limite noto non
+  riaperto: `test-1.mp3` mostra ancora 31,6/49s di `respiro-alto`
+  (discriminante bidirezionale imperfetto, già segnalato in precedenza).
+  Verifica via harness offline sul corpus reale (stesso codice di
+  produzione); nessun test visivo dal vivo disponibile in questo ambiente.
+  Suite completa (73 file/692 test), typecheck e lint verdi. Nessuna
+  modifica a baseline/`classifyLevel`/`rhythmConstraint`/`pressureLanded`.
+
+## Regime Audio Experimental — Prima Consegna Sostanziale — 2026-09-11
+
+- [x] **`TASK-044-03`** `DONE`: implementare memoria temporale autonoma nel
+  solo clock experimental, con materia/fronti per banda, ricorrenza,
+  conferma fisica, persistenza inter-ciclo, ancoraggio e prima costrizione;
+  esporre diagnostica separata e inserirla nel log 1 Hz senza collegarla al
+  Visual. Verificati C03>C04 e C06>C04. `test-1.mp3` resta discriminante
+  aperto; nessuna classificazione finale promossa. Baseline invariata.
+
+## Regime Audio Sperimentale — Osservabilità Motoria — 2026-09-11
+
+- [x] **`TASK-044-02`** `DONE` (checkpoint diagnostico): ritirare dalla
+  baseline il criterio a range smentito dal corpus; estendere l'harness A/B
+  con conferma fisica del beat, componenti motorie esistenti e periodicità
+  globale/mobile dei fronti raw. Accertato che il clock corrente rileva zero
+  beat nei due `respiro-alto-*` e che la periodicità separa livello alto/basso
+  sui cinque campioni di respiro, ma non assestamento/trasformazione né
+  `test-1.mp3`. Nessuna formula o stato runtime nuovo; Task 2.4 resta aperto.
+
+## Correzione Gate Di Atterraggio Respiri — 2026-09-11
+
+- [x] **`TASK-ENG-2026-09-11-02`** `DONE` (parziale, vedi STATE.md): diagnosi
+  Vice Consigliere sui tre campioni `respiro-profondo*`. Individuato e
+  corretto il reset di `pressureFlatMs` su ogni cambio di etichetta
+  `pressureTrend` (azzerava il gate di atterraggio anche quando `pp` restava
+  atterrata) in `advanceBioRegime`. `pressureLanded` ora diventa vero su
+  tutti e tre i file (prima: mai). Individuato un secondo blocco distinto,
+  non corretto in questo task: `pressureLanded` e `level !== null` non
+  risultano mai veri nello stesso fotogramma sui tre file (bootstrap di
+  `reference` consuma l'intero tratto piatto iniziale), quindi nessuno dei
+  tre raggiunge ancora `respiro-alto`/`respiro-profondo`. Aggiunta
+  diagnostica additiva (`pressureFlatMs`/`pressureLanded` in
+  `BrainBioRegimeDiagnostics`) e due test di regressione mirati. Rieseguito
+  l'intero corpus + `test-1.mp3`: nessuna regressione, nessun falso respiro
+  introdotto. Non toccato `rhythmConstraint`, `classifyLevel`, né il regime
+  Audio sperimentale. Suite completa, typecheck e lint verdi.
+
+## Regime Audio Sperimentale — Checkpoint 1 — 2026-09-11
+
+- [x] **`TASK-044-01`** `DONE`: impianto a due percorsi per il regime Audio
+  (`PIANO-044`/`MACRO-035`). `AppSettings.audioMode`, nuovo
+  `BrainBioPerceptionExperimentalClock` (scaffold che delega alla baseline),
+  wiring in `OutputApp.tsx` con i due clock alimentati in parallelo sullo
+  stesso ingest, selettore in `VisualControls.tsx`, harness offline
+  `scripts/calibration/compare-audio-regimes.mjs`. Verificato su tutto
+  `docs/campioni/*.mp3` (11 file): baseline ed experimental producono lo
+  stesso `durationSeconds`/transizioni su ognuno, come atteso da uno
+  scaffold senza nuova semantica. Effetto collaterale osservativo: nel
+  corpus reale il log conferma di nuovo l'esito della Diagnosi Respiri
+  dell'11/9 — `respiro-profondo` non compare mai (nemmeno nei file
+  esplicitamente nominati così) e `respiro-alto` compare solo su due dei
+  tre campioni "pressurizzazione". Nessuna modifica alla baseline, a
+  renderer, colori, morphing, Riattivazione o Coscienza Onirica. Suite
+  completa (73 file/683 test), typecheck e lint verdi.
+
 ## Verifica eleggibilità PsicoFantasma — 2026-09-11
 
 - [x] **`TASK-034-24`** `DONE`: verificare PsicoFantasma nei quattro regimi

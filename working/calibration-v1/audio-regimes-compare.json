@@ -1,0 +1,276 @@
+[
+  {
+    "file": "docs/campioni/decompresisone-1.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 6.26938775510207,
+        "pressurized": 8.637823129251746,
+        "decompression": 35.689070294783775
+      },
+      "transitions": 8
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 11.726077097505739,
+        "respiro-alto": 29.35002267573615
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/decompresisone.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.8823582766439902,
+        "pressurized": 36.571428571427845,
+        "decompression": 17.600725623582786
+      },
+      "transitions": 22
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 35.85160997732348
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/pressurizzazione-2.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.301859410430839,
+        "decompression": 22.987755102040452,
+        "pressurized": 25.820589569160436
+      },
+      "transitions": 19
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 7.128526077097541,
+        "respiro-profondo": 22.75555555555521,
+        "respiro-alto": 4.086712018140602,
+        "decompression": 5.619229024943334
+      },
+      "transitions": 6
+    }
+  },
+  {
+    "file": "docs/campioni/pressurizzazione.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.39473922902494335,
+        "decompression": 0.6037188208616779,
+        "pressurized": 11.099138321995529,
+        "respiro-alto": 42.95691609977307
+      },
+      "transitions": 3
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 10.193560090703006,
+        "respiro-alto": 35.340770975055854
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/pressurizzazione1.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.16253968253968257,
+        "pressurized": 11.006258503401424,
+        "respiro-alto": 6.01396825396828,
+        "decompression": 11.122358276644055
+      },
+      "transitions": 3
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 10.704399092970583,
+        "respiro-alto": 8.080544217687118
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-alto-0.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.09287981859410431,
+        "pressurized": 28.67664399092894,
+        "decompression": 20.340680272108667
+      },
+      "transitions": 20
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 29.907301587300736
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-alto-1.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.11609977324263039,
+        "pressurized": 21.501678004534888,
+        "decompression": 27.492426303854195
+      },
+      "transitions": 32
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 8.661043083900273,
+        "respiro-alto": 30.92897959183581
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-alto-2.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.7662585034013601,
+        "decompression": 26.702947845804363,
+        "pressurized": 33.83147392290153,
+        "respiro-alto": 11.91183673469395,
+        "respiro-profondo": 2.647074829931974
+      },
+      "transitions": 16
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 53.59165532879892,
+        "decompression": 3.065034013605447
+      },
+      "transitions": 4
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-alto-3.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.4411791383219955,
+        "pressurized": 2.8560544217687105,
+        "decompression": 21.87319727891128,
+        "respiro-alto": 3.1346938775510256
+      },
+      "transitions": 4
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 8.661043083900273,
+        "respiro-alto": 10.123900226757426
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-alto-4.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.8823582766439902,
+        "decompression": 15.719909297052254,
+        "pressurized": 14.164172335600995,
+        "respiro-alto": 10.91337868480732
+      },
+      "transitions": 7
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 9.682721088435429,
+        "respiro-alto": 22.476916099772914
+      },
+      "transitions": 2
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-profondo-1.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.48761904761904773,
+        "decompression": 27.608526077096815,
+        "pressurized": 21.014058956915875
+      },
+      "transitions": 25
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "respiro-profondo": 39.59002267573649
+      },
+      "transitions": 1
+    }
+  },
+  {
+    "file": "docs/campioni/respiro-profondo.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.09287981859410431,
+        "pressurized": 22.43047619047587,
+        "decompression": 26.58684807256174
+      },
+      "transitions": 22
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "respiro-profondo": 28.351564625849598,
+        "pressurized": 6.130068027210912,
+        "decompression": 5.108390022675757
+      },
+      "transitions": 9
+    }
+  },
+  {
+    "file": "docs/campioni/respirto-profondo-3.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.18575963718820865,
+        "pressurized": 16.74158730158738,
+        "decompression": 32.18285714285613
+      },
+      "transitions": 19
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "respiro-profondo": 39.59002267573649
+      },
+      "transitions": 1
+    }
+  },
+  {
+    "file": "docs/campioni/test-1.mp3",
+    "baseline": {
+      "durationSeconds": {
+        "unresolved": 0.8359183673469383,
+        "decompression": 14.535691609977416,
+        "pressurized": 33.73859410430742
+      },
+      "transitions": 15
+    },
+    "experimental": {
+      "durationSeconds": {
+        "unresolved": 9.520181405895745,
+        "pressurized": 13.258594104308472,
+        "respiro-alto": 26.33142857142797
+      },
+      "transitions": 2
+    }
+  }
+]
