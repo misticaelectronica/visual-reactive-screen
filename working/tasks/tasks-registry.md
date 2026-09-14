@@ -1,5 +1,15 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## Richiesta Aiuto Audio Su Riconoscimento Experimental — 2026-09-11
+
+- [x] **`TASK-044-AUDIO-01`** `DONE`: analizzare integralmente l'ultima
+  sessione live `session-2026-09-11-20-06-52.txt` e consegnare al Capo Supremo
+  dell'Analisi Audio un brief che separa giudizio d'ascolto, fatti del log,
+  limiti probatori e domande percettive. Verificati 42 cambi in 322,488 s,
+  dominio `respiro-alto` all'85,0% e 21 segmenti sotto i 2 s. Rilevata inoltre
+  l'assenza del campionamento sperimentale 1 Hz e la provenienza baseline di
+  `reason`/segnali allegati agli stati experimental. Nessuna modifica runtime.
+
 ## Regime Audio Experimental — MVP Collegato Al Visual — 2026-09-11
 
 - [x] **`TASK-044-MVP-01`** `DONE`: `audioMode='experimental'` collegato al

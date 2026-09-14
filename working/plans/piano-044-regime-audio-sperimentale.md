@@ -111,6 +111,15 @@ la sperimentazione.
 
 ## 6. 📝 Note e Registro Avanzamento
 
+- **2026-09-11 — collaudo live negativo e richiesta all'Audio**: il
+  Consigliere giudica errato il riconoscimento della sessione
+  `session-2026-09-11-20-06-52.txt`. Il log conferma 42 cambi in 322,488 s,
+  dominio `respiro-alto` all'85,0% e 21 segmenti sotto i 2 s, ma non conserva
+  marcatori manuali né diagnostica experimental 1 Hz; `reason` e segnali
+  allegati provengono dalla baseline. Nessuna nuova taratura: richiesta una
+  verità percettiva annotata al Capo Supremo dell'Analisi Audio nel brief
+  dedicato.
+
 - **2026-09-11**: Creazione del piano. Corpus: nessuna mappa C01–C09 mai
   conservata (confermato in `piano-040` e nei brief Audio del 2026-09-04);
   non serve — il corpus reale è `docs/campioni/*.mp3`, già nominato per

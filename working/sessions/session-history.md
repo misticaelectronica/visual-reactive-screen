@@ -2473,3 +2473,20 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   aggiunta regressione esplicita dei quattro regimi.
 - Audit deprecati: DEP-001 `NON COINVOLTO`. Verifiche: selettore 55/55, suite
   completa 72 file / 681 test, typecheck, lint e build app/ZIP/DMG verdi.
+
+## SESSION-2026-09-11-EXPERIMENTAL-AUDIO-BRIEF — 20:17 Europe/Rome
+
+- Richiesta del Consigliere: non correggere ancora il riconoscimento
+  `experimental`, ma chiedere aiuto al Capo Supremo dell'Analisi Audio sulla
+  base dell'ultima sessione.
+- Analizzato integralmente il log
+  `session-2026-09-11-20-06-52.txt`: `audioMode=experimental`, intervallo
+  osservato 322,488 s, 42 cambi, `respiro-alto` all'85,0%, 21 segmenti sotto i
+  2 s e 12 sotto 1 s.
+- Limite registrato: nessun marcatore manuale e nessun campione sperimentale
+  1 Hz; le motivazioni e i segnali dei cambi appartengono alla baseline e non
+  spiegano gli esiti experimental.
+- Creato il brief
+  `team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`.
+- Nessuna modifica runtime o taratura. Audit deprecati: DEP-001
+  `NON COINVOLTO`.
