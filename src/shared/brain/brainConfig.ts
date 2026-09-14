@@ -54,17 +54,17 @@ export const BRAIN_CONFIG = {
   // fotogrammi della storia precedente (`recycleCurrentStoryFrame`) scattava
   // troppo spesso — la nuova storia non faceva in tempo a essere pronta
   // prima che quella corrente finisse. Il margine di generazione è stato
-  // allargato da 90 a 105 secondi (15 secondi di riposo restano prima di
-  // iniziare, invece di 30) per dare più tempo al denoising di completare
-  // il buffer successivo mantenendo cooldown e backoff fra le inferenze.
+  // allargato, ma il riposo della GPU fra una storia e l'inizio della
+  // successiva non deve scendere sotto i 25 secondi (limite esplicito del
+  // Capo Supremo) — 25s di riposo restano, invece di 30, per dare un po'
+  // più di tempo al denoising senza sacrificare il riposo termico.
   nextStoryTargetMs: 120_000,
-  nextStoryRefillLeadMs: 105_000,
+  nextStoryRefillLeadMs: 95_000,
   // Con tutti i renderer sulla stessa storia il primo attraversamento resta
   // libero da generazione. Il refill ha poi due attraversamenti di margine.
-  // Stesso allargamento del margine di generazione di `nextStoryRefillLeadMs`
-  // sopra (30s di riposo -> 15s), stessa segnalazione.
+  // Stesso limite di riposo massimo 25s di `nextStoryRefillLeadMs` sopra.
   storyCycleNextStoryTargetMs: 240_000,
-  storyCycleRefillLeadMs: 225_000,
+  storyCycleRefillLeadMs: 215_000,
   storyCycleRefillTransitionGuardMs: 10_000,
   nextStoryHardDeadlineMs: 180_000,
   // Esperimento MACRO-009: evita di ricreare text encoder, UNet e VAE a ogni
