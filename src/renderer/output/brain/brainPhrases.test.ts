@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OutputApi } from '@shared/types'
 import {
+  insertPhraseAtCursor,
   loadBrainPhrases,
   parseBrainPhrases,
   sampleBrainPhraseWindow,
@@ -101,5 +102,53 @@ describe('finestra scorrevole sequenziale su BRAIN_PHRASES', () => {
     const result = sampleBrainPhraseWindow(0, 5)
     expect(result.phrases).toEqual(['unica riga'])
     expect(result.nextCursor).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('insertPhraseAtCursor — BrainPhrasesBaseStory di Sessione', () => {
+  it('inserisce esattamente al cursore, senza toccare le righe precedenti', () => {
+    const result = insertPhraseAtCursor(
+      ['Paragrafo 1', 'Paragrafo 2', 'Paragrafo 3', 'Paragrafo 4'],
+      2,
+      'INPUT A',
+    )
+    expect(result.lines).toEqual([
+      'Paragrafo 1',
+      'Paragrafo 2',
+      'INPUT A',
+      'Paragrafo 3',
+      'Paragrafo 4',
+    ])
+    expect(result.nextCursor).toBe(3)
+  })
+
+  it('accoda input consecutivi nell’ordine di arrivo, prima del paragrafo successivo', () => {
+    let state = { lines: ['Paragrafo 1', 'Paragrafo 2', 'Paragrafo 3', 'Paragrafo 4'], nextCursor: 2 }
+    state = insertPhraseAtCursor(state.lines, state.nextCursor, 'INPUT A')
+    state = insertPhraseAtCursor(state.lines, state.nextCursor, 'INPUT B')
+    state = insertPhraseAtCursor(state.lines, state.nextCursor, 'INPUT C')
+    expect(state.lines).toEqual([
+      'Paragrafo 1',
+      'Paragrafo 2',
+      'INPUT A',
+      'INPUT B',
+      'INPUT C',
+      'Paragrafo 3',
+      'Paragrafo 4',
+    ])
+    expect(state.nextCursor).toBe(5)
+  })
+
+  it('normalizza il cursore come sampleBrainPhraseWindow quando eccede la lunghezza', () => {
+    const result = insertPhraseAtCursor(['a', 'b', 'c', 'd'], 137, 'INPUT')
+    // 137 % 4 = 1
+    expect(result.lines).toEqual(['a', 'INPUT', 'b', 'c', 'd'])
+    expect(result.nextCursor).toBe(2)
+  })
+
+  it('su un file vuoto inserisce come unica riga', () => {
+    const result = insertPhraseAtCursor([], 0, 'INPUT')
+    expect(result.lines).toEqual(['INPUT'])
+    expect(result.nextCursor).toBe(1)
   })
 })

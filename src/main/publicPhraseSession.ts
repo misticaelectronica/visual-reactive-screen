@@ -1,9 +1,5 @@
 import type { PublicSessionStatus } from '@shared/types'
-import {
-  appendOnlinePhraseToBrainPhrases,
-  overwriteBrainPhrasesWithOnlineRows,
-  resetBrainPhrasesToBase,
-} from './brainConfigFiles'
+import { resetBrainPhrasesToBase } from './brainConfigFiles'
 import { parsePublishedCsv, type PublishedCsvRow } from './googleSheetCsv'
 import { pushPublicOnlinePhrase, pushPublicSessionStatus } from './windows'
 
@@ -51,10 +47,13 @@ export function getActivePublicSessionId(): string | null {
 
 /**
  * Ogni riga non ancora vista, sia trovata all'apertura sessione sia in un
- * poll successivo, ha lo stesso trattamento: si aggiunge in coda a
- * `brainPhrases.txt` (per il campionamento) e genera la sua storia
- * dedicata una tantum. Nessuna riga viene trattata diversamente solo
- * perché era già lì al momento dell'apertura.
+ * poll successivo, ha lo stesso trattamento: si notifica al renderer
+ * (`pushPublicOnlinePhrase`), che la inserisce esattamente al punto della
+ * sequenza in cui si trova (`insertPhraseAtCursor` in `brainPhrases.ts`) e
+ * la scrive su `brainPhrases.txt` — main non conosce quella posizione,
+ * quindi non scrive più il file per conto proprio (BrainPhrasesBaseStory
+ * di Sessione, disp. Capo Supremo 2026-09-18). Nessuna riga viene trattata
+ * diversamente solo perché era già lì al momento dell'apertura.
  */
 async function processRow(session: SessionState, row: PublishedCsvRow): Promise<boolean> {
   const rowKey = `${row.timestamp}|${row.text}`
@@ -63,7 +62,6 @@ async function processRow(session: SessionState, row: PublishedCsvRow): Promise<
   const text = row.text.slice(0, MAX_ONLINE_PHRASE_LENGTH)
   session.collectedCount += 1
   console.log(`[publicPhraseSession] nuovo input online: "${text.slice(0, 80)}"`)
-  await appendOnlinePhraseToBrainPhrases(text)
   pushPublicOnlinePhrase(text)
   return true
 }
@@ -123,10 +121,13 @@ export async function startPublicPhraseSession(
   if (state?.timer) clearInterval(state.timer)
   const sessionId = generateSessionId()
 
-  // All'apertura sessione, brainPhrases.txt riparte vuoto (non dal set
-  // curato): ogni riga già presente nel foglio in quel momento viene
-  // trattata esattamente come una trovata in un poll successivo — stessa
-  // funzione, stessa storia dedicata per ciascuna, nessuna scorciatoia.
+  // All'apertura sessione, brainPhrases.txt riparte da una copia fresca
+  // della storia base curata (BrainPhrasesBaseStory di Sessione, disp.
+  // Capo Supremo 2026-09-18) — non più vuoto: la storia principale deve
+  // continuare ad avanzare paragrafo per paragrafo durante la sessione,
+  // non restare ferma. Ogni riga già presente nel foglio in quel momento
+  // viene trattata esattamente come una trovata in un poll successivo —
+  // stessa funzione, nessuna scorciatoia.
   let rows: PublishedCsvRow[]
   try {
     const response = await fetch(csvUrl)
@@ -135,7 +136,7 @@ export async function startPublicPhraseSession(
     }
     const raw = await response.text()
     rows = parsePublishedCsv(raw)
-    await overwriteBrainPhrasesWithOnlineRows([])
+    await resetBrainPhrasesToBase()
   } catch (error) {
     return {
       ok: false,

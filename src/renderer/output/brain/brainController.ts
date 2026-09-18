@@ -40,7 +40,9 @@ import {
   type PsychedelRasterPreview,
 } from './psichedel'
 import {
+  insertPhraseAtCursor,
   loadBrainPhrases,
+  parseBrainPhrases,
   sampleBrainPhraseWindow,
   selectBrainPhraseCount,
 } from './brainPhrases'
@@ -110,8 +112,6 @@ const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
 const PROCESS_DATA_KEYS = [
   'phrases',
   'windowPhrases',
-  'onlineResiduePhrase',
-  'criterio',
   'italian',
   'english',
   'title',
@@ -152,30 +152,6 @@ function pushDreamMemoryEntry(buffer: string[], entry: string): void {
 function sampleDistributedDreamMemo(buffer: readonly string[]): SessionMemo {
   const last = buffer.length - 1
   return [buffer[0], buffer[Math.floor(last / 2)], buffer[last]]
-}
-
-/**
- * Il residuo online non ha soglia di freschezza: la ripetizione di una riga
- * appena usata non è un difetto, è il meccanismo del frammento che torna e
- * deforma il resto. 'rotate' lo fa tornare a rotazione uniforme;
- * 'recencyWeighted' fa invecchiare il residuo, privilegiando le righe più
- * recenti mano a mano che la serata avanza.
- */
-function pickOnlineResiduePhrase(
-  phrases: readonly string[],
-  cursor: number,
-  aging: 'rotate' | 'recencyWeighted',
-  random: () => number = Math.random,
-): { phrase: string; nextCursor: number } {
-  if (aging === 'recencyWeighted') {
-    const biasedIndex = Math.max(
-      0,
-      phrases.length - 1 - Math.floor(random() ** 2 * phrases.length),
-    )
-    return { phrase: phrases[biasedIndex], nextCursor: cursor }
-  }
-  const index = cursor % phrases.length
-  return { phrase: phrases[index], nextCursor: cursor + 1 }
 }
 
 function compactProcessValue(value: unknown, depth = 0): string {
@@ -519,6 +495,36 @@ export function createBrainController(
       entry.level === 'warn' ? '#e6b66f' : '#9dffac'
     processBody.textContent = processMonitorText(entry)
   })
+  // BrainPhrasesBaseStory di Sessione (disp. Capo Supremo 2026-09-18): un
+  // input online non si accoda in fondo al file — si inserisce esattamente
+  // nel punto della sequenza in cui il cursore si trova in quel momento
+  // (`insertPhraseAtCursor`), così la storia base può riprendere dal
+  // paragrafo successivo senza saltarlo né rileggerlo una seconda volta.
+  const insertOnlinePhraseIntoSessionSequence = (text: string): void => {
+    pendingSessionSequenceWrite = pendingSessionSequenceWrite
+      .then(async () => {
+        const raw = await window.fxOutput!.readBrainConfigFile('brainPhrases.txt')
+        const { lines, nextCursor } = insertPhraseAtCursor(
+          parseBrainPhrases(raw),
+          phraseCursor,
+          text,
+        )
+        phraseCursor = nextCursor
+        await window.fxOutput!.writeBrainPhrasesFile(`${lines.join('\n')}\n`)
+        brainLog('pipeline', 'input online inserito nella sequenza di Sessione', {
+          preview: text.slice(0, 200),
+          insertedAtCursor: nextCursor - 1,
+          sequenceLength: lines.length,
+        })
+      })
+      .catch((error) => {
+        brainWarn(
+          'pipeline',
+          'inserimento dell\'input online nella sequenza di Sessione fallito; storia dedicata non compromessa',
+          { error, preview: text.slice(0, 200) },
+        )
+      })
+  }
   // Un input online arriva in qualsiasi momento dello show: gli si dedica
   // subito una storia, prioritaria sulle storie casuali non ancora mostrate.
   brainLog('pipeline', 'sottoscrizione input online', {
@@ -533,9 +539,7 @@ export function createBrainController(
           })
           if (destroyed) return
           pendingOnlinePhrases.push(text)
-          // Oltre alla storia dedicata una tantum, la riga resta disponibile
-          // per rientrare nel seme delle storie ordinarie successive.
-          onlinePhrasesSeen.push(text)
+          insertOnlinePhraseIntoSessionSequence(text)
           storyQueue.length = 0
           brainLog('pipeline', 'input online ricevuto: storia dedicata in coda prioritaria', {
             preview: text.slice(0, 200),
@@ -868,12 +872,12 @@ export function createBrainController(
   // campionata in modo distribuito (non le ultime) per popolare sessionMemo
   // ai cicli periodici "Questo sogno". Vedi dreamMemoryBufferCapacity.
   const dreamMemoryBuffer: string[] = []
-  // Ogni riga raccolta dal pubblico durante una sessione aperta, tenuta per
-  // il suo "diritto di rientro" nel seme delle storie ordinarie successive
-  // — indipendente dal cursore sulla base e senza soglia di freschezza.
-  const onlinePhrasesSeen: string[] = []
-  let onlineResidueCursor = 0
-  let onlineResidueTurn = 0
+  // Serializza le scritture di BrainPhrasesBaseStory di Sessione (disp.
+  // Capo Supremo 2026-09-18): più input online possono arrivare a ridosso
+  // l'uno dell'altro (stesso giro di poll), ciascuno legge-splice-scrive
+  // `brainPhrases.txt` — incatenati qui perché due scritture in corsa non si
+  // sovrascrivano a vicenda perdendo un inserimento.
+  let pendingSessionSequenceWrite: Promise<void> = Promise.resolve()
   let recentStories: DreamStoryMemory[] = []
   let nextContinuityPhrase: string | null = null
   let recentBridges: string[] = []
@@ -1759,51 +1763,14 @@ export function createBrainController(
             ? BRAIN_CONFIG.phraseSampleMaxCount
             : selectBrainPhraseCount()
           const memoPhrases: readonly string[] = synthesizedMemo ?? []
-          // Il residuo online non ha soglia né quota: quando è di turno
-          // occupa uno slot del seme a scapito della finestra sulla base
-          // curata, mai della memoria lunga. Nessuna esclusione di
-          // freschezza — vedi pickOnlineResiduePhrase.
-          const onlineResidueDue =
-            onlinePhrasesSeen.length > 0 &&
-            onlineResidueTurn % BRAIN_CONFIG.phraseWindowOnlineResidueIntervalStories === 0
-          onlineResidueTurn += 1
-          let onlineResiduePhrase: string | null = null
-          if (onlineResidueDue) {
-            const picked = pickOnlineResiduePhrase(
-              onlinePhrasesSeen,
-              onlineResidueCursor,
-              BRAIN_CONFIG.phraseWindowOnlineResidueAging,
-            )
-            onlineResiduePhrase = picked.phrase
-            onlineResidueCursor = picked.nextCursor
-          }
-          const windowCount = Math.max(
-            1,
-            requestedPhraseCount -
-              memoPhrases.length -
-              (onlineResiduePhrase ? 1 : 0),
-          )
+          const windowCount = Math.max(1, requestedPhraseCount - memoPhrases.length)
           const windowResult = sampleBrainPhraseWindow(phraseCursor, windowCount)
           phraseCursor = windowResult.nextCursor
-          phrases = [
-            ...windowResult.phrases,
-            ...memoPhrases,
-            ...(onlineResiduePhrase ? [onlineResiduePhrase] : []),
-          ]
-          // Dichiarazione esplicita per ogni seme, non solo quando il
-          // residuo rientra: in collaudo deve essere leggibile dal log se e
-          // perché il meccanismo non è scattato in questo turno, non solo
-          // quando scatta.
+          phrases = [...windowResult.phrases, ...memoPhrases]
           brainLog('pipeline', 'nuova finestra della base curata inviata a CoscienzaOnirica', {
             batchAttempt: attempts,
             requested: requestedPhraseCount,
             windowPhrases: windowResult.phrases,
-            onlineResidueDue,
-            onlineResidueTurn: onlineResidueTurn - 1,
-            onlineResidueIntervalStories: BRAIN_CONFIG.phraseWindowOnlineResidueIntervalStories,
-            onlineResidueAging: BRAIN_CONFIG.phraseWindowOnlineResidueAging,
-            onlinePhrasesSeenCount: onlinePhrasesSeen.length,
-            onlineResiduePhrase,
             continuityPhrase,
             previousStoryId: previousStory?.title ?? null,
             sessionMemo,
@@ -1812,14 +1779,6 @@ export function createBrainController(
             nextSessionSynthesisAt,
             phrases,
           })
-          if (onlineResiduePhrase) {
-            brainLog('memoria', 'residuo online rientrato nel seme di una storia ordinaria', {
-              batchAttempt: attempts,
-              onlineResiduePhrase,
-              criterio: BRAIN_CONFIG.phraseWindowOnlineResidueAging,
-              onlinePhrasesSeenCount: onlinePhrasesSeen.length,
-            })
-          }
         }
         try {
           const coscienza = new CoscienzaOnirica(

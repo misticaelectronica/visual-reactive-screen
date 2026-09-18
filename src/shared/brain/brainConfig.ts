@@ -6,15 +6,6 @@ export const BRAIN_CONFIG = {
   // brainPhrases.ts:sampleBrainPhraseWindow). Valore alto = più continuità
   // ma rischio di storie ridondanti; da confrontare all'ascolto con 1.
   phraseWindowOverlapCount: 2,
-  // Ogni N-esima storia ordinaria riprende una riga già raccolta dal
-  // pubblico nel proprio seme (2 = alternata, 1 = ogni storia). Da tarare
-  // all'ascolto — la raccomandazione di partenza è l'alternanza.
-  phraseWindowOnlineResidueIntervalStories: 2,
-  // 'rotate': le righe online tornano a rotazione uniforme, quella più
-  // vecchia quanto la più nuova. 'recencyWeighted': le righe più recenti
-  // tornano più spesso, il residuo invecchia durante la serata. Da
-  // confrontare all'ascolto in entrambe le forme.
-  phraseWindowOnlineResidueAging: 'rotate' as 'rotate' | 'recencyWeighted',
   // Capacità della memoria lunga del sogno, dell'ordine di un giro completo
   // del cursore sulla base curata (35 righe, passo ~2-3 → ~14 storie).
   dreamMemoryBufferCapacity: 14,

@@ -21,7 +21,7 @@ import {
   handleVisualStateAck,
 } from './windows'
 import { vectorizeBrainImageOffMainThread } from './brainVectorizerClient'
-import { readBrainConfigFile } from './brainConfigFiles'
+import { readBrainConfigFile, writeBrainPhrasesFile } from './brainConfigFiles'
 import { startPublicPhraseSession, stopPublicPhraseSession } from './publicPhraseSession'
 import {
   saveConsciousnessMemory,
@@ -72,6 +72,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.readBrainConfigFile,
     (_event, fileName: BrainConfigFileName) => readBrainConfigFile(fileName),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.writeBrainPhrasesFile,
+    (_event, content: string) => writeBrainPhrasesFile(content),
   )
 
   ipcMain.handle(

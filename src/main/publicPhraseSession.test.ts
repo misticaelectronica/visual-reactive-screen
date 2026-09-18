@@ -5,11 +5,7 @@ import {
   startPublicPhraseSession,
   stopPublicPhraseSession,
 } from './publicPhraseSession'
-import {
-  appendOnlinePhraseToBrainPhrases,
-  overwriteBrainPhrasesWithOnlineRows,
-  resetBrainPhrasesToBase,
-} from './brainConfigFiles'
+import { resetBrainPhrasesToBase } from './brainConfigFiles'
 import { pushPublicOnlinePhrase, pushPublicSessionStatus } from './windows'
 
 vi.mock('./windows', () => ({
@@ -17,8 +13,6 @@ vi.mock('./windows', () => ({
   pushPublicSessionStatus: vi.fn(),
 }))
 vi.mock('./brainConfigFiles', () => ({
-  overwriteBrainPhrasesWithOnlineRows: vi.fn().mockResolvedValue(undefined),
-  appendOnlinePhraseToBrainPhrases: vi.fn().mockResolvedValue(undefined),
   resetBrainPhrasesToBase: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -56,7 +50,7 @@ describe('publicPhraseSession', () => {
     expect(result).toEqual({ ok: false, error: 'URL del CSV pubblicato mancante' })
   })
 
-  it('all\'apertura svuota brainPhrases.txt e genera una storia dedicata per OGNI riga già presente nel foglio', async () => {
+  it('all\'apertura semina brainPhrases.txt dalla storia base e notifica al renderer OGNI riga già presente nel foglio', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -70,9 +64,7 @@ describe('publicPhraseSession', () => {
     const result = await startPublicPhraseSession(CSV_URL, FORM_URL)
 
     expect(result).toEqual({ ok: true })
-    expect(overwriteBrainPhrasesWithOnlineRows).toHaveBeenCalledWith([])
-    expect(appendOnlinePhraseToBrainPhrases).toHaveBeenNthCalledWith(1, 'Prima frase già nel foglio')
-    expect(appendOnlinePhraseToBrainPhrases).toHaveBeenNthCalledWith(2, 'Seconda frase già nel foglio')
+    expect(resetBrainPhrasesToBase).toHaveBeenCalledTimes(1)
     expect(pushPublicOnlinePhrase).toHaveBeenNthCalledWith(1, 'Prima frase già nel foglio')
     expect(pushPublicOnlinePhrase).toHaveBeenNthCalledWith(2, 'Seconda frase già nel foglio')
     expect(getPublicSessionStatus().collectedCount).toBe(2)
@@ -94,7 +86,6 @@ describe('publicPhraseSession', () => {
 
     await vi.advanceTimersByTimeAsync(8_000)
 
-    expect(appendOnlinePhraseToBrainPhrases).toHaveBeenLastCalledWith('Frase nuova')
     expect(pushPublicOnlinePhrase).toHaveBeenLastCalledWith('Frase nuova')
     expect(pushPublicOnlinePhrase).toHaveBeenCalledTimes(2)
     expect(getPublicSessionStatus().collectedCount).toBe(2)
@@ -122,7 +113,6 @@ describe('publicPhraseSession', () => {
     await startPublicPhraseSession(CSV_URL, FORM_URL)
 
     expect(pushPublicOnlinePhrase).toHaveBeenCalledWith('x'.repeat(3000))
-    expect(appendOnlinePhraseToBrainPhrases).toHaveBeenCalledWith('x'.repeat(3000))
   })
 
   it('se il csv non è raggiungibile all\'apertura, ritorna un errore e non attiva la sessione', async () => {
@@ -153,10 +143,11 @@ describe('publicPhraseSession', () => {
 
     await startPublicPhraseSession(CSV_URL, FORM_URL)
     expect(getPublicSessionStatus().active).toBe(true)
+    const callsAtOpen = vi.mocked(resetBrainPhrasesToBase).mock.calls.length
 
     await stopPublicPhraseSession()
 
-    expect(resetBrainPhrasesToBase).toHaveBeenCalledTimes(1)
+    expect(resetBrainPhrasesToBase).toHaveBeenCalledTimes(callsAtOpen + 1)
     expect(getPublicSessionStatus().active).toBe(false)
     expect(getActivePublicSessionId()).toBeNull()
   })

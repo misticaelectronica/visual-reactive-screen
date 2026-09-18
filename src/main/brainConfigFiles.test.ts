@@ -56,47 +56,19 @@ describe('resetBrainPhrasesToBase', () => {
   })
 })
 
-describe('overwriteBrainPhrasesWithOnlineRows', () => {
+describe('writeBrainPhrasesFile', () => {
   afterEach(() => {
     files.clear()
   })
 
-  it('scrive una riga per elemento, collassando i newline interni in spazi', async () => {
-    const { overwriteBrainPhrasesWithOnlineRows } = await import('./brainConfigFiles')
+  it('scrive il contenuto grezzo passato dal renderer, sostituendo brainPhrases.txt', async () => {
+    files.set('/project/config/brainPhrases.txt', 'Sequenza vecchia da sostituire.\n')
+    const { writeBrainPhrasesFile } = await import('./brainConfigFiles')
 
-    await overwriteBrainPhrasesWithOnlineRows([
-      'Frase singola.',
-      'Frase\nsu più\nrighe.',
-    ])
+    await writeBrainPhrasesFile('Paragrafo 1\nINPUT A\nParagrafo 2\n')
 
     expect(files.get('/project/config/brainPhrases.txt')).toBe(
-      'Frase singola.\nFrase su più righe.\n',
-    )
-  })
-
-  it('con array vuoto scrive un file vuoto', async () => {
-    files.set('/project/config/brainPhrases.txt', 'Roba vecchia da sostituire.\n')
-    const { overwriteBrainPhrasesWithOnlineRows } = await import('./brainConfigFiles')
-
-    await overwriteBrainPhrasesWithOnlineRows([])
-
-    expect(files.get('/project/config/brainPhrases.txt')).toBe('')
-  })
-})
-
-describe('appendOnlinePhraseToBrainPhrases', () => {
-  afterEach(() => {
-    files.clear()
-  })
-
-  it('accoda una riga, collassando i newline interni in spazi', async () => {
-    files.set('/project/config/brainPhrases.txt', 'Riga esistente.\n')
-    const { appendOnlinePhraseToBrainPhrases } = await import('./brainConfigFiles')
-
-    await appendOnlinePhraseToBrainPhrases('Nuova frase\nsu due righe.')
-
-    expect(files.get('/project/config/brainPhrases.txt')).toBe(
-      'Riga esistente.\nNuova frase su due righe.\n',
+      'Paragrafo 1\nINPUT A\nParagrafo 2\n',
     )
   })
 })

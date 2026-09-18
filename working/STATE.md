@@ -1,5 +1,34 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## BrainPhrasesBaseStory di Sessione — 2026-09-18
+
+Ordine del Capo Supremo: durante la Sessione pubblica la storia principale
+curata (`brainPhrasesBaseStory.txt`) deve continuare ad avanzare paragrafo
+per paragrafo, non restare ferma. Prima: all'apertura sessione
+`brainPhrases.txt` veniva svuotato del tutto e ripopolato solo dalle frasi
+del pubblico; un input online veniva sempre accodato in fondo al file
+(mai inserito al punto reale della sequenza) e un meccanismo separato
+("residuo online") lo reiniettava più tardi, a caso, in una finestra
+ordinaria — nessuna delle due cose rispettava la posizione vera dell'input.
+
+Corretto: all'apertura sessione `brainPhrases.txt` riparte da una copia
+fresca di `brainPhrasesBaseStory.txt` (riusa `resetBrainPhrasesToBase()`,
+già esistente); un input online arrivato durante la sessione si inserisce
+ora esattamente al cursore della sequenza (`insertPhraseAtCursor`, nuova
+funzione pura in `brainPhrases.ts`) — non più in coda al file — e il
+cursore avanza di conseguenza, così la storia base riprende dal paragrafo
+successivo senza saltarlo né rileggerlo. Il renderer (unico luogo dove vive
+il cursore) possiede ora anche la scrittura del file di sessione tramite
+un nuovo canale IPC (`writeBrainPhrasesFile`); main non scrive più
+`brainPhrases.txt` per gli input online, si limita a notificarli. Rimosso
+del tutto il meccanismo del "residuo online" (ridondante e potenzialmente
+duplicante, dato che l'input è già seduto al suo posto esatto nella
+sequenza).
+
+Suite 77 file / 718 test, typecheck e lint verdi. Nessuna verifica dal
+vivo della Sessione pubblica reale in questa sessione (richiede Electron +
+un CSV pubblicato) — resta da collaudare dal vivo dal Capo Supremo.
+
 ## Riattivazione — correzione esclusione consciousnessInfluence — 2026-09-18
 
 Segnalato dal Capo Supremo dopo un test dal vivo con Sessione pubblica attiva

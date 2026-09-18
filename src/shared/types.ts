@@ -215,6 +215,7 @@ export const IPC_CHANNELS = {
   outputClosed: 'fx:output-closed',
   vectorizeBrainImage: 'fx:vectorize-brain-image',
   readBrainConfigFile: 'fx:read-brain-config-file',
+  writeBrainPhrasesFile: 'fx:write-brain-phrases-file',
   saveConsciousnessMemory: 'fx:save-consciousness-memory',
   updateConsciousnessState: 'fx:update-consciousness-state',
   suggestConsciousnessMotion: 'fx:suggest-consciousness-motion',
@@ -494,6 +495,8 @@ export interface OutputApi {
     options?: BrainVectorizationOptions,
   ) => Promise<BrainVectorizationResult>
   readBrainConfigFile: (fileName: BrainConfigFileName) => Promise<string>
+  /** BrainPhrasesBaseStory di Sessione (disp. Capo Supremo 2026-09-18): il renderer possiede il cursore e compone il contenuto; scrive sempre e solo `brainPhrases.txt`. */
+  writeBrainPhrasesFile: (content: string) => Promise<void>
   saveConsciousnessMemory: (
     draft: ConsciousnessMemoryDraft,
   ) => Promise<ConsciousnessMemorySaveResult>

@@ -65,6 +65,8 @@ const outputApi: OutputApi = {
     >,
   readBrainConfigFile: (fileName) =>
     ipcRenderer.invoke(IPC_CHANNELS.readBrainConfigFile, fileName) as Promise<string>,
+  writeBrainPhrasesFile: (content) =>
+    ipcRenderer.invoke(IPC_CHANNELS.writeBrainPhrasesFile, content) as Promise<void>,
   saveConsciousnessMemory: (draft) =>
     ipcRenderer.invoke(IPC_CHANNELS.saveConsciousnessMemory, draft) as ReturnType<
       OutputApi['saveConsciousnessMemory']
