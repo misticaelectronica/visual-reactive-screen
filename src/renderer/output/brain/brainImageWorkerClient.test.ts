@@ -26,7 +26,7 @@ describe('protocollo worker immagini Brain', () => {
       height: 360,
       inferenceWidth: 448,
       inferenceHeight: 256,
-      steps: 8,
+      steps: 12,
     })
     expect(request.artifactBaseUrl).toMatch(/^brain-model:/)
     expect(request.wasmBaseUrl).toBe('file:///Applications/Mistica/dist/ort-wasm/')
@@ -35,8 +35,8 @@ describe('protocollo worker immagini Brain', () => {
   it('mantiene distinti interludio, enhanced e alta qualità', () => {
     const modes = [
       ['interlude', 4, 448, 256],
-      ['enhanced', 12, 512, 320],
-      ['high-quality', 20, 640, 360],
+      ['enhanced', 16, 512, 320],
+      ['high-quality', 24, 640, 360],
     ] as const
 
     for (const [mode, steps, inferenceWidth, inferenceHeight] of modes) {

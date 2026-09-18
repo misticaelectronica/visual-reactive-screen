@@ -56,7 +56,8 @@ async function createClipTokenizer() {
     const encoded = tokenizer(text, {
       padding: 'max_length',
       max_length: 77,
-      truncation: true,
+      // Legacy backend has no long-context contract: reject overflow below.
+      truncation: false,
       return_tensor: false,
     }) as { input_ids?: unknown }
     if (!Array.isArray(encoded.input_ids)) {

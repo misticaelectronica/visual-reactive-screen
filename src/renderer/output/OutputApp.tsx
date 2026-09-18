@@ -416,6 +416,11 @@ export function OutputApp() {
   const [lastColor, setLastColor] = useState<string>('—')
   const [activeRendererLabel, setActiveRendererLabel] = useState<string>('—')
   const [revisionCycleActive, setRevisionCycleActive] = useState(false)
+  // Log del tipo di immagine (lettera Vice Consigliere §14-§15): fase
+  // onirica e profilo qualità/denoising del fotogramma corrente, letti dal
+  // DOM con lo stesso polling già usato per `revisionCycleActive`.
+  const [framePhase, setFramePhase] = useState<string>('')
+  const [frameQualityProfile, setFrameQualityProfile] = useState<string>('')
   const [publicSessionActive, setPublicSessionActive] = useState(false)
   const [publicSessionQrDataUrl, setPublicSessionQrDataUrl] = useState<string | null>(null)
   // PIANO-040: overlay diagnostico del livello bio-percettivo — richiesto dal
@@ -466,12 +471,20 @@ export function OutputApp() {
             ?.querySelector<HTMLElement>('[data-revision-cycle-active]')
             ?.dataset.revisionCycleActive === 'true',
         )
+        const framePhaseHost = rootRef.current
+          ?.querySelector<HTMLElement>('[data-frame-phase]')
+        setFramePhase(framePhaseHost?.dataset.framePhase ?? '')
+        setFrameQualityProfile(framePhaseHost?.dataset.frameQualityProfile ?? '')
       } else if (algo) {
         setActiveRendererLabel(MORPHING_ALGO_LABELS[algo] ?? algo)
         setRevisionCycleActive(false)
+        setFramePhase('')
+        setFrameQualityProfile('')
       } else {
         setActiveRendererLabel('—')
         setRevisionCycleActive(false)
+        setFramePhase('')
+        setFrameQualityProfile('')
       }
       // PIANO-040: moltiplicatore di regime letto dal DOM, stesso pattern di
       // `data-active-renderer` sopra — sola lettura diagnostica, nessun canale
@@ -1101,6 +1114,19 @@ export function OutputApp() {
           <>
             <br />
             <span style={{ color: '#ffa53d' }}>Riattivazione attiva</span>
+          </>
+        )}
+        {framePhase && (
+          // Lettera Vice Consigliere §14-§15: tipo di immagine (Soglia →
+          // Metamorfosi → Condensazione → Eco) e profilo qualità/denoising
+          // realmente in uso, derivati dallo stato reale della storia
+          // (`deriveOneiricPhase`/`scene.renderMode`), non testo decorativo.
+          <>
+            <br />
+            <span style={{ color: '#c792ea' }}>
+              {framePhase.toLocaleUpperCase()}
+              {frameQualityProfile ? ` · ${frameQualityProfile.toLocaleUpperCase()}` : ''}
+            </span>
           </>
         )}
       </div>

@@ -6,8 +6,12 @@ import { pathToFileURL } from 'node:url'
 export const BRAIN_MODEL_SCHEME = 'brain-model'
 
 const ALLOWED_MODEL_FILES = new Set([
+  // Modello precedente: resta consentito finché non viene cancellato a mano
+  // dal disco, per poter tornare indietro senza toccare il codice.
   'pornmaster-sd15-onnx/text_encoder/model.onnx',
   'pornmaster-sd15-onnx/unet/model.onnx',
+  'realistic-vision-v6-onnx/text_encoder/model.onnx',
+  'realistic-vision-v6-onnx/unet/model.onnx',
   'psicofantasma/repertoire.json',
 ])
 

@@ -343,6 +343,126 @@ Turbo LCM: non ancora disponibile
 Pubblicazione artefatti: bloccata da repository/credenziali mancanti
 ```
 
+## Sostituzione del checkpoint (procedura manuale)
+
+Decisione: passare da `pornmaster-sd15-explicit-onnx-fp16` a
+`Realistic Vision V6.0 B1` (`SG161222/Realistic_Vision_V6.0_B1_noVAE`), stessa
+famiglia SD 1.5, stessa architettura, epsilon-prediction, 512×512 nativo. Non
+esiste un downloader automatico: il cambio modello resta un'operazione manuale,
+fatta una volta a mano, con **un solo modello presente su disco alla volta**.
+
+### 1. Conversione offline (fuori da questo repo, ambiente Python separato)
+
+La variante `noVAE` è deliberata: si riusa il VAE SD 1.5 condiviso già presente
+nel manifesto (`Zhare-AI/sd-1-5-webgpu`), quindi va convertito solo
+`text_encoder` e `unet`.
+
+```bash
+python -m venv .venv-convert && source .venv-convert/bin/activate
+pip install --upgrade "optimum[exporters]" onnx onnxconverter-common torch
+
+optimum-cli export onnx \
+  --model SG161222/Realistic_Vision_V6.0_B1_noVAE \
+  --task stable-diffusion \
+  ./rv6-onnx-fp32
+```
+
+Verificare con `optimum-cli export onnx --help` la sintassi esatta per la
+versione installata: il task per pipeline Stable Diffusion Diffusers cambia tra
+release di `optimum`.
+
+Conversione a FP16: **non** usare `onnxconverter_common.float16` in post-processing
+su questa architettura CLIP+UNet — lascia nodi `Cast` con tipo dichiarato diverso
+da quello effettivo (es. `.../self_attn/Add` bound a `float16` e `float`), e
+`onnxruntime`/`onnxruntime-web` rifiuta di caricare il modello: la generazione
+non parte, senza un errore visibile lato UI se non collaudato a mano. Usare invece
+l'export **diretto** in FP16 di `optimum-cli` (fp16 nativo durante il tracing, IO
+compresi):
+
+```bash
+optimum-cli export onnx \
+  --model <repository-sorgente> \
+  --task text-to-image \
+  --library-name diffusers \
+  --dtype fp16 \
+  --device cpu \
+  ./checkpoint-onnx-fp16
+```
+
+Su CPU il tracing in fp16 è emulato e lento (l'unet di un SD 1.5 impiega
+~15-20 minuti); è normale, non è un blocco.
+
+Calcolare dimensione e SHA-256 dei due file (servono per il manifesto):
+
+```bash
+shasum -a 256 rv6-onnx-fp16/text_encoder/model.onnx rv6-onnx-fp16/unet/model.onnx
+stat -f%z rv6-onnx-fp16/text_encoder/model.onnx rv6-onnx-fp16/unet/model.onnx
+```
+
+### 2. Deposito degli artefatti
+
+Il nome di cartella deve essere nuovo (mai sovrascrivere in place il modello
+attivo mentre è ancora in uso):
+
+```text
+.model-artifacts/realistic-vision-v6-onnx/
+├── text_encoder/model.onnx
+└── unet/model.onnx
+```
+
+In produzione (Electron) la stessa struttura va sotto `brain-models/` accanto
+all'eseguibile o in `userData/brain-models/` (vedi `ALLOWED_MODEL_FILES` in
+`src/main/brainModelProtocol.ts`).
+
+Il VAE decoder **non va duplicato**: resta quello scaricato dall'URL già
+presente nel manifesto (`Zhare-AI/sd-1-5-webgpu`), condiviso tra checkpoint SD
+1.5 compatibili.
+
+### 3. Aggiornamento del codice (dopo che i file esistono davvero)
+
+File da toccare, in questo ordine:
+
+1. `src/shared/brain/imageModelManifest.ts` — nuovo `id`, `name`,
+   `sourceRepository`, `sourceRevision`, `bytes`/`sha256` reali dei due file.
+2. `src/shared/brain/brainConfig.ts` — `imageModelId`,
+   `highQualityImageModelId`, `imageModelBaseUrl`, `imageModelLocalBaseUrl`.
+3. `src/main/brainModelProtocol.ts` — aggiornare `ALLOWED_MODEL_FILES` con i
+   nuovi path (`realistic-vision-v6-onnx/text_encoder/model.onnx`,
+   `realistic-vision-v6-onnx/unet/model.onnx`).
+4. `src/renderer/output/brain/psychedelModelPrototype.ts` — base URL del
+   prototipo di collaudo isolato.
+5. `src/renderer/output/brain/brainModelCache.ts` — `EXPLICIT_IMAGE_REPOSITORIES`.
+6. Test: `imageModelManifest.test.ts`, `sd15OnnxWebGpu.test.ts`,
+   `brainImageWorkerClient.test.ts` (URL/id attesi).
+
+Prompt, worker, scheduler, step, risoluzioni e `safetyChecker: false` non si
+toccano: sono letti genericamente dal manifesto.
+
+### 4. Collaudo prima di cancellare il vecchio modello
+
+Con il vecchio checkpoint ancora su disco e il codice già puntato al nuovo:
+
+1. `pnpm typecheck` e suite test, incluso
+   `src/shared/brain/imageModelArtifacts.test.ts` — carica i pesi ONNX locali
+   con `onnxruntime-node` e intercetta un grafo con tipi incoerenti (vedi nota
+   sulla conversione FP16 sopra) prima che arrivi in UI. Si salta da solo se i
+   pesi non sono presenti in `.model-artifacts/`.
+2. Almeno tre generazioni consecutive reali via WebGPU (prototipo isolato o
+   Brain live), incluso un prompt esplicito, per confermare che il nuovo
+   checkpoint produce immagini corrette e non nere/corrotte.
+
+### 5. Cancellazione manuale del vecchio modello
+
+Solo dopo il collaudo del punto 4, a mano:
+
+```bash
+rm -rf .model-artifacts/pornmaster-sd15-onnx
+```
+
+(e l'equivalente in `brain-models/` se già distribuito in produzione). Se il
+collaudo del punto 4 fallisce, **non cancellare nulla**: il vecchio checkpoint
+resta quello attivo finché il nuovo non supera il collaudo.
+
 ## Quando valutare Illustrative o Illustrious
 
 Si valuta un secondo modello soltanto se, dopo il collaudo, il checkpoint Explicit:

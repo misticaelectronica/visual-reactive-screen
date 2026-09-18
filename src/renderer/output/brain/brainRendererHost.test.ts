@@ -676,8 +676,11 @@ describe('Brain renderer host', () => {
     const normalHost = buildHost()
     normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
     normalHost.setResourcePressure(true)
-    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_010)
-    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_030)
+    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    // I primi 140ms sono la fase di scurimento pre-Varco: il flash vero e
+    // proprio parte dopo.
+    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_160)
+    normalHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_180)
     expect(flashOpacity(normalHost.element)).toBeGreaterThan(0)
     normalHost.destroy()
 
@@ -841,16 +844,90 @@ describe('Brain renderer host', () => {
     ) as HTMLElement | null
     expect(overlay).not.toBeNull()
 
-    host.update(bands, DEFAULT_SETTINGS, 1_020)
+    // I primi 140ms sono la fase di scurimento pre-Varco (nuova, collaudo
+    // 2026-09-17): il flash resta a zero lì e riparte solo dopo.
+    host.update(bands, DEFAULT_SETTINGS, 1_160)
     const risingOpacity = Number(overlay?.style.opacity)
     expect(risingOpacity).toBeGreaterThan(0)
 
-    host.update(bands, DEFAULT_SETTINGS, 1_040)
+    host.update(bands, DEFAULT_SETTINGS, 1_180)
     const peakOpacity = Number(overlay?.style.opacity)
     expect(peakOpacity).toBeGreaterThanOrEqual(risingOpacity)
 
-    host.update(bands, DEFAULT_SETTINGS, 1_500)
+    host.update(bands, DEFAULT_SETTINGS, 1_640)
     expect(overlay?.style.opacity).toBe('0')
+    host.destroy()
+  })
+
+  it('scurisce brevemente lo schermo prima del flash quando la pressione risorse si arma (pre-Varco)', () => {
+    const registry = new BrainRendererRegistry()
+    for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
+      registry.register({
+        id,
+        label: id,
+        capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update() {},
+            destroy() {
+              element.remove()
+            },
+          }
+        },
+      })
+    }
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'print2d',
+      'print2d',
+    )
+    const bands = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    const darkenOpacity = () => Number(
+      container.querySelector<HTMLDivElement>('[data-brain-pressure-darken="true"]')?.style.opacity ?? '0',
+    )
+    const flashOpacity = () => Number(
+      container.querySelector<HTMLDivElement>('[data-brain-pressure-flash="true"]')?.style.opacity ?? '0',
+    )
+
+    host.update(bands, DEFAULT_SETTINGS, 1_000)
+    host.setResourcePressure(true)
+    host.update(bands, DEFAULT_SETTINGS, 1_000)
+
+    // Nell'istante stesso dell'armo lo scurimento è già l'unica cosa a
+    // schermo: il flash non deve accendersi finché la fase di scurimento
+    // (140ms) non è passata.
+    host.update(bands, DEFAULT_SETTINGS, 1_070)
+    expect(darkenOpacity()).toBeGreaterThan(0)
+    expect(flashOpacity()).toBe(0)
+
+    // Dopo la finestra di scurimento, lo scurimento è tornato a zero e il
+    // flash prende il suo posto.
+    host.update(bands, DEFAULT_SETTINGS, 1_160)
+    expect(darkenOpacity()).toBe(0)
+    expect(flashOpacity()).toBeGreaterThan(0)
     host.destroy()
   })
 
@@ -1123,4 +1200,79 @@ describe('Brain renderer host', () => {
     expect(received.get('filter-psiche')).toEqual(['decompression'])
     host.destroy()
   })
+
+  // PoC Material→Dream (disposizione Vice Consigliere, brief PoC 2026-09-14).
+  function registerMaterialDreamFixtures(registry: BrainRendererRegistry): {
+    getDreamHandoff(): unknown
+  } {
+    const sentinelField = { poc: 'material-field-sentinel' }
+    let dreamReceivedHandoff: unknown = 'never-created'
+    registry.register({
+      id: 'material-morph',
+      label: 'Material',
+      capabilities: { multipleImages: true, semanticMetadata: false, lowPowerMode: true },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element, isReady: () => true, setOpacity() {}, getMorphShapes: () => [],
+          setMorphPattern() {}, setResourcePressure() {}, setTransition() {}, update() {},
+          exportHandoff: () => sentinelField,
+          destroy() { element.remove() },
+        }
+      },
+    })
+    registry.register({
+      id: 'dream-segmentation',
+      label: 'Dream',
+      capabilities: { multipleImages: true, semanticMetadata: true, lowPowerMode: true },
+      create(context) {
+        dreamReceivedHandoff = context.materialFieldHandoff
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element, isReady: () => true, setOpacity() {}, getMorphShapes: () => [],
+          setMorphPattern() {}, setResourcePressure() {}, setTransition() {}, update() {},
+          destroy() { element.remove() },
+        }
+      },
+    })
+    return { getDreamHandoff: () => dreamReceivedHandoff }
+  }
+
+  it('PoC Material→Dream: passa il MaterialField all\'entrata di Dream-Segmentation quando segue Material-Morph sullo stesso raster', () => {
+    const registry = new BrainRendererRegistry()
+    const fixtures = registerMaterialDreamFixtures(registry)
+    let desired: BrainRendererId = 'material-morph'
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => desired,
+      'material-morph',
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(host.element.dataset.activeRenderer).toBe('material-morph')
+
+    desired = 'dream-segmentation'
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 2_000)
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 6_000)
+    expect(host.element.dataset.activeRenderer).toBe('dream-segmentation')
+    expect(fixtures.getDreamHandoff()).toEqual({ poc: 'material-field-sentinel' })
+    host.destroy()
+  })
+
 })

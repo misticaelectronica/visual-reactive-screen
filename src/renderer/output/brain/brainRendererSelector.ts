@@ -7,6 +7,7 @@ import {
 import type { ImageRenderMode } from '@shared/brain/brainTypes'
 import type { BrainBioRegime } from './brainBioPerception'
 import { isPsicoFantasmaBundled } from '@shared/psicoFantasmaAvailability'
+import { classifyMorphRelation, type MorphRelationKind } from './brainRendererMorphLibrary'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
 const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>([])
@@ -173,6 +174,25 @@ const MAXIMUM_BOOSTED_HOLD_FRAMES = 2
 // sconosciuto o `unresolved` usa il comportamento oggi esistente (1-2),
 // nessuna regressione per chi non passa il nuovo parametro.
 const DECOMPRESSION_BOOSTED_HOLD_FRAMES = 2
+
+// Biblioteca delle sequenze (disposizione Vice Consigliere, brief
+// "Completamento della biblioteca delle sequenze" 2026-09-17): la
+// compatibilità morfologica è una preferenza contestuale che si aggiunge a
+// regime/eleggibilità/balanced-exposure/hold/randomizzazione, non li
+// sostituisce (brief §9, §10, §11). Per questo non è una chiave di
+// ordinamento primaria del mazzo (deterministica = "A quasi sempre seguito
+// da B", esplicitamente vietato dal brief §11) ma una promozione
+// probabilistica applicata SOLO fra candidati già competitivi per
+// esposizione (la finestra in testa al mazzo già bilanciato), e solo a
+// volte — mai una concatenazione obbligatoria.
+const MORPH_CONTINUATION_KIND_BONUS: Record<MorphRelationKind, number> = {
+  strutturale: 2,
+  percettiva: 1,
+  compatibilita: 0,
+  rottura: 0,
+}
+const MORPH_CONTINUATION_CONSIDER_SHARE = 0.55
+const MORPH_CONTINUATION_WINDOW = 3
 
 export function selectBrainRendererHoldFrames(
   rendererId: BrainRendererId,
@@ -356,7 +376,40 @@ export class BrainRendererSelector {
         ;[deck[0], deck[replacementIndex]] = [deck[replacementIndex], deck[0]]
       }
     }
+    this.applyMorphContinuationBias(deck, avoidedId)
     return deck
+  }
+
+  /**
+   * Promuove in testa, con probabilità moderata e solo entro la finestra
+   * già competitiva per esposizione, una continuazione morfologicamente
+   * coerente con `fromId` (il renderer da cui ci si allontana). Non tocca
+   * il mazzo se non trova nulla di compatibile nella finestra, o se il dado
+   * non lo consente questa volta — cosi' la stessa coppia non diventa mai
+   * una concatenazione fissa (brief §7, §11).
+   */
+  private applyMorphContinuationBias(
+    deck: BrainRendererId[],
+    fromId: BrainRendererId,
+  ): void {
+    if (deck.length < 2) return
+    if (this.random() >= MORPH_CONTINUATION_CONSIDER_SHARE) return
+    const windowEnd = Math.min(deck.length, MORPH_CONTINUATION_WINDOW)
+    let bestIndex = -1
+    let bestBonus = 0
+    for (let index = 1; index < windowEnd; index += 1) {
+      const candidate = deck[index]
+      if (candidate === fromId) continue
+      const bonus = MORPH_CONTINUATION_KIND_BONUS[classifyMorphRelation(fromId, candidate)]
+      if (bonus > bestBonus) {
+        bestBonus = bonus
+        bestIndex = index
+      }
+    }
+    if (bestIndex > 0) {
+      const [chosen] = deck.splice(bestIndex, 1)
+      deck.unshift(chosen)
+    }
   }
 
   private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {

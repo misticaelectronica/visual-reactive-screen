@@ -10,6 +10,9 @@ Ruoli con lettera di presentazione conservati in `team/`:
 - [`team/capo-supremo-designer-visual-vj.md`](team/capo-supremo-designer-visual-vj.md): Capo Supremo dei Designer/Visual VJ di Brain — responsabile dell'identità visiva, della grammatica dei renderer e delle trasformazioni/morph. Riceve la lettura audio-percettiva dal Capo Supremo dell'Analisi Audio e la traduce in linguaggio visivo, sempre nel rispetto del Protocollo Obbligatorio Di Verifica Filosofia Visiva più sotto in questo file.
 - [`team/capo-supremo-ingegneri.md`](team/capo-supremo-ingegneri.md): Capo Supremo degli Ingegneri del Sistema VJ — responsabile della traduzione tecnica dei brief artistici e percettivi in renderer Canvas2D reali, dell'architettura condivisa (selezione/passthrough/gating/budget) e della verifica che ogni implementazione superi davvero il Protocollo Obbligatorio Di Verifica Filosofia Visiva, non solo sulla carta. Riceve i requisiti dal Capo Supremo dell'Analisi Audio e dalla Direzione VJ e ne rispetta l'autonomia, senza deciderne significato percettivo o identità visiva.
 
+La continuità operativa fra Vecchio Consigliere e Vicario è disciplinata dalla
+[`Nota ai ruoli del progetto Brain`](team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md).
+
 Documenti di indirizzo scambiati fra questi tre ruoli, quando eccedono la lettera di presentazione, in `team/briefs/` — ognuno indica il ruolo destinatario in apertura. Non sostituiscono le lettere sopra, le estendono nel tempo su un tema specifico (es. stato bio-percettivo, campionamento frasi).
 
 ## Missione Del Progetto

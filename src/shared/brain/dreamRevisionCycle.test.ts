@@ -51,6 +51,25 @@ describe('selezione e memoria di sessione della Riattivazione', () => {
     expect(memory.remember('story-1', ['a1', 'a2'])).toBe(false)
     expect(memory.storyIds()).toEqual([])
   })
+
+  it('selectionsBefore mantiene ogni storia come gruppo separato, in ordine cronologico', () => {
+    const memory = new RevisionSessionMemory<string>()
+    memory.remember('story-1', ['a1', 'a2', 'a3'])
+    memory.remember('story-2', ['b1', 'b2', 'b3'])
+    memory.remember('story-3', ['c1', 'c2', 'c3'])
+    expect(memory.selectionsBefore('story-1')).toEqual([])
+    expect(memory.selectionsBefore('story-2')).toEqual([
+      { storyId: 'story-1', images: ['a1', 'a2', 'a3'] },
+    ])
+    expect(memory.selectionsBefore('story-3')).toEqual([
+      { storyId: 'story-1', images: ['a1', 'a2', 'a3'] },
+      { storyId: 'story-2', images: ['b1', 'b2', 'b3'] },
+    ])
+    // imagesBefore resta l'appiattimento equivalente, comportamento invariato.
+    expect(memory.imagesBefore('story-3')).toEqual(
+      memory.selectionsBefore('story-3').flatMap((group) => group.images),
+    )
+  })
 })
 
 function entry(overrides: Partial<DreamImageArchiveEntry> = {}): DreamImageArchiveEntry {

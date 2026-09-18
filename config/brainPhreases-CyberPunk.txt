@@ -1,6 +1,3 @@
-Ecco la traduzione in inglese, mantenendo tono e struttura.
-
-The city stretched for dozens of kilometres, built in successive layers over districts that no one had considered worth demolishing anymore.
 Residential towers rose from a continuous mass of viaducts, old industrial buildings, service ducts and terraces converted into living spaces.
 Their façades were covered in luminous surfaces that changed images and information according to traffic, weather and the profile of the people passing by.
 In the central districts, almost every activity was automated, and the environment reacted to the presence of its inhabitants before they had even made a request.
@@ -32,8 +29,7 @@ It depended on ensuring that no centre was indispensable.
 This idea also changed relationships between people.
 Anyone controlling a function could gain influence, but it was difficult to preserve that influence for long if others could reproduce the same function elsewhere.
 The possibility of leaving a structure limited the power of those who administered it.
-The technician understood that this was the real difference between the settlements and the city.
-The city offered freedom within a system that was almost impossible to leave.
+The technician understood that this was the real difference between the settlements and the city.The city offered freedom within a system that was almost impossible to leave.
 The settlements built systems that could always be left behind.
 They were not seeking self-sufficiency.
 They continued to exchange materials, knowledge and services with the outside world.

@@ -205,7 +205,7 @@ describe('runtime ONNX Explicit di Psichedel', () => {
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({
       prompt: 'prompt trasmesso integralmente',
       seed: 42,
-      steps: 8,
+      steps: 12,
       width: 640,
       height: 360,
       inferenceWidth: 448,

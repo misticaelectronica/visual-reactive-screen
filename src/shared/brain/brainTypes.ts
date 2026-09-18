@@ -20,6 +20,8 @@ export type DreamStory = {
   sourcePhrases: string[]
   /** Contesto tematico invariabile inviato a Psichedel con ogni fotogramma. */
   mainArgument?: string
+  /** Soggetto/forma/materia che deve restare riconoscibile fra i 4 fotogrammi (lettera Vice Consigliere §3). */
+  invariant: string
   frames: DreamFrame[]
   englishTitle?: string
   englishSynopsis?: string

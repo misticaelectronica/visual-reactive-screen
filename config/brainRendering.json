@@ -2,10 +2,10 @@
   "image": {
     "width": 640,
     "height": 360,
-    "standardSteps": 8,
+    "standardSteps": 12,
     "interludeSteps": 4,
-    "enhancedSteps": 12,
-    "qualitySteps": 20
+    "enhancedSteps": 16,
+    "qualitySteps": 24
   },
   "timing": {
     "frameDurationMs": 14000,

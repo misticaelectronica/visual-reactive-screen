@@ -108,6 +108,17 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-036`: Contesto delle quattro immagini
+- **Stato**: IN PROGRESS — pipeline Visual Plan/invariante/qualità per fase
+  reintegrata (PIANO-046); collaudo visivo reale sui raster e confronto
+  risoluzione 512×512 ancora da eseguire dal vivo.
+- **Piani**: `working/plans/piano-045-contesto-quattro-immagini.md`,
+  `working/plans/piano-046-visual-plan-quattro-fasi.md`.
+- **Evidenza**: `working/validation/piano-045/README.md`, quattro raster finali
+  e confronti reali Electron/WebGPU (PIANO-045). Nessun cambio di guidance
+  mode live.
+
+
 ### `MACRO-035`: Regime Audio Sperimentale
 - **Descrizione**: costruire e confrontare un percorso Audio separato basato
   su entrainment e costrizione motoria, mantenendo congelata la baseline.

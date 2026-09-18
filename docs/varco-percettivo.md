@@ -122,6 +122,16 @@ passthrough non è davvero pronto, non un tempo fisso legato al ritmo.
   effetto dedicato nuovo. Prima correzione insufficiente (segnalato dal
   Capo Supremo dopo verifica dal vivo) — caso d'origine della regola
   generale "armare in coda, non al fronte di salita" sopra.
+- **Escluso dalla Riattivazione** (2026-09-17, segnalato dal Capo Supremo):
+  `imageInferenceActive` resta vero durante la Riattivazione quando la
+  generazione della storia successiva vera continua in sottofondo
+  (`requestRevisionCycleAtBoundary` può entrare "anche mentre la storia
+  successiva non è ancora pronta"), ma quel carico GPU riguarda un
+  fotogramma diverso da quello in scena — il replay a memoria della
+  Riattivazione non ha alcuno stallo proprio da mascherare. `render()` in
+  `brainController.ts` ora azzera `resourcePressureActive` quando
+  `revisionCycleActive` è vero, indipendentemente dal latch
+  `imageInferenceActive`/`visualPressurePulseUntil`.
 
 ## Meccanismo adiacente ma distinto: passthrough per fallimento qualità
 

@@ -9,6 +9,22 @@ import {
 } from './brainTranslator'
 import { extractJsonObjects } from './extractJsonObjects'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
+import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
+
+// Funzione di ciascuna fase onirica nel Visual Plan (lettera Vice
+// Consigliere §2): non 4 atti narrativi equivalenti, ma 4 stati della
+// stessa immagine mentale, ciascuno con un criterio qualitativo e un
+// rapporto diverso con l'invariante della storia.
+const ONEIRIC_PHASE_BRIEF: Record<OneiricPhase, string> = {
+  soglia:
+    'Found the imaginative field: introduce the invariant in a stable, legible configuration strong enough to be transformed later. It does not need to explain the whole story, only to establish it.',
+  metamorfosi:
+    'Transform the invariant introduced in the threshold moment: keep a recognizable relation to it, but change its form, relation, material, space or meaning, and make the transformation already visibly in progress.',
+  condensazione:
+    'Reach the point of maximum conceptual density of the story: the invariant and its transformation reach their most significant configuration. It can be visually simple; never confuse density with mere complexity, noise or spectacle.',
+  eco:
+    'Return something recognizable from the threshold moment, deformed by what has happened since: memory plus deformation, not a fresh independent fourth scene.',
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -259,6 +275,23 @@ type StoryCore = {
   synopsis: string
   bridge: string | null
   palette: DreamStory['palette']
+  invariant: string
+}
+
+const INVARIANT_HINT_TERMS =
+  /\b(?:corpo|volto|mani|occhi|specchio|porta|albero|radici|luce|ombra|segnale|voce|mappa|chiave|filo|acqua|pietra|maschera|body|face|hands|eyes|mirror|door|tree|roots|light|shadow|signal|voice|map|key|thread|water|stone|mask)\b/iu
+
+/**
+ * Rete di sicurezza quando il modello non produce la riga INVARIANT/E: un
+ * sostantivo concreto ricorrente nella sinossi o nelle frasi sorgente, non
+ * un tema astratto (quello resta compito di `inferMainArgument`).
+ */
+export function inferInvariant(source: readonly string[], synopsis: string): string {
+  const text = `${synopsis} ${source.join(' ')}`
+  const hinted = text.match(INVARIANT_HINT_TERMS)?.[0]
+  if (hinted) return hinted.toLocaleLowerCase()
+  const firstNoun = words(synopsis).find((word) => word.length >= 5)
+  return firstNoun ?? 'una presenza ricorrente'
 }
 
 const BRIDGE_STOP_WORDS = new Set([
@@ -305,13 +338,13 @@ function storyCoreFromResponse(
   const labeledSynopsis = labeledBlock(
     cleaned,
     'STORIA',
-    ['LEGAME', 'COLORI', 'F1-TITOLO', 'F1'],
+    ['LEGAME', 'COLORI', 'INVARIANTE', 'F1-TITOLO', 'F1'],
   )
   const looseSynopsis =
     !labeledSynopsis && titleMatch?.index !== undefined
       ? cleaned
           .slice(titleMatch.index + titleMatch[0].length)
-          .split(/^(?:LEGAME|COLORI):/im)[0]
+          .split(/^(?:LEGAME|COLORI|INVARIANTE):/im)[0]
           .replace(/^STORIA:\s*/i, '')
           .trim()
       : null
@@ -330,18 +363,26 @@ function storyCoreFromResponse(
     synopsisWords.filter((word) => !sourceWords.has(word)).length / Math.max(1, synopsisWords.length)
   if (copiedPhraseCount >= 2 && novelWordRatio < 0.18) return null
   const bridge = requiredText(
-    labeledBlock(cleaned, 'LEGAME', ['COLORI', 'F1-TITOLO', 'F1']),
+    labeledBlock(cleaned, 'LEGAME', ['COLORI', 'INVARIANTE', 'F1-TITOLO', 'F1']),
     6,
+  )
+  const invariant = requiredText(
+    labeledBlock(cleaned, 'INVARIANTE', ['F1-TITOLO', 'F1']),
+    1,
   )
   return {
     title: title.slice(0, 100),
     synopsis: synopsis.slice(0, 1_200),
     bridge: bridge?.slice(0, 420) ?? null,
-    palette: paletteFromUnknown(labeledBlock(cleaned, 'COLORI', ['F1-TITOLO', 'F1'])),
+    palette: paletteFromUnknown(labeledBlock(cleaned, 'COLORI', ['INVARIANTE', 'F1-TITOLO', 'F1'])),
+    invariant: invariant?.slice(0, 120) ?? inferInvariant(phrases, synopsis),
   }
 }
 
-function storyCoreFromEnglishEnvelope(text: string): StoryCore | null {
+function storyCoreFromEnglishEnvelope(
+  text: string,
+  phrases: readonly string[] = [],
+): StoryCore | null {
   const title = requiredText(
     labeledBlock(text, 'TITLE', ['STORY']),
     1,
@@ -351,6 +392,10 @@ function storyCoreFromEnglishEnvelope(text: string): StoryCore | null {
     20,
   )
   if (!title || !synopsis || !isRenderableNarrative(synopsis)) return null
+  const invariant = requiredText(
+    labeledBlock(text, 'INVARIANT', []),
+    1,
+  )
   return {
     title: title.slice(0, 100),
     synopsis: synopsis.slice(0, 1_200),
@@ -359,7 +404,8 @@ function storyCoreFromEnglishEnvelope(text: string): StoryCore | null {
         labeledBlock(text, 'BRIDGE', ['COLORS']),
         5,
       )?.slice(0, 420) ?? null,
-    palette: paletteFromUnknown(labeledBlock(text, 'COLORS', [])),
+    palette: paletteFromUnknown(labeledBlock(text, 'COLORS', ['INVARIANT'])),
+    invariant: invariant?.slice(0, 120) ?? inferInvariant(phrases, synopsis),
   }
 }
 
@@ -467,6 +513,7 @@ function fallbackUiCore(phrases: readonly string[]): StoryCore {
     synopsis,
     bridge: `${lastPhrase.replace(/[.!?]$/u, '')} apre un dettaglio inatteso oltre la soglia successiva.`,
     palette: [...DEFAULT_DREAM_PALETTE],
+    invariant: inferInvariant(phrases, synopsis),
   }
 }
 
@@ -500,6 +547,7 @@ export function storyFromCore(core: StoryCore, phrases: string[]): DreamStory {
     palette: core.palette,
     sourcePhrases: phrases,
     mainArgument: inferMainArgument(phrases, core.synopsis),
+    invariant: core.invariant,
     frames: moments.map((description, index) => ({
       id: `frame-${index + 1}`,
       title: labels[index],
@@ -683,6 +731,9 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
     mainArgument:
       requiredText(data.mainArgument, 3)?.slice(0, 160) ??
       inferMainArgument(phrases, synopsis),
+    invariant:
+      requiredText(data.invariant, 1)?.slice(0, 120) ??
+      inferInvariant(phrases, synopsis),
     frames,
   }
 }
@@ -708,6 +759,7 @@ export class CoscienzaOnirica {
     const consciousnessInfluence = options.consciousnessInfluence ?? null
     const explicitSource = containsExplicitAdultContent(phrases.join(' '))
     let englishVisualMoments: string[] | null = null
+    let englishInvariant: string | null = null
     let englishDisplay: Pick<
       DreamStory,
       'englishTitle' | 'englishSynopsis' | 'englishBridge'
@@ -773,6 +825,7 @@ export class CoscienzaOnirica {
       }
       story.continuityPhrase = continuitySeed
       if (englishDisplay) Object.assign(story, englishDisplay)
+      if (englishInvariant) story.invariant = englishInvariant
       if (englishVisualMoments?.length === story.frames.length) {
         story.frames.forEach((frame, index) => {
           frame.imagePrompt = englishVisualMoments?.[index]
@@ -872,7 +925,7 @@ export class CoscienzaOnirica {
         ].join('\n')
       : 'No consciousness motion is active for this story.'
     const storyPrompt = [
-      'WRITE ONE STORY NOW. Output only the four requested lines.',
+      'WRITE ONE STORY NOW. Output only the five requested lines.',
       ...(this.translator
         ? ['Write the complete intermediate story in natural English.']
         : ['Think privately in English if useful. The visible answer must contain only natural Italian.']),
@@ -891,6 +944,7 @@ export class CoscienzaOnirica {
       synthesisConstraint,
       consciousnessConstraint,
       'BRIDGE must be one new concrete open-ended sentence of 8-16 words. COLORS must be exactly five hexadecimal colors.',
+      'INVARIANT must name one concrete recurring subject, body, shape or material from the story (2-6 words, a noun phrase, not a theme or emotion) that can persist and be transformed across the four visual moments.',
       ...(recentBridges.length > 0
         ? [
             `NEVER REPEAT THESE EARLIER BRIDGES:\n${recentBridges
@@ -907,10 +961,11 @@ export class CoscienzaOnirica {
         : [
             `SOURCE INPUT PROMPTS (Italian or English; understand them directly):\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
           ]),
-      `Return exactly four lines. Line 1 starts with ${this.translator ? 'TITLE' : 'TITOLO'}:.`,
+      `Return exactly five lines. Line 1 starts with ${this.translator ? 'TITLE' : 'TITOLO'}:.`,
       `Line 2 starts with ${this.translator ? 'STORY' : 'STORIA'}: and contains the complete story.`,
       `Line 3 starts with ${this.translator ? 'BRIDGE' : 'LEGAME'}: and contains the outgoing bridge only.`,
       `Line 4 starts with ${this.translator ? 'COLORS' : 'COLORI'}: and contains exactly five hexadecimal colors.`,
+      `Line 5 starts with ${this.translator ? 'INVARIANT' : 'INVARIANTE'}: and contains only the recurring noun phrase.`,
       'No markdown, headings, lists, notes, placeholders or extra fields.',
     ].join('\n')
     try {
@@ -988,9 +1043,6 @@ export class CoscienzaOnirica {
             'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
           )
         }
-        englishVisualMoments = englishSynopsis
-          ? splitIntoFourMoments(englishSynopsis)
-          : null
         englishDisplay = {
           englishTitle:
             labeledBlock(normalizedEnglishStory, 'TITLE', ['STORY']) ?? undefined,
@@ -998,7 +1050,22 @@ export class CoscienzaOnirica {
           englishBridge:
             labeledBlock(normalizedEnglishStory, 'BRIDGE', ['COLORS']) ?? null,
         }
-        englishCore = storyCoreFromEnglishEnvelope(normalizedEnglishStory)
+        englishCore = storyCoreFromEnglishEnvelope(normalizedEnglishStory, narrativePhrases)
+        if (englishSynopsis) {
+          const invariant = englishCore?.invariant
+            ?? inferInvariant(narrativePhrases, englishSynopsis)
+          englishInvariant = invariant
+          try {
+            englishVisualMoments = await this.generateVisualPlan(englishSynopsis, invariant)
+          } catch (visualPlanError) {
+            brainWarn(
+              'psichedel',
+              'visual plan non disponibile; uso la segmentazione meccanica come rete di sicurezza',
+              { error: visualPlanError },
+            )
+            englishVisualMoments = splitIntoFourMoments(englishSynopsis)
+          }
+        }
         if (normalizedEnglishStory !== coreText.replace(/[*`]/g, '').trim()) {
           brainLog(
             'coscienza',
@@ -1132,22 +1199,33 @@ export class CoscienzaOnirica {
     return memo
   }
 
-  async generateVisualPlan(story: DreamStory): Promise<VisualPlan> {
+  /**
+   * Progetta visivamente i 4 momenti PRIMA della generazione raster (lettera
+   * Vice Consigliere §4-§5): non 4 prompt quasi indipendenti, ma 4
+   * manifestazioni della stessa storia immaginativa, ciascuna con la
+   * funzione della propria fase onirica (`deriveOneiricPhase`, già usata
+   * dal ciclo di Riattivazione) e un rapporto esplicito con l'invariante.
+   */
+  async generateVisualPlan(synopsis: string, invariant: string): Promise<VisualPlan> {
+    const frameCount = BRAIN_CONFIG.renderFrameCount
+    const phaseBriefs = Array.from({ length: frameCount }, (_value, index) => {
+      const phase = deriveOneiricPhase(index, frameCount)
+      return `VISUAL${index + 1} (${phase.toLocaleUpperCase()}): ${ONEIRIC_PHASE_BRIEF[phase]}`
+    })
     const prompt = [
-      'Convert the four Italian story moments into four concise English image prompts.',
+      'Design four English image prompts for the same imaginative story, one per visual moment.',
+      `The invariant of this story is: ${invariant}. It is the concrete subject, shape or material that must stay recognizable while it is transformed across the moments.`,
       'Each prompt must describe a concrete visible scene with one identifiable subject, one physical action, a coherent place and a clear camera view.',
       'Use literal nouns and observable actions. Prefer people, creatures, animals, plants or distinctive objects when present.',
       'Do not discuss meaning, mood, artistic style, color, symbolism or the writing task.',
       'Use 18-30 English words per line.',
       'Return exactly four lines beginning VISUAL1:, VISUAL2:, VISUAL3:, VISUAL4:.',
-      ...story.frames.map(
-        (frame, index) =>
-          `MOMENTO${index + 1}: ${frame.description}`,
-      ),
+      ...phaseBriefs,
+      `STORY: ${synopsis}`,
     ].join('\n')
-    brainLog('psichedel', 'interpretazione visiva inglese dei fotogrammi avviata', {
-      storyId: story.id,
-      frames: story.frames.map((frame) => frame.description),
+    brainLog('psichedel', 'visual plan avviato', {
+      invariant,
+      synopsis,
     })
     const response = await this.ai.generate('scene', prompt, {
       maxNewTokens: 240,
@@ -1155,16 +1233,12 @@ export class CoscienzaOnirica {
     })
     const plan = parseVisualPlan(response)
     if (!plan) {
-      brainWarn('psichedel', 'piano visivo inglese rifiutato', {
-        storyId: story.id,
+      brainWarn('psichedel', 'visual plan rifiutato', {
         response: response.slice(0, 3_000),
       })
       throw new Error('Psichedel non ha prodotto quattro descrizioni visive concrete')
     }
-    brainLog('psichedel', 'piano visivo inglese verificato', {
-      storyId: story.id,
-      plan,
-    })
+    brainLog('psichedel', 'visual plan verificato', { plan })
     return plan
   }
 }

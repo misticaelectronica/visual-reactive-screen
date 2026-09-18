@@ -9,12 +9,15 @@ import type {
 } from '@shared/brain/brainTypes'
 import {
   REVISION_CYCLE_LAPS,
+  REVISION_CYCLE_OLDER_STORY_IMAGE_COUNT,
+  REVISION_CYCLE_RECENT_FULL_STORIES,
   RevisionSessionMemory,
   combineRevisionTag,
   computeRevisionLapDurationMs,
   deriveBioenergeticState,
   deriveOneiricPhase,
   selectRevisionStoryImages,
+  type RevisionImageRenderMode,
 } from '@shared/brain/dreamRevisionCycle'
 import type {
   BandEnergies,
@@ -266,6 +269,7 @@ type RevisionSessionImage = {
   title: string
   energy: number
   raster: Blob
+  renderMode?: RevisionImageRenderMode
 }
 
 export function createBrainController(
@@ -764,7 +768,6 @@ export function createBrainController(
     undefined,
     undefined,
     showRawRaster,
-    undefined,
     async (active) => {
       brainPerformanceMetrics.setInference(active)
       // Ogni anteprima resta visibile mentre UNet prepara la successiva.
@@ -1182,6 +1185,14 @@ export function createBrainController(
     // Prima di ogni `brainRendererSelector.resolve`: il gate `interlude` di
     // PsicoFantasma legge questa modalità (PIANO-043 034-20).
     currentFrameRenderMode = scene.renderMode
+    // Log del tipo di immagine (lettera Vice Consigliere §14-§15): stesso
+    // pattern dataset già usato per `revisionCycleActive`, letto da
+    // OutputApp via polling del DOM — nessun canale di trasporto nuovo.
+    root.dataset.framePhase = deriveOneiricPhase(
+      index,
+      currentProduction.story.frames.length,
+    )
+    root.dataset.frameQualityProfile = scene.renderMode ?? ''
     const hadVisibleFrame = currentSvg !== null
     outgoingSvg?.destroy()
     outgoingSvg = currentSvg
@@ -1527,6 +1538,7 @@ export function createBrainController(
       continuityPhrase: null,
       palette,
       sourcePhrases: [],
+      invariant: 'un ricordo già immaginato',
       frames,
     }
     return { story, scenes }
@@ -1535,6 +1547,12 @@ export function createBrainController(
   const rememberCompletedStory = (production: BrainProduction): boolean => {
     const storyId = production.story.id
     if (storyId.startsWith('revision:')) return false
+    // Una storia nata da un'influenza di Coscienza Onirica (moto di
+    // coscienza, disp. Capo Supremo 2026-09-17) non deve rientrare nella
+    // memoria di Riattivazione: quelle immagini appartengono a un ricordo
+    // già rievocato una volta con la sua propria pausa percettiva, non
+    // materiale da far tornare una seconda volta come eco generica.
+    if (production.story.consciousnessInfluence) return false
     if (revisionSessionMemory.selectionFor(storyId)) return true
     const selected = selectRevisionStoryImages(
       production.scenes.flatMap((scene, index) => {
@@ -1553,6 +1571,7 @@ export function createBrainController(
             title: frame.title,
             energy: frame.energy,
             raster,
+            renderMode: scene.renderMode,
           },
         }]
       }),
@@ -1615,7 +1634,25 @@ export function createBrainController(
     const completedStoryId = currentProduction.story.id
     if (completedStoryId.startsWith('revision:')) return false
     if (!rememberCompletedStory(currentProduction)) return false
-    const previousImages = revisionSessionMemory.imagesBefore(completedStoryId)
+    // Le `REVISION_CYCLE_RECENT_FULL_STORIES` storie più recenti restano
+    // intere (la terna completa); oltre, solo le migliori
+    // `REVISION_CYCLE_OLDER_STORY_IMAGE_COUNT` per qualità di generazione —
+    // un ricordo più lontano si sfoltisce, non torna sempre integrale
+    // (disp. Capo Supremo 2026-09-17).
+    const priorSelections = revisionSessionMemory.selectionsBefore(completedStoryId)
+    const firstOlderIndex = Math.max(0, priorSelections.length - REVISION_CYCLE_RECENT_FULL_STORIES)
+    const previousImages = priorSelections.flatMap((entry, index) =>
+      index < firstOlderIndex
+        ? selectRevisionStoryImages(
+            entry.images.map((image) => ({
+              value: image,
+              frameIndex: image.frameIndex,
+              renderMode: image.renderMode,
+            })),
+            REVISION_CYCLE_OLDER_STORY_IMAGE_COUNT,
+          )
+        : entry.images,
+    )
     // La prima storia crea la prima terna ma non ha ancora un passato da
     // riattivare. Dalla seconda chiusura il ciclo parte sempre.
     if (previousImages.length === 0) return false
@@ -2381,8 +2418,15 @@ export function createBrainController(
     // `imageInferenceActive`: il Varco resta acceso per tutta la durata del
     // carico GPU reale. `visualPressurePulseUntil` continua a coprire gli
     // altri due inneschi a impulso (long-frame reattivo, moto di coscienza).
-    const resourcePressureActive =
-      imageInferenceActive || now < visualPressurePulseUntil
+    // Durante la Riattivazione (`revisionCycleActive`) quel carico GPU può
+    // comunque essere in corso (la generazione della storia successiva vera
+    // continua in sottofondo, vedi `requestRevisionCycleAtBoundary`), ma
+    // riguarda un fotogramma che non è quello in scena: il replay a memoria
+    // non ha nessuno stallo da mascherare. Senza questa esclusione il Varco
+    // (flash/glitch) si accendeva sopra la Riattivazione per uno stallo che
+    // le è del tutto estraneo (segnalato dal Capo Supremo).
+    const resourcePressureActive = !revisionCycleActive &&
+      (imageInferenceActive || now < visualPressurePulseUntil)
     currentSvg?.setResourcePressure?.(resourcePressureActive)
     outgoingSvg?.setResourcePressure?.(resourcePressureActive)
     // PIANO-040 (brief §17.3): stato bio-percettivo, propagato solo quando

@@ -45,6 +45,17 @@ const SWITCH_TIMEOUT_MS = 15_000
 // un blocco, senza produrre un accento visivo che il respiro non deve
 // avere. Fuori dal respiro stabile nessun cambiamento: intensità piena
 // come sempre.
+// Scurimento pre-Varco (Capo Supremo, in collaudo 2026-09-17: "prima lag,
+// poi entra il Varco" — il sipario flash+glitch può arrivare a schermo in
+// ritardo rispetto allo stallo che deve coprire). Stessa causa d'armo
+// (`setResourcePressure`), fase aggiuntiva PRIMA del flash: uno scurimento
+// morbido che parte nell'istante stesso in cui il segnale GPU si arma, così
+// la prima cosa visibile a schermo quando lo stallo comincia è già
+// un'intenzione visiva (scurirsi), non il fotogramma congelato a nudo.
+// Breve apposta: deve solo anticipare il flash, non sostituire la sua
+// funzione di mascheramento.
+const PRESSURE_DARKEN_MS = 140
+const PRESSURE_DARKEN_PEAK_OPACITY = 0.55
 const PRESSURE_FLASH_ATTACK_MS = 32
 const PRESSURE_FLASH_DECAY_MS = 220
 const PRESSURE_FLASH_PEAK_OPACITY = 0.85
@@ -213,6 +224,25 @@ export function createBrainRendererHost(
     return pressureFlashOverlay
   }
 
+  let pressureDarkenOverlay: HTMLDivElement | null = null
+  const ensurePressureDarkenOverlay = (): HTMLDivElement => {
+    if (!pressureDarkenOverlay) {
+      pressureDarkenOverlay = document.createElement('div')
+      pressureDarkenOverlay.dataset.brainPressureDarken = 'true'
+      Object.assign(pressureDarkenOverlay.style, {
+        position: 'absolute',
+        inset: '0',
+        opacity: '0',
+        pointerEvents: 'none',
+        backgroundColor: '#000000',
+        mixBlendMode: 'multiply',
+        zIndex: '3',
+      })
+      root.appendChild(pressureDarkenOverlay)
+    }
+    return pressureDarkenOverlay
+  }
+
   // Poche strisce sottili, sfalsate orizzontalmente e tinte in ciano/
   // magenta (stessa frangia cromatica già usata altrove nel codebase per i
   // glitch) sopra il renderer bloccato: costo nullo per frame, sono
@@ -261,7 +291,11 @@ export function createBrainRendererHost(
     })
   }
 
-  const createLayer = (id: BrainRendererId, now: number): RendererLayer => {
+  const createLayer = (
+    id: BrainRendererId,
+    now: number,
+    previousLayer?: RendererLayer | null,
+  ): RendererLayer => {
     const plugin = registry.get(id) ?? registry.get('print2d')
     if (!plugin) throw new Error(`Renderer Brain non registrato: ${id}`)
     const layerRoot = document.createElement('div')
@@ -274,7 +308,26 @@ export function createBrainRendererHost(
       zIndex: '1',
     })
     root.appendChild(layerRoot)
-    const controller = plugin.create({ ...pluginContext, container: layerRoot })
+    // Material↔Dream (disposizione Vice Consigliere, brief bidirezionale
+    // 2026-09-17): canale minimo, mediato dall'host, autorizzato solo per
+    // questa coppia in entrambe le direzioni e solo sullo stesso raster (un
+    // cambio di host, quindi di raster, distrugge sempre `active` prima —
+    // vedi createBrainController). Nessun altro renderer legge o scrive
+    // questo stato.
+    const materialFieldHandoffPairs: ReadonlySet<string> = new Set([
+      'material-morph->dream-segmentation',
+      'dream-segmentation->material-morph',
+    ])
+    const materialFieldHandoff = previousLayer
+      && materialFieldHandoffPairs.has(`${previousLayer.id}->${id}`)
+      ? previousLayer.controller.exportHandoff?.() as
+          BrainRendererPluginContext['materialFieldHandoff']
+      : undefined
+    const controller = plugin.create({
+      ...pluginContext,
+      container: layerRoot,
+      materialFieldHandoff,
+    })
     controller.setMorphPattern(morphPattern)
     controller.setResourcePressure(resourcePressure)
     if (latestPerception) controller.setPerception?.(latestPerception)
@@ -347,7 +400,7 @@ export function createBrainRendererHost(
     switchStartedAt = null
     contaminationBlendOn = false
     try {
-      incoming = createLayer(id, now)
+      incoming = createLayer(id, now, active)
       incoming.root.style.opacity = '0'
       brainLog('render', 'cambio renderer Brain preparato', {
         from: active.id,
@@ -382,6 +435,7 @@ export function createBrainRendererHost(
       if (resourcePressure === activePressure) return
       resourcePressure = activePressure
       if (activePressure) {
+        ensurePressureDarkenOverlay()
         ensurePressureFlashOverlay()
         armPressureGlitchSlices()
         pressureFlashArmed = true
@@ -440,34 +494,53 @@ export function createBrainRendererHost(
       const passthroughReady = passthrough !== null && passthrough.controller.isReady?.() !== false
       if (pressureFlashStartedAt !== null) {
         const elapsed = time - pressureFlashStartedAt
-        const totalMs = PRESSURE_FLASH_ATTACK_MS + PRESSURE_FLASH_DECAY_MS
-        const holding = resourcePressure && !passthroughReady
-        if (!holding && elapsed >= totalMs) {
-          pressureFlashStartedAt = null
-          if (pressureFlashOverlay) pressureFlashOverlay.style.opacity = '0'
-          pressureGlitchSlices.forEach((slice) => { slice.style.opacity = '0' })
-        } else {
-          const intensity = elapsed < PRESSURE_FLASH_ATTACK_MS
-            ? elapsed / PRESSURE_FLASH_ATTACK_MS
-            : holding
-              ? 1
-              : 1 - (elapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
-          const clamped = clamp(intensity)
+        if (elapsed < PRESSURE_DARKEN_MS) {
+          // Fase di scurimento: parte nell'istante stesso dell'armo, prima
+          // ancora che il flash/glitch abbiano un motivo per accendersi
+          // (passthrough non ancora richiesto). Triangolare e breve: sale e
+          // ridiscende dentro la sua stessa finestra, cede il posto al flash
+          // che segue subito dopo.
+          const half = PRESSURE_DARKEN_MS / 2
+          const darkenIntensity = elapsed < half
+            ? elapsed / half
+            : 1 - (elapsed - half) / half
           const regimeMultipliers = pressureFlashRegimeMultipliers(getBioRegime?.())
-          if (pressureFlashOverlay) {
-            pressureFlashOverlay.style.opacity =
-              String(clamped * PRESSURE_FLASH_PEAK_OPACITY * regimeMultipliers.flash)
+          if (pressureDarkenOverlay) {
+            pressureDarkenOverlay.style.opacity =
+              String(clamp(darkenIntensity) * PRESSURE_DARKEN_PEAK_OPACITY * regimeMultipliers.flash)
           }
-          const glitchRegime = getBioRegime?.()
-          pressureGlitchSlices.forEach((slice, index) => {
-            slice.style.opacity =
-              String(clamped * PRESSURE_GLITCH_PEAK_OPACITY * regimeMultipliers.glitch)
-            slice.style.backgroundColor = glitchTintFor(glitchRegime, index)
-            const base = pressureGlitchBaseOffsets[index] ?? 0
-            const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
-            const jitter = Math.sin(elapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6
-            slice.style.transform = `translateX(${(base + jitter).toFixed(1)}px)`
-          })
+        } else {
+          const flashElapsed = elapsed - PRESSURE_DARKEN_MS
+          const totalMs = PRESSURE_FLASH_ATTACK_MS + PRESSURE_FLASH_DECAY_MS
+          const holding = resourcePressure && !passthroughReady
+          if (pressureDarkenOverlay) pressureDarkenOverlay.style.opacity = '0'
+          if (!holding && flashElapsed >= totalMs) {
+            pressureFlashStartedAt = null
+            if (pressureFlashOverlay) pressureFlashOverlay.style.opacity = '0'
+            pressureGlitchSlices.forEach((slice) => { slice.style.opacity = '0' })
+          } else {
+            const intensity = flashElapsed < PRESSURE_FLASH_ATTACK_MS
+              ? flashElapsed / PRESSURE_FLASH_ATTACK_MS
+              : holding
+                ? 1
+                : 1 - (flashElapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
+            const clamped = clamp(intensity)
+            const regimeMultipliers = pressureFlashRegimeMultipliers(getBioRegime?.())
+            if (pressureFlashOverlay) {
+              pressureFlashOverlay.style.opacity =
+                String(clamped * PRESSURE_FLASH_PEAK_OPACITY * regimeMultipliers.flash)
+            }
+            const glitchRegime = getBioRegime?.()
+            pressureGlitchSlices.forEach((slice, index) => {
+              slice.style.opacity =
+                String(clamped * PRESSURE_GLITCH_PEAK_OPACITY * regimeMultipliers.glitch)
+              slice.style.backgroundColor = glitchTintFor(glitchRegime, index)
+              const base = pressureGlitchBaseOffsets[index] ?? 0
+              const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
+              const jitter = Math.sin(flashElapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6
+              slice.style.transform = `translateX(${(base + jitter).toFixed(1)}px)`
+            })
+          }
         }
       }
       if (passthrough) {
@@ -718,6 +791,7 @@ export function createBrainRendererHost(
       destroyLayer(denoisingFilterPsiche)
       destroyLayer(denoisingPsycho2d)
       pressureFlashOverlay = null
+      pressureDarkenOverlay = null
       pressureGlitchSlices = []
       pressureGlitchBaseOffsets = []
       pressureGlitchDriftSpeeds = []

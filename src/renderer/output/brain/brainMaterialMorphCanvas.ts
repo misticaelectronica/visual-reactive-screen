@@ -29,6 +29,10 @@ const NORMAL_FRAME_INTERVAL_MS = 1_000 / 24
 const LOW_POWER_FRAME_INTERVAL_MS = 1_000 / 15
 const PRESSURE_FRAME_INTERVAL_MS = 1_000 / 12
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
+// Dream→Material (disposizione Vice Consigliere, brief bidirezionale
+// 2026-09-17): durata dell'interpolazione posizionale delle regioni
+// dallo stato ricevuto in handoff verso la geometria propria di Material.
+const HANDOFF_TRANSITION_MS = 1_400
 
 type CachedMaterial = {
   source: BrainRendererImageSource
@@ -429,6 +433,16 @@ export function createBrainMaterialMorphScene(
   let scratchContext = scratch.getContext('2d')
   let maskContext = mask.getContext('2d')
   let maskImage = maskContext?.createImageData(outputCanvas.width, outputCanvas.height) ?? null
+  // Dream→Material (disposizione Vice Consigliere, brief bidirezionale
+  // 2026-09-17): se l'host ha passato il `MaterialField` che
+  // dream-segmentation aveva già elaborato per questo stesso raster, le
+  // regioni di Material entrano dalla posizione che avevano in Dream e
+  // migrano verso la propria geometria reale invece di comparire già
+  // ferme — simmetrico all'handoff Material→Dream (brief PoC 2026-09-14).
+  // Armato una sola volta, al primo fotogramma in cui `current` è pronto.
+  let handoffField: MaterialField | undefined = pluginContext.materialFieldHandoff
+  let handoffOrigins: Map<number, { x: number; y: number }> | null = null
+  let handoffArmedAt: number | null = null
 
   const resolveSources = (): void => {
     const sources = pluginContext.getImageSources()
@@ -499,6 +513,11 @@ export function createBrainMaterialMorphScene(
       outputCanvas.style.opacity = String(clamp(opacity))
     },
     getMorphShapes: () => [],
+    // Material↔Dream (disposizione Vice Consigliere, brief bidirezionale
+    // 2026-09-17, esteso dal PoC 2026-09-14): espone il `MaterialField`
+    // correntemente in uso, cosi' che l'host possa passarlo a
+    // dream-segmentation se entra subito dopo sullo stesso raster.
+    exportHandoff: () => preparedFor(currentSource)?.field,
     setMorphPattern(pattern) {
       morphPattern = pattern
       outputCanvas.dataset.brainMorphPattern = pattern
@@ -525,6 +544,30 @@ export function createBrainMaterialMorphScene(
         preparedFor(previousSource) ??
         preparedFor(nextSource)
       if (!current || !scratchContext || !maskContext || !maskImage) return
+
+      if (handoffField && handoffOrigins === null) {
+        if (handoffField === current.field) {
+          handoffField = undefined
+        } else {
+          const fromById = new Map(handoffField.regions.map((region) => [region.id, region]))
+          const origins = new Map<number, { x: number; y: number }>()
+          for (const match of matchMaterialRegions(handoffField.regions, current.field.regions)) {
+            if (match.fromRegionId === null || match.toRegionId === null) continue
+            const origin = fromById.get(match.fromRegionId)
+            if (origin) {
+              origins.set(match.toRegionId, { x: origin.centroidX, y: origin.centroidY })
+            }
+          }
+          handoffOrigins = origins
+          handoffArmedAt = time
+          outputCanvas.dataset.brainMaterialHandoff = 'active'
+          brainLog('render', 'Materia Morph: handoff MaterialField da Dream Segmentation', {
+            frameId: pluginContext.scene.frameId,
+            regionsHandoff: handoffField.regions.length,
+            regionsMaterial: current.field.regions.length,
+          })
+        }
+      }
 
       const rawMotion = calculateBrainMaterialMotion(
         bands,
@@ -636,6 +679,10 @@ export function createBrainMaterialMorphScene(
       context.globalAlpha = 0.16 + motion.pressure * 0.18
       context.drawImage(material.pigment, 0, 0, width, height)
 
+      const handoffEased = handoffOrigins && handoffArmedAt !== null
+        ? smoothstep(clamp((time - handoffArmedAt) / HANDOFF_TRANSITION_MS))
+        : 1
+
       const regionBudget = resourcePressure || settings.lowPowerMode ? 6 : 12
       const regions = material.field.regions.slice(0, regionBudget)
       regions.forEach((region, index) => {
@@ -659,6 +706,9 @@ export function createBrainMaterialMorphScene(
           ) * geometryScale
         const centerX = region.centroidX * width
         const centerY = region.centroidY * height
+        const origin = handoffEased < 1 ? handoffOrigins?.get(region.id) : undefined
+        const handoffOffsetX = origin ? (origin.x - region.centroidX) * width * (1 - handoffEased) : 0
+        const handoffOffsetY = origin ? (origin.y - region.centroidY) * height * (1 - handoffEased) : 0
         context.save()
         context.globalCompositeOperation = index % 3 === 0 ? 'screen' : 'source-over'
         context.globalAlpha = clamp(
@@ -667,7 +717,7 @@ export function createBrainMaterialMorphScene(
           0,
           0.72,
         )
-        context.translate(centerX + offsetX, centerY + offsetY)
+        context.translate(centerX + offsetX + handoffOffsetX, centerY + offsetY + handoffOffsetY)
         context.scale(localScale, localScale)
         context.translate(-centerX, -centerY)
         context.drawImage(layer, 0, 0, width, height)
@@ -693,6 +743,9 @@ export function createBrainMaterialMorphScene(
       outputCanvas.dataset.brainMaterialFlash = motion.flash.toFixed(3)
       outputCanvas.dataset.brainMaterialTransition =
         `${transitionRole}-${transitionProgress.toFixed(3)}`
+      if (handoffOrigins) {
+        outputCanvas.dataset.brainMaterialHandoff = handoffEased < 1 ? 'active' : 'done'
+      }
       brainPerformanceMetrics.recordCanvasFrame(
         time,
         resourcePressure,

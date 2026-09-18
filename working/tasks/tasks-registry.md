@@ -1,5 +1,50 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+
+## Governance team — passaggio Vecchio Consigliere → Vicario — 2026-09-18
+
+- [x] **`TASK-GOV-01`** `DONE`: acquisire senza alterazioni sostanziali la nota
+  firmata dal Vecchio Consigliere, registrare il passaggio della continuità
+  operativa al Vicario e collegare l'atto da `agents.md`, senza modificare i
+  brief storici né il quadro di governance. DEP-001 `NON COINVOLTO`.
+
+
+## Visual Plan e quattro fasi oniriche — PIANO-046 — 2026-09-18
+- [x] **TASK-046-01** `DONE`: invariante della storia (`DreamStory.invariant`),
+  estratto dal modello narrativo con fallback locale, mai un fallimento della
+  storia solo per la sua assenza.
+- [x] **TASK-046-02** `DONE`: `generateVisualPlan()` reintegrata nella pipeline
+  produttiva reale (non più bypassata), progetta i 4 momenti per fase onirica
+  (`deriveOneiricPhase`, già esistente per la Riattivazione) prima della
+  generazione raster; fallback su `splitIntoFourMoments` se rifiutata.
+- [x] **TASK-046-03** `DONE`: prompt raster semplificato a
+  momento-corrente + invariante; rimossi stimolo associato, residuo del
+  fotogramma precedente e argomento generale. Palette Color Direction
+  seedata sulla storia (non più per singolo fotogramma).
+- [x] **TASK-046-04** `DONE`: qualità/denoising deterministici per fase
+  (Soglia/Condensazione → alta qualità, Metamorfosi/Eco → profilo
+  intermedio), sostituendo lo scheduler probabilistico session-wide
+  (`HighQualityRenderScheduler`/`selectLowQualityFrameIndices`, rimossi).
+  Log del tipo di immagine e del profilo aggiunto in basso a destra
+  (`OutputApp.tsx`), derivato dallo stato reale della storia.
+- [ ] **TASK-046-05** `TODO`: collaudo visivo reale a 4 storie (Soglia →
+  Metamorfosi → Condensazione → Eco) e confronto controllato di risoluzione
+  512×512 — richiede l'app Electron/WebGPU dal vivo, affidato al Capo
+  Supremo.
+
+## Contesto quattro immagini — PIANO-045 — 2026-09-17
+- [x] **TASK-045-01** `DONE`: audit DEP-001 NON COINVOLTO; identificati
+  troncamento a 77 posizioni e ingresso UNet dinamico negli artefatti locali.
+- [x] **TASK-045-02** `DONE`: codifica completa a blocchi, budget 450 token,
+  overflow esplicito, disposizione CFG, gestione FP16 e disposal.
+- [x] **TASK-045-03** `DONE`: suite 717 test; poi 82 test mirati finali,
+  typecheck/lint verdi; generazioni con modello reale e conteggi token;
+  build finale normale app/ZIP/DMG arm64 riuscita.
+- [x] **TASK-045-04** `DONE`: collaudo negativo della sequenza e confronti di
+  contesto/guidance; ritirata la sinossi ripetuta, documentati raster e costo.
+- [ ] **TASK-045-05** `TODO`: ottenere e verificare quattro momenti visivamente
+  leggibili della stessa storia; trasporto corretto non chiude il requisito.
+
 ## Richiesta Aiuto Audio Su Riconoscimento Experimental — 2026-09-11
 
 - [x] **`TASK-044-AUDIO-01`** `DONE`: analizzare integralmente l'ultima

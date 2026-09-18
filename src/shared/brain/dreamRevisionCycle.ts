@@ -24,6 +24,12 @@ export type RevisionImageCandidate<T> = {
 }
 
 export const REVISION_STORY_IMAGE_COUNT = 3
+// Capo Supremo, 2026-09-17: le storie appena chiuse restano intere (3
+// immagini), ma oltre le 2 più recenti la Riattivazione deve mostrare solo
+// il meglio — un ricordo più lontano si sfoltisce, non si ripete integrale
+// all'infinito.
+export const REVISION_CYCLE_RECENT_FULL_STORIES = 2
+export const REVISION_CYCLE_OLDER_STORY_IMAGE_COUNT = 2
 export const REVISION_CYCLE_MIN_IMAGES = 5
 export const REVISION_CYCLE_MAX_IMAGES = 9
 export const REVISION_CYCLE_ARCHIVE_CAP_PER_TAG = 24
@@ -80,11 +86,21 @@ export class RevisionSessionMemory<T> {
   }
 
   imagesBefore(storyId: string): T[] {
+    return this.selectionsBefore(storyId).flatMap((entry) => [...entry.images])
+  }
+
+  /**
+   * Come `imagesBefore`, ma senza appiattire: ogni storia resta un gruppo
+   * separato, in ordine cronologico, cosi' il chiamante puo' decidere per
+   * ciascuna quante immagini tenere (es. solo le piu' recenti restano
+   * intere, le altre si riducono alle migliori).
+   */
+  selectionsBefore(storyId: string): ReadonlyArray<{ storyId: string; images: readonly T[] }> {
     const storyIndex = this.order.indexOf(storyId)
     if (storyIndex < 0) return []
     return this.order
       .slice(0, storyIndex)
-      .flatMap((id) => [...(this.selections.get(id) ?? [])])
+      .map((id) => ({ storyId: id, images: this.selections.get(id) ?? [] }))
   }
 
   storyIds(): readonly string[] {

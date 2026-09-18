@@ -1,3 +1,4 @@
+import { chunkSd15Prompt, encodeSd15PromptChunks } from './sd15PromptEncoding'
 import { AutoTokenizer } from '@huggingface/transformers'
 import type { InferenceSession, Tensor } from 'onnxruntime-web'
 import type { ImageModelManifest } from '@shared/brain/imageModelManifest'
@@ -15,7 +16,6 @@ import {
 export const SD15_MODEL_CACHE = 'psychedel-sd15-onnx-v1'
 export const SD15_MIN_DEVICE_MEMORY_GIB = 8
 const LATENT_CHANNELS = 4
-const TOKEN_COUNT = 77
 const VAE_SCALE = 0.18215
 // L'UNet SD 1.5 effettua tre downsample. Le dimensioni latenti devono quindi
 // essere divisibili per 8, cioè l'immagine di inferenza deve usare multipli
@@ -538,43 +538,27 @@ export class Sd15OnnxWebGpuRuntime {
     const tokenizer = this.tokenizer!
 
     const guidanceMode = options.guidanceMode ?? BRAIN_CONFIG.imageGuidanceMode
-    const promptBatch = createSd15PromptBatch(prompt, guidanceMode)
-    const batchSize = promptBatch.length
-    // Il prompt viene inoltrato integralmente. La stringa vuota esiste soltanto
-    // nella modalità CFG a due rami; il test single-conditional usa batch 1.
-    const encoded = tokenizer(promptBatch, {
-      padding: 'max_length',
-      max_length: TOKEN_COUNT,
-      truncation: true,
+    const batchSize = guidanceMode === 'cfg-batch' ? 2 : 1
+    const encoded = tokenizer(prompt, {
+      padding: false,
+      truncation: false,
+      add_special_tokens: false,
       return_tensor: false,
     }) as { input_ids?: unknown }
-    const nestedIds = encoded.input_ids
-    if (!Array.isArray(nestedIds) || !Array.isArray(nestedIds[0])) {
+    const rawIds = encoded.input_ids
+    const ids = Array.isArray(rawIds) && Array.isArray(rawIds[0]) ? rawIds[0] : rawIds
+    if (!Array.isArray(ids) || !ids.every((value) => typeof value === 'number')) {
       throw new Error('Il tokenizer CLIP non ha restituito sequenze valide')
     }
-    const ids = BigInt64Array.from(
-      (nestedIds as number[][]).flat(),
-      (value) => BigInt(value),
+    const chunks = chunkSd15Prompt(ids as number[])
+    const encodingStart = performance.now()
+    const embeddings = await encodeSd15PromptChunks(
+      ort, sessions.textEncoder, chunks, batchSize === 2, signal,
     )
-    const inputIdsTensor = new ort.Tensor(
-      'int64',
-      ids,
-      [batchSize, TOKEN_COUNT],
-    )
-    let textOutput: Record<string, Tensor>
-    try {
-      textOutput = await sessions.textEncoder.run({
-        input_ids: inputIdsTensor,
-      })
-    } finally {
-      inputIdsTensor.dispose()
-    }
-    const embeddings = textOutput.last_hidden_state ?? Object.values(textOutput)[0]
-    if (!embeddings) {
-      disposeOutputTensors(textOutput)
-      throw new Error('Il text encoder non ha prodotto embeddings')
-    }
-    disposeOutputTensors(textOutput, embeddings)
+    onProgress?.({
+      phase: 'generazione',
+      message: `Contesto CLIP completo: ${ids.length} token, ${chunks.length} blocchi, ${Math.round(performance.now() - encodingStart)} ms; nessun taglio`,
+    })
 
     try {
       const steps = Math.max(4, Math.min(

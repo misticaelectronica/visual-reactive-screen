@@ -1,5 +1,69 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+
+## Quattro immagini — PIANO-046 — 2026-09-18
+
+Chiuso il lavoro residuo di PIANO-045 (TASK-045-05) sulla lettera del Vice
+Consigliere: `generateVisualPlan()` reintegrata nella pipeline produttiva
+reale (prima esisteva ma non veniva mai chiamata); i 4 fotogrammi sono ora
+associati esplicitamente a Soglia/Metamorfosi/Condensazione/Eco tramite
+`deriveOneiricPhase` (già esistente in `dreamRevisionCycle.ts` per la
+Riattivazione, riusato invece di un enum duplicato). Aggiunto un invariante
+di storia (`DreamStory.invariant`, estratto dal modello narrativo con
+fallback locale) e ricostruito il prompt raster attorno a
+"momento corrente + invariante", rimuovendo stimolo associato/residuo del
+fotogramma precedente/argomento generale (materiale narrativo concorrente).
+Palette Color Direction seedata sulla storia intera (`story.id`), non più
+per singolo fotogramma. Qualità/denoising ora deterministici per fase (Soglia
+e Condensazione → profilo alta qualità; Metamorfosi ed Eco → profilo
+intermedio), sostituendo lo scheduler probabilistico session-wide
+(`HighQualityRenderScheduler`/`selectLowQualityFrameIndices`, rimossi). Log
+del tipo di immagine e del profilo qualità aggiunto in basso a destra
+(`OutputApp.tsx`), derivato dallo stato reale della storia via dataset già
+usato per la Riattivazione.
+
+Costo GPU aumentato intenzionalmente (2 fotogrammi ad alta qualità garantiti
+per storia invece della vecchia media probabilistica ~1 ogni 2-5 disegni);
+le uniche valvole di sicurezza rimaste sono pressione GPU reale e
+disattivazione dopo OOM, non un nuovo throttling — da verificare in sessione
+prolungata. **Nessuna generazione raster reale eseguita in questa sessione**
+(niente Electron/GPU disponibile): il collaudo visivo a 4 storie e il
+confronto controllato di risoluzione 512×512 (TASK-046-05) restano aperti e
+richiedono il Capo Supremo dal vivo, con la stessa procedura già usata in
+PIANO-045. Suite 77 file / 716 test, typecheck e lint verdi.
+Dettagli: `working/plans/piano-046-visual-plan-quattro-fasi.md`.
+
+## Governance team — passaggio Vecchio Consigliere → Vicario — 2026-09-18
+
+Acquisita la nota firmata dal Vecchio Consigliere: il suo incarico operativo
+si conclude e la continuità del lavoro corrente passa al Vicario. Decisioni,
+principi e brief consolidati restano acquisiti; ruoli, responsabilità e
+autonomie del progetto non cambiano. Il Vecchio Consigliere resta richiamabile
+esclusivamente come memoria storica del ramo precedente. Atto canonico:
+`team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md`, collegato da
+`agents.md`. I documenti storici non sono stati riscritti. Nessuna modifica al
+runtime. Audit deprecati: DEP-001 `NON COINVOLTO`.
+
+
+## Quattro immagini — PIANO-045 — 2026-09-17
+
+Corretto il troncamento CLIP nel runtime SD1.5: fino a 450 token in sei
+blocchi da 77 posizioni, tutti consegnati all'UNet; overflow esplicito,
+log token/blocchi/costo, ordine CFG e FP16 verificati. Color Direction
+preservato senza cambiarne la grammatica. DEP-001 NON COINVOLTO.
+**Criterio visivo NON raggiunto**: 4 raster reali generati in Electron
+WebGPU non restituiscono una progressione narrativa affidabile. Ritirata
+l'aggiunta della sinossi integrale per immagine; CFG provato ma non promosso.
+Nessuna modifica a step, seed, modello o scheduler di produzione.
+Misure finali calde 11.244–11.448 s vs riferimento 10.874 s; prova breve,
+non termica/live. Suite 717 test verde, verifica mirata finale 82 test,
+typecheck/lint verdi; build finale app/ZIP/DMG arm64 riuscita dopo la
+conclusione delle modifiche concorrenti al Renderer Host.
+Resoconto e immagini: `working/validation/piano-045/README.md`.
+Prossimo passo aperto: descrizioni dei quattro momenti autosufficienti e
+coerenti nella generazione narrativa esistente, con accettazione sui raster;
+non confondere trasporto integro con risultato artistico riuscito.
+
 ## Regime Audio experimental — ritarato il deadband della direzione, corretto artefatto di warmup residuo — 2026-09-13
 
 Segnalato: "troppo in respiro alto, ritara gli altri stati basandoti sui

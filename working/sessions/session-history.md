@@ -2490,3 +2490,64 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   `team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`.
 - Nessuna modifica runtime o taratura. Audit deprecati: DEP-001
   `NON COINVOLTO`.
+
+
+## SESSION-2026-09-17-QUATTRO-IMMAGINI — 17:58 Europe/Rome
+
+- Brief Vice Consigliere: quattro momenti della stessa storia, narrativa e
+  Color Direction consegnati davvero al generatore, costo compatibile live.
+- DEP-001 NON COINVOLTO; letti filosofia, lettera Ingegneria e stato piani.
+- Corretto troncamento CLIP a 77: encoder per blocchi con concatenazione
+  lungo sequenza e limite esplicito 450 token; nessuna riscrittura dei prompt.
+- Test CFG single/doppio e float32/float16, bit preservation, abort/disposal.
+  Suite 717 test; verifica mirata finale 82 test, typecheck/lint inizialmente verdi.
+- Sedici raster reali Electron/WebGPU. Esito visivo negativo: nessuna
+  progressione affidabile. Sinossi ripetuta ritirata; CFG non promosso.
+  Finale: 89–124 token, due blocchi, 105–166 ms encoding, 11.244–11.448 s
+  totali caldi vs 10.874 s riferimento. Prova breve, non statistica/termica.
+- Build iniziale compilata; DMG bloccato dalla sandbox. Rilancio autorizzato
+  incontra due costanti inutilizzate nel Renderer Host modificato in parallelo.
+- Verifica conclusiva 18:01: typecheck nuovamente verde e build normale
+  completa riuscita (app, ZIP, DMG arm64), senza modificare il Renderer Host.
+- Non dichiarato chiuso il requisito: MACRO-036 / PIANO-045 restano aperti
+  sulla qualità narrativa dei quattro raster. Evidenze conservate in
+  `working/validation/piano-045/README.md`; modifiche preesistenti preservate.
+
+## SESSION-2026-09-18-PASSAGGIO-CONSIGLIERE-VICARIO
+
+- Acquisita integralmente la nota firmata dal Vecchio Consigliere in
+  `team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md`.
+- Registrata in `agents.md` come atto di continuità operativa: il Vicario
+  prosegue il lavoro corrente; governance, ruoli, responsabilità e autonomie
+  restano invariati.
+- Conservate intatte le attribuzioni storiche nei brief e nei registri; il
+  Vecchio Consigliere vi resta memoria del contesto delle decisioni pregresse.
+- Nessuna modifica al runtime. Audit deprecati: DEP-001 `NON COINVOLTO`.
+
+## SESSION-2026-09-18-VISUAL-PLAN-QUATTRO-FASI
+
+- Brief Vice Consigliere (21 sezioni): chiude TASK-045-05 (PIANO-046).
+  `generateVisualPlan()` reintegrata nella pipeline produttiva reale (prima
+  esisteva ma non veniva mai chiamata); i 4 fotogrammi ora associati
+  esplicitamente a Soglia/Metamorfosi/Condensazione/Eco via
+  `deriveOneiricPhase` (già esistente in `dreamRevisionCycle.ts` per la
+  Riattivazione, riusato invece di un enum duplicato).
+- Aggiunto invariante di storia (`DreamStory.invariant`, estratto dal
+  modello con fallback locale `inferInvariant`). Prompt raster ricostruito
+  attorno a momento corrente + invariante; rimossi stimolo associato,
+  residuo del fotogramma precedente, argomento generale. Color Direction
+  seedato su `story.id` (famiglia cromatica di storia, non più per singolo
+  fotogramma).
+- Qualità/denoising deterministici per fase (Soglia e Condensazione → alta
+  qualità; Metamorfosi ed Eco → profilo intermedio), sostituendo lo
+  scheduler probabilistico session-wide (`HighQualityRenderScheduler` +
+  `selectLowQualityFrameIndices`, rimossi). Log del tipo di immagine e del
+  profilo qualità aggiunto in basso a destra (`OutputApp.tsx`).
+- Costo GPU aumentato intenzionalmente (2 fotogrammi alta qualità garantiti
+  per storia); uniche valvole di sicurezza rimaste: pressione GPU reale e
+  disattivazione dopo OOM.
+- Suite 77 file / 716 test, typecheck e lint verdi. Nessuna generazione
+  raster reale eseguita (niente Electron/GPU disponibile in sessione):
+  collaudo visivo a 4 storie e confronto risoluzione 512×512 (TASK-046-05)
+  restano aperti, affidati al Capo Supremo dal vivo. Dettagli:
+  `working/plans/piano-046-visual-plan-quattro-fasi.md`.

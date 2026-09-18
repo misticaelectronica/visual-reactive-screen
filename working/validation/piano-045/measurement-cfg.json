@@ -1,0 +1,335 @@
+{
+  "story": {
+    "id": "validation-045",
+    "title": "The silver root",
+    "synopsis": "Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root. The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree. Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk. On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.",
+    "englishSynopsis": "Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root. The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree. Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk. On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.",
+    "sourcePhrases": [],
+    "palette": [
+      "#101010",
+      "#202020",
+      "#303030",
+      "#404040",
+      "#505050"
+    ],
+    "bridge": null,
+    "continuityPhrase": null,
+    "frames": [
+      {
+        "id": "frame-0",
+        "title": "Moment 1",
+        "description": "Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root.",
+        "imagePrompt": "Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root.",
+        "visualIntent": "Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root.",
+        "energy": 0.5,
+        "durationMs": 30000
+      },
+      {
+        "id": "frame-1",
+        "title": "Moment 2",
+        "description": "The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree.",
+        "imagePrompt": "The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree.",
+        "visualIntent": "The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree.",
+        "energy": 0.5,
+        "durationMs": 30000
+      },
+      {
+        "id": "frame-2",
+        "title": "Moment 3",
+        "description": "Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk.",
+        "imagePrompt": "Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk.",
+        "visualIntent": "Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk.",
+        "energy": 0.5,
+        "durationMs": 30000
+      },
+      {
+        "id": "frame-3",
+        "title": "Moment 4",
+        "description": "On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.",
+        "imagePrompt": "On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.",
+        "visualIntent": "On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.",
+        "energy": 0.5,
+        "durationMs": 30000
+      }
+    ]
+  },
+  "images": [
+    {
+      "name": "cfg-frame-1",
+      "prompt": "Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root.\n\nCurrent moment 1/4. One image of this moment.\n\nStory context: Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root. The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree. Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk. On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.\n\nCOLOR DIRECTION:\nDeep, restrained colour field, low chromatic competition, gentle contrast.\nRelated, continuous colour families, uneven controlled saturation, rare deeper accents.\nShadows keep density and readable detail.\nAvoid bright primaries, pastel grading, neon dominance, flat monochrome.\nColour family: graphite, petroleum, rust, blackened green.",
+      "seed": 450,
+      "elapsedMs": 12355.399999976158,
+      "progress": [
+        {
+          "phase": "download",
+          "message": "text_encoder: 235 MB",
+          "pct": 100,
+          "component": "text_encoder"
+        },
+        {
+          "phase": "caricamento",
+          "message": "Creazione sessione text_encoder",
+          "component": "text_encoder",
+          "source": "cache locale"
+        },
+        {
+          "phase": "download",
+          "message": "unet: 1640 MB",
+          "pct": 100,
+          "component": "unet"
+        },
+        {
+          "phase": "caricamento",
+          "message": "Creazione sessione unet",
+          "component": "unet",
+          "source": "cache locale"
+        },
+        {
+          "phase": "download",
+          "message": "vae_decoder: 189 MB",
+          "pct": 100,
+          "component": "vae_decoder"
+        },
+        {
+          "phase": "caricamento",
+          "message": "Creazione sessione vae_decoder",
+          "component": "vae_decoder",
+          "source": "cache locale"
+        },
+        {
+          "phase": "caricamento",
+          "message": "Realistic Vision V6.0 B1 SD 1.5 ONNX pronto",
+          "pct": 100
+        },
+        {
+          "phase": "generazione",
+          "message": "Contesto CLIP completo: 202 token, 3 blocchi, 294 ms; nessun taglio"
+        },
+        {
+          "phase": "generazione",
+          "message": "Geometria UNet 448×256; uscita ritagliata a 640×360",
+          "component": "unet-shape",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "UNet batch 2: classifier-free guidance",
+          "component": "unet-guidance-mode",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 1/6",
+          "pct": 15
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 2/6",
+          "pct": 30
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 3/6",
+          "pct": 45
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 4/6",
+          "pct": 60
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 5/6",
+          "pct": 75
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 6/6",
+          "pct": 90
+        },
+        {
+          "phase": "completato",
+          "message": "Immagine completata in 8418 ms",
+          "pct": 100
+        }
+      ]
+    },
+    {
+      "name": "cfg-frame-2",
+      "prompt": "The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree.\n\nCurrent moment 2/4. One image of this moment.\n\nStory context: Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root. The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree. Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk. On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.\n\nResidual visual trace: Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root.\n\nCOLOR DIRECTION:\nDeep, restrained colour field, low chromatic competition, gentle contrast.\nRelated, continuous colour families, uneven controlled saturation, rare deeper accents.\nShadows keep density and readable detail.\nAvoid bright primaries, pastel grading, neon dominance, flat monochrome.\nColour family: blackened green, deep violet, dark burgundy, dirty mauve.",
+      "seed": 451,
+      "elapsedMs": 7904.900000035763,
+      "progress": [
+        {
+          "phase": "generazione",
+          "message": "Contesto CLIP completo: 237 token, 4 blocchi, 213 ms; nessun taglio"
+        },
+        {
+          "phase": "generazione",
+          "message": "Geometria UNet 448×256; uscita ritagliata a 640×360",
+          "component": "unet-shape",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "UNet batch 2: classifier-free guidance",
+          "component": "unet-guidance-mode",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 1/6",
+          "pct": 15
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 2/6",
+          "pct": 30
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 3/6",
+          "pct": 45
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 4/6",
+          "pct": 60
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 5/6",
+          "pct": 75
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 6/6",
+          "pct": 90
+        },
+        {
+          "phase": "completato",
+          "message": "Immagine completata in 7691 ms",
+          "pct": 100
+        }
+      ]
+    },
+    {
+      "name": "cfg-frame-3",
+      "prompt": "Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk.\n\nCurrent moment 3/4. One image of this moment.\n\nStory context: Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root. The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree. Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk. On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.\n\nResidual visual trace: The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree.\n\nCOLOR DIRECTION:\nDeep, restrained colour field, low chromatic competition, gentle contrast.\nRelated, continuous colour families, uneven controlled saturation, rare deeper accents.\nShadows keep density and readable detail.\nAvoid bright primaries, pastel grading, neon dominance, flat monochrome.\nColour family: petroleum, burnt earth, graphite, dark amber.",
+      "seed": 452,
+      "elapsedMs": 7890.400000035763,
+      "progress": [
+        {
+          "phase": "generazione",
+          "message": "Contesto CLIP completo: 234 token, 4 blocchi, 211 ms; nessun taglio"
+        },
+        {
+          "phase": "generazione",
+          "message": "Geometria UNet 448×256; uscita ritagliata a 640×360",
+          "component": "unet-shape",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "UNet batch 2: classifier-free guidance",
+          "component": "unet-guidance-mode",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 1/6",
+          "pct": 15
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 2/6",
+          "pct": 30
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 3/6",
+          "pct": 45
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 4/6",
+          "pct": 60
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 5/6",
+          "pct": 75
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 6/6",
+          "pct": 90
+        },
+        {
+          "phase": "completato",
+          "message": "Immagine completata in 7677 ms",
+          "pct": 100
+        }
+      ]
+    },
+    {
+      "name": "cfg-frame-4",
+      "prompt": "On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.\n\nCurrent moment 4/4. One image of this moment.\n\nStory context: Mara stands beside a leafless tree on a deserted shore, holding a cracked clay bowl containing a single silver root. The silver root grows from the cracked clay bowl and winds around Mara's wrists, joining her hands to the leafless tree. Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk. On the deserted shore Mara holds the cracked clay bowl again, now bearing the small imprint of the tree and one silver root.\n\nResidual visual trace: Mara and the leafless tree share a dense tangle of silver roots while the cracked clay bowl opens into a hollow trunk.\n\nCOLOR DIRECTION:\nDeep, restrained colour field, low chromatic competition, gentle contrast.\nRelated, continuous colour families, uneven controlled saturation, rare deeper accents.\nShadows keep density and readable detail.\nAvoid bright primaries, pastel grading, neon dominance, flat monochrome.\nColour family: graphite, petroleum, rust, blackened green.",
+      "seed": 453,
+      "elapsedMs": 7941.600000023842,
+      "progress": [
+        {
+          "phase": "generazione",
+          "message": "Contesto CLIP completo: 233 token, 4 blocchi, 211 ms; nessun taglio"
+        },
+        {
+          "phase": "generazione",
+          "message": "Geometria UNet 448×256; uscita ritagliata a 640×360",
+          "component": "unet-shape",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "UNet batch 2: classifier-free guidance",
+          "component": "unet-guidance-mode",
+          "pct": 0
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 1/6",
+          "pct": 15
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 2/6",
+          "pct": 30
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 3/6",
+          "pct": 45
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 4/6",
+          "pct": 60
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 5/6",
+          "pct": 75
+        },
+        {
+          "phase": "generazione",
+          "message": "Denoising 6/6",
+          "pct": 90
+        },
+        {
+          "phase": "completato",
+          "message": "Immagine completata in 7728 ms",
+          "pct": 100
+        }
+      ]
+    }
+  ]
+}
