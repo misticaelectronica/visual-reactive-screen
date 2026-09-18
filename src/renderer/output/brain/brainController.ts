@@ -1547,12 +1547,16 @@ export function createBrainController(
   const rememberCompletedStory = (production: BrainProduction): boolean => {
     const storyId = production.story.id
     if (storyId.startsWith('revision:')) return false
-    // Una storia nata da un'influenza di Coscienza Onirica (moto di
-    // coscienza, disp. Capo Supremo 2026-09-17) non deve rientrare nella
-    // memoria di Riattivazione: quelle immagini appartengono a un ricordo
-    // già rievocato una volta con la sua propria pausa percettiva, non
-    // materiale da far tornare una seconda volta come eco generica.
-    if (production.story.consciousnessInfluence) return false
+    // Correzione (Capo Supremo, 2026-09-18): l'ordine originale escludeva
+    // dalla Riattivazione UN'IMMAGINE nata da un moto di coscienza, non
+    // un'intera storia. `consciousnessInfluence` oggi è un campo a livello
+    // di storia (tinge la palette di tutti e 4 i fotogrammi via
+    // `applyConsciousnessPalette`; nessun fotogramma è marcato
+    // singolarmente come "quello" del moto di coscienza) — escludere
+    // l'intera storia era una generalizzazione errata dell'ordine
+    // originale. I 4 fotogrammi Psichedel di una storia con
+    // consciousnessInfluence sono raster normali e partecipano alla
+    // Riattivazione come qualunque altra storia.
     if (revisionSessionMemory.selectionFor(storyId)) return true
     const selected = selectRevisionStoryImages(
       production.scenes.flatMap((scene, index) => {

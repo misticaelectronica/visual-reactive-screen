@@ -1,5 +1,25 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Riattivazione — correzione esclusione consciousnessInfluence — 2026-09-18
+
+Segnalato dal Capo Supremo dopo un test dal vivo con Sessione pubblica attiva
+(log reale ispezionato: 14 chiusure di storia in 30 minuti, `moto di
+coscienza preparato` su 13 di esse, Riattivazione scattata una sola volta):
+l'esclusione in `rememberCompletedStory` (`brainController.ts`) scartava
+dalla memoria di Riattivazione l'INTERA storia quando questa portava
+`consciousnessInfluence`, mentre l'ordine originale del Capo Supremo
+(disposizione 2026-09-17) riguardava una sola IMMAGINE, non la storia
+intera. Verificato che l'architettura attuale non marca alcun fotogramma
+specifico come "quello" del moto di coscienza — `consciousnessInfluence` è
+un campo a livello di storia che tinge la palette di tutti e 4 i fotogrammi
+(`applyConsciousnessPalette`). Confermato dal Capo Supremo: nessuna delle 4
+immagini va esclusa. Rimossa la riga `if
+(production.story.consciousnessInfluence) return false`; le storie con
+moto di coscienza partecipano ora normalmente alla Riattivazione come
+qualunque altra storia. Nessun test dedicato esisteva su questo guard
+(`brainController.ts` non ha un file di test). Suite 77 file / 716 test,
+typecheck e lint verdi.
+
 
 ## Quattro immagini — PIANO-046 — 2026-09-18
 
