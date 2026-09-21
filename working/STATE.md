@@ -1,5 +1,34 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## ANIMATRONIX — fase post-storia, dietro flag — 2026-09-21
+
+Ordine del Capo Supremo: nuova fase di Brain che si attiva alla chiusura di
+ogni storia e ne anima i 4 raster, con deroga al controllo Camera valida solo
+lì (brief in `team/briefs/`). Ordine fissato: ANIMATRONIX → Riattivazione →
+storia successiva. Attivabile dal flag `animatronixEnabled` (**default OFF**,
+checkbox nel pannello Visual, richiede Brain).
+
+Posizione nel ciclo: `STORIA → ANIMATRONIX → RIATTIVAZIONE → STORIA
+SUCCESSIVA`. Usa **esclusivamente i raster già prodotti** dalla storia
+conclusa: **nessuna nuova inferenza di immagini**. Ingresso e uscita sono un
+**overlay sopra il renderer attivo** (il renderer continua sotto, nessun
+reset percettivo). Deroga Camera dichiarata in `agents.md` (Eccezione Camera —
+ANIMATRONIX).
+
+Moduli: `brainAnimatronix.ts` (analisi struttura raster, cinque grammatiche,
+frase di movimento con invariante cinetico, orologio con silenzio, posa
+camera; puro e testato) e `brainAnimatronixStage.ts` (overlay DOM che sfuma
+sopra il renderer in ingresso e in uscita, cross-fade fra i 4 raster).
+Aggancio in `brainController.ts`: `beginAnimatronixIfEnabled` al confine di
+storia, coda del confine estratta in `completeStoryBoundary` (nessun cambio di
+comportamento a flag spento). I raster vengono analizzati appena parte l'ultimo
+fotogramma; se non pronti alla chiusura la fase viene saltata e loggata.
+
+Limiti noti: il PARALLAX attuale è **privo di depth reale** e si comporta come
+deriva (nessuna stima di profondità);
+soglie d'analisi euristiche e non tarate su raster reali; nessun collaudo dal
+vivo. Chiuso: deroga Camera in agents.md. Aperto: resta da confermare la lettura A della regola DELIQUESCENCE 95%.
+
 ## BrainPhrasesBaseStory di Sessione — 2026-09-18
 
 Ordine del Capo Supremo: durante la Sessione pubblica la storia principale

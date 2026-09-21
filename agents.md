@@ -207,6 +207,32 @@ Prima di proporre qualsiasi modifica, diagnosi o soluzione visiva, l'agente DEVE
    frequenza o densità. Non si aggiungono effetti autonomi che competano con
    il denoising o trasformino il risparmio energetico in un nuovo blocco.
 
+#### Eccezione Camera — ANIMATRONIX
+
+Il **Check Camera** (punto 1) **non si applica durante la fase ANIMATRONIX**
+(decisione del Capo Supremo, brief del 21 settembre 2026 in
+[`team/briefs/`](team/briefs/brief-animatronix-2026-09-21.md)).
+
+All'interno di ANIMATRONIX sono consentite trasformazioni applicate all'intero
+quadro, comprese:
+
+- parallasse;
+- Ken Burns;
+- zoom;
+- deriva;
+- traslazione;
+- scala;
+- combinazioni coerenti di questi movimenti.
+
+La deroga riguarda **esclusivamente ANIMATRONIX**. Tutti gli altri renderer,
+Material-Morph, base layer, Psichedel e le altre fasi Brain continuano a
+rispettare il Check Camera esistente. **Non estendere la deroga ad altri
+moduli per analogia.**
+
+Per ANIMATRONIX restano applicati, fino a diversa decisione della Direzione
+Visual: **Silenzio** (punto 3), **Beatmatch** (punto 4) e **Transizione**
+(punto 5). L'eccezione non modifica gli altri principi del protocollo.
+
 ### Filosofia Di Brain — Rimando A [`filosofia.md`](filosofia.md)
 
 Le fondamenta teoriche della filosofia di Brain vivono in **[`filosofia.md`](filosofia.md)**

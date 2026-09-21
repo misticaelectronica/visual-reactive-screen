@@ -75,6 +75,15 @@ export function VisualControls({ settings, onChange }: Props) {
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="checkbox"
+            checked={settings.animatronixEnabled}
+            disabled={!settings.useBrain}
+            onChange={(e) => onChange({ animatronixEnabled: e.target.checked })}
+          />
+          <strong>ANIMATRONIX</strong> — anima la storia a fine ciclo
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
             checked={settings.alternateBrainWithMorphing}
             onChange={(e) => onChange({
               alternateBrainWithMorphing: e.target.checked,

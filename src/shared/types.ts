@@ -101,6 +101,8 @@ export interface AppSettings {
   useBrain: boolean
   /** @deprecated Compatibilità con sessioni salvate; non estendere. Vedi working/DEPRECATED.md. */
   alternateBrainWithMorphing: boolean
+  /** ANIMATRONIX: fase post-storia che anima i 4 raster della storia conclusa. Default spento. */
+  animatronixEnabled: boolean
   brainRendererId: BrainRendererId
   brainRendererMode: BrainRendererMode
   brainRendererRotationMs: number

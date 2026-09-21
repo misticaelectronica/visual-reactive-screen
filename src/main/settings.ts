@@ -57,6 +57,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     useBrain,
     useMorphing: useBrain ? false : settings.useMorphing === true,
     alternateBrainWithMorphing,
+    animatronixEnabled: settings.animatronixEnabled === true,
     brainRendererId: isBrainRendererId(settings.brainRendererId)
       ? settings.brainRendererId
       : 'print2d',

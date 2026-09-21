@@ -55,6 +55,15 @@ import {
   buildPrint2dModeSequence,
   type BrainPrint2dMode,
 } from './brainPrint2dCanvas'
+import {
+  planAnimatronix,
+  type AnimatronixRasterStructure,
+  type AnimatronixRegime,
+} from './brainAnimatronix'
+import {
+  analyzeAnimatronixBlob,
+  createAnimatronixStage,
+} from './brainAnimatronixStage'
 import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 import { createBrainRendererHost } from './brainRendererHost'
 import { BrainOfflineGenerationWindow } from './brainOfflineWindow'
@@ -485,6 +494,7 @@ export function createBrainController(
     statusElement,
   )
   container.appendChild(root)
+  const animatronixStage = createAnimatronixStage(root)
   const consciousnessMotionLayer = createBrainConsciousnessMotionLayer(root)
   const unsubscribeProcessMonitor = subscribeBrainLog((entry) => {
     processHeader.textContent =
@@ -899,6 +909,15 @@ export function createBrainController(
   let storyStartedAt = 0
   let storyCycleCompletionReported = false
   let storyCycleInterludeCompleted = false
+  let animatronixRunning = false
+  let animatronixHandledStoryId: string | null = null
+  let animatronixPreparingStoryId: string | null = null
+  let animatronixPrepared: {
+    storyId: string
+    structures: AnimatronixRasterStructure[]
+    rasters: Blob[]
+  } | null = null
+  let animatronixLastNow: number | null = null
   let consciousnessMotionPausedAt: number | null = null
   const consciousnessMotionMemoryIds = new Set<string>()
   const consciousnessMotionStoryIds = new Set<string>()
@@ -2158,6 +2177,94 @@ export function createBrainController(
     }
   }
 
+  const completeStoryBoundary = (beatDurationMs: number, beatIndex: number) => {
+    if (!currentProduction) return
+    // La chiusura della storia fissa la terna e, dalla seconda storia in poi,
+    // avvia subito la memoria cronologica delle storie precedenti.
+    if (requestRevisionCycleAtBoundary(
+      nextProduction,
+      beatDurationMs,
+      beatIndex,
+    )) return
+    if (nextProduction) {
+      brainLog('pipeline', 'storia terminata; morphing SVG verso la storia successiva', {
+        storyId: currentProduction.story.id,
+        nextStoryId: nextProduction.story.id,
+      })
+      advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
+      return
+    }
+    brainLog('pipeline', 'storia terminata; riciclo le immagini mentre attendo', {
+      storyId: currentProduction.story.id,
+      pendingStoryId: pendingStory?.id ?? null,
+      generationActive: generating,
+    })
+    recycleCurrentStoryFrame(beatDurationMs, beatIndex)
+    if (generating) setStatus('rendering+generation')
+    if (!generating) void generateNext()
+  }
+
+  const prepareAnimatronix = async (production: BrainProduction) => {
+    const storyId = production.story.id
+    if (
+      latestPayload?.settings?.animatronixEnabled !== true ||
+      storyId.startsWith('revision:') ||
+      animatronixPreparingStoryId === storyId ||
+      animatronixPrepared?.storyId === storyId
+    ) {
+      return
+    }
+    animatronixPreparingStoryId = storyId
+    const rasters: Blob[] = []
+    for (const frame of production.story.frames) {
+      const raster =
+        production.scenes.find((scene) => scene.frameId === frame.id)?.raster ??
+        rasterPreviewBlobs.get(`${storyId}:${frame.id}`)
+      if (raster) rasters.push(raster)
+    }
+    if (rasters.length < 2) return
+    const structures = await Promise.all(rasters.map(analyzeAnimatronixBlob))
+    if (destroyed) return
+    animatronixPrepared = { storyId, structures, rasters }
+  }
+
+  const beginAnimatronixIfEnabled = (production: BrainProduction): boolean => {
+    const storyId = production.story.id
+    if (
+      latestPayload?.settings?.animatronixEnabled !== true ||
+      storyId.startsWith('revision:') ||
+      animatronixHandledStoryId === storyId
+    ) {
+      return false
+    }
+    animatronixHandledStoryId = storyId
+    const prepared = animatronixPrepared
+    if (!prepared || prepared.storyId !== storyId) {
+      brainWarn('animatronix', 'raster non pronti alla chiusura; fase saltata', { storyId })
+      return false
+    }
+    const regime: AnimatronixRegime =
+      lastSentPerceptionState?.regime ?? 'unresolved'
+    const plan = planAnimatronix({
+      storyId,
+      structures: prepared.structures,
+      regime,
+    })
+    animatronixPrepared = null
+    animatronixPreparingStoryId = null
+    animatronixRunning = true
+    animatronixLastNow = null
+    animatronixStage.start(plan, prepared.rasters)
+    brainLog('animatronix', 'fase ANIMATRONIX avviata', {
+      storyId,
+      regime,
+      invariant: plan.invariant.grammar,
+      grammars: plan.segments.map((segment) => segment.grammar),
+      totalMs: Math.round(plan.totalMs),
+    })
+    return true
+  }
+
   const advanceTimeline = (
     now: number,
     rhythmActive: boolean,
@@ -2169,6 +2276,7 @@ export function createBrainController(
     if (!rhythmActive) return
     if (!currentProduction) return
     if (storyCycleCompletionReported) return
+    if (animatronixRunning) return
     if (revisionCycleActive) {
       if (now >= revisionCycleActiveUntil) {
         revisionCycleActive = false
@@ -2256,6 +2364,9 @@ export function createBrainController(
         })
       }
       applyFrame(frameIndex + 1, beatDurationMs, beatIndex)
+      if (frameIndex === currentProduction.story.frames.length - 1) {
+        void prepareAnimatronix(currentProduction)
+      }
       if (!generating && !nextProduction) {
         window.setTimeout(() => void generateNext(), 0)
       }
@@ -2281,29 +2392,10 @@ export function createBrainController(
       options.onStoryCycleComplete(completion)
       return
     }
-    // La chiusura della storia fissa la terna e, dalla seconda storia in poi,
-    // avvia subito la memoria cronologica delle storie precedenti.
-    if (requestRevisionCycleAtBoundary(
-      nextProduction,
-      beatDurationMs,
-      beatIndex,
-    )) return
-    if (nextProduction) {
-      brainLog('pipeline', 'storia terminata; morphing SVG verso la storia successiva', {
-        storyId: currentProduction.story.id,
-        nextStoryId: nextProduction.story.id,
-      })
-      advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
-      return
-    }
-    brainLog('pipeline', 'storia terminata; riciclo le immagini mentre attendo', {
-      storyId: currentProduction.story.id,
-      pendingStoryId: pendingStory?.id ?? null,
-      generationActive: generating,
-    })
-    recycleCurrentStoryFrame(beatDurationMs, beatIndex)
-    if (generating) setStatus('rendering+generation')
-    if (!generating) void generateNext()
+    // ANIMATRONIX precede la Riattivazione: ordine fissato dal Capo Supremo
+    // (ANIMATRONIX → Riattivazione → storia successiva).
+    if (beginAnimatronixIfEnabled(currentProduction)) return
+    completeStoryBoundary(beatDurationMs, beatIndex)
   }
 
   const render = (now: number) => {
@@ -2358,6 +2450,22 @@ export function createBrainController(
       })
     }
     const timelineNow = consciousnessMotionPausedAt ?? rhythmicNow
+    if (animatronixStage.isBusy()) {
+      const dt = animatronixLastNow === null
+        ? 0
+        : Math.min(100, Math.max(0, now - animatronixLastNow))
+      animatronixLastNow = now
+      const finished = animatronixStage.update(dt, {
+        active: rhythm.active === true,
+        beatPulse: rhythm.beatPulse,
+        highTransient: rhythm.bandTransients?.high ?? 0,
+      })
+      if (finished) {
+        animatronixRunning = false
+        brainLog('animatronix', 'fase ANIMATRONIX conclusa; riprende il confine di storia')
+        completeStoryBoundary(rhythm.beatDurationMs, rhythm.beatIndex)
+      }
+    }
     if (!motionState.active) {
       advanceTimeline(
         timelineNow,
@@ -2535,6 +2643,7 @@ export function createBrainController(
       storyAi?.destroy()
       psychedel.destroy()
       consciousnessMotionLayer.destroy()
+      animatronixStage.destroy()
       currentSvg?.destroy()
       outgoingSvg?.destroy()
       transitionCounterpartShapes = []
