@@ -182,6 +182,9 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
   ): Promise<{ blob: Blob; durationMs: number; model?: ModelId }> {
+    if (!prompt.trim()) {
+      throw new Error('generazione immagine AI rifiutata: prompt vuoto')
+    }
     const model =
       mode === 'high-quality'
         ? LEGACY_HIGH_QUALITY_MODEL
@@ -268,6 +271,9 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }> {
     if (this.destroyed) throw new Error('Psichedel è stato arrestato')
+    if (!prompt.trim()) {
+      throw new Error('generazione immagine Explicit rifiutata: prompt vuoto')
+    }
     this.activeGeneration?.abort()
     const controller = new AbortController()
     this.activeGeneration = controller

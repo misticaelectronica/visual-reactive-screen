@@ -89,6 +89,9 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
     if (this.destroyed || !this.worker) {
       return Promise.reject(new Error('Psichedel è stato arrestato'))
     }
+    if (!prompt.trim()) {
+      return Promise.reject(new Error('generazione immagine worker rifiutata: prompt vuoto'))
+    }
     const id = `image-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const request = createBrainImageGenerateRequest(
       id,

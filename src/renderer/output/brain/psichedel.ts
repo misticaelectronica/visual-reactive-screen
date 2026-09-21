@@ -195,7 +195,13 @@ export function buildPsychedelImagePrompt(
 ): string {
   void _attempt
   void _mode
-  const framePrompt = frame.imagePrompt?.trim() || frame.description.trim()
+  const framePrompt =
+    frame.imagePrompt?.trim() || frame.description.trim() || frame.title.trim()
+  if (!framePrompt) {
+    throw new Error(
+      `prompt raster rifiutato: fotogramma "${frame.id}" della storia "${story.id}" non ha testo utilizzabile`,
+    )
+  }
   const promptParts = [framePrompt]
   if (story.invariant?.trim()) {
     promptParts.push(`Invariant: ${story.invariant.trim()}`)
