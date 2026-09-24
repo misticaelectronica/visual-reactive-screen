@@ -1,5 +1,17 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## ANIMATRONIX validato dal vivo — 2026-09-24
+
+Comunicato del Vicario (`team/briefs/comunicato-esito-collaudo-animatronix-2026-09-24.md`):
+collaudo dal vivo **positivo**. Chiuso il primo gate percettivo; ANIMATRONIX
+passa da "implementazione da verificare" a **componente validato dal vivo**
+ed entra nel linguaggio operativo di Brain. La deroga Camera è confermata
+dal risultato. Restano separati e non rimettono in discussione il principio:
+affinamenti e taratura delle singole grammatiche (HYPNOTIC ZOOM, HYPNOTIC
+ZOOM ANNIDATO e le altre). Le limitazioni note nelle risposte Ingegneria
+(morph a bassa risoluzione, ricircolo senza immagini nuove appena pronte)
+restano aperte come affinamenti.
+
 ## Storia pronta: si parte subito — 2026-09-24
 
 Nel ricircolo in attesa la nuova storia entrava solo al confine del
