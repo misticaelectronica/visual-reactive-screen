@@ -1,33 +1,313 @@
 # Stato Globale del Progetto (`STATE.md`)
 
-## ANIMATRONIX — fase post-storia, dietro flag — 2026-09-21
+## ANIMATRONIX: GPU libera durante la fase, transizione morph non dissolvenza — 2026-09-24
 
-Ordine del Capo Supremo: nuova fase di Brain che si attiva alla chiusura di
-ogni storia e ne anima i 4 raster, con deroga al controllo Camera valida solo
-lì (brief in `team/briefs/`). Ordine fissato: ANIMATRONIX → Riattivazione →
-storia successiva. Attivabile dal flag `animatronixEnabled` (**default OFF**,
-checkbox nel pannello Visual, richiede Brain).
+Due richieste del Capo Supremo.
 
-Posizione nel ciclo: `STORIA → ANIMATRONIX → RIATTIVAZIONE → STORIA
-SUCCESSIVA`. Usa **esclusivamente i raster già prodotti** dalla storia
-conclusa: **nessuna nuova inferenza di immagini**. Ingresso e uscita sono un
-**overlay sopra il renderer attivo** (il renderer continua sotto, nessun
-reset percettivo). Deroga Camera dichiarata in `agents.md` (Eccezione Camera —
-ANIMATRONIX).
+**GPU libera durante ANIMATRONIX.** `BrainThermalScheduler` (già usato per
+serializzare le inferenze SD e far respirare la GPU fra un'inferenza e
+l'altra) ha un nuovo `setInferenceHold(active)`: mentre attivo,
+`waitForPermit()` non lascia mai partire una nuova inferenza (ricontrolla
+ogni `WAIT_SLICE_MS`). `brainController.ts` lo attiva quando
+`beginAnimatronixIfEnabled` avvia davvero la fase, lo disattiva quando
+`animatronixStage.update()` segnala `finished`. Non interrompe
+un'inferenza già in corso — la pipeline in background continua a generare
+le storie in anticipo, solo la GPU non viene contesa da una NUOVA
+inferenza mentre lo shader ANIMATRONIX gira.
 
-Moduli: `brainAnimatronix.ts` (analisi struttura raster, cinque grammatiche,
-frase di movimento con invariante cinetico, orologio con silenzio, posa
-camera; puro e testato) e `brainAnimatronixStage.ts` (overlay DOM che sfuma
-sopra il renderer in ingresso e in uscita, cross-fade fra i 4 raster).
-Aggancio in `brainController.ts`: `beginAnimatronixIfEnabled` al confine di
-storia, coda del confine estratta in `completeStoryBoundary` (nessun cambio di
-comportamento a flag spento). I raster vengono analizzati appena parte l'ultimo
-fotogramma; se non pronti alla chiusura la fase viene saltata e loggata.
+**Transizione `morph`, non `dissolve`.** La dissolvenza piatta introdotta
+ieri per sostituire l'iride "buco della serratura" (TRAVERSAL, PERSPECTIVE
+MELT, HYPNOTIC ZOOM) leggeva come un crossfade, non una trasformazione.
+Corretto in `brainAnimatronixGl.ts`: durante la transizione, i punti
+campionati di A e B convergono ciascuno verso il proprio punto di fuga
+(`uWA.vp`/`uWB.vp`) con intensità crescente insieme a `uTrans`, poi si
+sfumano l'uno nell'altro — le due immagini si tirano verso l'interno
+invece di limitarsi a sovrapporsi. Stesso costo della dissolvenza piatta:
+cambia solo il punto campionato prima delle due `renderWorld` già
+esistenti, nessuna chiamata aggiuntiva. Rinominata la transizione
+`AnimatronixTransition` da `'dissolve'` a `'morph'` ovunque (tipo, mappe,
+shader `KIND_INDEX`) per coerenza.
 
-Limiti noti: il PARALLAX attuale è **privo di depth reale** e si comporta come
-deriva (nessuna stima di profondità);
-soglie d'analisi euristiche e non tarate su raster reali; nessun collaudo dal
-vivo. Chiuso: deroga Camera in agents.md. Aperto: resta da confermare la lettura A della regola DELIQUESCENCE 95%.
+**Limite onesto**: non è un morph con corrispondenza di forma reale (nessun
+optical flow, nessun matching di feature fra A e B) — è un richiamo
+convergente verso il punto di fuga più una sfumatura, pensato per leggersi
+come trasformazione senza il costo di un vero morph con corrispondenza.
+Un morph "vero" fra due fotografie arbitrarie servirebbe un'infrastruttura
+nuova (stima di corrispondenza), non tentata qui.
+
+Verifica: suite (754 test, +1 su `setInferenceHold`) verde, typecheck e
+lint verdi. Nessun collaudo dal vivo su nessuno dei due punti.
+
+## ANIMATRONIX collegato a Sensibilità — 2026-09-23
+
+Segnalato dal Capo Supremo mentre verificava "preset e livelli" del
+pannello controlli: ANIMATRONIX era l'unico renderer Brain completamente
+scollegato dallo slider globale **Sensibilità** (`settings.sensitivity`).
+Verificato file per file: nessun riferimento a `sensitivity`,
+`brainPresetMotionTuning` o `motionProfile` in `brainAnimatronix.ts`,
+`brainAnimatronixGl.ts`, `brainAnimatronixStage.ts`.
+
+Corretto in `brainController.ts`: l'`energy` passato ad
+`animatronixStage.update()` (media dei bandEnergies grezzi) è ora scalato
+da `brainPresetMotionTuning(settings).movementScale` — lo stesso helper già
+usato da Vector Morph e altri renderer, non una taratura nuova. Nota: oltre
+a Sensibilità, questo porta con sé anche `motionProfile` (techno/ambient) e
+`dynamicPresetEnabled` — coerenza con lo stesso bundle già usato altrove,
+non un collegamento mirato alla sola Sensibilità.
+
+**Correzione di percorso durante l'indagine**: prima affermazione errata
+("Vector Morph non legge mai `settings.sensitivity`") — falsa, la legge
+indirettamente via `brainPresetMotionTuning` dentro `brainSvgScene.ts`. Il
+grep iniziale cercava solo riferimenti letterali nel file di Vector Morph e
+mancava il percorso indiretto.
+
+**Preset genere/colore/dinamici e Soglie** (pannello "Preset dinamici"):
+verificato che appartengono esclusivamente al motore flash legacy
+(`visualEngine.ts`, `PresetsSelector.tsx`) — zero riferimenti a Brain in
+quei file. Non collegati a Brain, disposizione esplicita del Capo Supremo
+di lasciarli così (nessuna mappatura genere→comportamento Brain).
+
+Verifica: suite (753 test) verde, typecheck e lint verdi. Nessun collaudo
+dal vivo.
+
+## HYPNOTIC ZOOM ANNIDATO: "non viene mai generato" — 2026-09-23
+
+Segnalato dal Capo Supremo. Controllato tutto il percorso — tagging della
+storia (`storyGenerationCount`, mai resettato/duplicato), propagazione
+dell'oggetto `story` (stessa istanza dalla generazione fino a
+`currentProduction.story`, nessuna clonazione che perda i campi extra),
+ordine ANIMATRONIX→Riattivazione — nessun bug di cablaggio trovato.
+
+Causa più probabile: `applyNestedZoomTargets` richiede che **sia** A **sia**
+B superino la soglia di leggibilità del dettaglio (`anchor.score`), a
+differenza di KINETIC MATCH che ha quattro occasioni indipendenti per
+storia (una qualsiasi delle quattro immagini). Con la soglia a 0.15 (stessa
+di KINETIC MATCH) la probabilità che ENTRAMBI i punteggi la superino è
+quella singola al quadrato — su raster reali morbidi/pittorici, plausibilmente
+vicina a zero anche quando KINETIC MATCH la supera regolarmente altrove
+nella stessa storia. Soglia abbassata a 0.05 in `brainAnimatronix.ts`
+(`NESTED_ZOOM_MIN_ANCHOR_SCORE`).
+
+Aggiunta visibilità a schermo richiesta esplicitamente: nuovi log dedicati
+in `beginAnimatronixIfEnabled` (`brainController.ts`) — `brainLog`
+"HYPNOTIC ZOOM ANNIDATO in corso" quando scatta davvero, `brainWarn`
+"HYPNOTIC ZOOM ANNIDATO saltato" con `fallbackReason` quando no — entrambi
+compaiono nel monitor di processo a schermo (`processHeader`/`processBody`,
+alimentato da `subscribeBrainLog`), non solo in console.
+
+Verifica: suite (753 test) verde, typecheck e lint verdi. **Non ancora
+osservato dal vivo se la soglia abbassata basta** — resta da confermare
+alla prossima sessione con lo schermo sotto osservazione.
+
+## Vector Morph: "solo il raster" al fallimento QC, cambio più rapido — 2026-09-22
+
+Segnalato dal Capo Supremo: "ogni tanto in vector morph c'è solo il
+raster". Meccanismo già noto e già in parte mitigato (vedi commento in
+`brainRendererHost.ts`): quando Vector Morph respinge la propria
+vettorializzazione (< `MIN_VECTOR_SHAPES` forme, `brainVectorMorphScene.ts`),
+`inner` non viene mai creato — resta visibile solo `rasterBackground` a
+piena opacità. L'host rileva `hasFailed()` e chiede subito un sostituto, ma
+il crossfade verso di lui usava comunque `SWITCH_DURATION_MS` (1800ms) o
+perfino `CONTAMINATION_DURATION_MS` (3400ms) — un renderer che non ha MAI
+mostrato nulla di reale non ha nulla da preservare con un crossfade lungo.
+
+Nuovo `FAILED_BEFORE_READY_SWITCH_DURATION_MS` (250ms): quando il renderer
+uscente ha `hasFailed()===true` **e** non è mai stato `isReady()` (mai
+mostrato contenuto vero, non solo "fallito dopo aver funzionato"), il
+cambio verso la rete di sicurezza usa questa durata invece delle due sopra.
+Non tocca il caso di un renderer che ha funzionato e fallisce più tardi
+(quello mantiene il crossfade normale).
+
+Verifica: suite (753 test, +1 su questo percorso) verde, typecheck e lint
+verdi. Nessun collaudo dal vivo.
+
+## Moto di coscienza: mai durante ANIMATRONIX/Riattivazione, cooldown più lungo — 2026-09-22
+
+Disposizione del Capo Supremo: il moto di coscienza non deve mai attivarsi
+durante ANIMATRONIX o Riattivazione, e deve partire meno spesso in
+generale.
+
+`consciousnessMotionLayer.update()` (`brainConsciousnessMotion.ts`) prende
+un nuovo parametro opzionale `allowActivation` (default vero, per
+compatibilità con i test esistenti): quando falso, un candidato già in
+coda resta in coda — non passa mai da "in coda" ad "attivo" — finché non
+torna vero. Un moto già attivo prima dell'inizio della fase non viene
+interrotto, solo la nuova attivazione è bloccata. `brainController.ts`
+passa `!animatronixRunning && !revisionCycleActive`.
+
+`MOTION_COOLDOWN_MS` 75s → 180s: meno frequente in generale, non solo
+durante le due fasi escluse.
+
+Verifica: suite (752 test, +1 sul nuovo gate) verde, typecheck e lint
+verdi. Nessun collaudo dal vivo.
+
+## ANIMATRONIX / HYPNOTIC ZOOM ANNIDATO — 2026-09-22
+
+Prima implementazione (minimo intervento, dietro flag `animatronixEnabled`
+già esistente) del brief `team/briefs/brief-animatronix-hypnotic-zoom-annidato-2026-09-22.md`.
+
+Ogni 8 storie generate (`storyGenerationCount % 8 === 0`,
+`brainController.ts`, mai casualizzato): `story.nestedZoomStory = true`,
+`story.denoisingStepsOverride = 22`. Non introdotto un secondo generatore
+narrativo: nessuna modifica a `coscienzaOnirica.ts`. I due dettagli target
+A1/B1 **riusano** l'euristica `anchor` già esistente in `AnimatronixStructure`
+(rilevazione di una struttura locale saliente e compatta, già usata da
+KINETIC MATCH/VERTIGO LOCK) — il dettaglio di A è l'`anchor` del raster A,
+quello di B è l'`anchor` del raster B. Nessuna nuova analisi visiva.
+
+Nuova funzione pura `applyNestedZoomTargets(plan, structures)` in
+`brainAnimatronix.ts`: forza i primi due segmenti a HYPNOTIC ZOOM con
+`zoomTarget: 'anchor'` riusando `withForcedGrammars` (nessuna logica di piano
+duplicata); il quarto segmento (ECO/uscita) resta quello scelto dal planner
+ordinario, come richiesto dal brief. FAILURE: se meno di tre raster o se
+`anchor.score` di A o B è sotto soglia (0.15, stessa scala di VIABILITY
+'kinetic-match'), il piano resta quello ordinario e riporta
+`fallbackReason` — mai una sequenza annidata incompiuta.
+
+Shader: nuovo uniform `uZoomUsesAnchor` — `zoomMap` (HYPNOTIC ZOOM) zooma
+verso `mix(W.vp, W.anchor, uZoomUsesAnchor)` invece che sempre verso il
+punto di fuga. Zero verso 0 di default (uso ordinario di HYPNOTIC ZOOM
+invariato).
+
+Step di denoising: nuovo `DreamStory.denoisingStepsOverride`, opzionale,
+sostituisce lo step count derivato da `ImageRenderMode` nei tre
+implementatori di `PsychedelImageGenerator` (`ExplicitPsychedelImageGenerator`,
+`BrainImageWorkerClient`/`createBrainImageGenerateRequest` — il percorso
+reale via worker ONNX — e ignorato dal percorso legacy
+`LocalPsychedelImageGenerator`, che non ha un concetto di step). Nessuna
+modifica alla geometria d'inferenza.
+
+Log aggiunti a `brainLog('animatronix', 'fase ANIMATRONIX avviata', ...)`
+quando `nestedZoomStory`: `storyOrdinal`, `denoisingSteps`, `targetA`,
+`targetB`, `transitionAtoB`, `transitionBtoC`, `fallbackReason`. Log dedicato
+alla generazione della storia speciale in `brainController.ts`.
+
+Confini rispettati: nessun nuovo modello generativo, nessuna depth
+inference/ControlNet/img2img, nessuna modifica alla Riattivazione, nessuna
+modifica ai renderer ordinari, nessuna nuova semantica Audio, nessun
+refactor della pipeline Psichedel.
+
+Verifica: suite (751 test, +3 su `applyNestedZoomTargets`) verde, typecheck
+e lint verdi. **Nessun collaudo visivo dal vivo**: non verificato se la
+percezione "contenuto in" richiesta dal brief (vs. "sto guardando una
+fotografia ingrandita") sia effettivamente raggiunta — dipende da quanto
+`anchor` individua davvero un dettaglio leggibile sui raster reali e da come
+il crossfade `dissolve` copre il momento in cui la distinzione si perde. Il
+collaudo percettivo finale resta alla Direzione Designer/Visual VJ, come
+indicato dal brief.
+
+## ANIMATRONIX — via i "buco della serratura", HYPNOTIC ZOOM, fase più lunga — 2026-09-22
+
+Disposizione del Capo Supremo, stesso giorno del Wave 2 sotto: via **ogni**
+effetto a rivelazione a foro/iride. Rimossa **RECURSIVE PORTAL** (zoom nel
+`portal` interno del raster poi reveal — l'esempio più letterale di "buco
+della serratura"). TRAVERSAL e PERSPECTIVE MELT, che aprivano la stessa
+iride centrata sul punto di fuga come propria transizione d'uscita, ora
+dissolvono a piena inquadratura (nuovo `kind` `dissolve`) invece di aprire
+un varco. Undici grammatiche restano undici: al posto di RECURSIVE PORTAL,
+**HYPNOTIC ZOOM** — zoom continuo e ininterrotto verso il punto di fuga
+(nuovo canale di stato `zoom`, irreversibile come gli altri, accumulo lento
+apposta per restare percepibile sui 26–40s della fase), dissolvenza fluida
+verso il raster successivo. Nessun requisito strutturale (VIABILITY 0):
+funziona su qualunque raster, fotografico o vettoriale — non ha bisogno di
+un varco o di una massa da leggere. `AnimatronixStructure.portal` e
+`findPortal` rimossi (erano usati solo da RECURSIVE PORTAL).
+
+Fase estesa: `ANIMATRONIX_MIN_TOTAL_MS`/`MAX_TOTAL_MS`/`BASE_TOTAL_MS`
+26–40s (`BASE` 32s), erano 18–28s (`BASE` 23s) — più spazio per uno zoom
+ipnotico da percepire, non solo attraversarlo.
+
+Brief di direzione per il Vicario Capo Visual in
+`team/briefs/brief-animatronix-hypnotic-zoom-2026-09-22.md`.
+
+Verifica: suite Brain (648 test) verde, typecheck e lint verdi. Nessun
+collaudo visivo dal vivo di HYPNOTIC ZOOM o della dissolvenza `dissolve` —
+da fare come per le grammatiche precedenti.
+
+## ANIMATRONIX Wave 2 — cinque grammatiche ad alta salienza — 2026-09-22
+
+Branch `feature/animatronix-v1-grammatiche`. Aggiunte le cinque grammatiche
+del brief Wave 2, ad alta salienza percettiva: **KINETIC MATCH, VERTIGO
+LOCK, RECURSIVE PORTAL, TIME CRUSH, FOCUS INVERSION**. Undici grammatiche
+totali ora disponibili (sei V1 + cinque Wave 2).
+
+Vincoli del brief rispettati nel planner: al più **due** grammatiche ad alta
+salienza per storia (`ANIMATRONIX_MAX_HIGH_SALIENCE_PER_STORY`); nessuna di
+quelle usate nella storia precedente può ripresentarsi nella successiva
+(`avoidHighSalience`/`usedHighSalience`, propagato dal controller). Le undici
+grammatiche vivono in un unico ciclo interfogliato (`ANIMATRONIX_CYCLE`); il
+planner cammina sul ciclo scegliendo fino a quattro grammatiche distinte,
+saltando quelle non praticabili sulla struttura del raster.
+
+Analisi raster estesa con due nuovi punti: `anchor` (struttura locale
+saliente e compatta — volto, ruota, apertura — via picco di densità di
+bordo) per KINETIC MATCH e VERTIGO LOCK; `portal` (regione interna compatta,
+non a contatto col bordo, con soglie di percentile multiple per non perdere
+macchie piccole) per RECURSIVE PORTAL.
+
+Shader WebGL2: tre nuovi `kind` di transizione (kinetic, recursive, focus) e
+due modificatori continui (`vertigo`, applicato come deformazione a piani
+attorno a un'ancora bloccata — mai per-pixel sulla depth map grezza, altrimenti
+diventa un liquify; `crush`, che scala la magnitudine di flight/camera per
+piano di profondità, innestato su un flusso simile al TRAVERSAL perché senza
+un vettore proprio non ci sarebbe nulla da "schiacciare" nel tempo).
+
+Verifica: suite (750 test) verde, typecheck e lint verdi. Collaudo visivo
+su raster reali con lo stesso banco di prova Electron del V1: KINETIC MATCH
+mostra l'inserto circolare bloccato dentro il turbine che rivela il raster
+successivo; RECURSIVE PORTAL zoom-in nel dettaglio poi reveal; VERTIGO LOCK
+tenuto su piani quantizzati (non sulla depth grezza) per restare un dolly
+zoom leggibile e non un liquify; FOCUS INVERSION sposta LOD/saturazione fra
+primo piano e sfondo; TIME CRUSH è un'approssimazione onesta — un'immagine
+statica non ha "tempo" proprio, quindi modula la velocità del warp spaziale
+per piano invece di una vera desincronizzazione temporale.
+
+Limiti noti aggiuntivi: `anchor`/`portal` sono euristiche non tarate su un
+corpus, come le altre; nessun collaudo dal vivo in Electron con audio reale.
+
+## ANIMATRONIX V1 — sei grammatiche cinetiche — 2026-09-22
+
+Branch `feature/animatronix-v1-grammatiche`. La V0 (pan/zoom/deriva) è stata
+sostituita dalle sei grammatiche del brief Ingegneria V1: **TRAVERSAL,
+DEPTH FRACTURE, PERSPECTIVE MELT, PARALLAX COLLAPSE, OCCLUSION PASSAGE,
+RESIDUAL SPACE**. Pan/zoom/scala esistono solo dentro le grammatiche.
+
+Invarianti di sistema: flag `animatronixEnabled`, **default OFF**; posizione
+nel ciclo `STORIA → ANIMATRONIX → RIATTIVAZIONE → STORIA SUCCESSIVA`; usa
+**esclusivamente i raster già prodotti**, nessuna nuova inferenza immagini;
+ingresso e uscita come overlay sopra il renderer attivo; deroga Camera in
+`agents.md`. Silenzio, Beatmatch e Transizione restano applicati.
+
+Moduli: `brainAnimatronix.ts` (analisi spaziale del raster: punto di fuga,
+proxy di profondità a tre piani, massa occludente; piano di storia: quattro
+eventi, uno per raster e nell'ordine originale delle immagini, quattro
+grammatiche diverse per storia, una per immagine, scelte da una rotazione di
+tre quaterne bilanciate (storie consecutive ne condividono due; una
+grammatica non praticabile sulla struttura viene sostituita dalla successiva
+del ciclo), nessun A→B→A, contaminazione fra raster vicini, una transizione
+anche sull'ultimo raster; orologio con stato irreversibile
+ereditato in parte al cambio di raster; silenzio congela lo stato),
+`brainAnimatronixGl.ts` (renderer WebGL2: un passaggio di mondo con le sei
+grammatiche e uno di composizione per le tracce residue) e
+`brainAnimatronixStage.ts` (overlay, canvas nuovo a ogni fase, degrada a
+"fase saltata" senza WebGL2). Aggancio in `brainController.ts`.
+Dopo ANIMATRONIX riparte il confine di storia normale: Riattivazione, poi
+storia successiva. Ogni confine fra raster è una transizione fisica (portale, frattura,
+occlusione, traccia residua), mai un fade puro; l'audio modula solo il
+metabolismo, non sceglie la grammatica e non muove la camera a tempo.
+
+Verifica: suite verde, typecheck e lint verdi. Collaudo visivo su raster reali
+(`dream-images`) con banco di prova Electron fuori repo: ogni grammatica è
+leggibile e una storia pianificata coerente (massa che scorre con il raster
+successivo dietro, poi traccia residua). Costo misurato su questa GPU a
+1280×720: mediana 0,8 ms, 95° percentile 1,7 ms per fotogramma — da
+riconfermare sull'hardware di palco.
+
+Limiti noti: nessuna depth map reale, il proxy di profondità è euristico e i
+piani hanno bordi morbidi non oggetto-per-oggetto; soglie d'analisi non tarate
+su un corpus; PARALLAX COLLAPSE e DEPTH FRACTURE risentono di questo proxy;
+nessun collaudo dal vivo in Electron reale con audio; aperto: lettura A della
+regola DELIQUESCENCE 95%.
 
 ## BrainPhrasesBaseStory di Sessione — 2026-09-18
 

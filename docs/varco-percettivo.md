@@ -129,9 +129,14 @@ passthrough non è davvero pronto, non un tempo fisso legato al ritmo.
   successiva non è ancora pronta"), ma quel carico GPU riguarda un
   fotogramma diverso da quello in scena — il replay a memoria della
   Riattivazione non ha alcuno stallo proprio da mascherare. `render()` in
-  `brainController.ts` ora azzera `resourcePressureActive` quando
-  `revisionCycleActive` è vero, indipendentemente dal latch
+  `brainController.ts` azzerava `resourcePressureActive` quando
+  `revisionCycleActive` era vero, indipendentemente dal latch
   `imageInferenceActive`/`visualPressurePulseUntil`.
+- **Esclusione rimossa** (2026-09-22, disp. Capo Supremo): l'ipotesi sopra
+  era sbagliata — in Riattivazione ci sono comunque fasi di impegno GPU
+  reale che fanno laggare, e il Varco serviva a coprirle. `render()` non
+  azzera più `resourcePressureActive` in base a `revisionCycleActive`; le
+  ragioni di quel carico GPU restano da indagare separatamente.
 
 ## Meccanismo adiacente ma distinto: passthrough per fallimento qualità
 

@@ -26,18 +26,21 @@ export function createBrainImageGenerateRequest(
   mode: ImageRenderMode,
   requestedTimeoutMs: number,
   documentUrl: string,
+  // HYPNOTIC ZOOM ANNIDATO: sostituisce lo step count derivato da `mode`
+  // (`DreamStory.denoisingStepsOverride`, disp. Capo Supremo 2026-09-22).
+  stepsOverride?: number,
 ): BrainImageGenerateRequest {
   const renderingConfig = getBrainRenderingConfig()
   const locationUrl = new URL(documentUrl)
   const runtimeBase = new URL('.', locationUrl)
   runtimeBase.pathname = `${runtimeBase.pathname.replace(/\/+$/, '')}/ort-wasm/`
-  const steps = mode === 'high-quality'
+  const steps = stepsOverride ?? (mode === 'high-quality'
     ? renderingConfig.image.qualitySteps
     : mode === 'enhanced'
       ? renderingConfig.image.enhancedSteps
       : mode === 'interlude'
         ? renderingConfig.image.interludeSteps
-        : renderingConfig.image.standardSteps
+        : renderingConfig.image.standardSteps)
   const inferenceGeometry = mode === 'high-quality'
     ? { width: renderingConfig.image.width, height: renderingConfig.image.height }
     : mode === 'enhanced'
@@ -85,6 +88,7 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
     seed: number,
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
+    stepsOverride?: number,
   ): Promise<GenerationResult> {
     if (this.destroyed || !this.worker) {
       return Promise.reject(new Error('Psichedel è stato arrestato'))
@@ -100,6 +104,7 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
       mode,
       timeoutMs,
       window.location.href,
+      stepsOverride,
     )
     brainLog('psichedel-image', 'inferenza inviata al worker ONNX', {
       id,

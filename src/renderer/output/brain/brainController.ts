@@ -57,12 +57,14 @@ import {
 } from './brainPrint2dCanvas'
 import {
   planAnimatronix,
-  type AnimatronixRasterStructure,
+  applyNestedZoomTargets,
+  type AnimatronixGrammar,
   type AnimatronixRegime,
 } from './brainAnimatronix'
 import {
-  analyzeAnimatronixBlob,
   createAnimatronixStage,
+  prepareAnimatronixRaster,
+  type AnimatronixRasterPrep,
 } from './brainAnimatronixStage'
 import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 import { createBrainRendererHost } from './brainRendererHost'
@@ -82,6 +84,7 @@ import {
   type BrainLogEntry,
 } from './brainLog'
 import {
+  brainPresetMotionTuning,
   calculateBrainFrameTiming,
   selectBrainFrameMorphPattern,
   selectBrainRecycledFrameIndex,
@@ -905,6 +908,12 @@ export function createBrainController(
   let generationCooldownTimerId = 0
   let nextGenerationAllowedAt = 0
   let nextGenerationTargetAt = 0
+  // HYPNOTIC ZOOM ANNIDATO (disp. Capo Supremo, 2026-09-22): ordinale
+  // progressivo delle storie generate in questa sessione, per la
+  // periodicità "1 storia speciale ogni 8" — mai casualizzata.
+  let storyGenerationCount = 0
+  const NESTED_ZOOM_STORY_PERIOD = 8
+  const NESTED_ZOOM_DENOISING_STEPS = 22
   let completedStoryRendererPasses = 0
   let storyStartedAt = 0
   let storyCycleCompletionReported = false
@@ -914,10 +923,11 @@ export function createBrainController(
   let animatronixPreparingStoryId: string | null = null
   let animatronixPrepared: {
     storyId: string
-    structures: AnimatronixRasterStructure[]
-    rasters: Blob[]
+    rasters: AnimatronixRasterPrep[]
   } | null = null
   let animatronixLastNow: number | null = null
+  let animatronixCursor: number | undefined
+  let animatronixAvoidHighSalience: AnimatronixGrammar[] = []
   let consciousnessMotionPausedAt: number | null = null
   const consciousnessMotionMemoryIds = new Set<string>()
   const consciousnessMotionStoryIds = new Set<string>()
@@ -930,6 +940,14 @@ export function createBrainController(
   let revisionCycleActive = false
   let revisionCycleActiveUntil = 0
   let pendingProductionAfterRevisionCycle: BrainProduction | null = null
+  // Una sola Riattivazione per storia completata: se alla fine del ciclo la
+  // storia successiva vera non è ancora pronta, il ricircolo leggero
+  // riprende sulla stessa `currentProduction` (già completata) finché non
+  // arriva — senza questo guard, il prossimo confine di fotogramma
+  // ritriggerebbe `requestRevisionCycleAtBoundary` sulla stessa storia già
+  // riattivata, intrappolando in un loop di raster vecchi invece di
+  // avanzare (segnalato dal Capo Supremo, 2026-09-22).
+  let revisionCycleCompletedForStoryId: string | null = null
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -1467,6 +1485,7 @@ export function createBrainController(
       })
     }
     recyclingStoryFrames = false
+    revisionCycleCompletedForStoryId = null
     completedStoryRendererPasses = 0
     storyStartedAt = performance.now()
     storyCycleCompletionReported = false
@@ -1660,6 +1679,7 @@ export function createBrainController(
     if (revisionCycleActive || !currentProduction) return false
     const completedStoryId = currentProduction.story.id
     if (completedStoryId.startsWith('revision:')) return false
+    if (completedStoryId === revisionCycleCompletedForStoryId) return false
     if (!rememberCompletedStory(currentProduction)) return false
     // Le `REVISION_CYCLE_RECENT_FULL_STORIES` storie più recenti restano
     // intere (la terna completa); oltre, solo le migliori
@@ -1683,6 +1703,7 @@ export function createBrainController(
     // La prima storia crea la prima terna ma non ha ancora un passato da
     // riattivare. Dalla seconda chiusura il ciclo parte sempre.
     if (previousImages.length === 0) return false
+    revisionCycleCompletedForStoryId = completedStoryId
     beginRevisionCycle(previousImages, realNextProduction, beatDurationMs, beatIndex)
     return true
   }
@@ -1815,6 +1836,18 @@ export function createBrainController(
             consciousnessInfluence,
           })
           story.onlineSourceText = onlineSourceText
+          storyGenerationCount += 1
+          story.storyOrdinal = storyGenerationCount
+          if (storyGenerationCount % NESTED_ZOOM_STORY_PERIOD === 0) {
+            story.nestedZoomStory = true
+            story.denoisingStepsOverride = NESTED_ZOOM_DENOISING_STEPS
+            brainLog('pipeline', 'storia speciale HYPNOTIC ZOOM ANNIDATO', {
+              storyId: story.id,
+              nestedZoomStory: true,
+              storyOrdinal: story.storyOrdinal,
+              denoisingSteps: NESTED_ZOOM_DENOISING_STEPS,
+            })
+          }
           nextContinuityPhrase = story.bridge
           recentBridges = story.bridge
             ? [...recentBridges, story.bridge].slice(
@@ -2223,9 +2256,12 @@ export function createBrainController(
       if (raster) rasters.push(raster)
     }
     if (rasters.length < 2) return
-    const structures = await Promise.all(rasters.map(analyzeAnimatronixBlob))
-    if (destroyed) return
-    animatronixPrepared = { storyId, structures, rasters }
+    const prepared = await Promise.all(rasters.map(prepareAnimatronixRaster))
+    if (destroyed) {
+      for (const item of prepared) item.bitmap?.close?.()
+      return
+    }
+    animatronixPrepared = { storyId, rasters: prepared }
   }
 
   const beginAnimatronixIfEnabled = (production: BrainProduction): boolean => {
@@ -2245,22 +2281,81 @@ export function createBrainController(
     }
     const regime: AnimatronixRegime =
       lastSentPerceptionState?.regime ?? 'unresolved'
-    const plan = planAnimatronix({
+    const structures = prepared.rasters.map((raster) => raster.structure)
+    let plan = planAnimatronix({
       storyId,
-      structures: prepared.structures,
+      structures,
       regime,
+      cursor: animatronixCursor,
+      avoidHighSalience: animatronixAvoidHighSalience,
     })
+    // HYPNOTIC ZOOM ANNIDATO (disp. Capo Supremo, 2026-09-22): forza i primi
+    // due segmenti a zoomare nel dettaglio (A→A1→B, B→B1→C); il quarto resta
+    // la grammatica ordinaria (ECO/uscita). FAILURE del brief: se il
+    // dettaglio non è leggibile su A o B, `applyNestedZoomTargets` lascia il
+    // piano ordinario invariato e riporta il motivo, mai una sequenza
+    // annidata incompleta.
+    const nestedZoom = production.story.nestedZoomStory === true
+      ? applyNestedZoomTargets(plan, structures)
+      : null
+    if (nestedZoom) plan = nestedZoom.plan
+    // Visibilità a schermo (disp. Capo Supremo, 2026-09-23: "non viene mai
+    // generato, controlla, poi scrivilo a schermo tra log"): un messaggio
+    // dedicato, ben distinguibile dal log generico "fase ANIMATRONIX
+    // avviata" sotto — compare nel monitor di processo (`processHeader`/
+    // `processBody`, testo del messaggio in maiuscolo).
+    if (nestedZoom?.fallbackReason) {
+      brainWarn('animatronix', 'HYPNOTIC ZOOM ANNIDATO saltato', {
+        storyId,
+        storyOrdinal: production.story.storyOrdinal ?? null,
+        fallbackReason: nestedZoom.fallbackReason,
+      })
+    } else if (nestedZoom) {
+      brainLog('animatronix', 'HYPNOTIC ZOOM ANNIDATO in corso', {
+        storyId,
+        storyOrdinal: production.story.storyOrdinal ?? null,
+        targetA: nestedZoom.targetA,
+        targetB: nestedZoom.targetB,
+      })
+    }
+    animatronixCursor = plan.nextCursor
+    animatronixAvoidHighSalience = plan.usedHighSalience
     animatronixPrepared = null
     animatronixPreparingStoryId = null
+    if (!animatronixStage.start(plan, prepared.rasters)) {
+      for (const raster of prepared.rasters) raster.bitmap?.close?.()
+      brainWarn('animatronix', 'WebGL2 non disponibile o raster non decodificati; fase saltata', {
+        storyId,
+      })
+      return false
+    }
     animatronixRunning = true
     animatronixLastNow = null
-    animatronixStage.start(plan, prepared.rasters)
+    // GPU libera per lo shader ANIMATRONIX (disp. Capo Supremo,
+    // 2026-09-24): nessuna nuova inferenza SD parte finché la fase non è
+    // conclusa. Non interrompe un'inferenza già in corso, solo blocca la
+    // prossima — coerente con la pipeline in background che genera già le
+    // storie in anticipo.
+    thermalScheduler.setInferenceHold(true)
     brainLog('animatronix', 'fase ANIMATRONIX avviata', {
       storyId,
       regime,
-      invariant: plan.invariant.grammar,
-      grammars: plan.segments.map((segment) => segment.grammar),
+      principals: plan.principals,
+      grammars: plan.segments.map((segment) => segment.primary),
+      transitions: plan.segments.map((segment) => segment.transition),
       totalMs: Math.round(plan.totalMs),
+      ...(nestedZoom
+        ? {
+            nestedZoomStory: true,
+            storyOrdinal: production.story.storyOrdinal ?? null,
+            denoisingSteps: production.story.denoisingStepsOverride ?? null,
+            targetA: nestedZoom.targetA,
+            targetB: nestedZoom.targetB,
+            transitionAtoB: plan.segments[0]?.transition ?? null,
+            transitionBtoC: plan.segments[1]?.transition ?? null,
+            fallbackReason: nestedZoom.fallbackReason,
+          }
+        : {}),
     })
     return true
   }
@@ -2428,6 +2523,9 @@ export function createBrainController(
       rhythm,
       rhythmicNow,
       latestPayload?.settings?.lowPowerMode === true,
+      // Mai una nuova attivazione durante ANIMATRONIX o Riattivazione
+      // (disp. Capo Supremo, 2026-09-22).
+      !animatronixRunning && !revisionCycleActive,
     )
     if (motionState.active && consciousnessMotionPausedAt === null) {
       consciousnessMotionPausedAt = rhythmicNow
@@ -2455,13 +2553,22 @@ export function createBrainController(
         ? 0
         : Math.min(100, Math.max(0, now - animatronixLastNow))
       animatronixLastNow = now
+      // Sensibilità (disp. Capo Supremo, 2026-09-23): ANIMATRONIX era l'unico
+      // renderer Brain scollegato dallo slider globale. Stesso
+      // `movementScale` già usato per Vector Morph/altri renderer via
+      // `brainPresetMotionTuning` — non una taratura nuova, la stessa scala
+      // di sensibilità esistente applicata anche qui.
+      const rawEnergy = (bands.low + bands.lowMid + bands.mid + bands.high) / 4
+      const sensitivityScale = latestPayload?.settings
+        ? brainPresetMotionTuning(latestPayload.settings).movementScale
+        : 1
       const finished = animatronixStage.update(dt, {
         active: rhythm.active === true,
-        beatPulse: rhythm.beatPulse,
-        highTransient: rhythm.bandTransients?.high ?? 0,
+        energy: rawEnergy * sensitivityScale,
       })
       if (finished) {
         animatronixRunning = false
+        thermalScheduler.setInferenceHold(false)
         brainLog('animatronix', 'fase ANIMATRONIX conclusa; riprende il confine di storia')
         completeStoryBoundary(rhythm.beatDurationMs, rhythm.beatIndex)
       }
@@ -2489,15 +2596,13 @@ export function createBrainController(
     // `imageInferenceActive`: il Varco resta acceso per tutta la durata del
     // carico GPU reale. `visualPressurePulseUntil` continua a coprire gli
     // altri due inneschi a impulso (long-frame reattivo, moto di coscienza).
-    // Durante la Riattivazione (`revisionCycleActive`) quel carico GPU può
-    // comunque essere in corso (la generazione della storia successiva vera
-    // continua in sottofondo, vedi `requestRevisionCycleAtBoundary`), ma
-    // riguarda un fotogramma che non è quello in scena: il replay a memoria
-    // non ha nessuno stallo da mascherare. Senza questa esclusione il Varco
-    // (flash/glitch) si accendeva sopra la Riattivazione per uno stallo che
-    // le è del tutto estraneo (segnalato dal Capo Supremo).
-    const resourcePressureActive = !revisionCycleActive &&
-      (imageInferenceActive || now < visualPressurePulseUntil)
+    // Esclusione dalla Riattivazione RIMOSSA (2026-09-22, disp. Capo
+    // Supremo): l'ipotesi che il carico GPU durante la Riattivazione
+    // riguardasse solo un fotogramma fuori scena si è rivelata sbagliata —
+    // in pratica ci sono fasi di impegno GPU che laggano anche in
+    // Riattivazione, e il Varco andava a coprirle. Rimesso finché non si
+    // capiscono le ragioni di quel carico (indagine separata, successiva).
+    const resourcePressureActive = imageInferenceActive || now < visualPressurePulseUntil
     currentSvg?.setResourcePressure?.(resourcePressureActive)
     outgoingSvg?.setResourcePressure?.(resourcePressureActive)
     // PIANO-040 (brief §17.3): stato bio-percettivo, propagato solo quando

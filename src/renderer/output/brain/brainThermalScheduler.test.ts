@@ -95,6 +95,41 @@ describe('BrainThermalScheduler', () => {
     expect(harness.events).toContain('long-frame')
   })
 
+  it('con inferenceHold attivo non avvia una nuova inferenza finché non viene disattivato', async () => {
+    let now = 0
+    const release: { current: (() => void) | null } = { current: null }
+    const scheduler = new BrainThermalScheduler({
+      cooldownMs: 6_000,
+      lowPowerCooldownMs: 12_000,
+      longFrameThresholdMs: 240,
+      severeLongFrameThresholdMs: 1_000,
+      longFrameBackoffMs: 9_000,
+      severeLongFrameBackoffMs: 20_000,
+      now: () => now,
+      sleep: (delayMs) => new Promise<void>((resolve) => {
+        release.current = () => {
+          now += delayMs
+          resolve()
+        }
+      }),
+    })
+    scheduler.setInferenceHold(true)
+    const started = vi.fn()
+    const promise = scheduler.run(async () => {
+      started()
+      return 'x'
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(started).not.toHaveBeenCalled()
+    expect(scheduler.getSnapshot().inferenceHold).toBe(true)
+
+    scheduler.setInferenceHold(false)
+    release.current?.()
+    await expect(promise).resolves.toBe('x')
+    expect(started).toHaveBeenCalledOnce()
+  })
+
   it('rifiuta le richieste in attesa dopo destroy', async () => {
     const harness = createHarness()
     await harness.scheduler.run(async () => undefined)

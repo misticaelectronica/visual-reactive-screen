@@ -36,6 +36,21 @@ export type DreamStory = {
   }
   /** Testo grezzo dell'input online che ha generato questa storia, se dedicata. */
   onlineSourceText?: string | null
+  /**
+   * Sostituisce lo step count derivato da `ImageRenderMode` per ogni fotogramma
+   * di questa storia (HYPNOTIC ZOOM ANNIDATO, `denoisingSteps = 22` ogni 8
+   * storie — disp. Capo Supremo, 2026-09-22). Non tocca la geometria
+   * d'inferenza, solo gli step.
+   */
+  denoisingStepsOverride?: number
+  /**
+   * Storia destinata al ciclo ANIMATRONIX / HYPNOTIC ZOOM ANNIDATO (1 ogni 8
+   * storie): A → zoom nel dettaglio A1 → B → zoom nel dettaglio B1 → C,
+   * quarta immagine come ECO/uscita con la grammatica ordinaria.
+   */
+  nestedZoomStory?: boolean
+  /** Ordinale progressivo della storia nella sessione (1-based), usato per la periodicità di HYPNOTIC ZOOM ANNIDATO. */
+  storyOrdinal?: number
 }
 
 /**

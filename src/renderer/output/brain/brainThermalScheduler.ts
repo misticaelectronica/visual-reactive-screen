@@ -43,6 +43,12 @@ export class BrainThermalScheduler implements BrainInferenceScheduler {
   private lowPowerMode = false
   private destroyed = false
   private inferenceActive = false
+  // ANIMATRONIX ha bisogno della GPU libera per il proprio shader WebGL2
+  // (disp. Capo Supremo, 2026-09-24: "quando passa animatronix la GPU deve
+  // essere libera"): mentre attivo, nessuna nuova inferenza SD parte. Non
+  // interrompe un'inferenza già in corso — solo blocca l'avvio della
+  // prossima finché la fase non è conclusa.
+  private inferenceHold = false
 
   constructor(private readonly options: BrainThermalSchedulerOptions) {
     this.now = options.now ?? (() => performance.now())
@@ -53,6 +59,10 @@ export class BrainThermalScheduler implements BrainInferenceScheduler {
 
   setLowPowerMode(active: boolean): void {
     this.lowPowerMode = active
+  }
+
+  setInferenceHold(active: boolean): void {
+    this.inferenceHold = active
   }
 
   recordFrame(now: number): void {
@@ -101,12 +111,14 @@ export class BrainThermalScheduler implements BrainInferenceScheduler {
     lowPowerMode: boolean
     nextInferenceAllowedAt: number
     longFrameBlockedUntil: number
+    inferenceHold: boolean
   } {
     return {
       inferenceActive: this.inferenceActive,
       lowPowerMode: this.lowPowerMode,
       nextInferenceAllowedAt: this.nextInferenceAllowedAt,
       longFrameBlockedUntil: this.longFrameBlockedUntil,
+      inferenceHold: this.inferenceHold,
     }
   }
 
@@ -145,7 +157,9 @@ export class BrainThermalScheduler implements BrainInferenceScheduler {
         this.nextInferenceAllowedAt,
         this.longFrameBlockedUntil,
       )
-      const delayMs = Math.max(0, allowedAt - now)
+      const delayMs = this.inferenceHold
+        ? WAIT_SLICE_MS
+        : Math.max(0, allowedAt - now)
       if (delayMs <= 0) return
       if (!waitingReported) {
         waitingReported = true

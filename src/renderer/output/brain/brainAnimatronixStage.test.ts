@@ -1,47 +1,41 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FLAT_RASTER_STRUCTURE, planAnimatronix } from './brainAnimatronix'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { neutralAnimatronixStructure, planAnimatronix } from './brainAnimatronix'
 import { createAnimatronixStage } from './brainAnimatronixStage'
 
-const plan = planAnimatronix({
-  storyId: 'stage',
-  structures: Array(4).fill(FLAT_RASTER_STRUCTURE),
-})
-const blobs = () => Array.from({ length: 4 }, () => new Blob(['x']))
+const structures = Array.from({ length: 4 }, () => neutralAnimatronixStructure())
+const plan = planAnimatronix({ storyId: 'stage', structures })
+const preps = (withBitmap: boolean) =>
+  structures.map((structure) => ({
+    structure,
+    bitmap: withBitmap ? ({ width: 8, height: 8, close: () => undefined } as ImageBitmap) : null,
+  }))
 
 describe('ANIMATRONIX stage', () => {
   let parent: HTMLElement
   beforeEach(() => {
     parent = document.createElement('div')
     document.body.appendChild(parent)
-    URL.createObjectURL = vi.fn(() => 'blob:test')
-    URL.revokeObjectURL = vi.fn()
   })
   afterEach(() => parent.remove())
 
-  it('segnala la fine una sola volta e poi si ripulisce sfumando', () => {
+  it('salta la fase se un raster non è decodificato', () => {
     const stage = createAnimatronixStage(parent)
-    stage.start(plan, blobs())
-    expect(stage.isBusy()).toBe(true)
-    let finishedCount = 0
-    for (let i = 0; i < 3_000 && finishedCount === 0; i++) {
-      if (stage.update(50, { active: true, beatPulse: 0, highTransient: 0 })) finishedCount++
-    }
-    expect(finishedCount).toBe(1)
-    expect(stage.isBusy()).toBe(true)
-    for (let i = 0; i < 100; i++) {
-      expect(stage.update(50, { active: true, beatPulse: 0, highTransient: 0 })).toBe(false)
-    }
+    expect(stage.start(plan, preps(false))).toBe(false)
     expect(stage.isBusy()).toBe(false)
-    expect(URL.revokeObjectURL).toHaveBeenCalled()
     stage.destroy()
   })
 
-  it('in silenzio non completa la fase', () => {
+  it('salta la fase senza WebGL2 e non lascia canvas orfani', () => {
     const stage = createAnimatronixStage(parent)
-    stage.start(plan, blobs())
-    for (let i = 0; i < 2_000; i++) {
-      expect(stage.update(50, { active: false, beatPulse: 0, highTransient: 0 })).toBe(false)
-    }
+    expect(stage.start(plan, preps(true))).toBe(false)
+    expect(stage.isBusy()).toBe(false)
+    expect(parent.querySelectorAll('canvas')).toHaveLength(0)
+    stage.destroy()
+  })
+
+  it('update su stage inattivo non fa nulla', () => {
+    const stage = createAnimatronixStage(parent)
+    expect(stage.update(50, { active: true, energy: 0.5 })).toBe(false)
     stage.destroy()
   })
 })

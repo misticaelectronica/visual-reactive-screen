@@ -1,21 +1,18 @@
 import {
   AnimatronixClock,
   analyzeAnimatronixRaster,
-  animatronixPoseToTransform,
-  calculateAnimatronixMicroModulation,
-  clampPoseToCover,
-  FLAT_RASTER_STRUCTURE,
   lumaFromRgba,
-  sampleAnimatronixPose,
+  neutralAnimatronixStructure,
+  type AnimatronixFrame,
   type AnimatronixPlan,
-  type AnimatronixPose,
-  type AnimatronixRasterStructure,
+  type AnimatronixStructure,
 } from './brainAnimatronix'
+import { AnimatronixGl } from './brainAnimatronixGl'
 
 const ENTRY_MS = 1_400
 const EXIT_MS = 1_800
-const CROSSFADE_MS = 1_200
-const ANALYSIS_SIZE = 48
+const ANALYSIS_SIZE = 96
+const MAX_RENDER_WIDTH = 1280
 
 const smoothstep = (t: number) => {
   const x = Math.min(1, Math.max(0, t))
@@ -24,12 +21,17 @@ const smoothstep = (t: number) => {
 
 export type AnimatronixRhythm = {
   active: boolean
-  beatPulse: number
-  highTransient: number
+  energy: number
+}
+
+export type AnimatronixRasterPrep = {
+  structure: AnimatronixStructure
+  bitmap: ImageBitmap | null
 }
 
 export type AnimatronixStage = {
-  start(plan: AnimatronixPlan, rasters: Blob[]): void
+  // false se il contesto WebGL2 non è disponibile: la fase viene saltata.
+  start(plan: AnimatronixPlan, rasters: AnimatronixRasterPrep[]): boolean
   // Ritorna true una sola volta, quando il movimento è concluso: da quel
   // momento lo stage sfuma e il chiamante può avviare ciò che segue.
   update(dtMs: number, rhythm: AnimatronixRhythm): boolean
@@ -37,26 +39,26 @@ export type AnimatronixStage = {
   destroy(): void
 }
 
-export async function analyzeAnimatronixBlob(
-  blob: Blob,
-): Promise<AnimatronixRasterStructure> {
+export async function prepareAnimatronixRaster(blob: Blob): Promise<AnimatronixRasterPrep> {
   try {
     const bitmap = await createImageBitmap(blob)
     const canvas = document.createElement('canvas')
     canvas.width = ANALYSIS_SIZE
     canvas.height = ANALYSIS_SIZE
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    if (!ctx) return FLAT_RASTER_STRUCTURE
+    if (!ctx) return { structure: neutralAnimatronixStructure(), bitmap }
     ctx.drawImage(bitmap, 0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE)
-    bitmap.close?.()
     const data = ctx.getImageData(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE).data
-    return analyzeAnimatronixRaster(
-      lumaFromRgba(data, ANALYSIS_SIZE, ANALYSIS_SIZE),
-      ANALYSIS_SIZE,
-      ANALYSIS_SIZE,
-    )
+    return {
+      structure: analyzeAnimatronixRaster(
+        lumaFromRgba(data, ANALYSIS_SIZE, ANALYSIS_SIZE),
+        ANALYSIS_SIZE,
+        ANALYSIS_SIZE,
+      ),
+      bitmap,
+    }
   } catch {
-    return FLAT_RASTER_STRUCTURE
+    return { structure: neutralAnimatronixStructure(), bitmap: null }
   }
 }
 
@@ -73,115 +75,77 @@ export function createAnimatronixStage(parent: HTMLElement): AnimatronixStage {
     display: 'none',
   })
   parent.appendChild(overlay)
+  let canvas: HTMLCanvasElement | null = null
 
+  let gl: AnimatronixGl | null = null
   let plan: AnimatronixPlan | null = null
   let clock: AnimatronixClock | null = null
-  let images: HTMLImageElement[] = []
-  let urls: string[] = []
+  let bitmaps: ImageBitmap[] = []
   let phase: 'idle' | 'run' | 'out' = 'idle'
   let overlayOpacity = 0
-  let lastPose: AnimatronixPose | null = null
+  let lastFrame: AnimatronixFrame | null = null
 
   const cleanup = () => {
-    for (const url of urls) URL.revokeObjectURL(url)
-    urls = []
-    for (const img of images) img.remove()
-    images = []
+    gl?.dispose()
+    gl = null
+    // Il contesto perso non è riutilizzabile: ogni fase usa un canvas nuovo.
+    canvas?.remove()
+    canvas = null
+    for (const bitmap of bitmaps) bitmap.close?.()
+    bitmaps = []
     plan = null
     clock = null
-    lastPose = null
+    lastFrame = null
     overlay.style.display = 'none'
     overlay.style.opacity = '0'
     overlayOpacity = 0
     phase = 'idle'
   }
 
-  const place = (
-    img: HTMLImageElement,
-    pose: AnimatronixPose,
-    alpha: number,
-    parallaxGain: number,
-    lightGain: number,
-  ) => {
-    const width = parent.clientWidth || window.innerWidth
-    const height = parent.clientHeight || window.innerHeight
-    const t = animatronixPoseToTransform(
-      clampPoseToCover({
-        ...pose,
-        panX: pose.panX * parallaxGain,
-        panY: pose.panY * parallaxGain,
-      }),
-      width,
-      height,
-    )
-    img.style.opacity = String(alpha)
-    img.style.transform = `translate3d(${t.tx}px, ${t.ty}px, 0) scale(${t.scale})`
-    img.style.filter = lightGain > 1.001 ? `brightness(${lightGain})` : ''
-  }
-
   return {
     start(nextPlan, rasters) {
       cleanup()
-      plan = nextPlan
-      clock = new AnimatronixClock(nextPlan)
-      images = rasters.map((blob) => {
-        const url = URL.createObjectURL(blob)
-        urls.push(url)
-        const img = document.createElement('img')
-        img.src = url
-        img.alt = ''
-        img.draggable = false
-        Object.assign(img.style, {
+      const usable = rasters.filter((r) => r.bitmap)
+      if (usable.length !== rasters.length || rasters.length < 2) return false
+      try {
+        const width = Math.min(MAX_RENDER_WIDTH, parent.clientWidth || window.innerWidth)
+        const aspect =
+          (parent.clientHeight || window.innerHeight) / (parent.clientWidth || window.innerWidth)
+        canvas = document.createElement('canvas')
+        Object.assign(canvas.style, {
           position: 'absolute',
-          left: '0',
-          top: '0',
+          inset: '0',
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
-          transformOrigin: '0 0',
-          opacity: '0',
-          willChange: 'transform, opacity',
         })
-        overlay.appendChild(img)
-        return img
-      })
+        overlay.appendChild(canvas)
+        const nextGl = new AnimatronixGl(canvas)
+        nextGl.resize(width, Math.round(width * aspect))
+        bitmaps = rasters.map((r) => r.bitmap as ImageBitmap)
+        nextGl.setRasters(bitmaps, rasters.map((r) => r.structure))
+        gl = nextGl
+      } catch {
+        cleanup()
+        return false
+      }
+      plan = nextPlan
+      clock = new AnimatronixClock(nextPlan)
+      lastFrame = clock.frame()
       overlay.style.display = 'block'
       phase = 'run'
       overlayOpacity = 0
+      return true
     },
 
     update(dtMs, rhythm) {
-      if (phase === 'idle' || !plan || !clock) return false
+      if (phase === 'idle' || !plan || !clock || !gl) return false
       const dt = Math.max(0, dtMs)
       let finished = false
-
       if (phase === 'run') {
         overlayOpacity = Math.min(1, overlayOpacity + dt / ENTRY_MS)
-        const state = clock.advance(dt, rhythm.active)
-        const segment = plan.segments[state.segmentIndex]
-        const pose = sampleAnimatronixPose(segment, state.segmentProgress)
-        lastPose = pose
-        const micro = calculateAnimatronixMicroModulation(
-          rhythm.active,
-          rhythm.beatPulse,
-          rhythm.highTransient,
-        )
-        const fadeWindow = Math.min(CROSSFADE_MS, segment.durationMs * 0.3) /
-          segment.durationMs
-        const next = plan.segments[state.segmentIndex + 1]
-        const xfade = next && state.segmentProgress > 1 - fadeWindow
-          ? smoothstep((state.segmentProgress - (1 - fadeWindow)) / fadeWindow)
-          : 0
-        images.forEach((img, i) => {
-          if (i === segment.rasterIndex) {
-            place(img, pose, 1, micro.parallaxGain, micro.lightGain)
-          } else if (next && i === next.rasterIndex && xfade > 0) {
-            place(img, next.from, xfade, micro.parallaxGain, micro.lightGain)
-          } else {
-            img.style.opacity = '0'
-          }
-        })
-        if (state.done) {
+        lastFrame = clock.advance(dt, rhythm.active, rhythm.energy)
+        gl.render(lastFrame, plan)
+        if (lastFrame.done) {
           phase = 'out'
           finished = true
         }
@@ -191,14 +155,8 @@ export function createAnimatronixStage(parent: HTMLElement): AnimatronixStage {
           cleanup()
           return false
         }
-        if (lastPose) {
-          const last = plan.segments[plan.segments.length - 1]
-          images.forEach((img, i) => {
-            if (i === last.rasterIndex) place(img, lastPose as AnimatronixPose, 1, 1, 1)
-          })
-        }
+        if (lastFrame) gl.render(lastFrame, plan)
       }
-
       overlay.style.opacity = String(smoothstep(overlayOpacity))
       return finished
     },

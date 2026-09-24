@@ -15,6 +15,13 @@ import { brainLog, brainWarn } from './brainLog'
 import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
 
 const SWITCH_DURATION_MS = 1_800
+// Sostituzione d'emergenza quando il renderer uscente non ha MAI raggiunto
+// `isReady()` (es. Vector Morph respinto dal controllo qualità, mai mostrato
+// nulla oltre il proprio raster di sfondo grezzo): niente da preservare col
+// crossfade lungo, che lasciava "solo il raster" visibile fino a
+// SWITCH_DURATION_MS/CONTAMINATION_DURATION_MS — notato ogni tanto dal Capo
+// Supremo (2026-09-22). Ancora un breve dissolvi, non un taglio secco.
+const FAILED_BEFORE_READY_SWITCH_DURATION_MS = 250
 const SWITCH_TIMEOUT_MS = 15_000
 // **Varco Percettivo** — nome condiviso con la Direzione VJ (Capo Supremo
 // del Visual) per questa composizione di flash + strisce glitch + mix
@@ -745,12 +752,16 @@ export function createBrainRendererHost(
       // li' e' una sostituzione d'emergenza, deve essere rapida, non una
       // convivenza artistica.
       const pairKey = `${active.id}->${incoming.id}`
+      const activeFailedBeforeReady = active.controller.hasFailed?.() === true
+        && active.controller.isReady?.() === false
       const contaminate = !degraded
         && active.controller.hasFailed?.() !== true
         && !CONTAMINATION_EXCLUDED_PAIRS.has(pairKey)
       const duration = contaminate
         ? CONTAMINATION_DURATION_MS
-        : degraded ? SWITCH_DURATION_MS * 0.6 : SWITCH_DURATION_MS
+        : activeFailedBeforeReady
+          ? FAILED_BEFORE_READY_SWITCH_DURATION_MS
+          : degraded ? SWITCH_DURATION_MS * 0.6 : SWITCH_DURATION_MS
       const t = (time - switchStartedAt) / duration
       if (contaminate) {
         const envelope = contaminationEnvelope(t, CONTAMINATION_COEXIST_CAP)

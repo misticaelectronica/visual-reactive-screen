@@ -3,7 +3,10 @@ import type { BrainRhythmState } from './brainRhythm'
 
 const MOTION_BEATS = 16
 const MOTION_MIN_READ_MS = 12_000
-const MOTION_COOLDOWN_MS = 75_000
+// Innalzato da 75s (disp. Capo Supremo, 2026-09-22: "deve partire di meno")
+// — il moto di coscienza restava troppo frequente rispetto alla percezione
+// voluta di un evento raro, non di un tic ricorrente.
+const MOTION_COOLDOWN_MS = 180_000
 // Rete di sicurezza: l'uscita normale richiede 16 beat consecutivi
 // rilevati dopo il tempo minimo — se il rilevamento del beat è
 // irregolare (silenzio, ritmo instabile) può non arrivare mai, e senza
@@ -32,6 +35,10 @@ export type BrainConsciousnessMotionLayer = {
     rhythm: BrainRhythmState,
     now: number,
     lowPowerMode: boolean,
+    // Falso durante ANIMATRONIX e Riattivazione: il moto di coscienza non
+    // deve mai attivarsi in quelle fasi (disp. Capo Supremo, 2026-09-22).
+    // Un moto già attivo quando la fase inizia viene chiuso subito. Default vero.
+    allowActivation?: boolean,
   ) => { active: boolean; completedPauseMs: number }
   setImageSources: (
     sources: readonly BrainConsciousnessMotionImageSource[],
@@ -160,9 +167,9 @@ export function createBrainConsciousnessMotionLayer(
       usedPairs.add(key)
       return true
     },
-    update(rhythm, now, lowPowerMode) {
+    update(rhythm, now, lowPowerMode, allowActivation = true) {
       let completedPauseMs = 0
-      if (!active && queued && rhythm.active && rhythm.beat) {
+      if (!active && queued && allowActivation && rhythm.active && rhythm.beat) {
         active = queued
         queued = null
         startedAt = now
@@ -196,7 +203,9 @@ export function createBrainConsciousnessMotionLayer(
         rhythm.beatIndex - startedBeat >= MOTION_BEATS &&
         now - startedAt >= MOTION_MIN_READ_MS
       const forcedExit = now - startedAt >= MOTION_MAX_READ_MS
-      if (beatExitReady || forcedExit) {
+      // Un moto già attivo non deve mai convivere con ANIMATRONIX o la
+      // Riattivazione (disp. Capo Supremo, 2026-09-24): esce subito.
+      if (beatExitReady || forcedExit || !allowActivation) {
         completedPauseMs = Math.max(0, now - startedAt)
         lastFinishedAt = now
         active = null

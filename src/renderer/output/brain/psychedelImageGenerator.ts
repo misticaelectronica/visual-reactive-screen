@@ -19,6 +19,9 @@ export interface PsychedelImageGenerator {
     seed: number,
     mode?: ImageRenderMode,
     timeoutMs?: number,
+    // HYPNOTIC ZOOM ANNIDATO: sostituisce lo step count derivato da `mode`
+    // (`DreamStory.denoisingStepsOverride`, disp. Capo Supremo 2026-09-22).
+    stepsOverride?: number,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }>
   release(): Promise<void>
   destroy(): void
@@ -176,6 +179,10 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
     return this.readyPromise
   }
 
+  // Percorso legacy (web-txt2img): non ha un concetto di step, quindi non
+  // dichiara il 5° parametro `stepsOverride` dell'interfaccia — TS/JS
+  // accettano un'implementazione con meno parametri, gli extra vengono
+  // semplicemente ignorati dai chiamanti.
   async generate(
     prompt: string,
     seed: number,
@@ -269,6 +276,7 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
     seed: number,
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
+    stepsOverride?: number,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }> {
     if (this.destroyed) throw new Error('Psichedel è stato arrestato')
     if (!prompt.trim()) {
@@ -279,13 +287,14 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
     this.activeGeneration = controller
     const renderingConfig = getBrainRenderingConfig()
     const steps =
-      mode === 'high-quality'
+      stepsOverride ??
+      (mode === 'high-quality'
         ? renderingConfig.image.qualitySteps
         : mode === 'enhanced'
           ? renderingConfig.image.enhancedSteps
           : mode === 'interlude'
             ? renderingConfig.image.interludeSteps
-          : renderingConfig.image.standardSteps
+            : renderingConfig.image.standardSteps)
     const inferenceGeometry =
       mode === 'high-quality'
         ? {

@@ -115,6 +115,81 @@ describe('Brain renderer host', () => {
     host.destroy()
   })
 
+  it('se il renderer attivo fallisce senza mai essere pronto, il cambio è rapido (250ms), non il crossfade pieno (1800ms)', () => {
+    const registry = new BrainRendererRegistry()
+    registry.register({
+      id: 'filter-psiche',
+      label: 'FilterPsiche',
+      capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element,
+          isReady: () => true,
+          setOpacity() {},
+          getMorphShapes: () => [],
+          setMorphPattern() {},
+          setResourcePressure() {},
+          setTransition() {},
+          update() {},
+          destroy() { element.remove() },
+        }
+      },
+    })
+    registry.register({
+      id: 'vector-morph',
+      label: 'Vector Morph',
+      capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+      create(context) {
+        const element = document.createElement('div')
+        context.container.appendChild(element)
+        return {
+          element,
+          // Mai pronto: la vettorializzazione viene respinta dal controllo
+          // qualità appena il raster è analizzato, `inner` non esiste mai —
+          // solo il raster di sfondo è mai stato visibile.
+          isReady: () => false,
+          hasFailed: () => true,
+          setOpacity() {},
+          getMorphShapes: () => [],
+          setMorphPattern() {},
+          setResourcePressure() {},
+          setTransition() {},
+          update() {},
+          destroy() { element.remove() },
+        }
+      },
+    })
+    const container = document.createElement('div')
+    const raster = new Blob(['raster'])
+    const host = createBrainRendererHost(
+      container,
+      registry,
+      {
+        scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+        raster,
+        palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+        printMode: 'living-ink',
+        getImageSources: () => [],
+        getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+        frameEnergy: 0.5,
+        frameIndex: 0,
+        frameCount: 4,
+      },
+      () => 'vector-morph',
+      'vector-morph',
+    )
+    host.setTransition(1, 'enter')
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_000)
+    expect(host.element.dataset.activeRenderer).toBe('vector-morph')
+    // Ben oltre 250ms (il cambio rapido) ma molto sotto 1800ms (il
+    // crossfade pieno che prima lasciava "solo il raster" a schermo).
+    host.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_400)
+    expect(host.element.dataset.activeRenderer).toBe('filter-psiche')
+    host.destroy()
+  })
+
   it('al failure sceglie la rete di sicurezza A CASO fra i renderer eleggibili, non sempre FilterPsiche, mai il renderer appena fallito', () => {
     const registry = new BrainRendererRegistry()
     const fixtures = registerSafetyNetFixtures(registry)

@@ -368,6 +368,7 @@ export class Psichedel {
                     seed,
                     mode,
                     remainingMs,
+                    story.denoisingStepsOverride,
                   )
                 } finally {
                   this.onImageGenerationState?.(false)
