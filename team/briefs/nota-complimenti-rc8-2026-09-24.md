@@ -15,7 +15,7 @@ serratura", il morph che deve morphare, lo zoom ipnotico e l'annidamento
 delle scale sono direzione visiva, non decorazione. Ogni volta che abbiamo
 detto "non si legge" avevano già capito perché.
 
-**agli Ingegneri:** per aver trasformato le dispozioni in codice con onestà,
+**Agli Ingegneri:** per aver trasformato le disposizioni in codice con onestà,
 anche quando la risposta era "non lo so ancora". Questa volta il lavoro
 migliore è stato guardare i log veri invece di indovinare: le inferenze
 sotto ANIMATRONIX, gli scatti dello shader, la storia da 22 step che non
