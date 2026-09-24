@@ -10,6 +10,9 @@ import {
   analyzeAnimatronixRaster,
   applyNestedZoomTargets,
   carryWorldState,
+  computeMorphFlow,
+  downsampleLuma,
+  MORPH_FLOW_SIZE,
   FLAT_RASTER_STRUCTURE,
   inertialProgress,
   neutralAnimatronixStructure,
@@ -401,3 +404,75 @@ describe('HYPNOTIC ZOOM ANNIDATO', () => {
     expect(result.plan).toBe(plan)
   })
 })
+
+describe('ANIMATRONIX seconda animazione a metà tratto', () => {
+  it('ogni segmento ha una seconda animazione diversa dalla principale e dalla successiva', () => {
+    for (let n = 0; n < 12; n++) {
+      const plan = planAnimatronix({ storyId: `handoff-${n}`, structures: allViable })
+      plan.segments.forEach((s, i) => {
+        expect(s.handoff).toBeTruthy()
+        expect(s.handoff).not.toBe(s.primary)
+        if (plan.segments[i + 1]) expect(s.handoff).not.toBe(plan.segments[i + 1].primary)
+      })
+    }
+  })
+
+  it('a metà tratto la seconda animazione accumula stato e la principale cala', () => {
+    const plan = withForcedGrammars(
+      planAnimatronix({ storyId: 'handoff-clock', structures: allViable }),
+      ['traversal', 'depth-fracture', 'parallax-collapse', 'focus-inversion'],
+    )
+    plan.segments[0].handoff = 'hypnotic-zoom'
+    const clock = new AnimatronixClock(plan)
+    let f = clock.frame()
+    while (f.segmentIndex === 0 && !f.done) f = clock.advance(50, true, 0.5)
+    expect(f.current.zoom).toBeGreaterThan(0)
+    expect(f.current.flight).toBeGreaterThan(0)
+  })
+
+  it('le storie annidate non hanno handoff sui due attraversamenti', () => {
+    const plan = planAnimatronix({ storyId: 'handoff-nested', structures: allViable })
+    const result = applyNestedZoomTargets(plan, allViable)
+    expect(result.plan.segments[0].handoff).toBeNull()
+    expect(result.plan.segments[1].handoff).toBeNull()
+  })
+})
+
+describe('ANIMATRONIX morph a flusso', () => {
+  const n = MORPH_FLOW_SIZE
+  const blob = (cx: number) => {
+    const g = new Float32Array(n * n)
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        g[y * n + x] = Math.hypot(x - cx, y - 16) < 5 ? 0.95 : 0.1 + 0.01 * ((x * 7 + y * 3) % 5)
+      }
+    }
+    return g
+  }
+
+  it('una forma che si sposta a destra produce un flusso a destra sulla forma', () => {
+    const flow = computeMorphFlow(blob(12), blob(18))
+    const i = (16 * n + 12) * 2
+    expect(flow[i]).toBeGreaterThan(0.05)
+    expect(Math.abs(flow[i + 1])).toBeLessThan(0.05)
+  })
+
+  it('immagini identiche non producono spostamento', () => {
+    const flow = computeMorphFlow(blob(14), blob(14))
+    expect(flow.every((v) => Math.abs(v) < 1e-6)).toBe(true)
+  })
+
+  it('il flusso resta entro il massimo e ha due componenti per cella', () => {
+    const flow = computeMorphFlow(blob(4), blob(28))
+    expect(flow).toHaveLength(n * n * 2)
+    expect(Math.max(...flow.map(Math.abs))).toBeLessThanOrEqual(0.22 + 1e-6)
+  })
+
+  it('downsampleLuma media a blocchi', () => {
+    const src = new Float32Array(96 * 96).fill(0.5)
+    const out = downsampleLuma(src, 96)
+    expect(out).toHaveLength(n * n)
+    expect(out.every((v) => Math.abs(v - 0.5) < 1e-6)).toBe(true)
+  })
+})
+

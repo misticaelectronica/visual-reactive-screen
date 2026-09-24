@@ -665,6 +665,11 @@ export type AnimatronixSegment = {
   // dettaglio significativo rilevato sul raster sorgente del segmento
   // (disp. Capo Supremo, 2026-09-22).
   zoomTarget?: 'vp' | 'anchor'
+  // Seconda animazione a metà tratto (disp. Capo Supremo 2026-09-24: "fai
+  // ruotare qualche animazione in più"): entra in dissolvenza di stato oltre
+  // il 40% del segmento mentre la principale cala, così ogni raster mostra
+  // due animazioni invece di una. Assente nelle storie annidate.
+  handoff?: AnimatronixGrammar | null
 }
 
 export type AnimatronixPlan = {
@@ -835,6 +840,25 @@ export function planAnimatronix(input: PlanAnimatronixInput): AnimatronixPlan {
     return null
   }
 
+  const HANDOFF_POOL: AnimatronixGrammar[] = [
+    'traversal',
+    'depth-fracture',
+    'perspective-melt',
+    'parallax-collapse',
+    'hypnotic-zoom',
+  ]
+  const handoffFor = (i: number): AnimatronixGrammar | null => {
+    const primary = sequence[i]
+    const next = sequence[i + 1]
+    const avoid = new Set<AnimatronixGrammar>([primary])
+    const secondary = secondaryFor(i)
+    if (secondary) avoid.add(secondary)
+    if (next) avoid.add(next)
+    const options = HANDOFF_POOL.filter((g) => !avoid.has(g) && fit(i, g) > 0)
+    if (options.length === 0) return null
+    return options[Math.floor(rng() * options.length)]
+  }
+
   const weights = structures.map(
     (s) => 1 + 0.5 * Math.max(s.traversalAxis, s.depthConfidence, s.massScore),
   )
@@ -854,6 +878,7 @@ export function planAnimatronix(input: PlanAnimatronixInput): AnimatronixPlan {
       durationMs: (totalMs * weights[i]) / weightSum,
       transition,
       transitionStart: TRANSITION_START[transition],
+      handoff: handoffFor(i),
     }
   })
 
@@ -1003,7 +1028,9 @@ function grammarWeight(
   grammar: AnimatronixGrammar,
   u: number,
 ): number {
-  if (segment.primary === grammar) return smoothstep01(u / 0.2)
+  const handoffIn = segment.handoff ? smoothstep01((u - 0.4) / 0.2) : 0
+  if (segment.primary === grammar) return smoothstep01(u / 0.2) * (1 - 0.6 * handoffIn)
+  if (segment.handoff === grammar) return handoffIn
   if (segment.secondary === grammar) return SECONDARY_WEIGHT * (1 - smoothstep01(u / 0.6))
   return 0
 }
@@ -1114,6 +1141,7 @@ export function withForcedGrammars(
       ...segment,
       primary,
       secondary: previous && previous !== primary ? previous : null,
+      handoff: segment.handoff === primary ? null : segment.handoff,
       transition,
       transitionStart: TRANSITION_START[transition],
     }
@@ -1173,7 +1201,7 @@ export function applyNestedZoomTargets(
   }
   const forced = withForcedGrammars(plan, ['hypnotic-zoom', 'hypnotic-zoom'])
   const segments = forced.segments.map((segment, i) =>
-    i < 2 ? { ...segment, zoomTarget: 'anchor' as const } : segment,
+    i < 2 ? { ...segment, zoomTarget: 'anchor' as const, handoff: null } : segment,
   )
   return {
     plan: { ...forced, segments },
@@ -1181,4 +1209,95 @@ export function applyNestedZoomTargets(
     targetB: { x: anchorB.x, y: anchorB.y },
     fallbackReason: null,
   }
+}
+
+export const MORPH_FLOW_SIZE = 32
+const MORPH_FLOW_PATCH = 2
+const MORPH_FLOW_SEARCH = 8
+const MORPH_FLOW_PENALTY = 0.006
+const MORPH_FLOW_MAX = 0.22
+
+// Riduce una griglia luma quadrata `srcSize`² a MORPH_FLOW_SIZE² (media a
+// blocchi): l'unica rappresentazione che il morph guarda.
+export function downsampleLuma(
+  src: ArrayLike<number>,
+  srcSize: number,
+): Float32Array {
+  const n = MORPH_FLOW_SIZE
+  const out = new Float32Array(n * n)
+  const step = srcSize / n
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const x0 = Math.floor(x * step)
+      const x1 = Math.max(x0 + 1, Math.floor((x + 1) * step))
+      const y0 = Math.floor(y * step)
+      const y1 = Math.max(y0 + 1, Math.floor((y + 1) * step))
+      let sum = 0
+      let count = 0
+      for (let yy = y0; yy < y1; yy++) {
+        for (let xx = x0; xx < x1; xx++) {
+          sum += src[yy * srcSize + xx] ?? 0
+          count++
+        }
+      }
+      out[y * n + x] = count ? sum / count : 0
+    }
+  }
+  return out
+}
+
+// MORPH: flusso di corrispondenza A→B a block matching su griglia 32×32
+// (patch 5×5, ricerca ±8 celle, penalità di spostamento così le zone senza
+// struttura restano ferme), poi levigato. Restituisce [dx, dy] per cella in
+// unità di UV dell'immagine A. Serve a far scorrere le forme di A verso le
+// forme di B durante la transizione invece di sovrapporre due immagini.
+export function computeMorphFlow(
+  lumaA: ArrayLike<number>,
+  lumaB: ArrayLike<number>,
+): Float32Array {
+  const n = MORPH_FLOW_SIZE
+  const r = MORPH_FLOW_PATCH
+  const s = MORPH_FLOW_SEARCH
+  const at = (img: ArrayLike<number>, x: number, y: number) =>
+    img[Math.min(n - 1, Math.max(0, y)) * n + Math.min(n - 1, Math.max(0, x))] ?? 0
+  let fx: Float32Array = new Float32Array(n * n)
+  let fy: Float32Array = new Float32Array(n * n)
+  const area = (2 * r + 1) * (2 * r + 1)
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      let best = Infinity
+      let bx = 0
+      let by = 0
+      for (let dy = -s; dy <= s; dy++) {
+        for (let dx = -s; dx <= s; dx++) {
+          let sad = 0
+          for (let py = -r; py <= r; py++) {
+            for (let px = -r; px <= r; px++) {
+              sad += Math.abs(at(lumaA, x + px, y + py) - at(lumaB, x + dx + px, y + dy + py))
+            }
+          }
+          const cost = sad / area + MORPH_FLOW_PENALTY * Math.hypot(dx, dy)
+          if (cost < best) {
+            best = cost
+            bx = dx
+            by = dy
+          }
+        }
+      }
+      fx[y * n + x] = bx / n
+      fy[y * n + x] = by / n
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    fx = boxBlur(fx, n, n, 2)
+    fy = boxBlur(fy, n, n, 2)
+  }
+  const out = new Float32Array(n * n * 2)
+  for (let i = 0; i < n * n; i++) {
+    const mag = Math.hypot(fx[i], fy[i])
+    const k = mag > MORPH_FLOW_MAX ? MORPH_FLOW_MAX / mag : 1
+    out[i * 2] = fx[i] * k
+    out[i * 2 + 1] = fy[i] * k
+  }
+  return out
 }

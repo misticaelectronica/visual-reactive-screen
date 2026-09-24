@@ -1,6 +1,8 @@
 import {
   AnimatronixClock,
   analyzeAnimatronixRaster,
+  computeMorphFlow,
+  downsampleLuma,
   lumaFromRgba,
   neutralAnimatronixStructure,
   type AnimatronixFrame,
@@ -27,6 +29,10 @@ export type AnimatronixRhythm = {
 export type AnimatronixRasterPrep = {
   structure: AnimatronixStructure
   bitmap: ImageBitmap | null
+  // Luma ridotta e flusso di corrispondenza verso il raster successivo
+  // (`attachMorphFlows`), per il morph vero fra A e B.
+  luma?: Float32Array | null
+  flowToNext?: Float32Array | null
 }
 
 export type AnimatronixStage = {
@@ -36,6 +42,12 @@ export type AnimatronixStage = {
   // momento lo stage sfuma e il chiamante può avviare ciò che segue.
   update(dtMs: number, rhythm: AnimatronixRhythm): boolean
   isBusy(): boolean
+  // Vero quando l'overlay è a piena opacità: i renderer sotto non si vedono.
+  isCovering(): boolean
+  // Compila lo shader WebGL2 e carica le texture PRIMA del confine di
+  // storia, così `start` non blocca il main thread (context + link + upload
+  // + mipmap fatti tutti al primo fotogramma erano il "blocco" di inizio).
+  warmUp(rasters: AnimatronixRasterPrep[]): void
   destroy(): void
 }
 
@@ -49,16 +61,25 @@ export async function prepareAnimatronixRaster(blob: Blob): Promise<AnimatronixR
     if (!ctx) return { structure: neutralAnimatronixStructure(), bitmap }
     ctx.drawImage(bitmap, 0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE)
     const data = ctx.getImageData(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE).data
+    const luma = lumaFromRgba(data, ANALYSIS_SIZE, ANALYSIS_SIZE)
     return {
-      structure: analyzeAnimatronixRaster(
-        lumaFromRgba(data, ANALYSIS_SIZE, ANALYSIS_SIZE),
-        ANALYSIS_SIZE,
-        ANALYSIS_SIZE,
-      ),
+      structure: analyzeAnimatronixRaster(luma, ANALYSIS_SIZE, ANALYSIS_SIZE),
       bitmap,
+      luma: downsampleLuma(luma, ANALYSIS_SIZE),
     }
   } catch {
     return { structure: neutralAnimatronixStructure(), bitmap: null }
+  }
+}
+
+// Un flusso per coppia di raster consecutivi, calcolato PRIMA del confine di
+// storia e un frame di main thread alla volta (mai un blocco unico).
+export async function attachMorphFlows(preps: AnimatronixRasterPrep[]): Promise<void> {
+  for (let i = 0; i < preps.length - 1; i++) {
+    const a = preps[i].luma
+    const b = preps[i + 1].luma
+    preps[i].flowToNext = a && b ? computeMorphFlow(a, b) : null
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
   }
 }
 
@@ -85,7 +106,33 @@ export function createAnimatronixStage(parent: HTMLElement): AnimatronixStage {
   let overlayOpacity = 0
   let lastFrame: AnimatronixFrame | null = null
 
+  let warmRasters: AnimatronixRasterPrep[] | null = null
+
+  const buildGl = (rasters: AnimatronixRasterPrep[]) => {
+    const width = Math.min(MAX_RENDER_WIDTH, parent.clientWidth || window.innerWidth)
+    const aspect =
+      (parent.clientHeight || window.innerHeight) / (parent.clientWidth || window.innerWidth)
+    canvas = document.createElement('canvas')
+    Object.assign(canvas.style, {
+      position: 'absolute',
+      inset: '0',
+      width: '100%',
+      height: '100%',
+    })
+    overlay.appendChild(canvas)
+    const nextGl = new AnimatronixGl(canvas)
+    nextGl.resize(width, Math.round(width * aspect))
+    bitmaps = rasters.map((r) => r.bitmap as ImageBitmap)
+    nextGl.setRasters(
+      bitmaps,
+      rasters.map((r) => r.structure),
+      rasters.map((r) => r.flowToNext ?? null),
+    )
+    gl = nextGl
+  }
+
   const cleanup = () => {
+    warmRasters = null
     gl?.dispose()
     gl = null
     // Il contesto perso non è riutilizzabile: ogni fase usa un canvas nuovo.
@@ -103,31 +150,33 @@ export function createAnimatronixStage(parent: HTMLElement): AnimatronixStage {
   }
 
   return {
-    start(nextPlan, rasters) {
+    warmUp(rasters) {
+      if (phase !== 'idle') return
       cleanup()
       const usable = rasters.filter((r) => r.bitmap)
-      if (usable.length !== rasters.length || rasters.length < 2) return false
+      if (usable.length !== rasters.length || rasters.length < 2) return
       try {
-        const width = Math.min(MAX_RENDER_WIDTH, parent.clientWidth || window.innerWidth)
-        const aspect =
-          (parent.clientHeight || window.innerHeight) / (parent.clientWidth || window.innerWidth)
-        canvas = document.createElement('canvas')
-        Object.assign(canvas.style, {
-          position: 'absolute',
-          inset: '0',
-          width: '100%',
-          height: '100%',
-        })
-        overlay.appendChild(canvas)
-        const nextGl = new AnimatronixGl(canvas)
-        nextGl.resize(width, Math.round(width * aspect))
-        bitmaps = rasters.map((r) => r.bitmap as ImageBitmap)
-        nextGl.setRasters(bitmaps, rasters.map((r) => r.structure))
-        gl = nextGl
+        buildGl(rasters)
+        warmRasters = rasters
       } catch {
         cleanup()
-        return false
       }
+    },
+
+    start(nextPlan, rasters) {
+      const reuseWarm = warmRasters === rasters && gl !== null
+      if (!reuseWarm) {
+        cleanup()
+        const usable = rasters.filter((r) => r.bitmap)
+        if (usable.length !== rasters.length || rasters.length < 2) return false
+        try {
+          buildGl(rasters)
+        } catch {
+          cleanup()
+          return false
+        }
+      }
+      warmRasters = null
       plan = nextPlan
       clock = new AnimatronixClock(nextPlan)
       lastFrame = clock.frame()
@@ -163,6 +212,10 @@ export function createAnimatronixStage(parent: HTMLElement): AnimatronixStage {
 
     isBusy() {
       return phase !== 'idle'
+    },
+
+    isCovering() {
+      return phase === 'run' && overlayOpacity >= 1
     },
 
     destroy() {

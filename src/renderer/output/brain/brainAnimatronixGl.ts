@@ -37,6 +37,8 @@ uniform sampler2D uDepA;
 uniform sampler2D uMassA;
 uniform sampler2D uImgB;
 uniform sampler2D uDepB;
+uniform sampler2D uFlow;
+uniform float uHasFlow;
 uniform vec2 uCoverA;
 uniform vec2 uCoverB;
 uniform float uAspect;
@@ -157,6 +159,10 @@ vec3 fractureWorld(sampler2D img, sampler2D dep, vec2 q, vec2 cover, World W,
                    vec3 beyond, float useBeyond, float tr) {
   float F = W.fracture;
   if (F <= 0.0005 && tr <= 0.0005) return samp(img, q, cover);
+  // Continuità (log di prova: un solo fotogramma di scarto quando F superava
+  // la soglia): la scurita dei piani medio/lontano entra gradualmente con F,
+  // non a scatto.
+  float k = smoothstep(0.0, 0.12, F + tr);
   vec2 dir = vec2(cos(uSlipAngle), sin(uSlipAngle));
   vec2 slipNear = dir * (0.30 * F + tr * 1.5);
   vec2 slipMid = -dir * (0.17 * F + pow(tr, 1.5) * 1.7);
@@ -166,12 +172,15 @@ vec3 fractureWorld(sampler2D img, sampler2D dep, vec2 q, vec2 cover, World W,
   if (d > W.planes.y && insideImg(qk, cover)) return samp(img, qk, cover);
   qk = q - slipMid;
   d = planeDepth(img, dep, qk, cover);
-  if (d > W.planes.x && d <= W.planes.y && insideImg(qk, cover)) return samp(img, qk, cover) * 0.94;
+  if (d > W.planes.x && d <= W.planes.y && insideImg(qk, cover)) return samp(img, qk, cover) * mix(1.0, 0.94, k);
   qk = q - slipFar;
   d = planeDepth(img, dep, qk, cover);
-  if (d <= W.planes.x && insideImg(qk, cover)) return samp(img, qk, cover) * 0.88;
+  if (d <= W.planes.x && insideImg(qk, cover)) return samp(img, qk, cover) * mix(1.0, 0.88, k);
   float gapOpen = smoothstep(0.025, 0.11, 0.30 * F + tr);
-  vec3 gap = useBeyond > 0.5 ? beyond : darkBeyond(img, q, cover);
+  // Il raster successivo entra nelle fessure in dissolvenza (bt), non a
+  // scatto: prima della transizione le fessure mostrano già lo sfondo scuro.
+  float bt = useBeyond > 0.5 ? smoothstep(0.0, 0.4, tr) : 0.0;
+  vec3 gap = mix(darkBeyond(img, q, cover), beyond, bt);
   return mix(samp(img, q, cover), gap, gapOpen);
 }
 
@@ -216,15 +225,22 @@ float maskAt(vec2 q) {
 void main() {
   vec2 q = vec2(vFrag.x, 1.0 - vFrag.y);
 
-  // MORPH, non dissolvenza piatta (disp. Capo Supremo, 2026-09-24): A e B
-  // convergono ciascuno verso il proprio punto di fuga mentre la
-  // dissolvenza avanza — le due immagini si tirano verso l'interno invece
-  // di limitarsi a sovrapporsi. Stesso costo della dissolvenza piatta:
-  // cambia solo il punto campionato prima delle uniche due renderWorld già
-  // in uso, nessuna chiamata aggiuntiva.
+  // MORPH vero (disp. Capo Supremo 2026-09-24): flusso di corrispondenza
+  // A→B (block matching, calcolato prima del confine). Al tempo t un pixel
+  // pesca A a q - t*F e B a q + (1-t)*F: le forme di A scivolano verso le
+  // forme di B mentre le due immagini si fondono. A t=0 e t=1 il warp è
+  // identità, quindi nessuno scatto al confine fra un raster e il
+  // successivo. Senza flusso ricade sul richiamo verso il punto di fuga.
   vec2 qA = q;
   vec2 qBmorph = q;
-  if (uKind == 8) {
+  bool morphKind = uKind == 8 || uKind == 2 || uKind == 4 || uKind == 7;
+  if (morphKind && uHasFlow > 0.5) {
+    vec2 f = texture(uFlow, toT(q, uCoverA)).rg / uCoverA;
+    float tm = uTrans * uTrans * (3.0 - 2.0 * uTrans);
+    float amt = uKind == 8 ? 1.0 : 0.7;
+    qA = q - tm * f * amt;
+    qBmorph = q + (1.0 - tm) * f * amt;
+  } else if (uKind == 8) {
     float warp = 0.18 * smoothstep(0.0, 1.0, uTrans);
     qA = uWA.vp + (q - uWA.vp) * (1.0 - warp);
     qBmorph = uWB.vp + (q - uWB.vp) * (1.0 - warp * 0.55);
@@ -255,7 +271,10 @@ void main() {
     vec2 posNow = mix(uMassC, uMassEnd, pow(u, 1.6));
     vec2 mq = (q - posNow) / s + uMassC;
     float m = smoothstep(0.38, 0.62, maskAt(mq));
-    vec3 massCol = texture(uImgA, toT(mq, uCoverA)).rgb * mix(1.0, 0.8, u);
+    // Continuità: la massa parte dall'aspetto reale del mondo (cA, con lo
+    // stato accumulato) e solo poi passa al colore grezzo dell'immagine.
+    vec3 massRaw = texture(uImgA, toT(mq, uCoverA)).rgb * mix(1.0, 0.8, u);
+    vec3 massCol = mix(cA, massRaw, smoothstep(0.0, 0.2, u));
     color = mix(base, massCol, m);
   } else if (uKind == 4) {
     color = mix(cA, cB, smoothstep(0.35, 0.75, uTrans));
@@ -280,14 +299,18 @@ void main() {
     vec3 innerB = samp(uImgB, bAnchor + rel, uCoverB);
     float reveal = smoothstep(0.55, 0.88, uTrans);
     vec3 inside = mix(innerA, innerB, reveal);
-    color = mix(outside, inside, lock);
+    vec3 kin = mix(outside, inside, lock);
+    // Continuità agli estremi (log di prova: scarti fino a 60 al confine):
+    // parte da cA e finisce in cB, invece di passare da/verso il campione
+    // grezzo dell'immagine.
+    color = mix(mix(cA, kin, smoothstep(0.0, 0.15, uTrans)), cB, smoothstep(0.72, 1.0, uTrans));
   } else if (uKind == 8) {
     // MORPH: qA/qB sono già stati tirati verso il proprio punto di fuga
     // sopra (mai una rivelazione a foro/iride) — usata da TRAVERSAL,
     // PERSPECTIVE MELT e HYPNOTIC ZOOM (disp. Capo Supremo, 2026-09-22: via
     // ogni effetto "buco della serratura"; 2026-09-24: deve leggersi come
     // trasformazione, non come dissolvenza piatta).
-    color = mix(cA, cB, smoothstep(0.3, 0.8, uTrans));
+    color = mix(cA, cB, smoothstep(0.12, 0.88, uTrans));
   } else if (uKind == 7) {
     // FOCUS INVERSION: il piano di attenzione scivola dal primo piano
     // (nitido, saturo) allo sfondo (che acquista nitidezza e saturazione);
@@ -303,7 +326,7 @@ void main() {
     float bgSat = mix(0.3, 1.0, u);
     vec3 aFgS = mix(vec3(dot(aFg, vec3(0.299, 0.587, 0.114))), aFg, fgSat);
     vec3 aBgS = mix(vec3(dot(aBg, vec3(0.299, 0.587, 0.114))), aBg, bgSat);
-    vec3 base = mix(aBgS, aFgS, fgMask);
+    vec3 base = mix(cA, mix(aBgS, aFgS, fgMask), smoothstep(0.0, 0.15, u));
     float reveal = smoothstep(0.55, 0.88, u);
     color = mix(base, cB, reveal);
   }
@@ -360,6 +383,8 @@ type RasterGpu = {
   img: WebGLTexture
   depth: WebGLTexture
   mass: WebGLTexture
+  flow: WebGLTexture
+  hasFlow: boolean
   cover: [number, number]
   structure: AnimatronixStructure
 }
@@ -462,7 +487,11 @@ export class AnimatronixGl {
     return tex
   }
 
-  setRasters(bitmaps: ImageBitmap[], structures: AnimatronixStructure[]): void {
+  setRasters(
+    bitmaps: ImageBitmap[],
+    structures: AnimatronixStructure[],
+    flows: (Float32Array | null)[] = [],
+  ): void {
     const gl = this.gl
     this.disposeRasters()
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
@@ -482,10 +511,25 @@ export class AnimatronixGl {
         )
         return tex
       }
+      const flowData = flows[i] ?? null
+      const flowSize = flowData ? Math.round(Math.sqrt(flowData.length / 2)) : 1
+      const flow = gl.createTexture() as WebGLTexture
+      gl.bindTexture(gl.TEXTURE_2D, flow)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
+      gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RG16F, flowSize, flowSize, 0, gl.RG, gl.FLOAT,
+        flowData ?? new Float32Array(2),
+      )
       return {
         img,
         depth: grid(structure.depthGrid),
         mass: grid(structure.massGrid),
+        flow,
+        hasFlow: flowData !== null,
         cover: [1, 1] as [number, number],
         structure,
       }
@@ -594,6 +638,8 @@ export class AnimatronixGl {
     const bRaster = b ?? a
     this.bind(3, bRaster.img, 'uImgB', this.world)
     this.bind(4, bRaster.depth, 'uDepB', this.world)
+    this.bind(5, a.flow, 'uFlow', this.world)
+    gl.uniform1f(this.loc(this.world, 'uHasFlow'), a.hasFlow && b ? 1 : 0)
     gl.uniform2f(this.loc(this.world, 'uCoverA'), a.cover[0], a.cover[1])
     gl.uniform2f(this.loc(this.world, 'uCoverB'), bRaster.cover[0], bRaster.cover[1])
     gl.uniform1f(this.loc(this.world, 'uAspect'), this.width / this.height)
@@ -684,7 +730,8 @@ export class AnimatronixGl {
         this.ghosts[i] = null
         continue
       }
-      ghost[i * 3] = g.strength * life * life
+      const fadeIn = Math.min(1, Math.max(0, age / 700))
+      ghost[i * 3] = g.strength * life * life * (fadeIn * fadeIn * (3 - 2 * fadeIn))
       ghost[i * 3 + 1] = 1 + 0.9 * Math.max(0, frame.current.flight - g.flight) + 0.07 * (age / 1000)
       vp[i * 2] = g.vp[0]
       vp[i * 2 + 1] = g.vp[1]
@@ -722,6 +769,7 @@ export class AnimatronixGl {
       gl.deleteTexture(r.img)
       gl.deleteTexture(r.depth)
       gl.deleteTexture(r.mass)
+      gl.deleteTexture(r.flow)
     }
     this.rasters = []
   }

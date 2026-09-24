@@ -95,6 +95,18 @@ export class BrainAiClient {
             ? new BrainAiInfrastructureError(response.error)
             : new Error(response.error),
         )
+        // "operation does not support unaligned accesses" è l'heap WASM di ORT
+        // corrotto: ogni richiesta successiva sullo stesso worker fallisce
+        // (log reali: decine di tentativi di fila, storie scartate una dopo
+        // l'altra). Come per il timeout: worker terminato e ricreato.
+        if (/unaligned accesses/i.test(response.error)) {
+          brainWarn('ai', 'heap WASM corrotto (unaligned accesses); worker terminato e ricreato')
+          worker.terminate()
+          this.worker = null
+          this.rejectAll(new Error(response.error))
+          this.createWorker()
+          return
+        }
       }
       this.dispatchNext()
     })

@@ -1,5 +1,80 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Storia pronta: si parte subito — 2026-09-24
+
+Nel ricircolo in attesa la nuova storia entrava solo al confine del
+fotogramma ricircolato (~14s dopo essere pronta, log 09:54:16 → 09:54:29).
+Ora `advanceTimeline` la avvia subito dal primo fotogramma appena
+`nextProduction` esiste, senza attendere fotogramma né beat, salvo durante
+ANIMATRONIX e Riattivazione (che non si interrompono). Se una Riattivazione
+è dovuta, parte prima di lei come al solito.
+
+## ANIMATRONIX: transizioni senza scatti e morph vero — 2026-09-24
+
+Le transizioni fra raster scattavano e non morphavano. Provato con lo shader
+vero in Electron (`scripts/animatronix-check/`): render di transizioni su
+raster sintetici e scarto medio fra fotogrammi consecutivi (mediana ~0,1).
+Costo GPU basso (0,6-2,6 ms/fotogramma): non era la GPU, erano **discontinuità
+dello shader**, con scarti di 5-60 su un solo fotogramma:
+
+- `fractureWorld`: al superare la soglia di `fracture` la scurita dei piani
+  medio/lontano (x0,94/x0,88) entrava a scatto; e il raster successivo
+  sostituiva lo sfondo scuro nelle fessure a scatto all'inizio della
+  transizione. Ora entrambi in dissolvenza.
+- KINETIC MATCH e FOCUS INVERSION campionavano l'immagine grezza ignorando
+  lo stato accumulato: salto a inizio transizione (e KINETIC MATCH finiva
+  mostrando ancora A fuori dal disco: salto di 61 al confine). Ora partono
+  da cA e finiscono in cB.
+- OCCLUSION PASSAGE: stessa cosa sulla massa. Ora parte da cA.
+- RESIDUAL (tracce): le ombre entravano a piena forza al primo fotogramma.
+  Ora fade-in di 700 ms.
+
+Dopo le correzioni nessun fotogramma isolato fuori scala; i confini fra
+segmenti restano entro ~0,4 (uno a 2,5, time-crush → parallax-collapse).
+
+**Morph vero.** Prima era un richiamo verso il punto di fuga + crossfade.
+Ora un flusso di corrispondenza A→B (block matching 32×32, patch 5×5,
+ricerca ±8, penalità di spostamento, levigato: `computeMorphFlow`,
+calcolato in `prepareAnimatronix` un frame alla volta prima del confine,
+~50 ms a coppia). Nello shader al tempo t un pixel pesca A a q−tF e B a
+q+(1−t)F, poi le fonde: le forme di A scivolano verso quelle di B; a t=0 e
+t=1 il warp è identità (nessuno scatto). Si applica a morph (traversal,
+perspective-melt, hypnotic-zoom) e, al 70%, a fracture/residual/focus.
+Limite: block matching su luma a bassa risoluzione, non un vero
+optical flow; su immagini molto diverse il flusso è approssimativo.
+
+## ANIMATRONIX rifatto sui log reali (prova visiva negativa) — 2026-09-24
+
+Prova dal vivo negativa su rc.7. Letti i log reali delle sessioni
+(`~/Library/Application Support/mevrs-origine-fx/log/`), non ipotesi:
+
+- In 4 finestre ANIMATRONIX su 5 (sessione 23/09) giravano **denoising SD**
+  (fino a 13s di inferenza) DENTRO la fase; in tutte partiva anche la
+  **generazione narrativa LLM** (`ciclo associazioni narrative avviato`,
+  `generazione storia avviata`) — l'`inferenceHold` copriva solo lo
+  scheduler SD, non l'LLM. Stesso lag: `long-frame` fino a 1,2s.
+- I **renderer sotto l'overlay** giravano a pieno ritmo, più il passthrough
+  del Varco (`denoising-filter-psiche: active` durante la fase).
+- Il **moto di coscienza** partiva 0,5s dopo la fine della fase, durante la
+  dissolvenza d'uscita (z-index 4 sopra l'overlay z-index 2): `pauseMs`
+  12634 nel log.
+- Al primo fotogramma `start` creava contesto WebGL2, linkava lo shader
+  fuso a 11 grammatiche e caricava/mipmap-pava 4 texture sul main thread.
+
+Corretto: `generateNext` sospeso durante ANIMATRONIX (come la
+Riattivazione); avvio della fase differito fino a 15s se un'inferenza SD è
+già in corso; renderer sotto fermi e `visibility:hidden` + Varco spento
+mentre l'overlay copre (`isCovering`); `warmUp` del contesto/shader/texture
+in `prepareAnimatronix`, prima del confine; moto di coscienza vietato anche
+durante la dissolvenza d'uscita e per 6s dopo la fase, e un moto già attivo
+si chiude subito. Più animazioni: ogni raster ha ora una seconda animazione
+(`handoff`) che entra oltre il 40% del tratto mentre la principale cala
+(8 animazioni a storia invece di 4; non sulle due tratte annidate).
+
+Limite: nessuna verifica visiva mia (serve GPU, audio e modelli); la
+generazione della storia successiva ora parte dopo la fase, quindi l'attesa
+del ricircolo può allungarsi.
+
 ## ANIMATRONIX: GPU libera durante la fase, transizione morph non dissolvenza — 2026-09-24
 
 Due richieste del Capo Supremo.
