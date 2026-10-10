@@ -38,6 +38,9 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
       () => settingsRef.current.motionProfile,
     ))
     controllerRef.current = controller
+    // Modulo attivo = luci collegate: si connette da solo e, se il dongle
+    // manca, ritenta ogni 2 s finché non compare.
+    void controller.connect(settingsRef.current.dmxInterface)
     return () => {
       controllerRef.current = null
       void controller.destroy()
