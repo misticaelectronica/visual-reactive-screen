@@ -10,10 +10,38 @@ const SAMPLE_HEIGHT = 18
 // di uno stesso colore.
 const SHIFT = 5
 
+// Sotto questa saturazione la tinta non è affidabile: il colore resta
+// com'è (luce bianca) invece di inventarne una.
+const ACHROMATIC_SATURATION = 0.1
+// Effetto scenico (Capo Supremo 2026-10-11): i raster nascono poco saturi e
+// su un PAR RGB un colore pallido diventa bianco. Saturazione minima e
+// luminosità piena; l'intensità resta al master e al ritmo.
+const STAGE_MIN_SATURATION = 0.8
+
 const hex = (value: number) => Math.round(value).toString(16).padStart(2, '0')
 
-// Gruppi di colore ordinati per numero di pixel; ogni gruppo restituisce la
-// media reale dei suoi pixel, non il centro del gruppo.
+function saturation(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b)
+  return max === 0 ? 0 : (max - Math.min(r, g, b)) / max
+}
+
+export function stageColor(r: number, g: number, b: number): string {
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const s = saturation(r, g, b)
+  if (max === 0) return '#000000'
+  if (s < ACHROMATIC_SATURATION) return `#${hex(255)}${hex(255)}${hex(255)}`
+  // HSV: stessa tinta, saturazione alzata, valore pieno.
+  const target = Math.max(s, STAGE_MIN_SATURATION)
+  const channel = (c: number) => 255 * (1 - target * (max - c) / (max - min))
+  return `#${hex(channel(r))}${hex(channel(g))}${hex(channel(b))}`
+}
+
+// Gruppi di colore pesati per estensione × saturazione × luminosità: domina
+// il colore più esteso fra quelli che hanno una tinta visibile, non il
+// grigio né il nero di fondo (nei quasi neri la saturazione è rumore). Se
+// l'immagine è tutta grigia vale la sola estensione. Ogni gruppo usa la
+// media reale dei suoi pixel, poi portata a colore da palco.
 export function dominantColors(pixels: Uint8ClampedArray, count: number): string[] {
   const bins = new Map<number, { n: number; r: number; g: number; b: number }>()
   for (let i = 0; i + 3 < pixels.length; i += 4) {
@@ -24,10 +52,16 @@ export function dominantColors(pixels: Uint8ClampedArray, count: number): string
     bin.n += 1; bin.r += r; bin.g += g; bin.b += b
     bins.set(key, bin)
   }
-  return [...bins.values()]
-    .sort((a, b) => b.n - a.n)
+  const groups = [...bins.values()].map(bin => {
+    const r = bin.r / bin.n, g = bin.g / bin.n, b = bin.b / bin.n
+    const weight = saturation(r, g, b) * (Math.max(r, g, b) / 255)
+    return { n: bin.n, r, g, b, s: saturation(r, g, b), weight }
+  })
+  const chromatic = groups.some(group => group.s >= ACHROMATIC_SATURATION)
+  return groups
+    .sort((a, b) => (chromatic ? b.n * b.weight - a.n * a.weight : b.n - a.n))
     .slice(0, count)
-    .map(bin => `#${hex(bin.r / bin.n)}${hex(bin.g / bin.n)}${hex(bin.b / bin.n)}`)
+    .map(group => stageColor(group.r, group.g, group.b))
 }
 
 export async function rasterDominantColors(raster: Blob, count: number): Promise<string[]> {

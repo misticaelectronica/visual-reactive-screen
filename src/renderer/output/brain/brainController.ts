@@ -128,12 +128,12 @@ const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 const BRAIN_DMX_TRANSITION_MS = 4000
 const BRAIN_DMX_COLOR_COUNT = 4
 
-function sendRasterColorsToLights(raster: Blob): void {
-  if (!window.fxOutput?.sendDmxColors) return
+function sendRasterColorsToLights(raster: Blob, onSent: (colors: string[]) => void): void {
   rasterDominantColors(raster, BRAIN_DMX_COLOR_COUNT)
     .then((colors) => {
       if (colors.length === 0) return
-      window.fxOutput?.sendDmxColors({
+      onSent(colors)
+      window.fxOutput?.sendDmxColors?.({
         producer: 'brain',
         colors,
         transitionMs: BRAIN_DMX_TRANSITION_MS,
@@ -516,8 +516,9 @@ export function createBrainController(
   // visivo minimale: nessun testo, bordo, etichetta o box contenitore, e
   // nessuna reazione all'audio — è un elemento statico, non materia visiva,
   // quindi non apre un secondo ciclo di movimento né costa nel budget RAF.
-  // Mostra la palette NOMINALE della storia: la dissolvenza cromatica DMX
-  // resta indipendente e non viene letta qui.
+  // Disposizione del Capo Supremo 2026-10-11: mostra i colori mandati alle
+  // luci DMX (dominanti del raster, già portati a colore da palco), non più
+  // la palette nominale della storia. Si aggiorna a ogni fotogramma.
   const paletteIndicator = document.createElement('div')
   paletteIndicator.dataset.brainPaletteIndicator = 'true'
   Object.assign(paletteIndicator.style, {
@@ -1445,7 +1446,7 @@ export function createBrainController(
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
     frameStartedAt = performance.now()
-    if (synchronizedRaster) sendRasterColorsToLights(synchronizedRaster)
+    if (synchronizedRaster) sendRasterColorsToLights(synchronizedRaster, renderPaletteIndicator)
     rendererResolutionSequence += 1
     brainLog('render', 'brainRendererSelector.resolve per fotogramma', {
       sequence: rendererResolutionSequence,
@@ -1520,9 +1521,6 @@ export function createBrainController(
   }
 
   const startProduction = (production: BrainProduction, beatDurationMs = 500, beatIndex = 0) => {
-    // L'indicatore si aggiorna al cambio storia, non per fotogramma: la
-    // palette appartiene alla storia intera.
-    renderPaletteIndicator(production.story.palette)
     brainLog('pipeline', 'inizio rendering storia', {
       id: production.story.id,
       title: production.story.title,
