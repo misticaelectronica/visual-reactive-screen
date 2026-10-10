@@ -617,6 +617,7 @@ Se l'audio non parte su macOS:
 ## File Da Conoscere
 
 - [`src/main/main.ts`](src/main/main.ts): lifecycle app, permessi media, switch Chromium
+- [`src/main/dmxSerial.ts`](src/main/dmxSerial.ts) e [`src/renderer/control/dmx/`](src/renderer/control/dmx/): luci DMX, vedi [`docs/luci-dmx.md`](docs/luci-dmx.md)
 - [`src/main/windows.ts`](src/main/windows.ts): Control/Output BrowserWindow, ultimo stato visuale, output fullscreen
 - [`src/main/ipc.ts`](src/main/ipc.ts): bridge IPC main
 - [`src/preload/preload.ts`](src/preload/preload.ts): contextBridge
