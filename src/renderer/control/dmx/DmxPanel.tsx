@@ -1,28 +1,42 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { AppSettings, DmxProfile } from '@shared/types'
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import type { AppSettings, DmxProducerCommand, DmxProfile } from '@shared/types'
 import { chainFixtures, PROFILE_CHANNELS } from './dmxEngine'
 import { createDmxController, type DmxController, type DmxStatus } from './dmxController'
+import { createDmxRhythm, type DmxAudioFrame } from './dmxRhythm'
 
 interface Props {
   settings: AppSettings
   onChange: (patch: Partial<AppSettings>) => void
+  panic: boolean
+  audioFrameRef: MutableRefObject<DmxAudioFrame | null>
 }
 
-const PRODUCER = 'manual'
+const MANUAL = 'manual'
 const DEFAULT_COLORS = ['#A82431', '#D78A45', '#273C72', '#72517E']
+const MORPHING_TRANSITION_MS = 4000
 
-export default function DmxPanel({ settings, onChange }: Props) {
+export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: Props) {
   const profiles = settings.dmxFixtureProfiles
   const fixtures = useMemo(() => chainFixtures(profiles), [profiles])
   const controllerRef = useRef<DmxController | null>(null)
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
+  // Ultimo comando di ogni producer: quando cambia l'owner, le luci vanno
+  // subito ai suoi colori invece di aspettare il prossimo cambio.
+  const lastCommandRef = useRef(new Map<string, DmxProducerCommand>())
   const [status, setStatus] = useState<DmxStatus | null>(null)
   const [colors, setColorsState] = useState<string[]>(DEFAULT_COLORS)
   const [master, setMaster] = useState(1)
   const [fadeSeconds, setFadeSeconds] = useState(8)
+  const [manual, setManual] = useState(false)
+  const owner = manual ? MANUAL : settings.useBrain ? 'brain' : 'morphing'
 
   useEffect(() => {
     const controller = createDmxController(fixtures, setStatus)
-    controller.acquire(PRODUCER)
+    controller.setRhythmSource(createDmxRhythm(
+      () => audioFrameRef.current,
+      () => settingsRef.current.motionProfile,
+    ))
     controllerRef.current = controller
     return () => {
       controllerRef.current = null
@@ -36,14 +50,58 @@ export default function DmxPanel({ settings, onChange }: Props) {
     controllerRef.current?.setFixtures(fixtures)
   }, [fixtures])
 
+  const receive = (command: DmxProducerCommand) => {
+    lastCommandRef.current.set(command.producer, command)
+    controllerRef.current?.setColors(command.producer, command.colors, command.transitionMs)
+  }
+
+  // Un solo owner alla volta: Brain se attivo, altrimenti Morphing; il
+  // manuale vince da Applica fino a «Torna automatico».
+  useEffect(() => {
+    const controller = controllerRef.current
+    if (!controller) return
+    const previous = controller.getStatus().owner
+    if (previous && previous !== owner) controller.release(previous)
+    controller.acquire(owner)
+    controller.setMasterIntensity(owner, master)
+    const last = lastCommandRef.current.get(owner)
+    if (last) controller.setColors(owner, last.colors, last.transitionMs)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owner])
+
+  useEffect(() => {
+    controllerRef.current?.setMasterIntensity(owner, master)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [master])
+
+  // Brain: arriva dalla Output Window via main.
+  useEffect(() => window.fxControl?.onDmxProducer(receive), [])
+
+  // Morphing: i colori del preset attivo, mai quelli dei flash.
+  useEffect(() => {
+    receive({
+      producer: 'morphing',
+      colors: [settings.basePinkColor, settings.hotPinkColor, settings.idleColor],
+      transitionMs: MORPHING_TRANSITION_MS,
+    })
+  }, [settings.basePinkColor, settings.hotPinkColor, settings.idleColor])
+
+  // Emergenza / Spegni spegne anche le luci; Riprendi le riaccende.
+  useEffect(() => {
+    controllerRef.current?.blackout(panic)
+  }, [panic])
+
   const setProfiles = (next: DmxProfile[]) => onChange({ dmxFixtureProfiles: next })
   const colorAt = (i: number) => colors[i % colors.length] ?? '#000000'
 
   const apply = () => {
     const controller = controllerRef.current
     if (!controller) return
-    controller.setMasterIntensity(PRODUCER, master)
-    controller.setColors(PRODUCER, fixtures.map((_, i) => colorAt(i)), fadeSeconds * 1000)
+    const previous = controller.getStatus().owner
+    if (previous && previous !== MANUAL) controller.release(previous)
+    controller.acquire(MANUAL)
+    setManual(true)
+    receive({ producer: MANUAL, colors: fixtures.map((_, i) => colorAt(i)), transitionMs: fadeSeconds * 1000 })
   }
 
   return (
@@ -72,7 +130,8 @@ export default function DmxPanel({ settings, onChange }: Props) {
         >
           {status?.blackout ? 'Riaccendi' : 'Blackout'}
         </button>
-        <span>{status?.connected ? 'Connesso' : 'Non connesso'}</span>
+        <span>{status?.connected ? 'Connesso' : 'Non connesso'} — comanda: {owner}</span>
+        {manual ? <button type="button" onClick={() => setManual(false)}>Torna automatico</button> : null}
       </div>
       {status?.error ? <p className="error">{status.error}</p> : null}
 

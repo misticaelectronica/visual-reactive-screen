@@ -121,6 +121,8 @@ import { BrainVectorizer } from './brainVectorQuality'
 import { BrainVectorSceneCache } from './brainVectorSceneCache'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
+// Dissolvenza delle luci al cambio storia (PIANO-049, esempio del brief DMX §4).
+const BRAIN_DMX_TRANSITION_MS = 8000
 const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
 const PROCESS_DATA_KEYS = [
   'phrases',
@@ -1501,6 +1503,13 @@ export function createBrainController(
     // L'indicatore si aggiorna al cambio storia, non per fotogramma: la
     // palette appartiene alla storia intera.
     renderPaletteIndicator(production.story.palette)
+    // Luci DMX (PIANO-049): stessa palette nominale, stesso evento, una volta
+    // per storia. Brain manda solo colori e durata; nessun dettaglio DMX.
+    window.fxOutput?.sendDmxColors?.({
+      producer: 'brain',
+      colors: [...production.story.palette],
+      transitionMs: BRAIN_DMX_TRANSITION_MS,
+    })
     brainLog('pipeline', 'inizio rendering storia', {
       id: production.story.id,
       title: production.story.title,

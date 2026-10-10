@@ -3,7 +3,7 @@
 > **ID Piano**: `PIANO-049`
 > **Macrotask di Riferimento**: `MACRO-037`
 > **Data Creazione**: 2026-10-11
-> **Stato**: `BOZZA` — piano di alto livello, in attesa delle decisioni aperte (§7)
+> **Stato**: `IN_PROGRESS` — implementato, collaudo dal vivo pendente
 > **Autore/Agente**: Agente AI / Capo Supremo
 > **Branch**: `feature/dmx-color-controller`
 > **Brief di origine**: `team/briefs/brief-dmx-color-controller-2026-10-10.md`, §14-16
@@ -198,3 +198,30 @@ Brain (Output Window)                Morphing (Control Window)
   controller.
 - **2026-10-11**: aggiunto il ritmo su disposizione del Capo Supremo («le
   luci devono andare a tempo di musica»): fuori dal §19 del brief originale.
+- **2026-10-11**: il Capo Supremo approva le proposte del §7 («lei proceda»).
+  Implementato:
+  - `fx:dmx-producer` (Output → main) e `fx:dmx-producer-push` (main →
+    Control); `DmxProducerCommand = { producer, colors, transitionMs }`;
+  - Brain: invio della palette in `startProduction`, 8 s; nessun import
+    da `dmx/`;
+  - Morphing: `basePinkColor`, `hotPinkColor`, `idleColor` al cambio
+    preset, 4 s; i colori dei flash non partono mai;
+  - owner automatico da `useBrain`, manuale da Applica fino a «Torna
+    automatico»; all'ingresso di un owner le luci vanno subito al suo
+    ultimo comando;
+  - ritmo: seconda istanza di `OutputRhythmClock` nel modulo DMX,
+    alimentata dalle bande del loop Control; `engine.rhythm` moltiplica il
+    master; pavimento techno 0,6, dub 0,75, ambient 0,9; salita smussata
+    60 ms; in silenzio livello costante al pavimento;
+  - `Emergenza / Spegni` → blackout DMX, `Riprendi` → riaccensione.
+  Typecheck, lint, 790 test verdi (3 nuovi sul ritmo).
+
+### Task separato — palette Brain quasi sempre uguale (fuori da questo piano)
+
+Fatto misurato il 2026-10-11 sui log delle ultime sessioni: in 295 storie su
+333 (89%) la palette è il ripiego `DEFAULT_DREAM_PALETTE`
+(`coscienzaOnirica.ts`): 149 identiche, 146 con il 3° e 4° colore sostituiti
+dagli accenti della Coscienza. `paletteFromUnknown` accetta solo 5 hex
+distinti, altrimenti ripiega. Causa a monte (cosa risponde davvero il
+modello) **non ancora verificata**. Da trattare come intervento su Brain,
+dopo questo piano: le luci leggeranno la palette corretta senza modifiche.

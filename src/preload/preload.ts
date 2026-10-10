@@ -5,6 +5,7 @@ import {
   type ControlApi,
   type DisplayInfo,
   type DmxInterface,
+  type DmxProducerCommand,
   type OutputApi,
   type PublicSessionStatus,
   type VisualStatePayload,
@@ -16,6 +17,12 @@ const controlApi: ControlApi = {
   dmxSend: (universe: Uint8Array) =>
     ipcRenderer.invoke(IPC_CHANNELS.dmxSend, universe) as Promise<{ ok: boolean; error?: string }>,
   dmxClose: () => ipcRenderer.invoke(IPC_CHANNELS.dmxClose) as Promise<void>,
+  onDmxProducer: (cb: (command: DmxProducerCommand) => void) => {
+    const channel = IPC_CHANNELS.dmxProducerPush
+    const handler = (_event: unknown, command: DmxProducerCommand) => cb(command)
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
   getDisplays: () => ipcRenderer.invoke(IPC_CHANNELS.getDisplays) as Promise<DisplayInfo[]>,
   openOutput: (displayId: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.openOutput, displayId) as Promise<{
@@ -52,6 +59,9 @@ const controlApi: ControlApi = {
 }
 
 const outputApi: OutputApi = {
+  sendDmxColors: (command: DmxProducerCommand) => {
+    ipcRenderer.send(IPC_CHANNELS.dmxProducer, command)
+  },
   onVisualState: (cb: (state: VisualStatePayload) => void) => {
     const handler = (_event: unknown, state: VisualStatePayload) => {
       cb(state)

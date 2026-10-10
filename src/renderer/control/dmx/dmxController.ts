@@ -27,6 +27,7 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
   let opening = false
   let wasFading = false
   let lastAttempt = 0
+  let rhythmSource: ((now: number) => number) | null = null
 
   const emit = () => onStatus({ ...status })
 
@@ -63,6 +64,7 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
     }
     sending = true
     try {
+      engine.rhythm = rhythmSource ? rhythmSource(now) : 1
       const result = await api.dmxSend(buildUniverse(engine, now, status.blackout))
       if (!result.ok) { fail(result.error ?? 'scrittura fallita'); return }
       const fading = isFading(engine, now)
@@ -124,6 +126,10 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
       status.blackout = on
       log(on ? 'blackout' : 'blackout released')
       emit()
+    },
+    // Il ritmo modula l'intensità di chiunque possieda il controller.
+    setRhythmSource(source: ((now: number) => number) | null) {
+      rhythmSource = source
     },
     getStatus: (): DmxStatus => ({ ...status }),
     async destroy() {

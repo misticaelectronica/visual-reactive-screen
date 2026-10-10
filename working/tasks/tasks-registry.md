@@ -1,5 +1,14 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## DMX — Brain e Morphing producer, luci a tempo — PIANO-049 — 2026-10-11
+
+- [x] **`TASK-049-01`** `DONE`: canale producer, Brain (palette per storia),
+  Morphing (colori preset), owner automatico/manuale, ritmo sull'intensità,
+  Emergenza → blackout. 790 test verdi.
+- [ ] **`TASK-049-02`** `TODO`: collaudo dal vivo su dub, techno, ambient.
+- [ ] **`TASK-049-03`** `TODO`: palette Brain nel 89% dei casi è il ripiego
+  `DEFAULT_DREAM_PALETTE` — diagnosi della risposta del modello e correzione.
+
 ## DMX Color Controller — PIANO-048 — 2026-10-10
 
 - [x] **`TASK-048-01`** `DONE`: brief archiviato, branch aperto, piano creato,

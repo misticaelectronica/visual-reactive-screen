@@ -82,6 +82,13 @@ export type DmxInterface = 'usb-pro' | 'open-dmx'
 // `7ch`: PAR xkl-A4 (master, R, G, B, vuoto, funzione, velocità). `3ch`: RGB.
 export type DmxProfile = '7ch' | '3ch'
 
+/** Comando cromatico di alto livello: nessun dettaglio DMX. */
+export interface DmxProducerCommand {
+  producer: string
+  colors: string[]
+  transitionMs: number
+}
+
 export interface AppSettings {
   fftSize: 256 | 512 | 1024 | 2048 | 4096 | 8192
   smoothingTimeConstant: number
@@ -250,6 +257,10 @@ export const IPC_CHANNELS = {
   dmxOpen: 'fx:dmx-open',
   dmxSend: 'fx:dmx-send',
   dmxClose: 'fx:dmx-close',
+  /** Output → main: comando cromatico di un producer (Brain). */
+  dmxProducer: 'fx:dmx-producer',
+  /** Main → control: inoltro al controller DMX. */
+  dmxProducerPush: 'fx:dmx-producer-push',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -489,6 +500,7 @@ export interface ControlApi {
   dmxOpen: (kind: DmxInterface) => Promise<{ ok: boolean; error?: string }>
   dmxSend: (universe: Uint8Array) => Promise<{ ok: boolean; error?: string }>
   dmxClose: () => Promise<void>
+  onDmxProducer: (cb: (command: DmxProducerCommand) => void) => () => void
   getDisplays: () => Promise<DisplayInfo[]>
   openOutput: (displayId: number) => Promise<{ ok: boolean; error?: string }>
   closeOutput: () => Promise<void>
@@ -505,6 +517,7 @@ export interface ControlApi {
 }
 
 export interface OutputApi {
+  sendDmxColors: (command: DmxProducerCommand) => void
   onVisualState: (cb: (state: VisualStatePayload) => void) => () => void
   sendVisualStateAck: (sequenceNumber?: number) => void
   notifyVisualStateReady: () => void

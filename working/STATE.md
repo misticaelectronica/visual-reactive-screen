@@ -19,7 +19,11 @@ il driver FTDI di macOS, si emula con un byte 0 a 57600 baud.
 
 **Prossimi passi**: PAR in cascata (indirizzi d008, d015, d022); poi
 integrazione Brain (palette nominale della storia) e Morphing come producer.
-Piano di alto livello: PIANO-049 (BOZZA), 5 decisioni aperte al §7.
+**PIANO-049 IMPLEMENTATO**: Brain manda la palette della storia (8 s),
+Morphing i colori del preset (4 s), la musica muove l'intensità (pavimento
+per `motionProfile`), Emergenza spegne anche le luci. Collaudo dal vivo
+pendente. Da fare dopo: palette Brain nel 89% delle storie è il ripiego
+fisso (TASK-049-03).
 
 ## ANIMATRONIX: il moto torna dentro la figura — 2026-10-09
 

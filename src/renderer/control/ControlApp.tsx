@@ -10,6 +10,7 @@ import {
 } from '@shared/morphingRotation'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
+import type { DmxAudioFrame } from './dmx/dmxRhythm'
 
 // Modulo luci DMX: il codice viene caricato solo se `dmxEnabled` è attivo.
 const DmxPanel = lazy(() => import('./dmx/DmxPanel'))
@@ -87,6 +88,8 @@ export function ControlApp() {
   const api = window.fxControl
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
   const [panic, setPanic] = useState(false)
+  // Bande dell'ultimo frame audio per il ritmo delle luci DMX.
+  const dmxAudioFrameRef = useRef<DmxAudioFrame | null>(null)
   const [outputOpen, setOutputOpen] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
@@ -171,6 +174,12 @@ export function ControlApp() {
         sampleRate: audioRef.current.sampleRate,
       })
       visStateRef.current = next
+      dmxAudioFrameRef.current = {
+        bands: bandEnergies,
+        movingAverages,
+        timestampMs: performance.timeOrigin + t,
+        sequence: telemetrySequenceRef.current,
+      }
 
       api?.sendVisualState({
         backgroundColor: output.backgroundColor,
@@ -467,7 +476,7 @@ export function ControlApp() {
       </label>
       {settings.dmxEnabled ? (
         <Suspense fallback={null}>
-          <DmxPanel settings={settings} onChange={patchSettings} />
+          <DmxPanel settings={settings} onChange={patchSettings} panic={panic} audioFrameRef={dmxAudioFrameRef} />
         </Suspense>
       ) : null}
 

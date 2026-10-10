@@ -19,6 +19,8 @@ export interface DmxColorEngine {
   start: number
   duration: number
   master: number
+  /** Intensità dal ritmo, 0..1: moltiplica il master, non tocca il colore. */
+  rhythm: number
 }
 
 const BLACK: Rgb = [0, 0, 0]
@@ -36,6 +38,7 @@ export function createEngine(fixtures: DmxFixture[]): DmxColorEngine {
     start: 0,
     duration: 0,
     master: 1,
+    rhythm: 1,
   }
 }
 
@@ -72,7 +75,7 @@ export function setFixtures(engine: DmxColorEngine, fixtures: DmxFixture[], now:
 export function buildUniverse(engine: DmxColorEngine, now: number, blackout: boolean): Uint8Array {
   const universe = new Uint8Array(512)
   const colors = currentColors(engine, now)
-  const master = blackout ? 0 : Math.min(1, Math.max(0, engine.master))
+  const master = blackout ? 0 : Math.min(1, Math.max(0, engine.master * engine.rhythm))
   engine.fixtures.forEach((fixture, i) => {
     const base = fixture.address - 1
     const [r, g, b] = colors[i]
