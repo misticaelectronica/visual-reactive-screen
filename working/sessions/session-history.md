@@ -7,8 +7,12 @@
   «High Level DMX Color Controller», archiviato integralmente in
   `team/briefs/`.
 - Audit preventivo dei deprecati: DEP-001 `NON COINVOLTO`.
-- Creato PIANO-048 (MACRO-037) in BOZZA. Stato finale: nessun codice,
-  in attesa di dongle, profilo PAR e scelta del trasporto seriale.
+- Creato PIANO-048 (MACRO-037).
+- Implementato il modulo DMX attivabile da `dmxEnabled`; collaudo con PAR
+  xkl-A4 e DSD TECH SH-RS09B. Tre cause trovate in ordine: dongle non
+  enumerato (cavo/connettore), PAR non impostato su `d001`, break `TIOCSBRK`
+  che blocca il driver FTDI di macOS. Trasporto spostato nel main con
+  `serialport` 13 e break emulato a 57600 baud. Funziona dall'app.
 
 ## SESSION-2026-10-08-DELIQUESCENCE-E-FINESTRA-FRASI
 

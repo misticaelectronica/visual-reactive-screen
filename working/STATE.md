@@ -12,7 +12,13 @@ PAR xkl-A4 7ch e RGB 3ch, cascata a indirizzi consecutivi, dissolvenza
 lineare senza salti, master separato, blackout), attivabile da
 `dmxEnabled` e caricato solo se attivo. Typecheck e 787 test verdi.
 
-**Prossimi passi**: `pnpm build` e collaudo dal vivo con PAR e dongle.
+**COLLAUDATO 2026-10-11** con PAR xkl-A4 (`d001`) e DSD TECH SH-RS09B
+(FTDI FT232R): funziona dall'app. Trasporto nel main
+(`src/main/dmxSerial.ts`, `serialport` 13): il break via `TIOCSBRK` blocca
+il driver FTDI di macOS, si emula con un byte 0 a 57600 baud.
+
+**Prossimi passi**: PAR in cascata (indirizzi d008, d015, d022); poi
+integrazione Brain (palette nominale della storia) e Morphing come producer.
 
 ## ANIMATRONIX: il moto torna dentro la figura — 2026-10-09
 

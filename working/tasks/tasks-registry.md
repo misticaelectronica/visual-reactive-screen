@@ -10,8 +10,10 @@
 - [x] **`TASK-048-04..12`** `DONE`: motore (`dmxEngine.ts` + 4 test),
   controller (`dmxController.ts`), pannello (`DmxPanel.tsx`), impostazioni
   `dmxEnabled`/`dmxInterface`/`dmxFixtureProfiles`, permessi serial nel main.
-- [ ] **`TASK-048-13`** `TODO`: `pnpm build`.
-- [ ] **`TASK-048-14`** `TODO`: collaudo con il PAR xkl-A4 e il dongle reale.
+- [x] **`TASK-048-13`** `DONE`: trasporto spostato nel main con `serialport`
+  13, break emulato a 57600 baud (il `TIOCSBRK` blocca il driver FTDI macOS).
+- [x] **`TASK-048-14`** `DONE`: collaudo dall'app con PAR xkl-A4 (`d001`) e
+  DSD TECH SH-RS09B: funziona.
 
 ## DELIQUESCENCE fuori dalla pressurizzazione, finestra frasi — 2026-10-08
 

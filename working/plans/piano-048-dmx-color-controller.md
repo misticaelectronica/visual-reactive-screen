@@ -3,7 +3,7 @@
 > **ID Piano**: `PIANO-048`
 > **Macrotask di Riferimento**: `MACRO-037`
 > **Data Creazione**: 2026-10-10
-> **Stato**: `IN_PROGRESS` — implementato, collaudo hardware pendente
+> **Stato**: `IN_PROGRESS` — funzionante dal vivo su 1 PAR; integrazione Brain/Morphing da pianificare
 > **Autore/Agente**: Agente AI / Capo Supremo
 > **Branch**: `feature/dmx-color-controller` (aperto da `feature/animatronix-v1-grammatiche` @ `1.0.0-rc.9`)
 > **Brief di origine**: `team/briefs/brief-dmx-color-controller-2026-10-10.md` (Vicario → Capo Supremo degli Ingegneri)
@@ -160,3 +160,16 @@ Proposta di struttura in `src/main/dmx/`, da confermare:
     `src/renderer/control/dmx/` è caricato con `lazy()` solo se attivo.
   - Ownership minima `acquire`/`release`; blackout senza ownership.
   Typecheck verde, suite 787 test verdi. `pnpm build` e collaudo pendenti.
+- **2026-10-11 (notte)**: collaudo hardware con PAR xkl-A4 e DSD TECH
+  SH-RS09B (FTDI FT232R, Open DMX). Fatti verificati:
+  - il PAR ignora il DMX finché non è impostato su `d001` dal suo menu;
+  - il break via `TIOCSBRK` (quello di Web Serial `setSignals`) con il
+    driver FTDI integrato di macOS lascia la linea in break: il buffer non
+    si svuota, il driver si blocca e serve scollegare il dongle;
+  - il break emulato con un byte 0 a 57600 baud, poi dati a 250000, funziona
+    (~30 frame/s);
+  - Web Serial non cambia baud a porta aperta: trasporto spostato nel main
+    (`src/main/dmxSerial.ts`, `serialport` 13 — la 12 passa -1 a
+    `IOSSIOSPEED` in `update()`), il controller resta nella Control Window
+    e manda l'universo via IPC `fx:dmx-*`. Permessi Web Serial rimossi.
+  - Collaudo dall'app: **funziona** (rilievo del Capo Supremo).
