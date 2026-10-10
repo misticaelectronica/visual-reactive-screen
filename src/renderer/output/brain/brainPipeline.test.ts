@@ -10,6 +10,7 @@ import {
   compactOutgoingBridge,
   CoscienzaOnirica,
   containsExplicitAdultContent,
+  inferInvariant,
   isRenderableNarrative,
   preserveExplicitSourceContent,
   preservesExplicitAdultContent,
@@ -1041,15 +1042,20 @@ describe('Psichedel', () => {
     expect(new Set(prompts).size).toBe(4)
     const paletteLines = prompts.map((prompt) => prompt.split('\n').at(-1))
     prompts.forEach((prompt, index) => {
-      expect(prompt.startsWith(story.frames[index].imagePrompt!)).toBe(true)
+      expect(prompt.startsWith(`CURRENT MOMENT ${index + 1}/4 — `)).toBe(true)
+      expect(prompt).toContain(`: ${story.frames[index].imagePrompt!}`)
       expect(prompt).toContain('COLOR DIRECTION:')
       expect(prompt).toContain('Shadows keep density and readable detail.')
-      expect(prompt).toContain(`Invariant: ${story.invariant}`)
+      expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
     })
     expect(new Set(paletteLines).size).toBe(1)
   })
 
-  it('non aggiunge stimolo associato, residuo precedente o argomento generale al prompt raster', () => {
+  it('non aggiunge stimolo associato o argomento generale al prompt raster', () => {
+    // Il residuo del fotogramma precedente è invece RIENTRATO come
+    // `VISUAL CONTEXT` (disp. Capo Supremo 2026-10-08): dei due livelli
+    // rimossi da PIANO-046 solo quello torna, `Associated stimulus` resta
+    // fuori per disposizione esplicita.
     const story = defaultStory()
     const prompt = buildPsychedelImagePrompt(story, story.frames[1])
     expect(prompt).toContain(story.frames[1].description)
@@ -1088,7 +1094,7 @@ describe('Psichedel', () => {
     const prompt = buildPsychedelImagePrompt(story, frame)
 
     expect(prompt).toContain(frame.imagePrompt)
-    expect(prompt).toContain(`Invariant: ${story.invariant}`)
+    expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
   })
 
   it('non cancella né introduce architettura: conserva esattamente ciò che riceve', () => {
@@ -1100,7 +1106,7 @@ describe('Psichedel', () => {
     }
     const prompt = buildPsychedelImagePrompt(story, architecturalFrame)
     expect(prompt).toContain(architecturalFrame.description)
-    expect(prompt).toContain(`Invariant: ${story.invariant}`)
+    expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
   })
 
   it('non traduce biblioteca e libri in un edificio letterale', () => {
@@ -1680,6 +1686,9 @@ describe('budget geometrico Brain', () => {
 
 describe('Brain narrative continuity', () => {
   it('sceglie casualmente quattro oppure cinque frasi per ogni nuova storia', () => {
+    // Provato a 1-2 e ritirato il 2026-10-08: su una base a righe brevi la
+    // finestra scendeva a 21-42 parole contro una sinossi di 55-80 parole
+    // richiesta (vedi brainConfig.ts:phraseSampleMinCount).
     expect(selectBrainPhraseCount(() => 0)).toBe(4)
     expect(selectBrainPhraseCount(() => 0.999)).toBe(5)
   })
@@ -1694,5 +1703,143 @@ describe('Brain narrative continuity', () => {
     expect(sampleContinuityPhrase(previous, () => 0.999)).toBe(
       'All’alba il bosco restituisce il segnale.',
     )
+  })
+})
+
+describe("invariante: nessuna invenzione quando non lo si trova", () => {
+  it('restituisce il sostantivo concreto quando è presente nella sinossi', () => {
+    expect(inferInvariant([], 'Mara stands beside a leafless tree on a deserted shore.')).toBe('tree')
+  })
+
+  it('non restituisce più un verbo al posto di un sostantivo', () => {
+    // La via precedente prendeva la prima parola lunga almeno 5 lettere:
+    // su questa sinossi restituiva `stands`, un verbo, riattaccato come
+    // `Invariant:` a tutti e quattro i prompt raster.
+    const invariant = inferInvariant([], 'Mara stands quietly, breathing, and then becomes calm.')
+    expect(invariant).toBe('')
+    expect(invariant).not.toBe('stands')
+  })
+
+  it('non ripiega più su una stringa italiana dentro un prompt inglese', () => {
+    expect(inferInvariant([], 'A B C D')).toBe('')
+  })
+
+  it('con invariante vuoto il prompt raster non contiene la riga Invariant', () => {
+    const story = {
+      id: 'story-senza-invariante',
+      title: 'Prova',
+      synopsis: 'Sinossi di prova',
+      bridge: null,
+      continuityPhrase: null,
+      palette: ['#000000', '#111111', '#222222', '#333333', '#444444'],
+      sourcePhrases: [],
+      invariant: '',
+      frames: [],
+    } as unknown as DreamStory
+    const frame = {
+      id: 'frame-1',
+      title: 'Apertura',
+      description: 'Descrizione di prova',
+      visualIntent: 'intento',
+      energy: 0.5,
+      durationMs: 14_000,
+      imagePrompt: 'A woman walks along a flooded corridor carrying a lamp.',
+    } as unknown as Parameters<typeof buildPsychedelImagePrompt>[1]
+    const prompt = buildPsychedelImagePrompt(story, frame)
+    expect(prompt).toContain('A woman walks along a flooded corridor')
+    expect(prompt).not.toContain('INVARIANT:')
+  })
+})
+
+describe('VISUAL CONTEXT — memoria visiva locale del fotogramma precedente', () => {
+  function storyWithFourMoments(): DreamStory {
+    const story = defaultStory()
+    story.frames.forEach((frame, index) => {
+      frame.imagePrompt = `Visual moment ${index + 1}: the silver root changes shape.`
+    })
+    return story
+  }
+
+  it('il primo fotogramma non riceve alcun contesto, e non se ne inventa uno', () => {
+    const story = storyWithFourMoments()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[0])
+    expect(prompt).toContain(`CURRENT MOMENT 1/4 — THRESHOLD: ${story.frames[0].imagePrompt}`)
+    expect(prompt).not.toContain('VISUAL CONTEXT:')
+  })
+
+  it('i fotogrammi intermedi ricevono la frase del fotogramma immediatamente precedente', () => {
+    const story = storyWithFourMoments()
+    for (const index of [1, 2]) {
+      const prompt = buildPsychedelImagePrompt(story, story.frames[index])
+      expect(prompt).toContain(`${index + 1}/4 — `)
+      expect(prompt).toContain(`: ${story.frames[index].imagePrompt}`)
+      expect(prompt).toContain(`VISUAL CONTEXT: ${story.frames[index - 1].imagePrompt}`)
+    }
+  })
+
+  it('il secondo fotogramma non riceve altro che la soglia', () => {
+    const story = storyWithFourMoments()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[1])
+    expect(prompt).toContain(`VISUAL CONTEXT: ${story.frames[0].imagePrompt}`)
+    expect(prompt).not.toContain(story.frames[2].imagePrompt!)
+  })
+
+  it('l’eco prosegue dal secondo in avanti: riceve il secondo e il terzo, non la soglia', () => {
+    // Precisazione del Capo Supremo 2026-10-08: l'ultimo fotogramma non torna
+    // al momento di soglia, prosegue la trasformazione degli intermedi.
+    const story = storyWithFourMoments()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[3])
+    expect(prompt).toContain(
+      `VISUAL CONTEXT: ${story.frames[1].imagePrompt} ${story.frames[2].imagePrompt}`,
+    )
+    expect(prompt).not.toContain(story.frames[0].imagePrompt!)
+  })
+
+  it('l’ordine dei blocchi resta momento, contesto, invariante, colore', () => {
+    const story = storyWithFourMoments()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[2])
+    const order = ['CURRENT MOMENT', 'VISUAL CONTEXT:', 'INVARIANT:', 'COLOR DIRECTION:']
+      .map((label) => prompt.indexOf(label))
+    expect(order.every((position) => position >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+  })
+
+  it('un fotogramma estraneo alla storia non riceve contesto', () => {
+    const story = storyWithFourMoments()
+    const orphan = { ...story.frames[2], id: 'frame-non-in-storia' }
+    const prompt = buildPsychedelImagePrompt(story, orphan)
+    expect(prompt).not.toContain('VISUAL CONTEXT:')
+  })
+})
+
+describe('fase onirica dichiarata in ogni prompt raster', () => {
+  it('i quattro fotogrammi portano soglia, metamorfosi, condensazione, eco in inglese', () => {
+    const story = defaultStory()
+    story.frames.forEach((frame, index) => {
+      frame.imagePrompt = `Visual moment ${index + 1}: the silver root changes shape.`
+    })
+    const labels = story.frames.map(
+      (frame) => buildPsychedelImagePrompt(story, frame).split('\n')[0],
+    )
+    expect(labels[0]).toContain('CURRENT MOMENT 1/4 — THRESHOLD:')
+    expect(labels[1]).toContain('CURRENT MOMENT 2/4 — METAMORPHOSIS:')
+    expect(labels[2]).toContain('CURRENT MOMENT 3/4 — CONDENSATION:')
+    expect(labels[3]).toContain('CURRENT MOMENT 4/4 — ECHO:')
+  })
+
+  it('non porta i nomi italiani delle fasi dentro un prompt inglese', () => {
+    const story = defaultStory()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[1])
+    for (const italiano of ['soglia', 'metamorfosi', 'condensazione', 'eco']) {
+      expect(prompt.toLocaleLowerCase()).not.toContain(`— ${italiano}`)
+    }
+  })
+
+  it('il brief di fase resta istruzione del Visual Plan e non entra nel raster', () => {
+    const story = defaultStory()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[3])
+    // Lingua meta che Stable Diffusion proverebbe a disegnare.
+    expect(prompt).not.toContain('Return something recognizable')
+    expect(prompt).not.toContain('imaginative field')
   })
 })

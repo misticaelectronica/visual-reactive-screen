@@ -5,6 +5,12 @@
     "meanLowEnd": 0.7894780939157539,
     "meanGridDensity": 0.11705226643707355,
     "meanRhythmConstraint": 0.06982944891079675,
+    "meanRhythmAnchor": 0.07593965757381345,
+    "meanGroundedLowEnd": 0.059860161092190604,
+    "meanSustainedEnergy": 0.5332766831284087,
+    "meanSpectralOccupancy": 0.8314431340155581,
+    "meanTemporalOccupancy": 0.9517980974663935,
+    "meanPerceptualPressure": 0.51994071293704,
     "meanPersistence": 0.8816500077154213,
     "meanChange": 0.20145664196334842,
     "meanBeatConfirmation": 0.09932437837253456,
@@ -560,11 +566,376 @@
     }
   },
   {
+    "file": "docs/campioni/decompresisone-2.mp3",
+    "meanPhysicalPulse": 0.017478914016517823,
+    "meanLowEnd": 0.8726128635957298,
+    "meanGridDensity": 0.04494889653520122,
+    "meanRhythmConstraint": 0.027042207348801573,
+    "meanRhythmAnchor": 0.028466907023991253,
+    "meanGroundedLowEnd": 0.02471769735243973,
+    "meanSustainedEnergy": 0.7495014848504986,
+    "meanSpectralOccupancy": 1,
+    "meanTemporalOccupancy": 0.7145300138816623,
+    "meanPerceptualPressure": 0.562119354305466,
+    "meanPersistence": 0.9355013922251725,
+    "meanChange": 0.11293755859065792,
+    "meanBeatConfirmation": 0.10417028292895095,
+    "metricGridAlignment": 0.5105439589014231,
+    "gridPeriodicity": {
+      "correlation": 0.13178912355251335,
+      "periodMs": 1160.9977324263039
+    },
+    "lowPeriodicity": {
+      "correlation": 0.09013259163624604,
+      "periodMs": 928.7981859410431
+    },
+    "rawLowPeriodicity": {
+      "correlation": 0.22091405132506234,
+      "periodMs": 928.7981859410431
+    },
+    "rawBandPeriodicity": {
+      "correlation": 0.12571746325528158,
+      "periodMs": 743.0385487528345
+    },
+    "rollingRawBandPeriodicity": {
+      "meanCorrelation": 0.47674088208408527,
+      "correlationStdDev": 0.0798023410451632,
+      "periodConsistency": 0.78168223182996,
+      "windows": [
+        {
+          "startSeconds": 0,
+          "correlation": 0.28301005915140154,
+          "periodMs": 743.0385487528345
+        },
+        {
+          "startSeconds": 1.9969160997732427,
+          "correlation": 0.5247141858169838,
+          "periodMs": 952.0181405895692
+        },
+        {
+          "startSeconds": 3.9938321995464854,
+          "correlation": 0.4450715417206237,
+          "periodMs": 952.0181405895692
+        },
+        {
+          "startSeconds": 5.990748299319728,
+          "correlation": 0.4113906106796959,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 7.987664399092971,
+          "correlation": 0.4585095744626974,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 9.984580498866213,
+          "correlation": 0.5307383711422202,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 11.981496598639456,
+          "correlation": 0.5616598125717862,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 13.978412698412697,
+          "correlation": 0.5946963957273103,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 15.975328798185942,
+          "correlation": 0.5765749118165083,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 17.972244897959182,
+          "correlation": 0.46960623731657813,
+          "periodMs": 1160.9977324263039
+        },
+        {
+          "startSeconds": 19.969160997732427,
+          "correlation": 0.4385287236485841,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 21.966077097505668,
+          "correlation": 0.4347672784763891,
+          "periodMs": 928.7981859410431
+        },
+        {
+          "startSeconds": 23.962993197278912,
+          "correlation": 0.4683637645623282,
+          "periodMs": 928.7981859410431
+        }
+      ]
+    },
+    "beats": 7,
+    "referencePhaseSeconds": {
+      "awaiting-confirmation": 0.5108390022675737,
+      "stable": 32.25251700680272
+    },
+    "experimentalTemporal": {
+      "meanRecurrence": 0.3217315552703772,
+      "meanCyclePersistence": 0.9132971004159023,
+      "meanPhysicalConfirmation": 0.3856697491127343,
+      "meanAnchor": 0.2757896561981927,
+      "meanConstraint": 0.17627657740792918,
+      "meanSettlement": 0.789807838530092,
+      "oscillatingShare": 0,
+      "directionSeconds": {
+        "stable": 21.71065759637188,
+        "rising": 3.065034013605442
+      },
+      "timeline": [
+        {
+          "second": 7,
+          "recurrence": 0.23666834712791748,
+          "cyclePersistence": 0.9105015008949943,
+          "anchor": 0.047665530281058584,
+          "constraint": 0.03795607059084778,
+          "settlement": 0.6271095980434158,
+          "direction": "stable"
+        },
+        {
+          "second": 8,
+          "recurrence": 0.23666834712791748,
+          "cyclePersistence": 0.9105015008949943,
+          "anchor": 0.047665530281058584,
+          "constraint": 0.03795607059084778,
+          "settlement": 0.6271095980434158,
+          "direction": "stable"
+        },
+        {
+          "second": 9,
+          "recurrence": 0.35419406003217846,
+          "cyclePersistence": 0.9140035904441873,
+          "anchor": 0.15638949317683704,
+          "constraint": 0.09934816854362902,
+          "settlement": 0.7653578838852922,
+          "direction": "rising"
+        },
+        {
+          "second": 10,
+          "recurrence": 0.32095491597692727,
+          "cyclePersistence": 0.9133724325581932,
+          "anchor": 0.1866411137550391,
+          "constraint": 0.11780062638872744,
+          "settlement": 0.7849622967716224,
+          "direction": "rising"
+        },
+        {
+          "second": 11,
+          "recurrence": 0.2915114351770535,
+          "cyclePersistence": 0.9054772055675298,
+          "anchor": 0.22080862779180013,
+          "constraint": 0.1436353206330583,
+          "settlement": 0.7669635695086471,
+          "direction": "rising"
+        },
+        {
+          "second": 12,
+          "recurrence": 0.3172577070228653,
+          "cyclePersistence": 0.9025415838632165,
+          "anchor": 0.23545820743513773,
+          "constraint": 0.15407136275767963,
+          "settlement": 0.758535523539696,
+          "direction": "stable"
+        },
+        {
+          "second": 13,
+          "recurrence": 0.2921703644636754,
+          "cyclePersistence": 0.8880351869270928,
+          "anchor": 0.24289060609009003,
+          "constraint": 0.15920804869781638,
+          "settlement": 0.7466660601705164,
+          "direction": "stable"
+        },
+        {
+          "second": 14,
+          "recurrence": 0.2847111552922733,
+          "cyclePersistence": 0.8936561311591478,
+          "anchor": 0.24936132166766445,
+          "constraint": 0.16269215097571726,
+          "settlement": 0.7517291880551173,
+          "direction": "stable"
+        },
+        {
+          "second": 15,
+          "recurrence": 0.28117812558301536,
+          "cyclePersistence": 0.9147396044746697,
+          "anchor": 0.2507557712109125,
+          "constraint": 0.16552803655681664,
+          "settlement": 0.7589912371925284,
+          "direction": "rising"
+        },
+        {
+          "second": 16,
+          "recurrence": 0.27341815673845404,
+          "cyclePersistence": 0.9123380719238817,
+          "anchor": 0.25034405379054026,
+          "constraint": 0.1639513050875086,
+          "settlement": 0.7707697314722236,
+          "direction": "stable"
+        },
+        {
+          "second": 17,
+          "recurrence": 0.2481617285456501,
+          "cyclePersistence": 0.9146510007767091,
+          "anchor": 0.24732231779504,
+          "constraint": 0.16470437645626226,
+          "settlement": 0.7857748296650382,
+          "direction": "stable"
+        },
+        {
+          "second": 18,
+          "recurrence": 0.26608454324871444,
+          "cyclePersistence": 0.9126264705418112,
+          "anchor": 0.24580339692730396,
+          "constraint": 0.1646155144784788,
+          "settlement": 0.81447159290762,
+          "direction": "stable"
+        },
+        {
+          "second": 19,
+          "recurrence": 0.3520887753689171,
+          "cyclePersistence": 0.9120601488673344,
+          "anchor": 0.272177152582701,
+          "constraint": 0.18092232977716663,
+          "settlement": 0.8225463519270563,
+          "direction": "stable"
+        },
+        {
+          "second": 20,
+          "recurrence": 0.37819190104657996,
+          "cyclePersistence": 0.9182448239989501,
+          "anchor": 0.2979347013538594,
+          "constraint": 0.19526460374363985,
+          "settlement": 0.8210362909279801,
+          "direction": "stable"
+        },
+        {
+          "second": 21,
+          "recurrence": 0.37463950028058746,
+          "cyclePersistence": 0.9180735585542259,
+          "anchor": 0.31628794608671346,
+          "constraint": 0.20492685299289654,
+          "settlement": 0.8185788120433213,
+          "direction": "stable"
+        },
+        {
+          "second": 22,
+          "recurrence": 0.3868998837960928,
+          "cyclePersistence": 0.9232894373979151,
+          "anchor": 0.32768284117122715,
+          "constraint": 0.20974754730774656,
+          "settlement": 0.818542001632883,
+          "direction": "stable"
+        },
+        {
+          "second": 23,
+          "recurrence": 0.41055458908499204,
+          "cyclePersistence": 0.9321403372078094,
+          "anchor": 0.34537809225050675,
+          "constraint": 0.2181274566863758,
+          "settlement": 0.8139306656234433,
+          "direction": "stable"
+        },
+        {
+          "second": 24,
+          "recurrence": 0.37382572207565984,
+          "cyclePersistence": 0.921435353805881,
+          "anchor": 0.34899852417471994,
+          "constraint": 0.22100711466125184,
+          "settlement": 0.8137445840883663,
+          "direction": "stable"
+        },
+        {
+          "second": 25,
+          "recurrence": 0.3538400164739473,
+          "cyclePersistence": 0.9197401204866562,
+          "anchor": 0.34102816595749547,
+          "constraint": 0.2112588964110509,
+          "settlement": 0.8155411870063686,
+          "direction": "stable"
+        },
+        {
+          "second": 26,
+          "recurrence": 0.28539634191099256,
+          "cyclePersistence": 0.9088169444617554,
+          "anchor": 0.32885312673661754,
+          "constraint": 0.2058656137601268,
+          "settlement": 0.7884356635384252,
+          "direction": "stable"
+        },
+        {
+          "second": 27,
+          "recurrence": 0.3127031138156128,
+          "cyclePersistence": 0.901971264630261,
+          "anchor": 0.3219498235485503,
+          "constraint": 0.19930559920860705,
+          "settlement": 0.7946818961982741,
+          "direction": "stable"
+        },
+        {
+          "second": 28,
+          "recurrence": 0.30417202508812496,
+          "cyclePersistence": 0.8974918330395051,
+          "anchor": 0.3125908509998247,
+          "constraint": 0.19201869557092277,
+          "settlement": 0.7786794438376444,
+          "direction": "stable"
+        },
+        {
+          "second": 29,
+          "recurrence": 0.3150121676604945,
+          "cyclePersistence": 0.9091534644613759,
+          "anchor": 0.3067653103259296,
+          "constraint": 0.1905132682288533,
+          "settlement": 0.7999570842935628,
+          "direction": "stable"
+        },
+        {
+          "second": 30,
+          "recurrence": 0.32334618464583276,
+          "cyclePersistence": 0.9184945008574079,
+          "anchor": 0.3048602375576217,
+          "constraint": 0.19019800840823636,
+          "settlement": 0.8017550481945624,
+          "direction": "stable"
+        },
+        {
+          "second": 31,
+          "recurrence": 0.3411452420007045,
+          "cyclePersistence": 0.9306937781369877,
+          "anchor": 0.3076330596117951,
+          "constraint": 0.19328773294765378,
+          "settlement": 0.805034309872647,
+          "direction": "stable"
+        },
+        {
+          "second": 32,
+          "recurrence": 0.35268222981784114,
+          "cyclePersistence": 0.9309390558942419,
+          "anchor": 0.31549552083607174,
+          "constraint": 0.19330304470857335,
+          "settlement": 0.827691569551014,
+          "direction": "stable"
+        }
+      ]
+    }
+  },
+  {
     "file": "docs/campioni/decompresisone.mp3",
     "meanPhysicalPulse": 0.024531950451793804,
     "meanLowEnd": 0.7781163776089206,
     "meanGridDensity": 0.0904388833663409,
     "meanRhythmConstraint": 0.04656351266799087,
+    "meanRhythmAnchor": 0.05089472361761264,
+    "meanGroundedLowEnd": 0.039496800065976195,
+    "meanSustainedEnergy": 0.6542063219540356,
+    "meanSpectralOccupancy": 0.9942702778089955,
+    "meanTemporalOccupancy": 0.90259958341439,
+    "meanPerceptualPressure": 0.5724842012163565,
     "meanPersistence": 0.9017099859252485,
     "meanChange": 0.1946789134069469,
     "meanBeatConfirmation": 0.041312224822984085,
@@ -1180,6 +1551,12 @@
     "meanLowEnd": 0.8052379798209698,
     "meanGridDensity": 0.04961147746025653,
     "meanRhythmConstraint": 0.02721937118679826,
+    "meanRhythmAnchor": 0.029518743364443788,
+    "meanGroundedLowEnd": 0.023467763949587255,
+    "meanSustainedEnergy": 0.6154487712138215,
+    "meanSpectralOccupancy": 0.9586126898606872,
+    "meanTemporalOccupancy": 0.7103895781072112,
+    "meanPerceptualPressure": 0.5129374921753576,
     "meanPersistence": 0.8781297153773888,
     "meanChange": 0.16729310438316583,
     "meanBeatConfirmation": 0.02407834722349036,
@@ -1727,6 +2104,12 @@
     "meanLowEnd": 0.7774958528149284,
     "meanGridDensity": 0.22496389836018846,
     "meanRhythmConstraint": 0.1282798553302826,
+    "meanRhythmAnchor": 0.14010079157488406,
+    "meanGroundedLowEnd": 0.10899306461540678,
+    "meanSustainedEnergy": 0.6152542957213077,
+    "meanSpectralOccupancy": 0.9705696647028961,
+    "meanTemporalOccupancy": 0.9783882187702205,
+    "meanPerceptualPressure": 0.5958496547413022,
     "meanPersistence": 0.9197462085745547,
     "meanChange": 0.11054077745345268,
     "meanBeatConfirmation": 0.17088365936764005,
@@ -2342,6 +2725,12 @@
     "meanLowEnd": 0.8129990387726362,
     "meanGridDensity": 0.15544031661649013,
     "meanRhythmConstraint": 0.09749713387273998,
+    "meanRhythmAnchor": 0.10487119488228434,
+    "meanGroundedLowEnd": 0.08546577117295666,
+    "meanSustainedEnergy": 0.6049082617718226,
+    "meanSpectralOccupancy": 0.9026552492320817,
+    "meanTemporalOccupancy": 0.946130848697001,
+    "meanPerceptualPressure": 0.5635061639827006,
     "meanPersistence": 0.851840059656046,
     "meanChange": 0.2263603704510678,
     "meanBeatConfirmation": 0.1474297319265357,
@@ -2649,6 +3038,12 @@
     "meanLowEnd": 0.8589084707301367,
     "meanGridDensity": 0.020289319215221483,
     "meanRhythmConstraint": 0.010817550524899992,
+    "meanRhythmAnchor": 0.011428421109869885,
+    "meanGroundedLowEnd": 0.009820866938896491,
+    "meanSustainedEnergy": 0.6802921616111358,
+    "meanSpectralOccupancy": 0.9724890335083322,
+    "meanTemporalOccupancy": 0.5196666426726333,
+    "meanPerceptualPressure": 0.49558706703405025,
     "meanPersistence": 0.933731055935117,
     "meanChange": 0.12146839961290017,
     "meanBeatConfirmation": 0,
@@ -3195,6 +3590,12 @@
     "meanLowEnd": 0.8555616052950255,
     "meanGridDensity": 0.048943119437096574,
     "meanRhythmConstraint": 0.023657019876010873,
+    "meanRhythmAnchor": 0.02498845207907002,
+    "meanGroundedLowEnd": 0.021484683123651083,
+    "meanSustainedEnergy": 0.6868890616511517,
+    "meanSpectralOccupancy": 0.9943703137431124,
+    "meanTemporalOccupancy": 0.7696483348663276,
+    "meanPerceptualPressure": 0.5510477278802306,
     "meanPersistence": 0.9253262365823736,
     "meanChange": 0.1995015334556301,
     "meanBeatConfirmation": 0,
@@ -3741,6 +4142,12 @@
     "meanLowEnd": 0.8382743911513514,
     "meanGridDensity": 0.03817132911345234,
     "meanRhythmConstraint": 0.01924978671597943,
+    "meanRhythmAnchor": 0.02048332843170769,
+    "meanGroundedLowEnd": 0.017237166021896403,
+    "meanSustainedEnergy": 0.6728239116866327,
+    "meanSpectralOccupancy": 0.9757909033040288,
+    "meanTemporalOccupancy": 0.6002899329306264,
+    "meanPerceptualPressure": 0.5112174738434219,
     "meanPersistence": 0.9394778265054695,
     "meanChange": 0.10825396704121919,
     "meanBeatConfirmation": 0,
@@ -4587,6 +4994,12 @@
     "meanLowEnd": 0.8223287935011161,
     "meanGridDensity": 0.04015908939910546,
     "meanRhythmConstraint": 0.021217070381232425,
+    "meanRhythmAnchor": 0.022599030594785345,
+    "meanGroundedLowEnd": 0.01896229319069858,
+    "meanSustainedEnergy": 0.6400331856055977,
+    "meanSpectralOccupancy": 0.9420101715779318,
+    "meanTemporalOccupancy": 0.7686315184874162,
+    "meanPerceptualPressure": 0.5255551258469953,
     "meanPersistence": 0.8490356449816701,
     "meanChange": 0.21258168505035763,
     "meanBeatConfirmation": 0,
@@ -4894,6 +5307,12 @@
     "meanLowEnd": 0.855236773353761,
     "meanGridDensity": 0.07768076339178454,
     "meanRhythmConstraint": 0.03514577155380466,
+    "meanRhythmAnchor": 0.03718179730948308,
+    "meanGroundedLowEnd": 0.031823834794539756,
+    "meanSustainedEnergy": 0.6767410990120225,
+    "meanSpectralOccupancy": 0.9632901471650793,
+    "meanTemporalOccupancy": 0.9263513783347707,
+    "meanPerceptualPressure": 0.5736702541340994,
     "meanPersistence": 0.9195343613725373,
     "meanChange": 0.15120743875945972,
     "meanBeatConfirmation": 0,
@@ -5348,6 +5767,12 @@
     "meanLowEnd": 0.806915047932674,
     "meanGridDensity": 0.05905227197525566,
     "meanRhythmConstraint": 0.03014935210709964,
+    "meanRhythmAnchor": 0.03276577399239952,
+    "meanGroundedLowEnd": 0.025880453241610205,
+    "meanSustainedEnergy": 0.5816899527944988,
+    "meanSpectralOccupancy": 0.8578636634896153,
+    "meanTemporalOccupancy": 0.7149248094983154,
+    "meanPerceptualPressure": 0.48441397692024163,
     "meanPersistence": 0.8296846416633809,
     "meanChange": 0.219081922809767,
     "meanBeatConfirmation": 0.13270116242619284,
@@ -5894,6 +6319,12 @@
     "meanLowEnd": 0.7832372055206936,
     "meanGridDensity": 0.09587090460361436,
     "meanRhythmConstraint": 0.05024842547677274,
+    "meanRhythmAnchor": 0.054736950790895564,
+    "meanGroundedLowEnd": 0.04292504206951974,
+    "meanSustainedEnergy": 0.5788290165239098,
+    "meanSpectralOccupancy": 0.8799127819579344,
+    "meanTemporalOccupancy": 0.8507131408984602,
+    "meanPerceptualPressure": 0.5188391228630501,
     "meanPersistence": 0.8637263145124296,
     "meanChange": 0.18632139871985642,
     "meanBeatConfirmation": 0.06534340416874976,
@@ -6441,6 +6872,12 @@
     "meanLowEnd": 0.8306301473673771,
     "meanGridDensity": 0.013565638099166305,
     "meanRhythmConstraint": 0.007085918683959902,
+    "meanRhythmAnchor": 0.00757410064203031,
+    "meanGroundedLowEnd": 0.006289411278687146,
+    "meanSustainedEnergy": 0.5454121446228264,
+    "meanSpectralOccupancy": 0.7894826065106632,
+    "meanTemporalOccupancy": 0.285288605386229,
+    "meanPerceptualPressure": 0.37513960763736964,
     "meanPersistence": 0.8783211996154116,
     "meanChange": 0.6925807611180211,
     "meanBeatConfirmation": 0,
@@ -6986,6 +7423,12 @@
     "meanLowEnd": 0.7705169370879166,
     "meanGridDensity": 0.11107707422854395,
     "meanRhythmConstraint": 0.06214100445631185,
+    "meanRhythmAnchor": 0.06825488032696289,
+    "meanGroundedLowEnd": 0.05216573329893378,
+    "meanSustainedEnergy": 0.6425874091960807,
+    "meanSpectralOccupancy": 0.9912101505512024,
+    "meanTemporalOccupancy": 0.9123610281822697,
+    "meanPerceptualPressure": 0.5751283593678935,
     "meanPersistence": 0.882165652247584,
     "meanChange": 0.19682289544264617,
     "meanBeatConfirmation": 0.08923684187003092,

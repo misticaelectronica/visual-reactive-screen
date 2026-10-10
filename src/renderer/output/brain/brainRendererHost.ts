@@ -52,6 +52,21 @@ const SWITCH_TIMEOUT_MS = 15_000
 // un blocco, senza produrre un accento visivo che il respiro non deve
 // avere. Fuori dal respiro stabile nessun cambiamento: intensità piena
 // come sempre.
+//
+// AGGIORNAMENTO (disp. Capo Supremo 2026-10-07): le due FASI BASSE —
+// `decompression` e `respiro-profondo` — condividono il colore del Varco,
+// più scuro delle altre fasi. Sono già accoppiate in questo stesso file per
+// il passthrough (`regimeAllowsPsycho2d`, `regimeAllowsPrint2d`): stesso
+// accoppiamento, nessun criterio nuovo. Tre conseguenze:
+//   - tinte del glitch dal set scuro per entrambe, abbassate più vicino al
+//     nero mantenendo la tinta organica riconoscibile;
+//   - scurimento pre-Varco PIÙ profondo (non meno): è un velo che toglie
+//     luce, l'opposto del flash, e veniva erroneamente moltiplicato per il
+//     moltiplicatore del flash — nel respiro profondo (flash 0) risultava
+//     quindi spento del tutto, cioè il Varco era meno scuro proprio dove
+//     deve esserlo di più. Ora ha un proprio moltiplicatore;
+//   - nella decompressione il flash scende ma NON si azzera: è un passaggio,
+//     non una stasi, e il Varco deve ancora mascherare lo stallo.
 // Scurimento pre-Varco (Capo Supremo, in collaudo 2026-09-17: "prima lag,
 // poi entra il Varco" — il sipario flash+glitch può arrivare a schermo in
 // ritardo rispetto allo stallo che deve coprire). Stessa causa d'armo
@@ -72,13 +87,44 @@ const RESPIRO_PROFONDO_FLASH_MULTIPLIER = 0
 // predominante". Moltiplicatore abbassato E tinte sostituite con toni
 // organici scuri (`PRESSURE_GLITCH_TINTS_DARK`, sotto).
 const RESPIRO_PROFONDO_GLITCH_MULTIPLIER = 0.1
+// Scurimento più profondo nelle fasi basse (disp. Capo Supremo 2026-10-07:
+// "se siamo in decompressione e respiro profondo il Varco deve avere colori
+// più scuri"). Lo scurimento è l'OPPOSTO del flash — un velo che toglie
+// luce, non un accento che la aggiunge — e finora veniva moltiplicato per
+// `flash`: in `respiro-profondo`, dove `flash` è 0, il velo risultava
+// completamente spento, cioè il Varco era meno scuro proprio nella fase che
+// deve esserlo di più. Separato dal flash e portato oltre 1 nelle due fasi
+// basse. Il flash resta a 0 nel respiro profondo come prima.
+const LOW_PHASE_DARKEN_MULTIPLIER = 1.35
+// `decompression` è trattata come `respiro-profondo` per il colore del
+// Varco: le due fasi basse sono già accoppiate in questo stesso file per il
+// passthrough Psycho2D/Print2D (`regimeAllowsPsycho2d`,
+// `regimeAllowsPrint2d`) — stesso accoppiamento, nessun criterio nuovo.
+// Nella decompressione il flash NON va a zero: è un passaggio, non una
+// stasi, e il Varco deve ancora mascherare lo stallo. Scende soltanto.
+const DECOMPRESSION_FLASH_MULTIPLIER = 0.35
+const DECOMPRESSION_GLITCH_MULTIPLIER = 0.45
+function isLowPhaseRegime(regime: BrainBioRegime | undefined): boolean {
+  return regime === 'decompression' || regime === 'respiro-profondo'
+}
 function pressureFlashRegimeMultipliers(
   regime: BrainBioRegime | undefined,
-): { flash: number; glitch: number } {
+): { flash: number; glitch: number; darken: number } {
   if (regime === 'respiro-profondo') {
-    return { flash: RESPIRO_PROFONDO_FLASH_MULTIPLIER, glitch: RESPIRO_PROFONDO_GLITCH_MULTIPLIER }
+    return {
+      flash: RESPIRO_PROFONDO_FLASH_MULTIPLIER,
+      glitch: RESPIRO_PROFONDO_GLITCH_MULTIPLIER,
+      darken: LOW_PHASE_DARKEN_MULTIPLIER,
+    }
   }
-  return { flash: 1, glitch: 1 }
+  if (regime === 'decompression') {
+    return {
+      flash: DECOMPRESSION_FLASH_MULTIPLIER,
+      glitch: DECOMPRESSION_GLITCH_MULTIPLIER,
+      darken: LOW_PHASE_DARKEN_MULTIPLIER,
+    }
+  }
+  return { flash: 1, glitch: 1, darken: 1 }
 }
 const PRESSURE_GLITCH_SLICE_COUNT = 7
 const PRESSURE_GLITCH_MAX_OFFSET_PX = 26
@@ -91,14 +137,18 @@ const PRESSURE_GLITCH_TINTS = [
 // Respiro Profondo: toni organici scuri (petrolio, viola ematico, ruggine
 // annerita) al posto delle tinte sature — "scuro predominante" anche nel
 // Varco (collaudo Visual 2026-08-31).
+// Abbassate ulteriormente (disp. Capo Supremo 2026-10-07, "colori più
+// scuri"): stesse tre famiglie organiche — petrolio, viola ematico, ruggine
+// annerita — portate più vicine al nero mantenendo la tinta riconoscibile,
+// non desaturate a grigio.
 const PRESSURE_GLITCH_TINTS_DARK = [
-  'rgba(22,40,44,0.55)',
-  'rgba(46,26,40,0.5)',
-  'rgba(48,32,20,0.45)',
+  'rgba(12,24,27,0.62)',
+  'rgba(28,14,24,0.58)',
+  'rgba(30,19,11,0.52)',
 ] as const
 
 function glitchTintFor(regime: BrainBioRegime | undefined, index: number): string {
-  const set = regime === 'respiro-profondo' ? PRESSURE_GLITCH_TINTS_DARK : PRESSURE_GLITCH_TINTS
+  const set = isLowPhaseRegime(regime) ? PRESSURE_GLITCH_TINTS_DARK : PRESSURE_GLITCH_TINTS
   return set[index % set.length]
 }
 
@@ -513,8 +563,9 @@ export function createBrainRendererHost(
             : 1 - (elapsed - half) / half
           const regimeMultipliers = pressureFlashRegimeMultipliers(getBioRegime?.())
           if (pressureDarkenOverlay) {
-            pressureDarkenOverlay.style.opacity =
-              String(clamp(darkenIntensity) * PRESSURE_DARKEN_PEAK_OPACITY * regimeMultipliers.flash)
+            pressureDarkenOverlay.style.opacity = String(clamp(
+              clamp(darkenIntensity) * PRESSURE_DARKEN_PEAK_OPACITY * regimeMultipliers.darken,
+            ))
           }
         } else {
           const flashElapsed = elapsed - PRESSURE_DARKEN_MS

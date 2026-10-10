@@ -99,6 +99,15 @@ describe('movimento dei fotogrammi Brain', () => {
     expect(lento.holdMs).toBeGreaterThan(veloce.holdMs)
   })
 
+  it('durante la Riattivazione accorcia poco il fotogramma, fuori resta identico', () => {
+    const normale = calculateBrainFrameTiming(500, 0, 'marea')
+    const riattivazione = calculateBrainFrameTiming(500, 0, 'marea', true)
+
+    expect(calculateBrainFrameTiming(500, 0, 'marea', false)).toEqual(normale)
+    expect(riattivazione.totalMs).toBeLessThan(normale.totalMs)
+    expect(riattivazione.totalMs).toBeGreaterThan(normale.totalMs * 0.8)
+  })
+
   it('ricicla un fotogramma diverso da quello attualmente visibile', () => {
     expect(selectBrainRecycledFrameIndex(4, 0, () => 0)).toBe(1)
     expect(selectBrainRecycledFrameIndex(4, 3, () => 0.999)).toBe(2)

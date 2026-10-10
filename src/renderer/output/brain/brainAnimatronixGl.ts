@@ -50,9 +50,6 @@ uniform float uSlipAngle;
 uniform int uKind;
 uniform float uTrans;
 uniform float uHasB;
-uniform vec2 uMassC;
-uniform vec2 uMassEnd;
-uniform float uMassScaleEnd;
 uniform float uCrush;
 uniform float uCrushFg;
 uniform float uZoomUsesAnchor;
@@ -60,6 +57,14 @@ uniform float uZoomUsesAnchor;
 vec2 toT(vec2 q, vec2 cover) { return 0.5 + (q - 0.5) * cover; }
 vec3 samp(sampler2D img, vec2 q, vec2 cover) { return texture(img, toT(q, cover)).rgb; }
 float depthAt(sampler2D dep, vec2 q, vec2 cover) { return texture(dep, toT(q, cover)).r; }
+
+// DATAMOSH: rumore deterministico per banda e per scatto. Stessa banda e
+// stesso scatto danno sempre lo stesso slittamento, quindi il blocco resta
+// immobile fra un salto e l'altro invece di tremolare per fotogramma — la
+// corruzione deve sembrare un dato sbagliato, non un effetto animato.
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(41.0, 289.0))) * 43758.5453);
+}
 
 vec2 meltMap(vec2 q, World W, float sgn) {
   float m = W.melt;
@@ -124,25 +129,16 @@ vec2 parallaxMap(vec2 q, World W, sampler2D dep, vec2 cover) {
                       depthAt(dep, q + vec2(0.0, 0.03), cover) + depthAt(dep, q - vec2(0.0, 0.03), cover));
   float d = 0.5 * smoothstep(W.planes.x - 0.18, W.planes.x + 0.18, raw) +
             0.5 * smoothstep(W.planes.y - 0.18, W.planes.y + 0.18, raw);
-  float target = uCollapseMode > 0.0 ? 0.22 : 1.6;
+  // Ampiezza ridotta (disp. Capo Supremo 2026-10-09, stessa classe di
+  // difetto della frattura): con guadagno 1,6 e passo 0,16 il primo piano
+  // scorreva di ~13% del quadro rispetto al fondo e si leggeva come livello
+  // separato in deriva. A ~4% la differenza fra i piani si percepisce come
+  // profondità della stessa figura, non come ritagli sovrapposti.
+  float target = uCollapseMode > 0.0 ? 0.22 : 1.15;
   float gain = mix(1.0, target, clamp(W.collapse, 0.0, 1.0));
   vec2 dir = vec2(1.0, 0.12);
   float cf = crushFactor(d);
-  return q - dir * (min(W.camera, 1.2) * cf * 0.16) * (d - 0.5) * gain;
-}
-
-bool insideImg(vec2 q, vec2 cover) {
-  vec2 t = toT(q, cover);
-  return t.x >= 0.0 && t.x <= 1.0 && t.y >= 0.0 && t.y <= 1.0;
-}
-
-// Profondità oltre la frattura: la stessa scena più lontana, sfocata,
-// desaturata e scura, mai un nero piatto.
-vec3 darkBeyond(sampler2D img, vec2 q, vec2 cover) {
-  vec2 far = 0.5 + (q - 0.5) * 0.82;
-  vec3 c = textureLod(img, toT(far, cover), 3.0).rgb;
-  float l = dot(c, vec3(0.299, 0.587, 0.114));
-  return mix(vec3(l), c, 0.55) * 0.42;
+  return q - dir * (min(W.camera, 1.2) * cf * 0.07) * (d - 0.5) * gain;
 }
 
 // Profondità di piano: proxy grossolano + contrasto fine dell'immagine, così i
@@ -155,33 +151,44 @@ float planeDepth(sampler2D img, sampler2D dep, vec2 q, vec2 cover) {
   return coarse + 0.16 * fine;
 }
 
+// DEPTH FRACTURE (disp. Capo Supremo 2026-10-09). Prima i tre piani
+// traslavano rigidamente in direzioni opposte (0.30 del quadro per F, e in
+// transizione fino a 1,5 volte il quadro) e nei vuoti si apriva uno sfondo
+// scuro: erano livelli che si staccavano dalla figura e uscivano di scena,
+// cioè animazione della schermata. Ora lo scarto fra i piani resta un
+// micro-disallineamento della materia (frazioni di percento del quadro, mai
+// un vuoto da riempire) e la transizione arriva come cessione ordinata per
+// profondità: cede prima il primo piano, poi il piano medio, infine il
+// fondo. Il soggetto resta intero e nella sua posizione; il moto si legge
+// come scorrimento interno fra i suoi piani, non come traslazione di
+// ritagli.
 vec3 fractureWorld(sampler2D img, sampler2D dep, vec2 q, vec2 cover, World W,
                    vec3 beyond, float useBeyond, float tr) {
   float F = W.fracture;
   if (F <= 0.0005 && tr <= 0.0005) return samp(img, q, cover);
-  // Continuità (log di prova: un solo fotogramma di scarto quando F superava
-  // la soglia): la scurita dei piani medio/lontano entra gradualmente con F,
-  // non a scatto.
   float k = smoothstep(0.0, 0.12, F + tr);
   vec2 dir = vec2(cos(uSlipAngle), sin(uSlipAngle));
-  vec2 slipNear = dir * (0.30 * F + tr * 1.5);
-  vec2 slipMid = -dir * (0.17 * F + pow(tr, 1.5) * 1.7);
-  vec2 slipFar = dir * (0.06 * F + tr * tr * 1.5);
-  vec2 qk = q - slipNear;
-  float d = planeDepth(img, dep, qk, cover);
-  if (d > W.planes.y && insideImg(qk, cover)) return samp(img, qk, cover);
-  qk = q - slipMid;
-  d = planeDepth(img, dep, qk, cover);
-  if (d > W.planes.x && d <= W.planes.y && insideImg(qk, cover)) return samp(img, qk, cover) * mix(1.0, 0.94, k);
-  qk = q - slipFar;
-  d = planeDepth(img, dep, qk, cover);
-  if (d <= W.planes.x && insideImg(qk, cover)) return samp(img, qk, cover) * mix(1.0, 0.88, k);
-  float gapOpen = smoothstep(0.025, 0.11, 0.30 * F + tr);
-  // Il raster successivo entra nelle fessure in dissolvenza (bt), non a
-  // scatto: prima della transizione le fessure mostrano già lo sfondo scuro.
-  float bt = useBeyond > 0.5 ? smoothstep(0.0, 0.4, tr) : 0.0;
-  vec3 gap = mix(darkBeyond(img, q, cover), beyond, bt);
-  return mix(samp(img, q, cover), gap, gapOpen);
+  // Ampiezza massima dello scarto: ~2,2% del quadro a F pieno, ~1,2% in più
+  // a transizione piena. Sotto la soglia in cui un piano potrebbe scoprire
+  // il bordo dell'immagine, quindi nessun vuoto e nessun livello fuori scena.
+  float amp = 0.022 * F + 0.012 * tr;
+  // Appartenenza morbida ai tre piani: nessun bordo di maschera netto, le
+  // zone si sommano a uno.
+  float raw = planeDepth(img, dep, q, cover);
+  float wNear = smoothstep(W.planes.y - 0.06, W.planes.y + 0.06, raw);
+  float wFar = 1.0 - smoothstep(W.planes.x - 0.06, W.planes.x + 0.06, raw);
+  float wMid = max(0.0, 1.0 - wNear - wFar);
+  vec3 base = samp(img, q - dir * amp, cover) * wNear +
+              samp(img, q + dir * amp * 0.6, cover) * mix(1.0, 0.94, k) * wMid +
+              samp(img, q - dir * amp * 0.25, cover) * mix(1.0, 0.88, k) * wFar;
+  if (useBeyond <= 0.5) return base;
+  // Cessione per profondità: il raster successivo prende possesso dei piani
+  // in ordine, non dei vuoti fra i piani. A tr=0 nulla ha ceduto, a tr=1
+  // tutto è il raster successivo: nessuno scatto ai due estremi.
+  float ceded = wNear * smoothstep(0.02, 0.42, tr) +
+                wMid * smoothstep(0.28, 0.72, tr) +
+                wFar * smoothstep(0.55, 0.98, tr);
+  return mix(base, beyond, clamp(ceded, 0.0, 1.0));
 }
 
 // HYPNOTIC ZOOM: zoom continuo e ininterrotto verso il punto di fuga,
@@ -222,6 +229,24 @@ float maskAt(vec2 q) {
   return texture(uMassA, t).r;
 }
 
+// Fronte di cessione a partire dalla figura: alone graduato ricavato da
+// pochi campioni della maschera di massa a raggi crescenti (la griglia della
+// massa è piccola e senza mipmap, questo è il solo gradiente disponibile).
+// Non serve a decorare: serve a far avanzare la rivelazione dalla figura
+// verso il campo attorno senza spostare nulla.
+float massFront(vec2 q) {
+  float inside = maskAt(q);
+  float near = 0.0;
+  float wide = 0.0;
+  for (int i = 0; i < 6; i++) {
+    float a = 1.0472 * float(i);
+    vec2 o = vec2(cos(a) / uAspect, sin(a));
+    near = max(near, maskAt(q + o * 0.07));
+    wide = max(wide, maskAt(q + o * 0.17));
+  }
+  return max(inside, max(near * 0.74, wide * 0.42));
+}
+
 void main() {
   vec2 q = vec2(vFrag.x, 1.0 - vFrag.y);
 
@@ -256,54 +281,74 @@ void main() {
   vec3 color = cA;
 
   if (uKind == 3) {
+    // OCCLUSION PASSAGE (disp. Capo Supremo 2026-10-09). Prima la sagoma
+    // veniva scalata fino a 6× e traslata oltre il bordo del quadro
+    // (le tre uniformi di centroide, punto d'arrivo e scala della massa,
+    // ritirate — vedi PIANO-047): un ritaglio che si staccava
+    // dalla figura e attraversava lo schermo — animazione della schermata,
+    // non della figura. Ora il passaggio avviene in posizione: il raster
+    // successivo prende possesso prima dell'interno della sagoma, poi il
+    // fronte si propaga al campo attorno seguendo la forma della figura
+    // stessa. Nessuna traslazione, nessuna scala, nessun livello che esce.
     float u = uTrans;
-    float S = uMassScaleEnd;
-    float cov = 0.0;
-    for (int k = 0; k < 12; k++) {
-      float uk = u * float(k) / 11.0;
-      float sk = 1.0 + (S - 1.0) * pow(uk, 1.3);
-      vec2 pk = mix(uMassC, uMassEnd, pow(uk, 1.6));
-      cov = max(cov, maskAt((q - pk) / sk + uMassC));
-    }
-    cov = max(cov, smoothstep(0.82, 1.0, u));
-    vec3 base = mix(cA, cB, smoothstep(0.4, 0.6, cov));
-    float s = 1.0 + (S - 1.0) * pow(u, 1.3);
-    vec2 posNow = mix(uMassC, uMassEnd, pow(u, 1.6));
-    vec2 mq = (q - posNow) / s + uMassC;
-    float m = smoothstep(0.38, 0.62, maskAt(mq));
-    // Continuità: la massa parte dall'aspetto reale del mondo (cA, con lo
-    // stato accumulato) e solo poi passa al colore grezzo dell'immagine.
-    vec3 massRaw = texture(uImgA, toT(mq, uCoverA)).rgb * mix(1.0, 0.8, u);
-    vec3 massCol = mix(cA, massRaw, smoothstep(0.0, 0.2, u));
-    color = mix(base, massCol, m);
+    float field = massFront(q);
+    // La soglia scende con la transizione: a u=0 non cede nulla, entro
+    // u=0.92 ha ceduto tutto il campo anche dove la massa è nulla — così
+    // alla fine della transizione resta esattamente cB, senza scatto.
+    float front = smoothstep(0.0, 0.26, field - (1.02 - 1.40 * u));
+    // Il bordo del fronte si addensa un istante prima di cedere: la
+    // reattività resta dentro la materia, non in un movimento.
+    float edge = front * (1.0 - front) * 4.0;
+    color = mix(cA, cB * mix(1.0, 0.9, edge), front);
   } else if (uKind == 4) {
     color = mix(cA, cB, smoothstep(0.35, 0.75, uTrans));
   } else if (uKind == 5) {
-    // KINETIC MATCH: attorno all'ancora il campionamento resta A, immutato,
-    // mentre fuori dall'ancora lo spazio si torce in modo palesemente
-    // impossibile; superata metà corsa l'interno rivela la stessa regione
-    // di schermo appartenente ora a B.
-    float R = 0.24;
+    // DATAMOSH (disp. Capo Supremo 2026-10-08) — alternativa cyberpunk al
+    // morphing a spirale, che era l'unica rotazione di tutto il motore ed è
+    // stata ritirata. Il contratto percettivo di KINETIC MATCH non cambia:
+    // attorno all'ancora il segnale resta integro, fuori diventa
+    // palesemente impossibile, e superata metà corsa l'interno rivela la
+    // stessa regione di schermo appartenente ora a B. Cambia il modo
+    // dell'impossibile: non più spazio torto, ma segnale corrotto — un
+    // fotogramma inter-frame rimasto senza riferimento. Bande di scansione
+    // che slittano a scatti quantizzati, macroblocchi che restano indietro,
+    // separazione dei canali sul bordo dello slittamento. Nessuna matrice di
+    // rotazione, nessuna traslazione del quadro intero: le bande hanno fasi
+    // diverse e l'ancora non si muove.
+    float amt = smoothstep(0.0, 0.62, uTrans);
     vec2 aAnchor = uWA.anchor;
     vec2 bAnchor = uWB.anchor;
-    float dA = length(q - aAnchor);
-    float lock = 1.0 - smoothstep(R * 0.72, R, dA);
     vec2 rel = q - aAnchor;
-    float warpAmt = smoothstep(0.0, 0.7, uTrans) * 0.9;
-    float ang = warpAmt * (0.6 + 0.4 * sin(length(rel) * 14.0 + uTrans * 6.0));
-    float ca_ = cos(ang);
-    float sa_ = sin(ang);
-    vec2 outQ = aAnchor + mat2(ca_, -sa_, sa_, ca_) * rel * (1.0 + 0.5 * warpAmt);
-    vec3 outside = samp(uImgA, outQ, uCoverA);
+    float lock = 1.0 - smoothstep(0.10, 0.26, length(rel * vec2(uAspect, 1.0)));
+    // Cadenza digitale: lo slittamento si aggiorna sei volte nell'arco della
+    // transizione e resta fermo fra un salto e l'altro.
+    float tick = floor(uTrans * 6.0);
+    float bandId = floor(q.y * 26.0);
+    // Cede solo una parte delle bande: il resto dell'immagine regge, così si
+    // legge come guasto del segnale e non come filtro steso su tutto.
+    float torn = step(0.52, hash21(vec2(bandId, tick)));
+    float slip = (hash21(vec2(bandId, tick + 17.0)) - 0.5) * 0.42 * amt * torn;
+    vec2 qs = q + vec2(slip, 0.0);
+    // Macroblocchi: dentro la banda corrotta il campionamento si quantizza e
+    // resta indietro, come un blocco mai aggiornato.
+    float blocky = torn * step(0.68, hash21(vec2(bandId, tick + 41.0)));
+    vec2 grid = vec2(44.0, 26.0);
+    vec2 qb = mix(qs, (floor(qs * grid) + 0.5) / grid, blocky * amt);
+    // Separazione dei canali proporzionale allo slittamento: compare sul
+    // bordo del guasto, non come aberrazione costante.
+    float chroma = abs(slip) * 0.5;
+    vec3 outside = vec3(
+      samp(uImgA, qb + vec2(chroma, 0.0), uCoverA).r,
+      samp(uImgA, qb, uCoverA).g,
+      samp(uImgA, qb - vec2(chroma, 0.0), uCoverA).b);
     vec3 innerA = samp(uImgA, aAnchor + rel, uCoverA);
     vec3 innerB = samp(uImgB, bAnchor + rel, uCoverB);
-    float reveal = smoothstep(0.55, 0.88, uTrans);
-    vec3 inside = mix(innerA, innerB, reveal);
-    vec3 kin = mix(outside, inside, lock);
+    vec3 inside = mix(innerA, innerB, smoothstep(0.55, 0.88, uTrans));
+    vec3 moshed = mix(outside, inside, lock);
     // Continuità agli estremi (log di prova: scarti fino a 60 al confine):
     // parte da cA e finisce in cB, invece di passare da/verso il campione
     // grezzo dell'immagine.
-    color = mix(mix(cA, kin, smoothstep(0.0, 0.15, uTrans)), cB, smoothstep(0.72, 1.0, uTrans));
+    color = mix(mix(cA, moshed, smoothstep(0.0, 0.15, uTrans)), cB, smoothstep(0.72, 1.0, uTrans));
   } else if (uKind == 8) {
     // MORPH: qA/qB sono già stati tirati verso il proprio punto di fuga
     // sopra (mai una rivelazione a foro/iride) — usata da TRAVERSAL,
@@ -374,7 +419,7 @@ const KIND_INDEX = {
   fracture: 2,
   occlusion: 3,
   residual: 4,
-  kinetic: 5,
+  datamosh: 5,
   focus: 7,
   morph: 8,
 } as const
@@ -651,20 +696,6 @@ export class AnimatronixGl {
     gl.uniform1f(this.loc(this.world, 'uHasB'), b ? 1 : 0)
     this.setWorld('uWA', a, frame.current)
     this.setWorld('uWB', bRaster, frame.incoming ?? frame.current)
-
-    const s = a.structure
-    const [cx, cy] = this.toQ(a, s.massCentroid.x, s.massCentroid.y)
-    const [xl, yt] = this.toQ(a, s.massBounds.x0, s.massBounds.y0)
-    const [xr, yb] = this.toQ(a, s.massBounds.x1, s.massBounds.y1)
-    const heightQ = Math.max(0.12, yb - yt)
-    const scaleEnd = Math.min(6, Math.max(1.8, 1.35 / heightQ))
-    const endX =
-      s.massDir > 0
-        ? 1.05 - (xl - cx) * scaleEnd
-        : -0.05 - (xr - cx) * scaleEnd
-    gl.uniform2f(this.loc(this.world, 'uMassC'), cx, cy)
-    gl.uniform2f(this.loc(this.world, 'uMassEnd'), endX, 0.5 + (cy - 0.5) * 0.4)
-    gl.uniform1f(this.loc(this.world, 'uMassScaleEnd'), scaleEnd)
 
     gl.uniform1f(this.loc(this.world, 'uCrush'), frame.crush)
     gl.uniform1f(this.loc(this.world, 'uCrushFg'), frame.crushForeground ? 1 : 0)

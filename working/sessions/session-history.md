@@ -1,5 +1,102 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-10-08-DELIQUESCENCE-E-FINESTRA-FRASI
+
+- Sessione avviata su rilievo del Capo Supremo: la generazione di immagini ha
+  perso spinta, è più brutta, triste e ripetitiva. Audit preventivo dei
+  deprecati eseguito, DEP-001 `NON COINVOLTO`.
+- Escluso subito il motore immagini: `config/brainRendering.json` verificato
+  identico a HEAD (step 12/16/24, 640×360).
+- Primo intervento, poi **ritirato nella stessa sessione**: finestra delle
+  frasi da 4-5 a 1-2 righe, misurata su un pool di 5 paragrafi da ~115
+  parole. Il pool è stato cambiato dal Capo Supremo in corso di sessione a 39
+  righe da 7-39 parole, forma per cui 4-5 erano tarati: con 1-2 la sorgente
+  scendeva a 21-42 parole contro 55-80 di sinossi richiesta. Ripristinato.
+- Effetto collaterale della stessa modifica, misurato e non ipotizzato: le
+  righe che fanno scattare `containsExplicitAdultContent` sono 2 su 39, e la
+  quota di finestre che le contengono passava dal 20% (4 righe) al 5-10%
+  (1-2 righe) — causa diretta del rilievo «c'è poco sesso nelle storie».
+- Vincolo emerso e registrato in memoria: nelle sessioni online l'input del
+  pubblico è inserito nello stesso `brainPhrases.txt`, quindi il pool dal vivo
+  è misto per costruzione e nessun valore per riga è corretto per entrambe le
+  forme. La via che tiene è una finestra con budget in parole: non
+  implementata, non richiesta.
+- Secondo intervento, **consegnato**: DELIQUESCENCE escluso anche in
+  `pressurized`, unico regime che non aveva alcuna esclusione. Tre singleton
+  identici unificati in `DELIQUESCENCE_OUT_OF_LOW_REGIME`. In `respiro-alto`
+  era già escluso: riportato al Capo Supremo invece di aggiungere un secondo
+  filtro.
+- Analisi consegnata senza modifiche sul percorso del prompt raster: Visual
+  Plan che vieta colore e luce per istruzione, 6 famiglie di palette tutte
+  scure, una sola famiglia per storia. Identità visiva, non toccata.
+- Terzo intervento, **consegnato**: invariante senza invenzioni. Misurato sul
+  corpus di validazione che il ripiego produceva `stands` (un verbo) e
+  precisato al Capo Supremo che la stringa italiana da lui confermata era
+  quasi irraggiungibile — il difetto reale era l'altro.
+- Quarto intervento, **consegnato** su brief scritto del Capo Supremo:
+  `VISUAL CONTEXT` ripristinato nel prompt raster, solo quel livello,
+  `Associated stimulus` lasciato fuori, primo fotogramma senza contesto.
+- Quinto intervento, **consegnato**: indicatore palette in basso a sinistra,
+  mattoncini affiancati nell'ordine della palette, aggiornato al cambio
+  storia, indipendente dalla dissolvenza DMX.
+- Verifiche: `pnpm typecheck` verde, `pnpm lint` verde, 776 test su 79 file
+  verdi.
+- Stato finale: gating DELIQUESCENCE da collaudare dal vivo. Resta aperta
+  l'analisi su soggetti e scena, indicata dal Capo Supremo come il vero
+  perimetro. Modifiche non committate su `brainAnimatronix*` estranee alla
+  sessione, non indagate.
+
+## SESSION-2026-10-07-DECOMPRESSIONE-VARCO
+
+- Sessione avviata su richiesta diretta del Capo Supremo; audit preventivo dei
+  deprecati eseguito, DEP-001 `NON COINVOLTO`.
+- Obiettivi: (1) ritarare la decompressione col nuovo campione
+  `decompressione-5.mp3`; (2) verificare l'assenza di conflitto fra livelli;
+  (3) correggere il respiro alto che parte troppo spesso sui lavori con gli
+  alti; (4) — chiesto in corso di sessione — Varco più scuro in decompressione
+  e respiro profondo.
+- Misurazione prima di ogni modifica: replay dei 16 campioni con i moduli di
+  produzione e il metodo condiviso del corpus, su entrambi i regimi, con dump
+  delle osservabili e timeline per finestra di analisi.
+- Esito (1) e (2): **PROPOSTA RITIRATA**, nessuna modifica al runtime audio.
+  `decompression` emessa su 0 file su 4; `constraint` sale monotonicamente su
+  entrambi i file lunghi di decompressione, quindi `falling` è irraggiungibile
+  per qualunque deadband. Conflitto fra livelli confermato strutturale:
+  baseline vede i passaggi e azzera le stasi, experimental il contrario.
+- Esito (3): rilievo dal vivo riprodotto sul corpus; la soglia alto/profondo
+  è di fatto un rilevatore di banda `high`. Provate 4 varianti di ancoraggio
+  a `physicalConfirmation` (segnale già calcolato e mai usato, scelto per la
+  regola anti-sovrastrutturazione): tutte scartate su dati, una rompe
+  `respiro-alto-1`. Harness validato contro la baseline prima dell'uso.
+- Esito (4): **consegnato.** Fasi basse accoppiate per il colore del Varco
+  riusando l'accoppiamento già presente nel file; tinte scure abbassate;
+  scurimento pre-Varco separato dal moltiplicatore del flash — difetto reale,
+  nel respiro profondo lo scurimento era spento del tutto.
+- Verifiche: `pnpm typecheck` verde, `pnpm lint` verde, 662 test su 62 file
+  verdi, test dedicato aggiunto per le fasi basse del Varco.
+- Stato finale: Varco consegnato; decompressione e asse alto/profondo
+  rimessi alla decisione del Capo Supremo dell'Analisi Audio con referto di
+  calibrazione a supporto. Nessun collaudo dal vivo ancora svolto.
+
+## SESSION-2026-09-25-SPECTRAL-OCCUPANCY
+
+- Sessione avviata su PIANO-040; DEP-001 `NON COINVOLTO`.
+- Perimetro: sola continuità di `spectralOccupancy`, quindi replay reale e
+  verifica della dominanza semantica ritmica. Congelati `classifyLevel`,
+  soglie, pesi, bande e detector.
+- Mappa certificata: C03=`respiro-alto-0`, C04=`respiro-profondo`,
+  C06=`respiro-alto-1`. C05/C08/C09 restano non certificabili.
+- Provata la sola correzione continua: contributo di banda proporzionale al
+  floor esistente, senza nuovi pesi o soglie.
+- Replay 15 file: C03 PP 0,4956 < C04 0,5188; C06 0,5510 > C04. Anchor e
+  grounded low-end restano invertiti; persistenza semplice smentita da
+  `test-1`. La memoria experimental ordina i tre casi ma non discrimina
+  ancora `test-1`, quindi non è stata duplicata o trapiantata.
+- Decisione finale: **PROPOSTA RITIRATA** perché C03>C04 è un gate bloccante.
+  Funzione e test sperimentale ripristinati; harness, diagnostica e report
+  conservati come evidenza negativa. Nessuna modifica runtime accettata.
+- Verifica post-ritiro: 56 test bio-percettivi mirati, typecheck e lint verdi.
+
 ## SESSION-2026-09-11-EXPERIMENTAL-PRIMA-CONSEGNA
 
 - Direttiva completa del Vice Consigliere acquisita; DEP-001 `NON COINVOLTO`.
@@ -2551,3 +2648,50 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   collaudo visivo a 4 storie e confronto risoluzione 512×512 (TASK-046-05)
   restano aperti, affidati al Capo Supremo dal vivo. Dettagli:
   `working/plans/piano-046-visual-plan-quattro-fasi.md`.
+
+## 2026-10-08 — ANIMATRONIX: varietà a parametri e DATAMOSH (PIANO-047)
+
+- **Obiettivi**: su richiesta del Capo Supremo, correggere la ripetitività
+  delle grammatiche ANIMATRONIX agendo solo su parametri esistenti e
+  sostituire il morphing a spirale con un'alternativa cyberpunk. VIDEODROME,
+  analizzato nella stessa sessione e con deroga Camera concessa, è stato
+  **sospeso** su sua decisione prima di qualunque implementazione.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO` — l'alternanza 80/20 non
+  partecipa a rotazione, transizioni, stato del mondo o durate dei segmenti.
+- **Completati**: TASK-047-01 … TASK-047-07.
+- **Stato finale**: typecheck, lint e 768 test su 79 file verdi; 6 test nuovi.
+  Resta TASK-047-08, collaudo a schermo, che non è eseguibile in sessione.
+- **Nota di metodo**: una delle quattro correzioni a parametri (il guadagno
+  delle durate) si è rivelata inerte alla misura ed è stata rifatta sulla
+  riduzione invece che sul guadagno, invece di essere lasciata a fare scena.
+
+## 2026-10-09 — ANIMATRONIX: niente livelli che si staccano (PIANO-047, Fase 4)
+
+- **Obiettivo**: rilievo del Capo Supremo dal vivo — ANIMATRONIX deve animare
+  la figura dandole l'idea del moto, non animare la schermata; via i livelli
+  che si staccano e escono di scena. Indirizzo scelto da lui fra tre:
+  **riscrivere le grammatiche dentro la figura**, non rimuoverle.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO` — l'alternanza 80/20 non
+  partecipa a grammatiche, transizioni o stato del mondo di ANIMATRONIX.
+- **Completati**: TASK-047-09, TASK-047-10, TASK-047-11.
+- **Stato finale**: suite completa verde, 782 test su 79 file (1 nuovo).
+  Typecheck e lint rossi per un solo errore **preesistente e fuori
+  perimetro** (`brainFrameMotion.ts:392`, lavoro in corso d'opera di un'altra
+  sessione): lasciato intatto e segnalato. Resta TASK-047-12, collaudo a
+  schermo, non eseguibile in sessione.
+- **Nota di metodo**: la correzione è avvenuta per sottrazione — due
+  meccanismi di traslazione rimossi e segnali già presenti riusati (maschera
+  di massa, soglie dei piani, orologio della transizione). Nessun meccanismo
+  nuovo aggiunto, come impone il divieto di sovrastrutturazione.
+
+## 2026-10-10 — Libertà sessuale ed espressiva di Qwen
+
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`.
+- **Diagnosi**: la base Igor/Mara è sensuale ma allusiva; `containsExplicitAdultContent` scatta su 1 riga su 11 (e per "erase … sex"), quindi Qwen riceveva quasi sempre "Do not introduce sexual content…" e appiattiva la storia.
+- **Disposizione del Capo Supremo**: Qwen non va limitata: associa liberamente, fa ciò che le piace e lavora per la propria ricerca del piacere, libertà sessuale ed espressiva comprese.
+- **Fatto**: in `coscienzaOnirica.ts` il ramo non esplicito ora lascia Qwen libera di associare (unico limite: adulti consenzienti); system prompt `story` e Psichedel in `brainAiWorker.ts` allineati. Rilevatore e ramo di ripristino letterale invariati.
+- **Verifica**: vitest completo 782/782 verdi; lint e typecheck senza errori sui file di questa sessione.
+- **Chiuso su disposizione del Capo Supremo**: Riattivazione più veloce (2026-10-08) completata — import di `REVISION_CYCLE_FRAME_SPEED_FACTOR`, fattore applicato ai quattro limiti in `calculateBrainFrameTiming`, `revisionCycleActive` passato dal controller, test dedicato.
+- **Aperto**: AGENTS.md vieta di attribuire a Coscienza Onirica desideri non emersi; il system prompt `story` ("CoscienzaOnirica") ora le dà una propria ricerca del piacere. Da chiarire se la regola vale solo per nucleo e archivio `.coscienza/`.
+- **Stato finale**: nulla committato.
+- **Immagini "dell'Ottocento"** (stessa sessione): cause = storia base ambientata in borgo antico (~27 termini d'epoca contro ~11 tech) + COLOR DIRECTION globale (ruggine/terra/ambra, contrasto morbido, divieto del neon). Per disposizione del Capo Supremo: neon/LED/schermi ammessi come accento, sepia e patina esclusi, 4 famiglie colore elettriche aggiunte alle 6 esistenti (`brainColorState.ts`); base riscritta in metropoli futura con stessa trama ed eros esplicito fra adulti consenzienti (versione borgo salvata in `config/brainPhrasesBaseStory-borgo.txt`).

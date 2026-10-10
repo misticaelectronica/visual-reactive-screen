@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainRendererId } from '@shared/types'
+import type { BrainBioRegime } from './brainBioPerception'
 import type { BrainRendererPluginContext } from './brainRendererPlugin'
 import { BrainRendererRegistry } from './brainRendererPlugin'
 import { createBrainRendererHost } from './brainRendererHost'
@@ -771,6 +772,116 @@ describe('Brain renderer host', () => {
     breathHost.update({ low: 0, lowMid: 0, mid: 0, high: 0 }, DEFAULT_SETTINGS, 1_100)
     expect(flashOpacity(breathHost.element)).toBe(0)
     breathHost.destroy()
+  })
+
+  it('disp. Capo Supremo 2026-10-07: nelle fasi basse (decompressione e respiro profondo) il Varco scurisce di più e usa tinte scure', () => {
+    const registry = new BrainRendererRegistry()
+    for (const id of ['print2d', 'filter-psiche', 'psycho2d'] as const) {
+      registry.register({
+        id,
+        label: id,
+        capabilities: { multipleImages: false, semanticMetadata: false, lowPowerMode: true },
+        create(context) {
+          const element = document.createElement('div')
+          context.container.appendChild(element)
+          return {
+            element,
+            isReady: () => true,
+            setOpacity() {},
+            getMorphShapes: () => [],
+            setMorphPattern() {},
+            setResourcePressure() {},
+            setTransition() {},
+            update() {},
+            destroy() { element.remove() },
+          }
+        },
+      })
+    }
+    const raster = new Blob(['raster'])
+    const buildHost = (getBioRegime?: () => BrainBioRegime) => {
+      const container = document.createElement('div')
+      const host = createBrainRendererHost(
+        container,
+        registry,
+        {
+          scene: { frameId: 'frame', description: 'frame', svg: '<svg/>', raster },
+          raster,
+          palette: ['#000000', '#333333', '#666666', '#aaaaaa', '#ffffff'],
+          printMode: 'living-ink',
+          getImageSources: () => [],
+          getVectorScene: async () => ({ frameId: 'frame', description: 'frame', svg: '<svg/>' }),
+          frameEnergy: 0.5,
+          frameIndex: 0,
+          frameCount: 4,
+        },
+        () => 'print2d',
+        'print2d',
+        undefined,
+        undefined,
+        getBioRegime,
+      )
+      return { host, container }
+    }
+    const bands = { low: 0, lowMid: 0, mid: 0, high: 0 }
+    // Picco dello scurimento pre-Varco: la fase è triangolare su 140ms,
+    // quindi il massimo cade a metà finestra (70ms dall'armo). Stessa
+    // sequenza del test pre-Varco esistente: l'`update` allo stesso
+    // timestamp dopo `setResourcePressure` è il fotogramma d'armo.
+    const darkenPeak = (getBioRegime?: () => BrainBioRegime) => {
+      const { host, container } = buildHost(getBioRegime)
+      host.update(bands, DEFAULT_SETTINGS, 1_000)
+      host.setResourcePressure(true)
+      host.update(bands, DEFAULT_SETTINGS, 1_000)
+      host.update(bands, DEFAULT_SETTINGS, 1_070)
+      const value = Number(
+        container.querySelector<HTMLDivElement>('[data-brain-pressure-darken="true"]')
+          ?.style.opacity ?? '0',
+      )
+      host.destroy()
+      return value
+    }
+
+    const neutral = darkenPeak()
+    const deepBreath = darkenPeak(() => 'respiro-profondo')
+    const decompression = darkenPeak(() => 'decompression')
+
+    // Lo scurimento è un velo, non un accento: nelle fasi basse deve essere
+    // PIÙ profondo che fuori. Prima di questa disposizione era moltiplicato
+    // per il flash e nel respiro profondo risultava spento (0).
+    expect(neutral).toBeGreaterThan(0)
+    expect(deepBreath).toBeGreaterThan(neutral)
+    expect(decompression).toBeGreaterThan(neutral)
+    expect(deepBreath).toBe(decompression)
+
+    // Tinte del glitch: entrambe le fasi basse usano il set scuro, non le
+    // tinte sature cyan/magenta/giallo.
+    const glitchTints = (getBioRegime?: () => BrainBioRegime) => {
+      const { host, container } = buildHost(getBioRegime)
+      host.update(bands, DEFAULT_SETTINGS, 1_000)
+      host.setResourcePressure(true)
+      host.update(bands, DEFAULT_SETTINGS, 1_000)
+      host.update(bands, DEFAULT_SETTINGS, 1_160)
+      host.update(bands, DEFAULT_SETTINGS, 1_180)
+      const tints = [...container.querySelectorAll<HTMLDivElement>(
+        '[data-brain-pressure-glitch-slice="true"]',
+      )].map((slice) => slice.style.backgroundColor)
+      host.destroy()
+      return tints
+    }
+    const saturated = glitchTints()
+    const darkDecompression = glitchTints(() => 'decompression')
+    const darkBreath = glitchTints(() => 'respiro-profondo')
+    expect(saturated.length).toBeGreaterThan(0)
+    // Somma dei canali RGB come misura di luminosità: le tinte delle fasi
+    // basse devono essere complessivamente più scure di quelle sature.
+    const brightness = (tints: string[]) => tints.reduce((sum, tint) => {
+      const [r, g, b] = (tint.match(/\d+/g) ?? ['0', '0', '0']).map(Number)
+      return sum + r + g + b
+    }, 0) / Math.max(1, tints.length)
+    expect(brightness(darkDecompression)).toBeLessThan(brightness(saturated))
+    expect(brightness(darkBreath)).toBeLessThan(brightness(saturated))
+    expect(brightness(darkDecompression)).toBe(brightness(darkBreath))
   })
 
   it('sovrappone Psycho2D a FilterPsiche in "lighten" e a opacità ridotta durante il passthrough', () => {

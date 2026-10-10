@@ -1,4 +1,5 @@
 import type { AppSettings, BandEnergies } from '@shared/types'
+import { REVISION_CYCLE_FRAME_SPEED_FACTOR } from '@shared/brain/dreamRevisionCycle'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 
 export const BRAIN_FRAME_MORPH_PATTERNS = [
@@ -370,16 +371,26 @@ export function selectBrainRecycledFrameIndex(
   return candidates[index]
 }
 
+/**
+ * `revisionCycleActive`: durante la Riattivazione le immagini scorrono un po'
+ * più veloci (disp. Capo Supremo 2026-10-08). Il fattore scala i quattro
+ * limiti di transizione e tenuta, cioè il pavimento che decide davvero la
+ * durata — vedi `REVISION_CYCLE_FRAME_SPEED_FACTOR` per il perché non basta
+ * agire sulla durata richiesta del fotogramma. Fuori dalla Riattivazione il
+ * comportamento è identico a prima.
+ */
 export function calculateBrainFrameTiming(
   beatDurationMs: number,
   requestedFrameDurationMs: number,
   pattern: BrainFrameMorphPattern,
+  revisionCycleActive = false,
 ): {
   transitionMs: number
   holdMs: number
   totalMs: number
 } {
   const timing = getBrainRenderingConfig().timing
+  const speedFactor = revisionCycleActive ? REVISION_CYCLE_FRAME_SPEED_FACTOR : 1
   const patternIndex = BRAIN_FRAME_MORPH_PATTERNS.indexOf(pattern)
   const safeBeatDuration = Math.max(260, Math.min(1_200, beatDurationMs))
   // Il morph attraversa una frase musicale lunga, ma i livelli interni
@@ -396,13 +407,13 @@ export function calculateBrainFrameTiming(
     return Math.max(minimumBeats, Math.min(maximumBeats, desired))
   }
   const transitionBeatCount = beatsInRange(
-    timing.transitionMinMs,
-    timing.transitionMaxMs,
+    timing.transitionMinMs * speedFactor,
+    timing.transitionMaxMs * speedFactor,
     transitionBeats,
   )
   const holdBeatCount = beatsInRange(
-    timing.holdMinMs,
-    timing.holdMaxMs,
+    timing.holdMinMs * speedFactor,
+    timing.holdMaxMs * speedFactor,
     holdBeats,
   )
   const transitionMs = safeBeatDuration * transitionBeatCount

@@ -285,13 +285,28 @@ const INVARIANT_HINT_TERMS =
  * Rete di sicurezza quando il modello non produce la riga INVARIANT/E: un
  * sostantivo concreto ricorrente nella sinossi o nelle frasi sorgente, non
  * un tema astratto (quello resta compito di `inferMainArgument`).
+ *
+ * Restituisce stringa vuota quando non lo trova, e NON tira a indovinare
+ * (correzione 2026-10-08). Le due vie precedenti producevano entrambe un
+ * invariante falso, e l'invariante non è un campo di servizio: viene
+ * riattaccato come `Invariant: ...` a tutti e quattro i prompt raster
+ * (`buildPsychedelImagePrompt`) ed è dichiarato al Visual Plan come la cosa
+ * che deve restare riconoscibile attraverso i quattro momenti.
+ *   - la prima parola della sinossi lunga almeno 5 lettere non è un
+ *     sostantivo: su una sinossi inglese reale del corpus di validazione
+ *     restituiva `stands`, cioè un verbo, ripetuto quattro volte;
+ *   - il ripiego finale era la stringa italiana `una presenza ricorrente`,
+ *     che finiva in un prompt inglese dentro CLIP. Era però raggiungibile
+ *     solo con una sinossi priva di parole di 5 lettere, quindi quasi mai:
+ *     il difetto che si vedeva dal vivo era il primo, non questo.
+ * A valle la stringa vuota è già gestita: `buildPsychedelImagePrompt`
+ * aggiunge la riga solo se l'invariante non è vuoto, e `generateVisualPlan`
+ * omette la propria riga. Meglio nessun invariante che uno inventato.
  */
 export function inferInvariant(source: readonly string[], synopsis: string): string {
   const text = `${synopsis} ${source.join(' ')}`
   const hinted = text.match(INVARIANT_HINT_TERMS)?.[0]
-  if (hinted) return hinted.toLocaleLowerCase()
-  const firstNoun = words(synopsis).find((word) => word.length >= 5)
-  return firstNoun ?? 'una presenza ricorrente'
+  return hinted ? hinted.toLocaleLowerCase() : ''
 }
 
 const BRIDGE_STOP_WORDS = new Set([
@@ -937,7 +952,11 @@ export class CoscienzaOnirica {
             'All participants are consenting adults. Preserve the explicit physical actions literally, without euphemisms or symbolism.',
           ]
         : [
-            'Do not introduce sexual content that is absent from the source prompts.',
+            // Disposizione del Capo Supremo 2026-10-10: Qwen non va limitata,
+            // associa liberamente e fa ciò che le piace, sesso compreso se lo
+            // sceglie, e lavora per la propria ricerca del piacere. Resta solo
+            // il vincolo sugli adulti consenzienti.
+            'All participants are consenting adults. Beyond that you are free: associate freely, follow whatever you like and write in pursuit of your own pleasure, sexual and expressive freedom included, without euphemisms, shame or self-censorship.',
           ]),
       recentStoryConstraint,
       continuityConstraint,
@@ -1212,9 +1231,17 @@ export class CoscienzaOnirica {
       const phase = deriveOneiricPhase(index, frameCount)
       return `VISUAL${index + 1} (${phase.toLocaleUpperCase()}): ${ONEIRIC_PHASE_BRIEF[phase]}`
     })
+    // Invariante assente (`inferInvariant` non ha trovato un sostantivo
+    // concreto e non ne inventa uno): la riga viene omessa invece di
+    // dichiarare al modello un invariante vuoto o falso.
+    const invariantLine = invariant.trim()
     const prompt = [
       'Design four English image prompts for the same imaginative story, one per visual moment.',
-      `The invariant of this story is: ${invariant}. It is the concrete subject, shape or material that must stay recognizable while it is transformed across the moments.`,
+      ...(invariantLine
+        ? [
+          `The invariant of this story is: ${invariantLine}. It is the concrete subject, shape or material that must stay recognizable while it is transformed across the moments.`,
+        ]
+        : []),
       'Each prompt must describe a concrete visible scene with one identifiable subject, one physical action, a coherent place and a clear camera view.',
       'Use literal nouns and observable actions. Prefer people, creatures, animals, plants or distinctive objects when present.',
       'Do not discuss meaning, mood, artistic style, color, symbolism or the writing task.',

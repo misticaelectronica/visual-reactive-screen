@@ -21,7 +21,12 @@ const COLOR_DIRECTION_LINES = [
   'Deep, restrained colour field, low chromatic competition, gentle contrast.',
   'Related, continuous colour families, uneven controlled saturation, rare deeper accents.',
   'Shadows keep density and readable detail.',
-  'Avoid bright primaries, pastel grading, neon dominance, flat monochrome.',
+  // Disposizione del Capo Supremo 2026-10-10: le immagini proiettavano il
+  // passato. Ruggine/terra/ambra a contrasto morbido più il divieto del neon
+  // davano patina d'epoca a ogni storia; il neon e la luce elettrica ora sono
+  // ammessi come accento, sepia e pellicola invecchiata sono esclusi.
+  'Contemporary electric light: neon, LED, screens and reflective glass may carry the accents.',
+  'Avoid pastel grading, sepia, aged-film patina, flat monochrome.',
 ] as const
 
 const COLOR_DIRECTION_PALETTE_VARIANTS: readonly (readonly string[])[] = [
@@ -31,6 +36,10 @@ const COLOR_DIRECTION_PALETTE_VARIANTS: readonly (readonly string[])[] = [
   ['blackened green', 'deep violet', 'dark burgundy', 'dirty mauve'],
   ['petroleum', 'burnt earth', 'graphite', 'dark amber'],
   ['dirty mauve', 'blue-grey', 'rust', 'deep violet'],
+  ['glossy black', 'electric cyan', 'chrome', 'deep magenta'],
+  ['LED white', 'graphite', 'ultraviolet', 'acid green'],
+  ['night blue', 'neon red', 'brushed steel', 'deep violet'],
+  ['black glass', 'hot magenta', 'cold cyan', 'petroleum'],
 ]
 
 // FNV-1a seguito da un avalanche a interi (variante splitmix32): la sola

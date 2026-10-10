@@ -67,6 +67,19 @@ const window_ = Float64Array.from({ length: FFT_SIZE }, (_, n) =>
   0.42 - 0.5 * Math.cos(2 * Math.PI * n / (FFT_SIZE - 1)) +
   0.08 * Math.cos(4 * Math.PI * n / (FFT_SIZE - 1)))
 const windowSum = window_.reduce((sum, value) => sum + value, 0)
+
+// Scomposizione diagnostica della formula runtime esistente. Vive soltanto
+// nell'harness: il replay verifica `value` contro la diagnostica prodotta dal
+// modulo reale, così una futura divergenza non può passare inosservata.
+function rhythmConstraintDiagnostics(state) {
+  const anchor = Math.min(1, Math.max(0, state.pulse * 0.6 + state.gridDensity * 0.4))
+  const groundedLowEnd = state.lowEnd * anchor
+  return {
+    anchor,
+    groundedLowEnd,
+    value: Math.min(1, Math.max(0, anchor * 0.62 + groundedLowEnd * 0.38)),
+  }
+}
 const ranges = {
   low: [Math.floor(40 * FFT_SIZE / SAMPLE_RATE), Math.ceil(160 * FFT_SIZE / SAMPLE_RATE) - 1],
   lowMid: [Math.floor(160 * FFT_SIZE / SAMPLE_RATE), Math.ceil(400 * FFT_SIZE / SAMPLE_RATE) - 1],
@@ -161,6 +174,13 @@ function analyzeFile(file) {
     sumLowEnd: 0,
     sumGridDensity: 0,
     sumRhythmConstraint: 0,
+    sumRhythmAnchor: 0,
+    sumGroundedLowEnd: 0,
+    sumSustainedEnergy: 0,
+    sumSpectralOccupancy: 0,
+    sumTemporalOccupancy: 0,
+    sumPerceptualPressure: 0,
+    maxRhythmDecompositionError: 0,
     sumPersistence: 0,
     sumChange: 0,
     sumAlignedGrid: 0,
@@ -218,6 +238,19 @@ function analyzeFile(file) {
     motor.sumLowEnd += diagnostics.rhythmConstraintComponents.lowEnd
     motor.sumGridDensity += diagnostics.rhythmConstraintComponents.gridDensity
     motor.sumRhythmConstraint += diagnostics.pressureComponents.rhythmConstraint
+    const rhythmDiagnostics = rhythmConstraintDiagnostics(
+      diagnostics.rhythmConstraintComponents,
+    )
+    motor.maxRhythmDecompositionError = Math.max(
+      motor.maxRhythmDecompositionError,
+      Math.abs(rhythmDiagnostics.value - diagnostics.pressureComponents.rhythmConstraint),
+    )
+    motor.sumRhythmAnchor += rhythmDiagnostics.anchor
+    motor.sumGroundedLowEnd += rhythmDiagnostics.groundedLowEnd
+    motor.sumSustainedEnergy += diagnostics.pressureComponents.sustainedEnergy
+    motor.sumSpectralOccupancy += diagnostics.pressureComponents.spectralOccupancy
+    motor.sumTemporalOccupancy += diagnostics.pressureComponents.temporalOccupancy
+    motor.sumPerceptualPressure += baselineState.signals.perceptualPressure
     motor.sumPersistence += baselineState.signals.persistence
     motor.sumChange += baselineState.signals.change
     motor.referencePhaseFrames[diagnostics.referencePhase] =
@@ -358,6 +391,13 @@ function analyzeFile(file) {
       meanLowEnd: motor.sumLowEnd / motor.frames,
       meanGridDensity: motor.sumGridDensity / motor.frames,
       meanRhythmConstraint: motor.sumRhythmConstraint / motor.frames,
+      meanRhythmAnchor: motor.sumRhythmAnchor / motor.frames,
+      meanGroundedLowEnd: motor.sumGroundedLowEnd / motor.frames,
+      meanSustainedEnergy: motor.sumSustainedEnergy / motor.frames,
+      meanSpectralOccupancy: motor.sumSpectralOccupancy / motor.frames,
+      meanTemporalOccupancy: motor.sumTemporalOccupancy / motor.frames,
+      meanPerceptualPressure: motor.sumPerceptualPressure / motor.frames,
+      maxRhythmDecompositionError: motor.maxRhythmDecompositionError,
       meanPersistence: motor.sumPersistence / motor.frames,
       meanChange: motor.sumChange / motor.frames,
       meanBeatConfirmation: motor.beats > 0 ? motor.sumBeatConfirmation / motor.beats : 0,
@@ -432,6 +472,5 @@ for (const result of results) {
 console.log(`\nOutput: ${outputPath}`)
 console.log(`Osservabili motori: ${motorOutputPath}`)
 console.log(identical
-  ? 'Il contratto di regime resta baseline su tutto il corpus; la nuova semantica è confinata in experimentalDiagnostics.'
-  : 'ATTENZIONE: baseline ed experimental differiscono — inatteso al checkpoint 1 (scaffold puro).')
-if (!identical) process.exitCode = 1
+  ? 'Baseline ed experimental coincidono su tutto il corpus.'
+  : 'Baseline ed experimental differiscono: esito atteso dopo l’attivazione della semantica experimental.')

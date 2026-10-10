@@ -1,5 +1,95 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## DELIQUESCENCE fuori dalla pressurizzazione, finestra frasi — 2026-10-08
+
+- [x] **`TASK-045-01`** `DONE`: audit preventivo dei deprecati, DEP-001
+  `NON COINVOLTO`.
+- [x] **`TASK-045-02`** `DONE`: esclusione del motore immagini —
+  `config/brainRendering.json` identico a HEAD.
+- [x] **`TASK-045-03`** `DONE — RITIRATA`: finestra frasi 4-5 → 1-2 e
+  ripristino a 4-5 nella stessa sessione. Il pool attivo è cambiato in corso
+  di sessione a 39 righe brevi, forma per cui 4-5 erano tarati.
+- [x] **`TASK-045-04`** `DONE`: misurato l'effetto sul contenuto esplicito —
+  2 righe su 39 fanno scattare il rilevatore, quota di finestre dal 20% al
+  5-10% con la finestra ridotta.
+- [x] **`TASK-045-05`** `DONE`: registrato il vincolo del pool misto nelle
+  sessioni online (input del pubblico nello stesso file).
+- [x] **`TASK-045-06`** `DONE`: DELIQUESCENCE escluso in `pressurized`; tre
+  singleton identici unificati in `DELIQUESCENCE_OUT_OF_LOW_REGIME`.
+  Verificato che in `respiro-alto` era già escluso prima di intervenire.
+- [x] **`TASK-045-07`** `DONE`: analisi del percorso del prompt raster
+  (Visual Plan, invariante, COLOR DIRECTION) consegnata senza modifiche.
+- [x] **`TASK-045-11`** `DONE`: invariante — rimossi entrambi i ripieghi
+  inventati (`stands` dalla prima parola lunga, stringa italiana `una
+  presenza ricorrente`); stringa vuota e riga omessa a valle. 4 test.
+- [x] **`TASK-045-12`** `DONE`: ripristinato `VISUAL CONTEXT` nel prompt
+  raster con la frase completa del fotogramma precedente; `Associated
+  stimulus` lasciato fuori; primo fotogramma senza contesto. 4 test nuovi,
+  1 riscritto.
+- [x] **`TASK-045-13`** `DONE`: indicatore palette in basso a sinistra,
+  mattoncini 9×4 px nell'ordine della palette, aggiornato al cambio storia.
+- [x] **`TASK-045-14`** `DONE`: fase onirica dichiarata nel prompt raster
+  (`CURRENT MOMENT <n>/<tot> — <FASE>`), nomi tradotti in inglese, brief di
+  fase lasciato fuori dal raster. 3 test.
+- [x] **`TASK-045-15`** `DONE`: contesto dell'eco deciso dal Capo Supremo —
+  prosegue dal secondo in avanti, quindi riceve gli intermedi (secondo e
+  terzo su quattro fotogrammi), non la soglia. 3 test.
+- [ ] **`TASK-045-08`** `TODO`: collaudo dal vivo del gating DELIQUESCENCE in
+  pressurizzazione.
+- [ ] **`TASK-045-09`** `TODO`: analisi su **soggetti e scena** — perimetro
+  indicato dal Capo Supremo, non ancora consegnato.
+- [ ] **`TASK-045-10`** `TODO`: decidere se introdurre la finestra con budget
+  in parole, unica forma compatibile con un pool misto.
+
+## Decompressione, conflitto livelli e colore del Varco — 2026-10-07
+
+- [x] **`TASK-044-01`** `DONE`: audit preventivo dei deprecati, DEP-001
+  `NON COINVOLTO`; letti STATE, macrotask e registro prima di ogni modifica.
+- [x] **`TASK-044-02`** `DONE`: harness di replay dei 16 campioni su entrambi
+  i regimi con dump delle osservabili e modalità timeline; validato contro la
+  baseline misurata prima di trarne conclusioni.
+- [x] **`TASK-044-03`** `DONE — PROPOSTA RITIRATA`: ritaratura della
+  decompressione impossibile come richiesta — `constraint` sale
+  monotonicamente sul materiale di decompressione, `falling` irraggiungibile
+  per qualunque deadband. Nessun cambiamento runtime conservato.
+- [x] **`TASK-044-04`** `DONE`: verifica del conflitto fra livelli — esito
+  negativo, conflitto strutturale fra i due regimi, quantificato sul corpus.
+- [x] **`TASK-044-05`** `DONE — PROPOSTA RITIRATA`: provato l'ancoraggio
+  graduato di `constraint` a `physicalConfirmation` in 4 combinazioni per il
+  respiro alto sugli alti; nessuna separa il corpus, una rompe
+  `respiro-alto-1`. Nessun peso o soglia modificato.
+- [x] **`TASK-044-06`** `DONE`: Varco Percettivo — `decompression` e
+  `respiro-profondo` accoppiate per il colore, tinte scure abbassate,
+  scurimento pre-Varco separato dal moltiplicatore del flash (difetto reale
+  corretto). Test dedicato, typecheck, lint e suite Brain verdi.
+- [x] **`TASK-044-07`** `DONE`: referto di calibrazione e allineamento di
+  STATE, registry e storico sessione.
+- [ ] **`TASK-044-08`** `BLOCKED`: definizione dell'osservabile della
+  decompressione e della separabilità dell'asse alto/profondo — lettura
+  audio-percettiva, attende decisione del Capo Supremo dell'Analisi Audio.
+- [ ] **`TASK-044-09`** `TODO`: collaudo dal vivo del colore del Varco nelle
+  due fasi basse.
+- [ ] **`TASK-044-10`** `TODO`: avvio a freddo dell'experimental — ~9s di
+  `pressurized` dichiarato a ogni avvio di sessione su tutti i 16 file,
+  mentre `ANCHOR_WARMUP_GRACE_MS` copre 1,5s.
+
+
+## Revisione spectralOccupancy / rhythmConstraint — 2026-09-25
+
+- [x] **`TASK-040-77`** `DONE`: audit DEP-001 `NON COINVOLTO`; ispezionati
+  implementazione e corpus. Mappa certificata limitata a C03/C04/C06.
+- [x] **`TASK-040-78`** `DONE — PROPOSTA RITIRATA`: provata e poi rimossa la
+  misura continua dell'occupazione spettrale perché non supera entrambi i
+  gate bloccanti. Nessun cambiamento runtime conservato.
+- [x] **`TASK-040-79`** `DONE`: replay del corpus, gate C03>C04 e C06>C04,
+  verifica di dominanza semantica e decisione motivata sul fermarsi prima di
+  qualsiasi intervento a `anchor`/`groundedLowEnd`/persistenza.
+- [x] **`TASK-040-81`** `DONE`: test mirati, typecheck e allineamento finale
+  di piano, registry, STATE e storico sessione.
+- Esito negativo: C03 PP 0.4956 < C04 0.5188; C06 0.5510 > C04. Anchor e
+  grounded low-end sono invertiti; persistenza semplice non discrimina
+  `test-1`. **PROPOSTA RITIRATA** senza ritarare pesi o aggiungere meccanismi.
+
 
 ## Governance team — passaggio Vecchio Consigliere → Vicario — 2026-09-18
 
@@ -1028,3 +1118,41 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **TASK-034-16 [DONE]**: de-squadratura delle zone di riconoscimento. Maschera risolta a livello di pixel (split figura/fondo al punto medio, gate massa dilatato, box-blur+soglia ×2, componente più grande, buchi riempiti); griglia 64×36 solo per trovare la massa. Nuovo `PsicoFantasmaRegion.contour`. 663 test, typecheck, lint. Collaudo a schermo pendente.
 - [x] **TASK-034-17 [DONE]**: matcher geometrico autorizzato e implementato; CLIP/encoder/Worker rimossi, confronto nello stesso dominio di sagoma.
 - [x] **TASK-034-18 [DONE]**: slot rotante della forma raggiunta, morph fra immagini subordinato al gate, decadimento senza match, silenzio e low power. 671 test, typecheck/lint, smoke Canvas reale A→B→C e build app/ZIP/DMG; collaudo percettivo resta in 034-11.
+
+## ANIMATRONIX varietà e DATAMOSH — PIANO-047
+
+- [x] **TASK-047-01 [DONE]**: diagnosi della ripetitività sul codice, con
+  numeri (distribuzione di `TRANSITION_OF`, passo del cursore contro finestra
+  di 4, `CARRY`, guadagno delle durate) e individuazione dell'unica rotazione
+  del motore.
+- [x] **TASK-047-02 [DONE]**: ridistribuzione di `TRANSITION_OF`
+  (`parallax-collapse` → `fracture`, `vertigo-lock` → `focus`,
+  `time-crush` → `datamosh`); `residual` da 4 grammatiche a 1.
+- [x] **TASK-047-03 [DONE]**: passo del cursore 3 → 5; grammatiche di storie
+  consecutive disgiunte, confine non più ripetuto.
+- [x] **TASK-047-04 [DONE]**: `CARRY` di `zoom`/`camera`/`bend` abbassato a
+  0,30/0,35/0,35.
+- [x] **TASK-047-05 [DONE]**: contrasto di metro ottenuto con `min` invece di
+  `max` sui tre segnali, dopo aver misurato che il solo guadagno era inerte.
+- [x] **TASK-047-06 [DONE]**: DATAMOSH — transizione `kinetic` ritirata,
+  nuovo branch `uKind == 5` senza alcuna rotazione, helper `hash21`
+  deterministico.
+- [x] **TASK-047-07 [DONE]**: 6 test nuovi sugli invarianti; typecheck, lint
+  e 768 test su 79 file verdi.
+- [ ] **TASK-047-08 [TODO]**: collaudo a schermo del Capo Supremo —
+  compilazione reale dello shader DATAMOSH, lettura del confine fra raster su
+  3–4 storie di seguito, assenza di torsione nell'evento KINETIC MATCH.
+- [x] **TASK-047-09 [DONE]**: OCCLUSION PASSAGE riportato in posizione — la
+  sagoma non viene più scalata fino a 6× né traslata oltre il bordo del
+  quadro; il raster successivo arriva dentro la figura e il fronte si propaga
+  al campo seguendo la forma della figura stessa.
+- [x] **TASK-047-10 [DONE]**: DEPTH FRACTURE senza livelli che escono di
+  scena — i piani non traslano più in direzioni opposte (0,30 del quadro, in
+  transizione fino a 1,5 volte il quadro) e non lasciano vuoti sullo sfondo
+  scuro; resta uno scarto del ~2% e la transizione cede per profondità.
+- [x] **TASK-047-11 [DONE]**: PARALLAX COLLAPSE, ampiezza ridotta da ~13% a
+  ~4% del quadro (guadagno 1,6 → 1,15, passo 0,16 → 0,07): differenza fra
+  piani percepita come profondità della figura, non come ritagli in deriva.
+- [ ] **TASK-047-12 [TODO]**: collaudo a schermo del moto dentro la figura —
+  verificare che nessun livello si stacchi e che il passaggio di occlusione
+  si legga come trasformazione in posizione e non come dissolvenza.

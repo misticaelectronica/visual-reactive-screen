@@ -35,7 +35,12 @@ export type AnimatronixTransition =
   | 'fracture'
   | 'occlusion'
   | 'residual'
-  | 'kinetic'
+  // DATAMOSH (disp. Capo Supremo 2026-10-08): sostituisce la transizione
+  // `kinetic`, che applicava la sola rotazione di tutto il motore — il
+  // morphing a spirale, ritirato. Stesso contratto percettivo di KINETIC
+  // MATCH (l'ancora resta corretta mentre il resto diventa impossibile),
+  // resa cyberpunk: corruzione del segnale invece di torsione dello spazio.
+  | 'datamosh'
   | 'focus'
 
 // Wave 2 (brief Ingegneria 22 settembre 2026): grammatiche ad alta salienza
@@ -115,17 +120,26 @@ const VIABILITY: Record<AnimatronixGrammar, number> = {
   'focus-inversion': 0.12,
 }
 
+// Ridistribuzione (disp. Capo Supremo 2026-10-08, correzione della
+// ripetitività): `residual` — che nello shader è una crossfade pura —
+// copriva quattro grammatiche su undici e `morph` altre tre, quindi sette
+// volte su undici il confine fra due raster era la stessa dissolvenza. Ora
+// nessuna transizione copre più di tre grammatiche. Le riassegnazioni
+// seguono la natura della grammatica, non il bisogno di riempire:
+// PARALLAX COLLAPSE lavora sui piani di profondità come la frattura;
+// VERTIGO LOCK sposta la tenuta fra i piani come l'inversione di fuoco;
+// TIME CRUSH è un artefatto temporale, quindi esce nel DATAMOSH.
 const TRANSITION_OF: Record<AnimatronixGrammar, AnimatronixTransition> = {
   traversal: 'morph',
   'depth-fracture': 'fracture',
   'occlusion-passage': 'occlusion',
   'residual-space': 'residual',
   'perspective-melt': 'morph',
-  'parallax-collapse': 'residual',
-  'kinetic-match': 'kinetic',
-  'vertigo-lock': 'residual',
+  'parallax-collapse': 'fracture',
+  'kinetic-match': 'datamosh',
+  'vertigo-lock': 'focus',
   'hypnotic-zoom': 'morph',
-  'time-crush': 'residual',
+  'time-crush': 'datamosh',
   'focus-inversion': 'focus',
 }
 
@@ -134,7 +148,7 @@ const TRANSITION_START: Record<AnimatronixTransition, number> = {
   fracture: 0.62,
   occlusion: 0.5,
   residual: 0.76,
-  kinetic: 0.58,
+  datamosh: 0.58,
   focus: 0.55,
 }
 
@@ -859,8 +873,16 @@ export function planAnimatronix(input: PlanAnimatronixInput): AnimatronixPlan {
     return options[Math.floor(rng() * options.length)]
   }
 
+  // Contrasto di metro (disp. Capo Supremo 2026-10-08): le quattro battute
+  // erano quasi uguali in ogni fase. Alzare il guadagno non bastava —
+  // misurato: `max` dei tre segnali satura a ~1 su qualunque raster
+  // strutturato (0,966 / 1,000 / 1,000 / 0,966 sui raster di prova), quindi
+  // i pesi restavano identici a qualunque guadagno. Conta invece quanto il
+  // raster è ricco su *tutti* i fronti insieme: un raster che regge una sola
+  // grammatica prende la battuta corta, uno che le regge tutte la lunga.
+  // Stessi tre segnali, stessa formula, nessun criterio nuovo.
   const weights = structures.map(
-    (s) => 1 + 0.5 * Math.max(s.traversalAxis, s.depthConfidence, s.massScore),
+    (s) => 1 + 1.2 * Math.min(s.traversalAxis, s.depthConfidence, s.massScore),
   )
   const weightSum = weights.reduce((a, b) => a + b, 0)
   const totalMs = clamp(
@@ -888,7 +910,12 @@ export function planAnimatronix(input: PlanAnimatronixInput): AnimatronixPlan {
     segments,
     totalMs,
     principals,
-    nextCursor: (startCursor + 3) % cycleLen,
+    // Passo 5 e non 3 (disp. Capo Supremo 2026-10-08): la finestra è di
+    // quattro voci, quindi con passo 3 l'ultima grammatica di una storia era
+    // sempre la prima della successiva — fra le due c'è solo la
+    // Riattivazione, perciò era la ripetizione più evidente a serata lunga.
+    // 5 è coprimo con 11: in undici storie il ciclo passa comunque per tutte.
+    nextCursor: (startCursor + 5) % cycleLen,
     usedHighSalience,
     travel: profile.travel,
     metabolism: profile.metabolism,
@@ -933,17 +960,24 @@ export const ZERO_WORLD_STATE: AnimatronixWorldState = {
 }
 
 // Quanto dello stato raggiunto il raster successivo eredita.
+// Quanto dello stato raggiunto il raster successivo eredita. I tre canali
+// più persistenti sono stati abbassati (disp. Capo Supremo 2026-10-08):
+// con `zoom` 0,55, `camera` e `bend` 0,6 ogni segmento ripartiva da uno
+// stato già carico e l'arco della fase era sempre lo stesso accumulo
+// crescente — la causa più profonda della ripetitività. La continuità fra
+// segmenti resta (nessun canale si azzera), ma il confine fra due raster
+// torna a leggersi come cambio di stato, non come "ancora di più".
 const CARRY: AnimatronixWorldState = {
   flight: 0.25,
-  bend: 0.6,
+  bend: 0.35,
   melt: 0.45,
   fracture: 0.35,
   collapse: 0.5,
-  camera: 0.6,
+  camera: 0.35,
   kinetic: 0.1,
   vertigo: 0.4,
   focus: 0.15,
-  zoom: 0.55,
+  zoom: 0.3,
 }
 
 export function carryWorldState(state: AnimatronixWorldState): AnimatronixWorldState {

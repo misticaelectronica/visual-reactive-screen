@@ -22,9 +22,11 @@ describe('buildColorDirectionBlock', () => {
     expect(block).toMatch(/Shadows keep density and readable detail/)
   })
 
-  it('instructs avoiding bright/neon/pastel colours', () => {
+  it('admits contemporary electric light and excludes aged/pastel grading', () => {
     const block = buildColorDirectionBlock('story-1:frame-1')
-    expect(block).toMatch(/Avoid bright primaries, pastel grading, neon dominance, flat monochrome/)
+    expect(block).toMatch(/neon, LED, screens/)
+    expect(block).toMatch(/Avoid pastel grading, sepia, aged-film patina, flat monochrome/)
+    expect(block).not.toMatch(/neon dominance/)
   })
 
   it('varies the palette family across seeds while keeping the same grammar', () => {

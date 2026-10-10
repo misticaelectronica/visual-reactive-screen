@@ -55,7 +55,7 @@ const REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(
 //    rari, non esclusi.
 //  - Print2D non è in nessuno dei due: conserva il ruolo attuale (fuori
 //    story-cycle, solo Riattivazione).
-//  - DELIQUESCENCE è in `HIGH_REGIME_EXCLUDED_RENDERERS` — escluso dal
+//  - DELIQUESCENCE è in `DELIQUESCENCE_OUT_OF_LOW_REGIME` — escluso dal
 //    Respiro Alto, dichiarato, non emergente.
 //
 // Filter-Psiche e Vector-Morph appartengono anche a `LOW_REGIME_RENDERERS`:
@@ -75,18 +75,24 @@ const HIGH_REGIME_SECONDARY_RENDERERS = new Set<BrainRendererId>([
   'dream-segmentation',
   'psicofantasma',
 ])
-// DELIQUESCENCE è escluso dal Respiro Alto per costruzione (dichiarato, non
-// emergente): la sua grammatica è quella del Respiro Profondo.
-const HIGH_REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
-// Bootstrap (`unresolved`, prima che `reference` sia affidabile): DELIQUESCENCE
-// non è dichiarabile — la sua sola presenza affermerebbe una grammatica di
-// Respiro Profondo prima che il sistema possa riconoscerlo (brief Visual
-// "due assi" §3). Esclusione minima esplicita; la restrizione completa del
-// pool conservativo di bootstrap resta voce di collaudo.
-const BOOTSTRAP_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
+// DELIQUESCENCE vive SOLO nel regime basso (`decompression` /
+// `respiro-profondo`), dove è la grammatica del Respiro Profondo. Fuori da
+// lì è escluso per costruzione — dichiarato, non emergente — in tutti e tre
+// gli altri regimi, per tre ragioni distinte che restano distinte:
+//  - `respiro-alto`: la sua grammatica non è quella di questo asse;
+//  - `unresolved`: prima che `reference` sia affidabile la sua sola presenza
+//    affermerebbe una grammatica di Respiro Profondo prima che il sistema
+//    possa riconoscerlo (brief Visual "due assi" §3). La restrizione
+//    completa del pool conservativo di bootstrap resta voce di collaudo;
+//  - `pressurized`: disp. Capo Supremo 2026-10-08. Prima la
+//    pressurizzazione era l'unico regime senza alcuna esclusione — trattata
+//    come un passaggio e non come uno stato con un pool proprio — e
+//    DELIQUESCENCE poteva quindi essere scelto, o restare in scena,
+//    attraversandola.
+// Un solo insieme invece di tre singleton identici: l'esclusione è la stessa
+// e divergerebbe solo per sbaglio.
+const DELIQUESCENCE_OUT_OF_LOW_REGIME = new Set<BrainRendererId>(['deliquescence'])
 
-// `pressurized`: nessuna esclusione né preferenza — è un passaggio, non uno
-// stato abitato con un pool proprio.
 //
 // `frameRenderMode`: PsicoFantasma osserva la materia del raster al pixel e non
 // regge un input a 4 step di denoising (`interlude`, 448×256). Disposizione del
@@ -97,9 +103,16 @@ function excludedForRegime(
   regime: BrainBioRegime,
   frameRenderMode?: ImageRenderMode,
 ): ReadonlySet<BrainRendererId> {
-  const excluded = regime === 'decompression' || regime === 'respiro-profondo' ? REGIME_EXCLUDED_RENDERERS
-    : regime === 'respiro-alto' ? HIGH_REGIME_EXCLUDED_RENDERERS
-      : regime === 'unresolved' ? BOOTSTRAP_EXCLUDED_RENDERERS : AUTOMATICALLY_EXCLUDED_RENDERERS
+  const excluded = regime === 'decompression' || regime === 'respiro-profondo'
+    ? REGIME_EXCLUDED_RENDERERS
+    // `respiro-alto`, `unresolved` e `pressurized`: fuori dal regime basso
+    // DELIQUESCENCE non è eleggibile. `AUTOMATICALLY_EXCLUDED_RENDERERS` è
+    // oggi vuoto ma resta nell'unione: se un giorno si popola deve valere
+    // anche qui.
+    : new Set<BrainRendererId>([
+      ...AUTOMATICALLY_EXCLUDED_RENDERERS,
+      ...DELIQUESCENCE_OUT_OF_LOW_REGIME,
+    ])
   const psicoFantasmaBlocked = !isPsicoFantasmaBundled() || frameRenderMode === 'interlude'
   return psicoFantasmaBlocked ? new Set([...excluded, 'psicofantasma' as const]) : excluded
 }

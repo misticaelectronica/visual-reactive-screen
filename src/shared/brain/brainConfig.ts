@@ -1,13 +1,39 @@
 export const BRAIN_CONFIG = {
   pipelineRevision: 'qwen25-snic-contours-v89',
+  // Righe per finestra, non parole: una riga della base curata può essere una
+  // frase breve o un paragrafo da 130 parole, e questo conteggio non distingue
+  // i due casi. Vale quindi solo per basi scritte a righe brevi, che è la
+  // forma d'uso normale (una frase per riga, vedi config/README.md).
+  //
+  // Provato a 1-2 il 2026-10-08 su una base scritta a 5 paragrafi da ~115
+  // parole, e **ritirato lo stesso giorno**: su una base a righe brevi (39
+  // righe da 7-39 parole, media 21) una finestra di 1-2 righe dà 21-42 parole
+  // di sorgente, mentre la sinossi richiesta è di 55-80 — il modello deve
+  // inventare più di metà della storia, e il risultato è riempitivo generico.
+  // Due effetti collaterali misurati sulla stessa base: le righe che fanno
+  // scattare `containsExplicitAdultContent` sono 2 su 39, quindi la quota di
+  // storie che conservano il contenuto esplicito scende dal 20% al 5-10%; e
+  // nei giri di `sessionSynthesis` la finestra scende a 1 riga contro 3 memo.
+  // Il difetto misurato sulle basi a paragrafi resta reale — lì la finestra
+  // vale ~470 parole, compresse ~6:1 — ma non si corregge con questi due
+  // numeri, che sono globali: serve una finestra misurata in parole.
   phraseSampleMinCount: 4,
   phraseSampleMaxCount: 5,
   // Righe condivise fra due finestre consecutive della base curata (vedi
   // brainPhrases.ts:sampleBrainPhraseWindow). Valore alto = più continuità
   // ma rischio di storie ridondanti; da confrontare all'ascolto con 1.
+  // Lasciato a 2 di proposito: `sampleBrainPhraseWindow` lo tronca già a
+  // `requested - 1`, quindi con finestre di 1-2 righe l'overlap effettivo è
+  // 0 o 1 e abbassare il valore qui non cambierebbe nulla. Torna a contare
+  // se i conteggi sopra risalgono a 3 o più.
   phraseWindowOverlapCount: 2,
   // Capacità della memoria lunga del sogno, dell'ordine di un giro completo
-  // del cursore sulla base curata (35 righe, passo ~2-3 → ~14 storie).
+  // del cursore sulla base curata. Il calcolo originale valeva per una base
+  // di ~35 righe con passo ~2-3 → ~14 storie. Con i conteggi sopra il passo
+  // è 1, quindi un giro completo vale ora tante storie quante sono le righe
+  // del pool: su una base a paragrafi (poche righe lunghe) 14 voci coprono
+  // più giri e il memo di sintesi può riproporre materiale già usato.
+  // Valore non ritarato: dipende dalla base in uso, non dal codice.
   dreamMemoryBufferCapacity: 14,
   storyMemoryCount: 6,
   storyQueueTarget: 1,

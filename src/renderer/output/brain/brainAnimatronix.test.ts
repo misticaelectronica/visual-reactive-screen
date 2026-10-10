@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ANIMATRONIX_GRAMMARS,
@@ -21,6 +23,7 @@ import {
   withForcedGrammars,
   ZERO_WORLD_STATE,
   type AnimatronixGrammar,
+  type AnimatronixPlan,
   type AnimatronixStructure,
 } from './brainAnimatronix'
 
@@ -476,3 +479,112 @@ describe('ANIMATRONIX morph a flusso', () => {
   })
 })
 
+
+// PIANO-047: la ripetitività della fase è stata corretta su parametri già
+// esistenti (passo del cursore, tabella delle transizioni, eredità dello
+// stato, guadagno delle durate). Questi test fissano gli invarianti che ne
+// derivano, così una ritaratura futura non li perda per inerzia.
+describe('ANIMATRONIX varietà fra storie', () => {
+  const variedRasters = [corridor, layered, withMass, corridor].map((g) =>
+    analyzeAnimatronixRaster(g, W, H),
+  )
+
+  it('le grammatiche di due storie consecutive non si sovrappongono e il confine non si ripete', () => {
+    let cursor = 0
+    let previous: AnimatronixPlan | null = null
+    for (let n = 0; n < 22; n++) {
+      const plan = planAnimatronix({ storyId: `rot-${n}`, structures: allViable, cursor })
+      if (previous) {
+        const shared = plan.principals.filter((g) => previous!.principals.includes(g))
+        expect(shared).toEqual([])
+        expect(plan.segments[0].primary).not.toBe(
+          previous.segments[previous.segments.length - 1].primary,
+        )
+      }
+      previous = plan
+      cursor = plan.nextCursor
+    }
+  })
+
+  it('in undici storie la rotazione passa comunque per tutte le undici grammatiche', () => {
+    let cursor = 0
+    const seen = new Set<AnimatronixGrammar>()
+    for (let n = 0; n < 11; n++) {
+      const plan = planAnimatronix({ storyId: `giro-${n}`, structures: allViable, cursor })
+      for (const g of plan.principals) seen.add(g)
+      cursor = plan.nextCursor
+    }
+    expect(seen.size).toBe(ANIMATRONIX_GRAMMARS.length)
+  })
+
+  it('nessuna transizione copre più di tre grammatiche e la crossfade pura ne copre una sola', () => {
+    const base = planAnimatronix({ storyId: 'transizioni', structures: allViable })
+    const counts = new Map<string, number>()
+    for (const grammar of ANIMATRONIX_GRAMMARS) {
+      const forced = withForcedGrammars(base, [grammar, grammar, grammar, grammar])
+      const transition = forced.segments[0].transition
+      expect(transition).not.toBeNull()
+      counts.set(transition as string, (counts.get(transition as string) ?? 0) + 1)
+    }
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(3)
+    expect(counts.size).toBeGreaterThanOrEqual(5)
+    expect(counts.get('residual')).toBe(1)
+    expect(counts.get('kinetic')).toBeUndefined()
+    expect(counts.get('datamosh')).toBe(2)
+  })
+
+  it('i quattro segmenti hanno metro contrastato quando i raster sono diversi', () => {
+    const plan = planAnimatronix({ storyId: 'metro', structures: variedRasters })
+    const durations = plan.segments.map((s) => s.durationMs)
+    expect(Math.max(...durations) / Math.min(...durations)).toBeGreaterThan(1.5)
+    expect(plan.segments.reduce((a, s) => a + s.durationMs, 0)).toBeCloseTo(plan.totalMs, 3)
+  })
+
+  it('i canali più persistenti non riportano il segmento successivo a stato quasi pieno', () => {
+    const carried = carryWorldState({
+      flight: 1,
+      bend: 1,
+      melt: 1,
+      fracture: 1,
+      collapse: 1,
+      camera: 1,
+      kinetic: 1,
+      vertigo: 1,
+      focus: 1,
+      zoom: 1,
+    })
+    for (const value of [carried.zoom, carried.camera, carried.bend]) {
+      expect(value).toBeGreaterThan(0)
+      expect(value).toBeLessThanOrEqual(0.35)
+    }
+  })
+
+  it('nessun livello si stacca dalla figura: la sagoma non viaggia e i piani non aprono vuoti', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/renderer/output/brain/brainAnimatronixGl.ts'),
+      'utf8',
+    )
+    // OCCLUSION PASSAGE in posizione: nessun punto d'arrivo fuori quadro,
+    // nessuna scala della sagoma, nessun vuoto riempito da uno sfondo scuro.
+    expect(source).not.toContain('uMassEnd')
+    expect(source).not.toContain('uMassScaleEnd')
+    expect(source).not.toContain('darkBeyond')
+    expect(source).toContain('massFront')
+    // DEPTH FRACTURE: lo scarto fra i piani resta un micro-disallineamento.
+    const amp = source.match(/float amp = ([\d.]+) \* F \+ ([\d.]+) \* tr;/)
+    expect(amp).not.toBeNull()
+    expect(Number(amp?.[1])).toBeLessThanOrEqual(0.03)
+    expect(Number(amp?.[2])).toBeLessThanOrEqual(0.03)
+  })
+
+  it('lo shader non contiene più alcuna rotazione: il morphing a spirale è ritirato', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/renderer/output/brain/brainAnimatronixGl.ts'),
+      'utf8',
+    )
+    expect(source).not.toMatch(/mat2\(/)
+    expect(source).toContain('DATAMOSH')
+    expect(source).toContain('hash21')
+    expect(source).toContain('datamosh: 5')
+  })
+})

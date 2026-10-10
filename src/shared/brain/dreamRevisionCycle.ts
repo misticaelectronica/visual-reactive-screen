@@ -113,6 +113,26 @@ export class RevisionSessionMemory<T> {
   }
 }
 export const REVISION_CYCLE_LATER_LAP_DURATION_FACTOR = 0.5
+/**
+ * Scorrimento un po' più veloce durante la Riattivazione (disp. Capo Supremo
+ * 2026-10-08: "un po' più veloci ma poco"). Agisce sui limiti di transizione
+ * e tenuta, **non** sulla durata richiesta del fotogramma.
+ *
+ * Perché lì e non sui fattori di giro qui sopra: la durata effettiva è
+ * `max(durata richiesta, transizione + tenuta)` (`calculateBrainFrameTiming`).
+ * A 500 ms di beat la somma transizione+tenuta vale 11000-12500 ms, mentre i
+ * giri chiedono 9800 ms (primo) e 7000 ms (successivi): la richiesta sta
+ * sempre sotto il pavimento, quindi vince il pavimento. Abbassare 0.7 e 0.5
+ * non cambierebbe nulla — e per la stessa ragione i tre giri hanno oggi la
+ * stessa durata, nonostante il commento sopra. Rilievo aperto, non corretto
+ * qui: è una decisione sul linguaggio della Riattivazione, non una taratura.
+ *
+ * Il fattore si applica a tutti e quattro i limiti insieme (min e max di
+ * transizione e tenuta) perché il minimo è un pavimento: scalare solo i
+ * massimi lascerebbe il tempo dov'è. L'effetto è quantizzato al beat, quindi
+ * varia col tempo del pezzo: a 120 bpm vale circa -5%/-8%.
+ */
+export const REVISION_CYCLE_FRAME_SPEED_FACTOR = 0.85
 
 export type DreamImageArchiveEntry = {
   fileName: string

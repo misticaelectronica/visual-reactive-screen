@@ -489,6 +489,44 @@ export function createBrainController(
     gap: '4px',
   })
   rasterMonitor.append(rasterHeader, rasterList)
+  // INDICATORE PALETTE (disp. Capo Supremo 2026-10-08): i colori della
+  // palette della storia corrente, in basso a sinistra, come mattoncini
+  // rettangolari affiancati nell'ordine originale della palette. Riferimento
+  // visivo minimale: nessun testo, bordo, etichetta o box contenitore, e
+  // nessuna reazione all'audio — è un elemento statico, non materia visiva,
+  // quindi non apre un secondo ciclo di movimento né costa nel budget RAF.
+  // Mostra la palette NOMINALE della storia: la dissolvenza cromatica DMX
+  // resta indipendente e non viene letta qui.
+  const paletteIndicator = document.createElement('div')
+  paletteIndicator.dataset.brainPaletteIndicator = 'true'
+  Object.assign(paletteIndicator.style, {
+    position: 'absolute',
+    left: '10px',
+    bottom: '10px',
+    // Sopra il pannello storia, che occupa lo stesso angolo finché non
+    // dissolve a 0 all'inizio della visualizzazione.
+    zIndex: '4',
+    display: 'flex',
+    gap: '2px',
+    pointerEvents: 'none',
+    opacity: String(BRAIN_CONFIG.statusOpacity + 0.34),
+    willChange: 'transform',
+    transform: 'translateZ(0)',
+  })
+  const renderPaletteIndicator = (palette: readonly string[]): void => {
+    paletteIndicator.replaceChildren(
+      ...palette.map((color) => {
+        const brick = document.createElement('span')
+        Object.assign(brick.style, {
+          display: 'block',
+          width: '9px',
+          height: '4px',
+          background: color,
+        })
+        return brick
+      }),
+    )
+  }
   root.append(
     svgHost,
     edgeSoftener,
@@ -496,6 +534,7 @@ export function createBrainController(
     rasterMonitor,
     currentImageCaption,
     statusElement,
+    paletteIndicator,
   )
   container.appendChild(root)
   const animatronixStage = createAnimatronixStage(root)
@@ -1255,6 +1294,7 @@ export function createBrainController(
       beatDurationMs,
       frame.durationMs,
       currentFrameMorphPattern,
+      revisionCycleActive,
     )
     const frameKey = `${currentProduction.story.id}:${frame.id}`
     const synchronizedRaster = scene.raster ?? rasterPreviewBlobs.get(frameKey)
@@ -1458,6 +1498,9 @@ export function createBrainController(
   }
 
   const startProduction = (production: BrainProduction, beatDurationMs = 500, beatIndex = 0) => {
+    // L'indicatore si aggiorna al cambio storia, non per fotogramma: la
+    // palette appartiene alla storia intera.
+    renderPaletteIndicator(production.story.palette)
     brainLog('pipeline', 'inizio rendering storia', {
       id: production.story.id,
       title: production.story.title,
