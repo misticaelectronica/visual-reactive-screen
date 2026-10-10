@@ -10,6 +10,7 @@ interface SerialPortLike {
   close(): Promise<void>
   setSignals(signals: { break?: boolean }): Promise<void>
   writable: WritableStream<Uint8Array> | null
+  getInfo(): { usbVendorId?: number }
 }
 
 interface SerialLike extends EventTarget {
@@ -47,11 +48,17 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
   let wanted = false
   let sending = false
   let wasFading = false
+  let opening = false
+
+  // Le porte Bluetooth non hanno usbVendorId: non sono mai un dongle DMX.
+  const grantedUsbPort = async () => (await serial?.getPorts() ?? []).find(p => p.getInfo().usbVendorId !== undefined)
 
   const emit = () => onStatus({ ...status })
 
   const fail = (reason: unknown) => {
-    status.error = reason instanceof Error ? reason.message : String(reason)
+    status.error = reason instanceof Error && reason.name === 'NotFoundError'
+      ? 'Nessun dongle USB-DMX trovato: collegalo e premi Connetti'
+      : reason instanceof Error ? reason.message : String(reason)
     log(`failure: ${status.error}`)
     void close()
   }
@@ -67,9 +74,15 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
   }
 
   async function open(next: SerialPortLike) {
-    await next.open(kind === 'open-dmx'
-      ? { baudRate: 250000, dataBits: 8, stopBits: 2, parity: 'none' }
-      : { baudRate: 57600 })
+    if (opening) return
+    opening = true
+    try {
+      await next.open(kind === 'open-dmx'
+        ? { baudRate: 250000, dataBits: 8, stopBits: 2, parity: 'none' }
+        : { baudRate: 57600 })
+    } finally {
+      opening = false
+    }
     port = next
     writer = next.writable?.getWriter() ?? null
     status.connected = true
@@ -109,7 +122,7 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
   // Dongle reinserito: riapre da solo se l'utente era connesso.
   const onReconnect = async () => {
     if (!wanted || port || !serial) return
-    const [granted] = await serial.getPorts()
+    const granted = await grantedUsbPort()
     if (granted) await open(granted).catch(fail)
   }
   serial?.addEventListener('connect', onReconnect)
@@ -123,8 +136,7 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
       wanted = true
       await close()
       try {
-        const [granted] = await serial.getPorts()
-        await open(granted ?? await serial.requestPort())
+        await open(await grantedUsbPort() ?? await serial.requestPort())
       } catch (error) {
         fail(error)
       }
