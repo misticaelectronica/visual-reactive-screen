@@ -13,6 +13,13 @@
   righe presenti TITLE 29, STORY 21, BRIDGE 16, COLORS 14, INVARIANT 10. Il
   prompt richiede ~180-200 token. Proposta: alzare il tetto a ~240, poi
   rimisurare prima di decidere una palette di riserva dalla `Colour family`.
+- [x] **`TASK-049-05`** `DONE — DA RIMISURARE`: `storyMaxNewTokens` 140 → 240 e
+  timeout story 45 → 75 s (disposizione del Capo Supremo «alza»). Misura di
+  partenza, ultime 60 sessioni: palette di riserva in 295 storie su 333
+  (89%); richiesta story mediana 21,7 s, p90 34,8 s, max 44,3 s, 3 timeout.
+  Da rimisurare dopo una sessione: quota di palette vere, durata e timeout
+  della richiesta story. Solo se le palette mancano ancora: riserva dalla
+  `Colour family` della storia.
 - [x] **`TASK-049-04`** `DONE`: le luci scartano i colori troppo scuri
   (canale massimo < 48) dei comandi producer; il manuale resta esatto.
 
@@ -1187,3 +1194,10 @@ manuale finale viene eseguito dal Capo Supremo.
 - [ ] **TASK-047-12 [TODO]**: collaudo a schermo del moto dentro la figura —
   verificare che nessun livello si stacchi e che il passaggio di occlusione
   si legga come trasformazione in posizione e non come dissolvenza.
+
+## Preset colore Morphing — intervento circoscritto 2026-10-11
+
+- [x] **TASK-COLOR-01 [DONE]**: aggiungere i preset `Intense Purple — Pantone
+  2623 C` e `Italian Blue — Pantone 293 C`, mantenendo esatti gli accenti
+  `#5C1D6B` e `#0B32B0`, completarli con fondo/base/flash coerenti e verificarli
+  con test dedicati, typecheck, lint mirato e suite completa.

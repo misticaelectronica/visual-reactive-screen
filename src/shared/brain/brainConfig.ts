@@ -45,7 +45,10 @@ export const BRAIN_CONFIG = {
   // Quattro fotogrammi mantengono una storia leggibile; due posizioni
   // casuali dal secondo in poi usano il profilo rapido.
   renderFrameCount: 4,
-  storyMaxNewTokens: 140,
+  // 140 troncava la risposta prima di COLORS e INVARIANT (diagnosi
+  // 2026-10-11: 50 risposte su 59 finivano a metà frase, palette di riserva
+  // nell'89% delle storie). Il formato richiesto vale ~180-200 token.
+  storyMaxNewTokens: 240,
   sceneMaxNewTokens: 220,
   storyMinNewTokens: 60,
   sceneMinNewTokens: 24,
