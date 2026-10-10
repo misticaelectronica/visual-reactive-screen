@@ -26,6 +26,7 @@ export interface DmxStatus {
 }
 
 const FRAME_MS = 25
+const OPEN_DMX_FRAME_MS = 24
 const log = (message: string) => console.info(`[dmx] ${message}`)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -104,6 +105,8 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
         const frame = new Uint8Array(513)
         frame.set(universe, 1)
         await writer.write(frame)
+        // 513 byte a 250 kbaud = ~23 ms: il break successivo non deve troncare il frame.
+        await sleep(OPEN_DMX_FRAME_MS)
       } else {
         await writer.write(usbProPacket(universe))
       }

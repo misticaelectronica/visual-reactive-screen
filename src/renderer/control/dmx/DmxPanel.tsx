@@ -52,10 +52,15 @@ export default function DmxPanel({ settings, onChange }: Props) {
       <div className="toolbar">
         <select
           value={settings.dmxInterface}
-          onChange={(e) => onChange({ dmxInterface: e.target.value === 'open-dmx' ? 'open-dmx' : 'usb-pro' })}
+          onChange={(e) => {
+            const next = e.target.value === 'open-dmx' ? 'open-dmx' : 'usb-pro'
+            onChange({ dmxInterface: next })
+            // Da connesso, riapre la porta con il protocollo scelto.
+            if (status?.connected) void controllerRef.current?.connect(next)
+          }}
         >
-          <option value="usb-pro">USB-DMX Pro (Enttec e compatibili)</option>
-          <option value="open-dmx">Open DMX (FTDI)</option>
+          <option value="usb-pro">USB-DMX Pro (Enttec Pro e compatibili)</option>
+          <option value="open-dmx">Open DMX (FTDI FT232R generico)</option>
         </select>
         {status?.connected
           ? <button type="button" onClick={() => void controllerRef.current?.disconnect()}>Disconnetti</button>
