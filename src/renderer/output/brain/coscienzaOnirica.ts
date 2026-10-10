@@ -1244,7 +1244,9 @@ export class CoscienzaOnirica {
         : []),
       'Each prompt must describe a concrete visible scene with one identifiable subject, one physical action, a coherent place and a clear camera view.',
       'Use literal nouns and observable actions. Prefer people, creatures, animals, plants or distinctive objects when present.',
-      'Do not discuss meaning, mood, artistic style, color, symbolism or the writing task.',
+      // Il colore non è più vietato: nessuna ingerenza cromatica sulla
+      // generazione (filosofia.md §2.2).
+      'Do not discuss meaning, mood, artistic style, symbolism or the writing task.',
       'Use 18-30 English words per line.',
       'Return exactly four lines beginning VISUAL1:, VISUAL2:, VISUAL3:, VISUAL4:.',
       ...phaseBriefs,

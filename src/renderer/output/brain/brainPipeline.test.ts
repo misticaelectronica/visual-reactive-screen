@@ -1035,20 +1035,18 @@ describe('Psichedel', () => {
     }
   }
 
-  it('conserva quattro momenti distinti e la stessa famiglia cromatica di storia', () => {
+  it('conserva quattro momenti distinti senza alcuna direzione cromatica', () => {
     const story = defaultStory()
     story.frames.forEach((frame, index) => { frame.imagePrompt = `Distinct visual moment ${index + 1} of the silver root.` })
     const prompts = story.frames.map((frame) => buildPsychedelImagePrompt(story, frame))
     expect(new Set(prompts).size).toBe(4)
-    const paletteLines = prompts.map((prompt) => prompt.split('\n').at(-1))
     prompts.forEach((prompt, index) => {
       expect(prompt.startsWith(`CURRENT MOMENT ${index + 1}/4 — `)).toBe(true)
       expect(prompt).toContain(`: ${story.frames[index].imagePrompt!}`)
-      expect(prompt).toContain('COLOR DIRECTION:')
-      expect(prompt).toContain('Shadows keep density and readable detail.')
+      expect(prompt).not.toContain('COLOR DIRECTION')
+      expect(prompt).not.toContain('Colour family')
       expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
     })
-    expect(new Set(paletteLines).size).toBe(1)
   })
 
   it('non aggiunge stimolo associato o argomento generale al prompt raster', () => {
@@ -1795,10 +1793,10 @@ describe('VISUAL CONTEXT — memoria visiva locale del fotogramma precedente', (
     expect(prompt).not.toContain(story.frames[0].imagePrompt!)
   })
 
-  it('l’ordine dei blocchi resta momento, contesto, invariante, colore', () => {
+  it('l’ordine dei blocchi resta momento, contesto, invariante', () => {
     const story = storyWithFourMoments()
     const prompt = buildPsychedelImagePrompt(story, story.frames[2])
-    const order = ['CURRENT MOMENT', 'VISUAL CONTEXT:', 'INVARIANT:', 'COLOR DIRECTION:']
+    const order = ['CURRENT MOMENT', 'VISUAL CONTEXT:', 'INVARIANT:']
       .map((label) => prompt.indexOf(label))
     expect(order.every((position) => position >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)

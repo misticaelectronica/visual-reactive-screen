@@ -1,5 +1,30 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Nessuna ingerenza cromatica sulla generazione — 2026-10-11
+
+Disposizione del Capo Supremo, fissata in `filosofia.md` §2.2: la
+generazione delle immagini non riguarda il regime bio-percettivo; il regime
+riguarda il lavoro cromatico dei renderer a runtime; nessuna ingerenza
+cromatica sulla generazione. DEP-001 `NON COINVOLTO`.
+
+**CONSEGNATO.** Rimosso il blocco `COLOR DIRECTION` dal prompt raster
+(`brainColorState.ts` e test dismessi) e la parola `color` dal divieto del
+Visual Plan. Verificato: nessun modulo di generazione (`psichedel.ts`,
+`coscienzaOnirica.ts`, `sd15OnnxWebGpu.ts`, `brainImageWorker.ts`,
+`psychedelImageGenerator.ts`) legge il regime bio-percettivo. 793 test verdi.
+
+## Preset Pantone e rotazione colori più rapida — 2026-10-11
+
+**CONSEGNATO.** Aggiunti alla normale selezione e rotazione dinamica colori i
+preset `Intense Purple — Pantone 2623 C` e
+`Italian Blue — Pantone 293 C`. I colori richiesti `#5C1D6B` e `#0B32B0`
+sono gli accenti caldi esatti; ciascun preset completa il contratto del motore
+con fondo, base e flash nella stessa famiglia cromatica. Nessuna nuova
+meccanica visuale o costo per frame. La finestra casuale di `Rotazione colori`
+è stata ridotta da 45–150 s a 30–100 s (attesa media: 65 s). DEP-001
+`NON COINVOLTO`. Typecheck, lint mirato e suite completa verdi: 794 test su
+83 file.
+
 ## DMX Color Controller aperto — 2026-10-10
 
 Brief del Vicario archiviato in

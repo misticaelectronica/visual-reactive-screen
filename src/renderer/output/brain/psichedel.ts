@@ -12,7 +12,6 @@ import type {
 import { BrainImageWorkerClient } from './brainImageWorkerClient'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainInferenceScheduler } from './brainThermalScheduler'
-import { buildColorDirectionBlock } from './brainColorState'
 import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
 
 export type PsychedelRasterPreview = {
@@ -232,9 +231,12 @@ function previousFrameVisualContext(story: DreamStory, frame: DreamFrame): strin
 
 /**
  * Gerarchia del prompt raster (lettera Vice Consigliere §6-§7): momento
- * corrente (dal Visual Plan) + invariante stabile della storia. La palette
- * appartiene alla storia (§11): la seed key del Color Direction è
- * `story.id`, non più `story.id:frame.id`.
+ * corrente (dal Visual Plan) + invariante stabile della storia.
+ *
+ * NESSUNA INGERENZA CROMATICA (disp. Capo Supremo 2026-10-11, filosofia.md
+ * §2.2): il blocco COLOR DIRECTION è stato rimosso. La generazione non
+ * riceve direzioni di colore né famiglie cromatiche; il lavoro cromatico
+ * avviene a runtime, nei renderer.
  *
  * RIPRISTINO CONTESTO VISIVO PER FOTOGRAMMA (disp. Capo Supremo 2026-10-08):
  * torna un secondo livello di contesto, `VISUAL CONTEXT`, con la frase
@@ -288,7 +290,6 @@ export function buildPsychedelImagePrompt(
   if (story.invariant?.trim()) {
     promptParts.push(`INVARIANT: ${story.invariant.trim()}`)
   }
-  promptParts.push(buildColorDirectionBlock(story.id))
   return promptParts.join('\n\n')
 }
 
@@ -436,7 +437,7 @@ export class Psichedel {
               seed,
               prompt,
               promptPolicy:
-                'testo narrativo AI mantenuto senza riscrittura; è ammesso un blocco Visual COLOR DIRECTION separato e identificabile',
+                'testo narrativo AI mantenuto senza riscrittura; nessuna direzione cromatica aggiunta',
             })
             const raster: Awaited<ReturnType<PsychedelImageGenerator['generate']>> =
               await this.runInference(async () => {
