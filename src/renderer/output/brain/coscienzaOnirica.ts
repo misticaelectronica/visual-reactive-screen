@@ -958,7 +958,9 @@ export class CoscienzaOnirica {
       // team/briefs/manuale-sceneggiatura-kubrickiana-2026-10-11.md): la
       // vecchia riga «named adult protagonist … initiating event, conflict,
       // transformation and conclusion» diventava intestazioni nella storia.
-      'Write one continuous narrative with no headings or labels. Build the story around a person in a concrete place and use a few strong visual situations. Let the story freely generate its characters, names and relationships. Each situation should visibly change a relationship between a person, object, body or place. Let motives and causes remain partly inferable. Do not explain themes or name narrative functions. End with a concrete image or action that changes the meaning of something seen earlier.',
+      // «Inside STORY» (disp. Capo Supremo 2026-10-11): il divieto di
+      // etichette vale dentro la storia, non per le righe del formato.
+      `Inside ${this.translator ? 'STORY' : 'STORIA'}, write one continuous narrative with no headings or labels. Build the story around a person in a concrete place and use a few strong visual situations. Let the story freely generate its characters, names and relationships. Each situation should visibly change a relationship between a person, object, body or place. Let motives and causes remain partly inferable. Do not explain themes or name narrative functions. End with a concrete image or action that changes the meaning of something seen earlier.`,
       'Let connections between the source prompts emerge through events, association or partial causality. Some links may remain implicit. Never discuss or copy the instructions.',
       ...(explicitSource
         ? [
