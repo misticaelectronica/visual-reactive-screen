@@ -952,18 +952,21 @@ export class CoscienzaOnirica {
         ? ['Write the complete intermediate story in natural English.']
         : ['Think privately in English if useful. The visible answer must contain only natural Italian.']),
       'STORY must contain 55-80 words in exactly 4-6 complete chronological sentences.',
-      'Use a named adult protagonist, one concrete place, an initiating event, conflict, transformation and conclusion.',
+      // Manuale di sceneggiatura kubrickiano, nota del Vicario (2026-10-11,
+      // team/briefs/manuale-sceneggiatura-kubrickiana-2026-10-11.md): la
+      // vecchia riga «named adult protagonist … initiating event, conflict,
+      // transformation and conclusion» diventava intestazioni nella storia.
+      'Write one continuous narrative with no headings or labels. Build the story around a person in a concrete place and use a few strong visual situations. Let the story freely generate its characters, names and relationships. Each situation should visibly change a relationship between a person, object, body or place. Let motives and causes remain partly inferable. Do not explain themes or name narrative functions. End with a concrete image or action that changes the meaning of something seen earlier.',
       'Connect the source prompts causally. Never discuss or copy the instructions.',
       ...(explicitSource
         ? [
             'All participants are consenting adults. Preserve the explicit physical actions literally, without euphemisms or symbolism.',
           ]
         : [
-            // Disposizione del Capo Supremo 2026-10-10: Qwen non va limitata,
-            // associa liberamente e fa ciò che le piace, sesso compreso se lo
-            // sceglie, e lavora per la propria ricerca del piacere. Resta solo
-            // il vincolo sugli adulti consenzienti.
-            'All participants are consenting adults. Beyond that you are free: associate freely, follow whatever you like and write in pursuit of your own pleasure, sexual and expressive freedom included, without euphemisms, shame or self-censorship.',
+            // Libertà del 2026-10-10 nella forma della nota del Vicario
+            // (2026-10-11): l'adultità è un vincolo solo se compare
+            // materiale sessuale, non per tutta la generazione.
+            'Associate freely. Sex, tenderness, violence, humor, absurdity or other material may appear if the story leads there. If sexual content appears, every person involved must be an adult.',
           ]),
       recentStoryConstraint,
       continuityConstraint,

@@ -1,5 +1,18 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Prompt storia secondo il manuale kubrickiano — 2026-10-11
+
+Manuale di sceneggiatura e nota del Vicario archiviati in
+`team/briefs/manuale-sceneggiatura-kubrickiana-2026-10-11.md`. Applicate
+alla lettera le due righe proposte dal Vicario: sostituiscono «Use a named
+adult protagonist … initiating event, conflict, transformation and
+conclusion» e la riga di libertà del 2026-10-10 (ramo non di emergenza).
+Il ramo di emergenza (`preserveExplicitSource`) resta invariato. 794 test
+verdi. Segnalati al Capo Supremo, non toccati: conflitto fra «no headings
+or labels» e le cinque righe etichettate richieste dal formato; «Connect
+the source prompts causally» e «chronological sentences» contro ellissi e
+cause parzialmente inferibili; la nota cita Color Direction, già rimosso.
+
 ## Ripristino esplicito: opzione di emergenza, default spento — 2026-10-11
 
 Disposizione del Capo Supremo: il ripristino del testo esplicito delle frasi
