@@ -52,7 +52,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flashOnKick: false,
   lowPowerMode: false,
   dmxEnabled: false,
-  dmxInterface: 'usb-pro',
+  dmxInterface: 'open-dmx',
   dmxFixtureProfiles: ['7ch', '7ch', '7ch', '7ch'],
   selectedColorPresetId: null,
   dynamicPresetEnabled: false,
