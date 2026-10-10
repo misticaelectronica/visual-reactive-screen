@@ -13,7 +13,7 @@
   righe presenti TITLE 29, STORY 21, BRIDGE 16, COLORS 14, INVARIANT 10. Il
   prompt richiede ~180-200 token. Proposta: alzare il tetto a ~240, poi
   rimisurare prima di decidere una palette di riserva dalla `Colour family`.
-- [x] **`TASK-049-05`** `DONE — DA RIMISURARE`: `storyMaxNewTokens` 140 → 240 e
+- [x] **`TASK-049-05`** `RITIRATO 2026-10-11`: dopo 3 storie a 240 token compare il formato a scaletta (Characters:/Initiating Event:/Conflict:, 38 righe in una sessione, 0 nelle 25 precedenti). Ripristinati 140 token e 45 s. Il motivo (palette per le luci) non c'è più: le luci usano il raster. Testo originale: `storyMaxNewTokens` 140 → 240 e
   timeout story 45 → 75 s (disposizione del Capo Supremo «alza»). Misura di
   partenza, ultime 60 sessioni: palette di riserva in 295 storie su 333
   (89%); richiesta story mediana 21,7 s, p90 34,8 s, max 44,3 s, 3 timeout.
@@ -1201,3 +1201,6 @@ manuale finale viene eseguito dal Capo Supremo.
   2623 C` e `Italian Blue — Pantone 293 C`, mantenendo esatti gli accenti
   `#5C1D6B` e `#0B32B0`, completarli con fondo/base/flash coerenti e verificarli
   con test dedicati, typecheck, lint mirato e suite completa.
+- [x] **TASK-COLOR-02 [DONE]**: accelerare moderatamente `Rotazione colori`
+  riusando il timer esistente: finestra casuale da 45–150 s a 30–100 s, con
+  test dedicato e nessun nuovo scheduler.

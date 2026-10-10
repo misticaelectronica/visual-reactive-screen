@@ -187,10 +187,8 @@ export class BrainAiClient {
       return
     }
     this.activeRequestId = id
-    // Storia: 45 s con 140 token (p90 34,8 s, max 44,3 s); con 240 token il
-    // tempo di decodifica cresce in proporzione.
     const timeoutMs = request.message.task === 'story'
-      ? 75_000
+      ? 45_000
       : request.message.task === 'release-translators' ||
           request.message.task === 'release-ai-models'
         ? 12_000

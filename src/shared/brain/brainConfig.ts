@@ -45,10 +45,11 @@ export const BRAIN_CONFIG = {
   // Quattro fotogrammi mantengono una storia leggibile; due posizioni
   // casuali dal secondo in poi usano il profilo rapido.
   renderFrameCount: 4,
-  // 140 troncava la risposta prima di COLORS e INVARIANT (diagnosi
-  // 2026-10-11: 50 risposte su 59 finivano a metà frase, palette di riserva
-  // nell'89% delle storie). Il formato richiesto vale ~180-200 token.
-  storyMaxNewTokens: 240,
+  // 140 tronca spesso prima di COLORS e INVARIANT (diagnosi 2026-10-11:
+  // palette di riserva nell'89% delle storie). Provato 240 lo stesso giorno
+  // e ritirato: con più spazio Qwen 0.5B scrive scalette da sceneggiatura
+  // (Characters:/Initiating Event:/Conflict:) invece della storia.
+  storyMaxNewTokens: 140,
   sceneMaxNewTokens: 220,
   storyMinNewTokens: 60,
   sceneMinNewTokens: 24,
