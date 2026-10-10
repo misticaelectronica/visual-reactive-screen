@@ -5,12 +5,14 @@
 Brief del Vicario archiviato in
 `team/briefs/brief-dmx-color-controller-2026-10-10.md`. Branch
 `feature/dmx-color-controller` aperto da `1.0.0-rc.9`. Piano PIANO-048
-(MACRO-037) in BOZZA. DEP-001 `NON COINVOLTO`. Nessun codice scritto.
+(MACRO-037) IN_PROGRESS. DEP-001 `NON COINVOLTO`.
 
-**Prossimi passi**: il Capo Supremo indica modello del dongle USB-DMX,
-profilo canali e indirizzi dei quattro PAR; decisione sul trasporto seriale
-(proposta: main process + `serialport`). Poi Fase 2, motore puro testato
-senza hardware.
+**IMPLEMENTATO** il modulo `src/renderer/control/dmx/` (Web Serial, profilo
+PAR xkl-A4 7ch e RGB 3ch, cascata a indirizzi consecutivi, dissolvenza
+lineare senza salti, master separato, blackout), attivabile da
+`dmxEnabled` e caricato solo se attivo. Typecheck e 787 test verdi.
+
+**Prossimi passi**: `pnpm build` e collaudo dal vivo con PAR e dongle.
 
 ## ANIMATRONIX: il moto torna dentro la figura — 2026-10-09
 

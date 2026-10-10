@@ -3,7 +3,7 @@
 > **ID Piano**: `PIANO-048`
 > **Macrotask di Riferimento**: `MACRO-037`
 > **Data Creazione**: 2026-10-10
-> **Stato**: `BOZZA`
+> **Stato**: `IN_PROGRESS` — implementato, collaudo hardware pendente
 > **Autore/Agente**: Agente AI / Capo Supremo
 > **Branch**: `feature/dmx-color-controller` (aperto da `feature/animatronix-v1-grammatiche` @ `1.0.0-rc.9`)
 > **Brief di origine**: `team/briefs/brief-dmx-color-controller-2026-10-10.md` (Vicario → Capo Supremo degli Ingegneri)
@@ -143,3 +143,20 @@ Proposta di struttura in `src/main/dmx/`, da confermare:
 - **2026-10-10**: creazione del piano, archiviazione del brief del Vicario,
   apertura del branch. Nessun codice scritto: in attesa delle decisioni
   aperte 1-3.
+- **2026-10-10 (sera)**: implementazione su disposizione del Capo Supremo
+  («modulare, attivabile da configurazione», niente sovraingegnerizzazione).
+  Decisioni prese:
+  - PAR xkl-A4 (manuale fotografato): profilo `7ch` = 1 master, 2 R, 3 G,
+    4 B, 5 vuoto, 6 funzione, 7 velocità; 6-7 sempre a 0. Per i PAR futuri
+    sconosciuti c'è il profilo `3ch` RGB, scelto per fixture dal pannello.
+  - Fixture in cascata con indirizzi consecutivi da 1 (7ch → 1, 8, 15, 22):
+    l'indirizzo va impostato sul display del PAR (`d001`, `d008`, ...).
+  - Trasporto: **Web Serial** nella Control Window, non `serialport`: il
+    pacchetto non include `node_modules`, un modulo nativo avrebbe chiesto
+    di cambiare il packaging. Dongle: `usb-pro` (Enttec e compatibili) o
+    `open-dmx` (FTDI, break via `setSignals`), scelta nel pannello; modello
+    del dongle ancora da verificare dal vivo.
+  - Attivazione: impostazione `dmxEnabled` (default spento); il modulo
+    `src/renderer/control/dmx/` è caricato con `lazy()` solo se attivo.
+  - Ownership minima `acquire`/`release`; blackout senza ownership.
+  Typecheck verde, suite 787 test verdi. `pnpm build` e collaudo pendenti.

@@ -77,6 +77,11 @@ export interface BandEnergies {
   high: number
 }
 
+// `usb-pro`: Enttec DMX USB Pro e compatibili. `open-dmx`: FTDI senza firmware (Open DMX).
+export type DmxInterface = 'usb-pro' | 'open-dmx'
+// `7ch`: PAR xkl-A4 (master, R, G, B, vuoto, funzione, velocità). `3ch`: RGB.
+export type DmxProfile = '7ch' | '3ch'
+
 export interface AppSettings {
   fftSize: 256 | 512 | 1024 | 2048 | 4096 | 8192
   smoothingTimeConstant: number
@@ -131,6 +136,11 @@ export interface AppSettings {
   kickMovement: number
   flashOnKick: boolean
   lowPowerMode: boolean
+  /** Modulo luci DMX: caricato solo se attivo. */
+  dmxEnabled: boolean
+  dmxInterface: DmxInterface
+  /** Fixture in cascata, indirizzi consecutivi da 1. */
+  dmxFixtureProfiles: DmxProfile[]
   selectedColorPresetId: string | null
   dynamicPresetEnabled: boolean
   dynamicColorRotationEnabled: boolean

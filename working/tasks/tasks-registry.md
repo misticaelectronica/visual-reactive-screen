@@ -4,10 +4,14 @@
 
 - [x] **`TASK-048-01`** `DONE`: brief archiviato, branch aperto, piano creato,
   DEP-001 `NON COINVOLTO`.
-- [ ] **`TASK-048-02`** `BLOCKED`: modello del dongle e profilo canali dei PAR
-  dal Capo Supremo.
-- [ ] **`TASK-048-03`** `BLOCKED`: decisione sul trasporto seriale.
-- [ ] **`TASK-048-04..14`** `TODO`: vedi `working/plans/piano-048-dmx-color-controller.md`.
+- [x] **`TASK-048-02`** `DONE`: profilo PAR xkl-A4 7ch dal manuale; dongle
+  selezionabile `usb-pro`/`open-dmx`.
+- [x] **`TASK-048-03`** `DONE`: trasporto Web Serial nella Control Window.
+- [x] **`TASK-048-04..12`** `DONE`: motore (`dmxEngine.ts` + 4 test),
+  controller (`dmxController.ts`), pannello (`DmxPanel.tsx`), impostazioni
+  `dmxEnabled`/`dmxInterface`/`dmxFixtureProfiles`, permessi serial nel main.
+- [ ] **`TASK-048-13`** `TODO`: `pnpm build`.
+- [ ] **`TASK-048-14`** `TODO`: collaudo con il PAR xkl-A4 e il dongle reale.
 
 ## DELIQUESCENCE fuori dalla pressurizzazione, finestra frasi — 2026-10-08
 

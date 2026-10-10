@@ -78,6 +78,11 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     flashMode: isFlashMode(settings.flashMode) ? settings.flashMode : 'mid',
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
+    dmxEnabled: settings.dmxEnabled === true,
+    dmxInterface: settings.dmxInterface === 'open-dmx' ? 'open-dmx' : 'usb-pro',
+    dmxFixtureProfiles: Array.isArray(settings.dmxFixtureProfiles) && settings.dmxFixtureProfiles.length > 0
+      ? settings.dmxFixtureProfiles.slice(0, 32).map(profile => (profile === '3ch' ? '3ch' : '7ch'))
+      : DEFAULT_SETTINGS.dmxFixtureProfiles,
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,

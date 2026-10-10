@@ -1,6 +1,6 @@
 import './control.css'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { AppSettings, BandEnergies, MorphingAlgorithm } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import {
@@ -10,6 +10,9 @@ import {
 } from '@shared/morphingRotation'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
+
+// Modulo luci DMX: il codice viene caricato solo se `dmxEnabled` è attivo.
+const DmxPanel = lazy(() => import('./dmx/DmxPanel'))
 import { AudioInputSelector } from './components/AudioInputSelector'
 import { BandMeters } from './components/BandMeters'
 import { ThresholdControls } from './components/ThresholdControls'
@@ -453,6 +456,20 @@ export function ControlApp() {
       <VisualControls settings={settings} onChange={patchSettings} />
       <SafetyControls settings={settings} onChange={patchSettings} />
       <PublicSessionPanel settings={settings} onChange={patchSettings} />
+
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={settings.dmxEnabled}
+          onChange={(e) => patchSettings({ dmxEnabled: e.target.checked })}
+        />
+        Modulo luci DMX
+      </label>
+      {settings.dmxEnabled ? (
+        <Suspense fallback={null}>
+          <DmxPanel settings={settings} onChange={patchSettings} />
+        </Suspense>
+      ) : null}
 
       <section className="toolbar">
         <button

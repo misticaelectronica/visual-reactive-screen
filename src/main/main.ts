@@ -25,7 +25,19 @@ function configureMediaPermissions(): void {
   })
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    return permission === 'media'
+    return permission === 'media' || permission === 'serial'
+  })
+
+  // Modulo DMX (Web Serial): sceglie da solo il dongle USB, preferendo i
+  // chip FTDI, senza aprire finestre di selezione.
+  session.defaultSession.setDevicePermissionHandler((details) => details.deviceType === 'serial')
+  session.defaultSession.on('select-serial-port', (event, portList, _webContents, callback) => {
+    event.preventDefault()
+    const usable = portList.filter(port => !/bluetooth|debug/i.test(port.portName ?? ''))
+    const port = usable.find(candidate => candidate.vendorId === '1027' || candidate.vendorId === '0403')
+      ?? usable.find(candidate => candidate.vendorId)
+      ?? usable[0]
+    callback(port?.portId ?? '')
   })
 }
 
