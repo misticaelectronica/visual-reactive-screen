@@ -30,6 +30,16 @@ export function parseHex(hex: string): Rgb {
   return Number.isFinite(value) ? [(value >> 16) & 255, (value >> 8) & 255, value & 255] : BLACK
 }
 
+// Un colore con tutti i canali bassi su un PAR è una luce spenta (es.
+// «glossy black» nelle palette Brain, `idleColor` nei preset). Per i comandi
+// dei producer si scartano; se sono tutti scuri restano com'erano.
+const DARK_MAX_CHANNEL = 48
+
+export function usableLightColors(colors: string[]): string[] {
+  const lit = colors.filter(color => Math.max(...parseHex(color)) >= DARK_MAX_CHANNEL)
+  return lit.length > 0 ? lit : colors
+}
+
 export function createEngine(fixtures: DmxFixture[]): DmxColorEngine {
   return {
     fixtures,

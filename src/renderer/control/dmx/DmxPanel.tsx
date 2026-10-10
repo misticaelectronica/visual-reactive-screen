@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import type { AppSettings, DmxProducerCommand, DmxProfile } from '@shared/types'
-import { chainFixtures, PROFILE_CHANNELS } from './dmxEngine'
+import { chainFixtures, PROFILE_CHANNELS, usableLightColors } from './dmxEngine'
 import { createDmxController, type DmxController, type DmxStatus } from './dmxController'
 import { createDmxRhythm, type DmxAudioFrame } from './dmxRhythm'
 
@@ -54,6 +54,8 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
   }, [fixtures])
 
   const receive = (command: DmxProducerCommand) => {
+    // Il manuale manda esattamente ciò che si sceglie, nero compreso.
+    if (command.producer !== MANUAL) command = { ...command, colors: usableLightColors(command.colors) }
     lastCommandRef.current.set(command.producer, command)
     controllerRef.current?.setColors(command.producer, command.colors, command.transitionMs)
   }

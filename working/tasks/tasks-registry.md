@@ -8,6 +8,13 @@
 - [ ] **`TASK-049-02`** `TODO`: collaudo dal vivo su dub, techno, ambient.
 - [ ] **`TASK-049-03`** `TODO`: palette Brain nel 89% dei casi è il ripiego
   `DEFAULT_DREAM_PALETTE` — diagnosi della risposta del modello e correzione.
+  Diagnosi 2026-10-11: risposta troncata dal tetto `storyMaxNewTokens: 140`.
+  Su 59 risposte con testo loggato, 50 finiscono a metà frase (~92 parole);
+  righe presenti TITLE 29, STORY 21, BRIDGE 16, COLORS 14, INVARIANT 10. Il
+  prompt richiede ~180-200 token. Proposta: alzare il tetto a ~240, poi
+  rimisurare prima di decidere una palette di riserva dalla `Colour family`.
+- [x] **`TASK-049-04`** `DONE`: le luci scartano i colori troppo scuri
+  (canale massimo < 48) dei comandi producer; il manuale resta esatto.
 
 ## DMX Color Controller — PIANO-048 — 2026-10-10
 
