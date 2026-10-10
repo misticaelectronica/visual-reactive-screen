@@ -461,6 +461,18 @@ Layer PsyHyp:
 
 La structure non viene accumulata nel trail, per evitare scie costose e confusione visiva.
 
+## Luci DMX
+
+Modulo opzionale, attivabile con la casella **Modulo luci DMX** nella
+Control Window (spento di default). I colori arrivano da Brain (palette
+della storia) o da Morphing (preset colore attivo); la musica ne modula
+l'intensità sul kick, senza strobo e senza mai spegnerle sul beat.
+`Emergenza / Spegni` spegne anche le luci.
+
+Hardware collaudato: interfaccia DSD TECH SH-RS09B (FTDI, `Open DMX`) e PAR
+LED xkl-A4 in modalità `d001`. Configurazione, indirizzi in cascata e
+troubleshooting in [`docs/luci-dmx.md`](docs/luci-dmx.md).
+
 ## Persistenza impostazioni
 
 Le impostazioni vengono salvate automaticamente nel percorso `userData` di Electron, file:

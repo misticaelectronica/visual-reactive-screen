@@ -621,6 +621,39 @@ Regole:
 - `motionProfile` deve restare uno tra `dub`, `techno`, `ambient`
 - `lowPowerMode` deve fare merge coi default anche per settings salvati vecchi
 
+## Skill: Luci DMX
+
+Quando usare:
+
+- le luci non si accendono o non cambiano colore
+- «Nessun dongle USB-DMX trovato»
+- porta seriale occupata o driver bloccato
+- aggiungere PAR in cascata
+
+File chiave:
+
+- `docs/luci-dmx.md` (documentazione completa)
+- `src/renderer/control/dmx/`
+- `src/main/dmxSerial.ts`
+
+Verifiche, in quest'ordine:
+
+- il Mac vede l'interfaccia: `ls /dev/cu.usbserial*`;
+- il PAR è in modalità indirizzo (`d001`…), il cavo è nell'IN;
+- nel pannello è scelto `Open DMX` per interfacce FTDI generiche
+  (DSD TECH SH-RS09B);
+- nessun altro processo tiene la porta: `lsof /dev/cu.usbserial*`.
+
+Regole:
+
+- su macOS mai il break via `TIOCSBRK` (Web Serial `setSignals`): blocca il
+  driver FTDI. Il break si emula con un byte 0 a 57600 baud;
+- `serialport` ≥ 13 (la 12 non torna a 250000 baud);
+- non aprire la porta da script mentre l'app è connessa: due aperture
+  insieme hanno inchiodato il driver;
+- Brain e Morphing non importano nulla da `dmx/`: mandano solo
+  `{ producer, colors, transitionMs }`.
+
 ## Skill: Documentazione
 
 Quando usare:
