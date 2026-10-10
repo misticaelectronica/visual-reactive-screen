@@ -1,5 +1,22 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Grammatica narrativa e formato della risposta — 2026-10-11
+
+**CONSEGNATO — brief del Vicario** (`team/briefs/brief-correzione-grammatica-narrativa-2026-10-11.md`):
+«Connect the source prompts causally» e «exactly 4-6 complete chronological
+sentences» sostituite alla lettera.
+
+**CONSEGNATO — COLORS non si chiede più al modello**, su valutazione chiesta
+dal Capo Supremo («se obsoleto, togliamolo»). TITLE (21 usi), STORY, BRIDGE
+(continuità fra storie) e INVARIANT (prompt raster, Visual Plan) sono
+attivi; COLORS no: la palette non entra nella generazione (filosofia.md
+§2.2), le luci usano il raster, il modello la scriveva nell'11% delle
+storie. Formato a 4 righe; il parser accetta ancora COLORS se compare;
+i renderer ricevono la palette di riserva come già nell'89% dei casi.
+Tolto anche «and the five-color palette» dal moto di coscienza. Il
+riferimento a Color Direction nella nota del Vicario è superato (rimosso
+lo stesso giorno). 794 test verdi.
+
 ## Prompt storia secondo il manuale kubrickiano — 2026-10-11
 
 Manuale di sceneggiatura e nota del Vicario archiviati in

@@ -416,7 +416,7 @@ function storyCoreFromEnglishEnvelope(
     synopsis: synopsis.slice(0, 1_200),
     bridge:
       requiredText(
-        labeledBlock(text, 'BRIDGE', ['COLORS']),
+        labeledBlock(text, 'BRIDGE', ['COLORS', 'INVARIANT']),
         5,
       )?.slice(0, 420) ?? null,
     palette: paletteFromUnknown(labeledBlock(text, 'COLORS', ['INVARIANT'])),
@@ -942,7 +942,7 @@ export class CoscienzaOnirica {
           `Provenance: ${consciousnessInfluence.kind}. Source memory: ${consciousnessInfluence.title}.`,
           `Influence: ${consciousnessInfluence.influenceText}`,
           `Reason: ${consciousnessInfluence.relevanceReason}.`,
-          'Let it change one concrete story element, one local visual form and the five-color palette.',
+          'Let it change one concrete story element and one local visual form.',
           'Keep it secondary and traceable. If provenance is imagination, never present it as an external fact.',
         ].join('\n')
       : 'No consciousness motion is active for this story.'
@@ -951,13 +951,15 @@ export class CoscienzaOnirica {
       ...(this.translator
         ? ['Write the complete intermediate story in natural English.']
         : ['Think privately in English if useful. The visible answer must contain only natural Italian.']),
-      'STORY must contain 55-80 words in exactly 4-6 complete chronological sentences.',
+      // Brief del Vicario «Correzione della grammatica narrativa» (2026-10-11):
+      // tolti l'ordine cronologico rigido e la causalità obbligatoria.
+      'STORY must contain 55-80 words. Write 4-6 complete sentences as one continuous narrative. The sequence may use ellipsis and does not need to explain every connection.',
       // Manuale di sceneggiatura kubrickiano, nota del Vicario (2026-10-11,
       // team/briefs/manuale-sceneggiatura-kubrickiana-2026-10-11.md): la
       // vecchia riga «named adult protagonist … initiating event, conflict,
       // transformation and conclusion» diventava intestazioni nella storia.
       'Write one continuous narrative with no headings or labels. Build the story around a person in a concrete place and use a few strong visual situations. Let the story freely generate its characters, names and relationships. Each situation should visibly change a relationship between a person, object, body or place. Let motives and causes remain partly inferable. Do not explain themes or name narrative functions. End with a concrete image or action that changes the meaning of something seen earlier.',
-      'Connect the source prompts causally. Never discuss or copy the instructions.',
+      'Let connections between the source prompts emerge through events, association or partial causality. Some links may remain implicit. Never discuss or copy the instructions.',
       ...(explicitSource
         ? [
             'All participants are consenting adults. Preserve the explicit physical actions literally, without euphemisms or symbolism.',
@@ -972,7 +974,7 @@ export class CoscienzaOnirica {
       continuityConstraint,
       synthesisConstraint,
       consciousnessConstraint,
-      'BRIDGE must be one new concrete open-ended sentence of 8-16 words. COLORS must be exactly five hexadecimal colors.',
+      'BRIDGE must be one new concrete open-ended sentence of 8-16 words.',
       'INVARIANT must name one concrete recurring subject, body, shape or material from the story (2-6 words, a noun phrase, not a theme or emotion) that can persist and be transformed across the four visual moments.',
       ...(recentBridges.length > 0
         ? [
@@ -990,11 +992,14 @@ export class CoscienzaOnirica {
         : [
             `SOURCE INPUT PROMPTS (Italian or English; understand them directly):\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
           ]),
-      `Return exactly five lines. Line 1 starts with ${this.translator ? 'TITLE' : 'TITOLO'}:.`,
+      // COLORS non si chiede più (2026-10-11): la palette non entra nella
+      // generazione (filosofia.md §2.2) e il modello la scriveva nell'11%
+      // delle storie; i token liberati servono all'INVARIANT, l'ultima riga.
+      // Se il modello la scrive comunque, il parser la accetta.
+      `Return exactly four lines. Line 1 starts with ${this.translator ? 'TITLE' : 'TITOLO'}:.`,
       `Line 2 starts with ${this.translator ? 'STORY' : 'STORIA'}: and contains the complete story.`,
       `Line 3 starts with ${this.translator ? 'BRIDGE' : 'LEGAME'}: and contains the outgoing bridge only.`,
-      `Line 4 starts with ${this.translator ? 'COLORS' : 'COLORI'}: and contains exactly five hexadecimal colors.`,
-      `Line 5 starts with ${this.translator ? 'INVARIANT' : 'INVARIANTE'}: and contains only the recurring noun phrase.`,
+      `Line 4 starts with ${this.translator ? 'INVARIANT' : 'INVARIANTE'}: and contains only the recurring noun phrase.`,
       'No markdown, headings, lists, notes, placeholders or extra fields.',
     ].join('\n')
     try {
@@ -1077,7 +1082,7 @@ export class CoscienzaOnirica {
             labeledBlock(normalizedEnglishStory, 'TITLE', ['STORY']) ?? undefined,
           englishSynopsis,
           englishBridge:
-            labeledBlock(normalizedEnglishStory, 'BRIDGE', ['COLORS']) ?? null,
+            labeledBlock(normalizedEnglishStory, 'BRIDGE', ['COLORS', 'INVARIANT']) ?? null,
         }
         englishCore = storyCoreFromEnglishEnvelope(normalizedEnglishStory, narrativePhrases)
         if (englishSynopsis) {
