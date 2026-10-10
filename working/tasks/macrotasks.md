@@ -258,10 +258,11 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Descrizione**: attuatore cromatico autonomo per luci DMX (USB-DMX → 4 PAR
   nella prima configurazione), indipendente da Brain e Morphing, con API di
   alto livello, ownership dei producer, failure isolation e pannello manuale.
-- **Stato**: ⚪ PLANNED — branch `feature/dmx-color-controller`, in attesa di
-  modello del dongle e profilo canali dei PAR.
+- **Stato**: 🟡 IN PROGRESS — controller collaudato dal vivo (2026-10-11);
+  integrazione Brain/Morphing pianificata in PIANO-049.
 - **Brief**: `team/briefs/brief-dmx-color-controller-2026-10-10.md`
 - **Piano di Lavoro**: `working/plans/piano-048-dmx-color-controller.md`
+- **Piano integrazione producer**: `working/plans/piano-049-dmx-producer-brain-morphing.md` (BOZZA)
 
 ### `MACRO-007`: Preset Manager Avanzato & Snapshot Export
 - **Descrizione**: Espansione del salvataggio dei preset colore/morphing e possibilità di importare/esportare profili live personalizzati.

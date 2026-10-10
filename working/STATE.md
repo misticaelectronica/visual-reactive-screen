@@ -19,6 +19,7 @@ il driver FTDI di macOS, si emula con un byte 0 a 57600 baud.
 
 **Prossimi passi**: PAR in cascata (indirizzi d008, d015, d022); poi
 integrazione Brain (palette nominale della storia) e Morphing come producer.
+Piano di alto livello: PIANO-049 (BOZZA), 5 decisioni aperte al §7.
 
 ## ANIMATRONIX: il moto torna dentro la figura — 2026-10-09
 
