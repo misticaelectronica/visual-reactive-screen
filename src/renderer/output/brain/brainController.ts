@@ -119,10 +119,29 @@ import { CoscienzaCore } from './coscienzaCore'
 import { createBrainConsciousnessMotionLayer } from './brainConsciousnessMotion'
 import { BrainVectorizer } from './brainVectorQuality'
 import { BrainVectorSceneCache } from './brainVectorSceneCache'
+import { rasterDominantColors } from './brainDmxRasterColors'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
-// Dissolvenza delle luci al cambio storia (PIANO-049, esempio del brief DMX §4).
-const BRAIN_DMX_TRANSITION_MS = 8000
+// Luci DMX (PIANO-049): a ogni fotogramma, i colori dominanti del raster
+// originale di Stable Diffusion, il più presente sulla prima luce. Brain
+// manda solo colori e durata; nessun dettaglio DMX.
+const BRAIN_DMX_TRANSITION_MS = 4000
+const BRAIN_DMX_COLOR_COUNT = 4
+
+function sendRasterColorsToLights(raster: Blob): void {
+  if (!window.fxOutput?.sendDmxColors) return
+  rasterDominantColors(raster, BRAIN_DMX_COLOR_COUNT)
+    .then((colors) => {
+      if (colors.length === 0) return
+      window.fxOutput?.sendDmxColors({
+        producer: 'brain',
+        colors,
+        transitionMs: BRAIN_DMX_TRANSITION_MS,
+      })
+    })
+    // Un raster illeggibile lascia le luci sul fotogramma precedente.
+    .catch(() => undefined)
+}
 const RASTER_MONITOR_WIDTH = 'min(180px, 14vw, 12.5vh)'
 const PROCESS_DATA_KEYS = [
   'phrases',
@@ -1426,6 +1445,7 @@ export function createBrainController(
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
     frameStartedAt = performance.now()
+    if (synchronizedRaster) sendRasterColorsToLights(synchronizedRaster)
     rendererResolutionSequence += 1
     brainLog('render', 'brainRendererSelector.resolve per fotogramma', {
       sequence: rendererResolutionSequence,
@@ -1503,13 +1523,6 @@ export function createBrainController(
     // L'indicatore si aggiorna al cambio storia, non per fotogramma: la
     // palette appartiene alla storia intera.
     renderPaletteIndicator(production.story.palette)
-    // Luci DMX (PIANO-049): stessa palette nominale, stesso evento, una volta
-    // per storia. Brain manda solo colori e durata; nessun dettaglio DMX.
-    window.fxOutput?.sendDmxColors?.({
-      producer: 'brain',
-      colors: [...production.story.palette],
-      transitionMs: BRAIN_DMX_TRANSITION_MS,
-    })
     brainLog('pipeline', 'inizio rendering storia', {
       id: production.story.id,
       title: production.story.title,

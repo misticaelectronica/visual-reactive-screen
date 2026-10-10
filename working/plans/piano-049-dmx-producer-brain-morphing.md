@@ -225,3 +225,12 @@ dagli accenti della Coscienza. `paletteFromUnknown` accetta solo 5 hex
 distinti, altrimenti ripiega. Causa a monte (cosa risponde davvero il
 modello) **non ancora verificata**. Da trattare come intervento su Brain,
 dopo questo piano: le luci leggeranno la palette corretta senza modifiche.
+- **2026-10-11**: rilievo dal vivo del Capo Supremo: Morphing va, Brain no
+  («troppo chiaro, non ha i colori della storia»). Disposizione: le luci di
+  Brain prendono il colore dominante dell'immagine originale generata dal
+  modello. Implementato `brainDmxRasterColors.ts` (32×18, gruppi a 3 bit per
+  canale, i 4 più estesi), invio a ogni inizio fotogramma con dissolvenza 4 s.
+  Rimosso l'invio della palette nominale in `startProduction`. Segnalato
+  prima dell'implementazione che `analyzeMaterialPixels` ed
+  `extractDeliquescenceColorZones` esistono già: non importati, per la
+  regola di autonomia. 797 test verdi.

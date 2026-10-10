@@ -21,8 +21,8 @@ indirizzi o chipset.
 
 ```
 Brain (Output Window)                     Morphing (Control Window)
-  startProduction(story)                    cambio preset colore
-        │ palette storia, 8 s                       │ basePink, hotPink, idle, 4 s
+  inizio di ogni fotogramma                 cambio preset colore
+        │ 4 colori dominanti del raster, 4 s       │ basePink, hotPink, idle, 4 s
         ▼                                           │
   fx:dmx-producer ──► main ──► fx:dmx-producer-push ┤
                                                     ▼
@@ -42,6 +42,21 @@ Brain (Output Window)                     Morphing (Control Window)
 | [`src/renderer/control/dmx/dmxRhythm.ts`](../src/renderer/control/dmx/dmxRhythm.ts) | Ritmo → intensità |
 | [`src/renderer/control/dmx/DmxPanel.tsx`](../src/renderer/control/dmx/DmxPanel.tsx) | Pannello manuale, scelta dell'owner, ingressi Brain/Morphing, Emergenza |
 | [`src/main/dmxSerial.ts`](../src/main/dmxSerial.ts) | Porta seriale e protocollo Open DMX / USB Pro |
+| [`src/renderer/output/brain/brainDmxRasterColors.ts`](../src/renderer/output/brain/brainDmxRasterColors.ts) | Brain: colori dominanti del raster per le luci |
+
+**Colori di Brain**: all'inizio di ogni fotogramma con raster, l'immagine
+originale di Stable Diffusion (non quella trasformata dai renderer) viene
+ridotta a 32×18 pixel e i pixel raggruppati per colore (3 bit per canale). I
+4 gruppi più estesi, con la media reale dei loro pixel, vanno alle luci: il
+più presente sulla luce 1. Un raster mancante o illeggibile lascia le luci
+sul fotogramma precedente. Analisi propria del modulo luci: per la regola di
+autonomia non riusa `analyzeMaterialPixels` né
+`extractDeliquescenceColorZones`. La palette nominale della storia non va
+più alle luci.
+
+**Colori scuri**: dai comandi dei producer si scartano i colori con tutti i
+canali sotto 48 (una luce spenta); se sono tutti scuri restano com'erano. Il
+manuale manda esattamente il colore scelto.
 
 Il modulo è **attivabile da configurazione**: `dmxEnabled` (default spento).
 Da spento il codice DMX non viene nemmeno caricato (`lazy()` in
@@ -166,9 +181,9 @@ logga mai il singolo frame.
 
 ## 10. Limiti noti
 
-- La palette di Brain oggi è nell'89% delle storie il ripiego fisso
-  `DEFAULT_DREAM_PALETTE`: le luci 1-2 risultano quasi sempre uguali. È
-  tracciato come TASK-049-03 e va corretto in Brain, non nel modulo DMX.
+- Le luci di Brain non usano più la palette della storia ma il raster. La
+  palette (89% di ripiego per troncamento a 140 token) è corretta a parte
+  alzando `storyMaxNewTokens` a 240: da rimisurare (TASK-049-05).
 - Collaudo dal vivo su dub, techno e ambient ancora da fare (TASK-049-02).
 - Fuori perimetro: strobo, chase, sequencer, Art-Net, sACN, moving head,
   colore dalle immagini.
