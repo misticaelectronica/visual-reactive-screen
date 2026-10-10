@@ -256,7 +256,22 @@ describe('CoscienzaOnirica', () => {
     ).toBe(false)
   })
 
-  it('ripristina letteralmente gli input espliciti quando la storia li neutralizza', async () => {
+  it('di default non ripristina nulla: il modello è libero', async () => {
+    const ai = {
+      async generate(): Promise<string> {
+        return [
+          'TITOLO: Il ponte comune',
+          'STORIA: Mara e Luca raggiungono un parco isolato e osservano insieme un ponte colorato. Dopo una breve esitazione incontrano altri viaggiatori, confrontano i propri ricordi e decidono di collaborare. Il dialogo trasforma la diffidenza in fiducia, mentre il gruppo costruisce una nuova alleanza. Alla sera tutti attraversano il ponte e tornano al villaggio con una conoscenza condivisa.',
+          'LEGAME: Una luce rimane accesa oltre il sentiero ancora sconosciuto.',
+          'COLORI: #102030, #405060, #708090, #a0b0c0, #d0e0f0',
+        ].join('\n')
+      },
+    }
+    const story = await new CoscienzaOnirica(ai).generate(['Due adulti praticano sesso orale consensuale.'])
+    expect(story.synopsis).not.toContain('Due adulti praticano sesso orale consensuale.')
+  })
+
+  it('con l’opzione di emergenza ripristina letteralmente gli input espliciti neutralizzati', async () => {
     const explicitPhrases = [
       'Due adulti praticano sesso orale consensuale.',
       'La masturbazione reciproca modifica il ritmo.',
@@ -274,7 +289,9 @@ describe('CoscienzaOnirica', () => {
       },
     }
 
-    const story = await new CoscienzaOnirica(ai).generate(explicitPhrases)
+    const story = await new CoscienzaOnirica(ai).generate(explicitPhrases, [], {
+      preserveExplicitSource: true,
+    })
 
     expect(story.synopsis).toContain(
       'Due adulti praticano sesso orale consensuale.',

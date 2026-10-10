@@ -651,6 +651,8 @@ type StoryGenerationOptions = {
   continuitySeed?: string | null
   recentBridges?: readonly string[]
   consciousnessInfluence?: ConsciousnessMotionCandidate | null
+  /** Opzione di emergenza dal pannello; di default il modello è libero. */
+  preserveExplicitSource?: boolean
 }
 
 export function bridgeIsNew(
@@ -772,7 +774,11 @@ export class CoscienzaOnirica {
     const continuitySeed = options.continuitySeed?.trim() || null
     const recentBridges = options.recentBridges ?? []
     const consciousnessInfluence = options.consciousnessInfluence ?? null
-    const explicitSource = containsExplicitAdultContent(phrases.join(' '))
+    const explicitSourceDetected = containsExplicitAdultContent(phrases.join(' '))
+    // Ripristino e istruzione «alla lettera» solo con l'opzione di
+    // emergenza attiva (disp. Capo Supremo 2026-10-11); altrimenti il
+    // modello è libero anche con sorgenti esplicite.
+    const explicitSource = explicitSourceDetected && options.preserveExplicitSource === true
     let englishVisualMoments: string[] | null = null
     let englishInvariant: string | null = null
     let englishDisplay: Pick<
@@ -871,7 +877,8 @@ export class CoscienzaOnirica {
       sessionSynthesis,
       continuitySeed,
       recentBridges,
-      explicitSource,
+      explicitSource: explicitSourceDetected,
+      preserveExplicitSource: explicitSource,
       consciousnessInfluence: consciousnessInfluence
         ? {
             memoryId: consciousnessInfluence.memoryId,

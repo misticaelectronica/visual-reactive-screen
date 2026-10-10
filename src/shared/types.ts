@@ -143,6 +143,12 @@ export interface AppSettings {
   kickMovement: number
   flashOnKick: boolean
   lowPowerMode: boolean
+  /**
+   * Emergenza (disp. Capo Supremo 2026-10-11, default spento): se il modello
+   * perde il contenuto esplicito delle frasi, lo ripristina incollandolo e
+   * chiede di preservarlo alla lettera. Spento: il modello è libero.
+   */
+  preserveExplicitSource: boolean
   /** Modulo luci DMX: caricato solo se attivo. */
   dmxEnabled: boolean
   dmxInterface: DmxInterface

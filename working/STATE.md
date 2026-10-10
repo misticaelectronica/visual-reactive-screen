@@ -1,5 +1,20 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Ripristino esplicito: opzione di emergenza, default spento — 2026-10-11
+
+Disposizione del Capo Supremo: il ripristino del testo esplicito delle frasi
+(`preserveExplicitSourceContent`, dal 2026-07-29) diventa un'opzione da
+pannello, **spenta di default**, da usare in emergenza; altrimenti il modello
+è libero. Impostazione `preserveExplicitSource`. Spenta: niente incolla del
+paragrafo sorgente e niente istruzione «Preserve the explicit physical
+actions literally» (il prompt usa il ramo libero del 2026-10-10). 794 test
+verdi. DEP-001 `NON COINVOLTO`.
+
+Segnalato e non toccato: la scaletta «Initiating Event:/Conflict:/
+Transformation:/Conclusion:» viene dalla riga del prompt storia «Use a named
+adult protagonist, one concrete place, an initiating event, conflict,
+transformation and conclusion», presa dal modello come titoli di sezione.
+
 ## Nessuna ingerenza cromatica sulla generazione — 2026-10-11
 
 Disposizione del Capo Supremo, fissata in `filosofia.md` §2.2: la

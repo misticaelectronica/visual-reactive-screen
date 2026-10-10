@@ -1903,6 +1903,7 @@ export function createBrainController(
             continuitySeed: continuityPhrase,
             recentBridges,
             consciousnessInfluence,
+            preserveExplicitSource: latestPayload?.settings?.preserveExplicitSource === true,
           })
           story.onlineSourceText = onlineSourceText
           // Ordinale = storie realmente PRODOTTE + in coda + questa. Prima

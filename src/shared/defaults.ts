@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   kickMovement: 0.26,
   flashOnKick: false,
   lowPowerMode: false,
+  preserveExplicitSource: false,
   dmxEnabled: false,
   dmxInterface: 'open-dmx',
   dmxFixtureProfiles: ['7ch', '7ch', '7ch', '7ch'],

@@ -75,6 +75,15 @@ export function VisualControls({ settings, onChange }: Props) {
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="checkbox"
+            checked={settings.preserveExplicitSource === true}
+            disabled={!settings.useBrain}
+            onChange={(e) => onChange({ preserveExplicitSource: e.target.checked })}
+          />
+          Emergenza: ripristina il testo esplicito delle frasi (di norma spento: il modello è libero)
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
             checked={settings.animatronixEnabled}
             disabled={!settings.useBrain}
             onChange={(e) => onChange({ animatronixEnabled: e.target.checked })}
