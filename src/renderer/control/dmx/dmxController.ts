@@ -1,22 +1,10 @@
-// Controller DMX: possiede il dongle (Web Serial), trasmette l'universo in
-// continuo e accetta comandi cromatici da un producer alla volta. Gli errori
-// restano qui: aggiornano lo stato e non vengono mai rilanciati al producer.
+// Controller DMX: trasmette l'universo in continuo e accetta comandi
+// cromatici da un producer alla volta. La porta seriale vive nel main
+// (`src/main/dmxSerial.ts`). Gli errori restano qui: aggiornano lo stato e
+// non vengono mai rilanciati al producer.
 
 import type { DmxInterface } from '@shared/types'
 import { buildUniverse, createEngine, isFading, setColors, setFixtures, type DmxFixture } from './dmxEngine'
-
-interface SerialPortLike {
-  open(options: { baudRate: number; stopBits?: number; dataBits?: number; parity?: string }): Promise<void>
-  close(): Promise<void>
-  setSignals(signals: { break?: boolean }): Promise<void>
-  writable: WritableStream<Uint8Array> | null
-  getInfo(): { usbVendorId?: number }
-}
-
-interface SerialLike extends EventTarget {
-  requestPort(): Promise<SerialPortLike>
-  getPorts(): Promise<SerialPortLike[]>
-}
 
 export interface DmxStatus {
   connected: boolean
@@ -26,128 +14,82 @@ export interface DmxStatus {
 }
 
 const FRAME_MS = 25
-const OPEN_DMX_FRAME_MS = 24
+const RECONNECT_MS = 2000
 const log = (message: string) => console.info(`[dmx] ${message}`)
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-function usbProPacket(universe: Uint8Array): Uint8Array {
-  const length = universe.length + 1
-  const packet = new Uint8Array(length + 5)
-  packet.set([0x7e, 6, length & 255, length >> 8, 0])
-  packet.set(universe, 5)
-  packet[packet.length - 1] = 0xe7
-  return packet
-}
 
 export function createDmxController(fixtures: DmxFixture[], onStatus: (status: DmxStatus) => void) {
-  const serial = (navigator as Navigator & { serial?: SerialLike }).serial
+  const api = window.fxControl
   const engine = createEngine(fixtures)
   const status: DmxStatus = { connected: false, owner: null, blackout: false, error: null }
-  let port: SerialPortLike | null = null
-  let writer: WritableStreamDefaultWriter<Uint8Array> | null = null
-  let kind: DmxInterface = 'usb-pro'
+  let kind: DmxInterface = 'open-dmx'
   let wanted = false
   let sending = false
-  let wasFading = false
   let opening = false
-
-  // Le porte Bluetooth non hanno usbVendorId: non sono mai un dongle DMX.
-  const grantedUsbPort = async () => (await serial?.getPorts() ?? []).find(p => p.getInfo().usbVendorId !== undefined)
+  let wasFading = false
+  let lastAttempt = 0
 
   const emit = () => onStatus({ ...status })
 
-  const fail = (reason: unknown) => {
-    status.error = reason instanceof Error && reason.name === 'NotFoundError'
-      ? 'Nessun dongle USB-DMX trovato: collegalo e premi Connetti'
-      : reason instanceof Error ? reason.message : String(reason)
-    log(`failure: ${status.error}`)
-    void close()
-  }
-
-  async function close() {
-    const closing = port
-    port = null
+  const fail = (reason: string) => {
+    if (status.connected || status.error !== reason) log(`failure: ${reason}`)
     status.connected = false
-    try { writer?.releaseLock() } catch { /* già rilasciato */ }
-    writer = null
-    try { await closing?.close() } catch { /* porta già sparita */ }
+    status.error = reason
     emit()
   }
 
-  async function open(next: SerialPortLike) {
-    if (opening) return
+  async function open() {
+    if (!api || opening) return
     opening = true
+    lastAttempt = performance.now()
     try {
-      await next.open(kind === 'open-dmx'
-        ? { baudRate: 250000, dataBits: 8, stopBits: 2, parity: 'none' }
-        : { baudRate: 57600 })
+      const result = await api.dmxOpen(kind)
+      if (!result.ok) { fail(result.error ?? 'apertura fallita'); return }
+      status.connected = true
+      status.error = null
+      log(`connected (${kind})`)
+      emit()
     } finally {
       opening = false
     }
-    port = next
-    writer = next.writable?.getWriter() ?? null
-    status.connected = true
-    status.error = null
-    log(`connected (${kind})`)
-    emit()
   }
 
   async function sendFrame() {
-    if (!port || !writer || sending) return
+    if (!api || sending) return
+    const now = performance.now()
+    if (!status.connected) {
+      // Dongle scollegato o porta caduta: ritenta finché l'utente è connesso.
+      if (wanted && now - lastAttempt > RECONNECT_MS) void open()
+      return
+    }
     sending = true
     try {
-      const now = performance.now()
-      const universe = buildUniverse(engine, now, status.blackout)
-      if (kind === 'open-dmx') {
-        await port.setSignals({ break: true })
-        await sleep(1)
-        await port.setSignals({ break: false })
-        const frame = new Uint8Array(513)
-        frame.set(universe, 1)
-        await writer.write(frame)
-        // 513 byte a 250 kbaud = ~23 ms: il break successivo non deve troncare il frame.
-        await sleep(OPEN_DMX_FRAME_MS)
-      } else {
-        await writer.write(usbProPacket(universe))
-      }
+      const result = await api.dmxSend(buildUniverse(engine, now, status.blackout))
+      if (!result.ok) { fail(result.error ?? 'scrittura fallita'); return }
       const fading = isFading(engine, now)
       if (wasFading && !fading) log('transition completed')
       wasFading = fading
-    } catch (error) {
-      fail(error)
     } finally {
       sending = false
     }
   }
 
   const timer = setInterval(() => void sendFrame(), FRAME_MS)
-
-  // Dongle reinserito: riapre da solo se l'utente era connesso.
-  const onReconnect = async () => {
-    if (!wanted || port || !serial) return
-    const granted = await grantedUsbPort()
-    if (granted) await open(granted).catch(fail)
-  }
-  serial?.addEventListener('connect', onReconnect)
   log('controller started')
 
   return {
-    // Va chiamato da un gesto dell'utente (requisito Web Serial).
     async connect(nextKind: DmxInterface) {
-      if (!serial) { fail('Web Serial non disponibile'); return }
+      if (!api) { fail('IPC DMX non disponibile'); return }
       kind = nextKind
       wanted = true
-      await close()
-      try {
-        await open(await grantedUsbPort() ?? await serial.requestPort())
-      } catch (error) {
-        fail(error)
-      }
+      status.connected = false
+      await open()
     },
     async disconnect() {
       wanted = false
-      await close()
+      status.connected = false
+      await api?.dmxClose()
       log('disconnected')
+      emit()
     },
     acquire(producer: string): boolean {
       if (status.owner && status.owner !== producer) return false
@@ -186,9 +128,9 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
     getStatus: (): DmxStatus => ({ ...status }),
     async destroy() {
       clearInterval(timer)
-      serial?.removeEventListener('connect', onReconnect)
       wanted = false
-      await close()
+      status.connected = false
+      await api?.dmxClose()
     },
   }
 }

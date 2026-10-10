@@ -151,7 +151,7 @@ export default defineConfig({
                         'src/main/brainVectorizerWorker.ts',
                       ),
                     },
-                    external: ['@visioncortex/vtracer'],
+                    external: ['@visioncortex/vtracer', 'serialport'],
                     output: {
                       entryFileNames: '[name].js',
                     },

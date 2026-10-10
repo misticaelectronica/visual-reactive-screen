@@ -6,12 +6,14 @@ import type {
   ConsciousnessMemoryDraft,
   ConsciousnessMotionQuery,
   ConsciousnessStateSnapshot,
+  DmxInterface,
   SaveDreamImageRequest,
   VisualStateAck,
   VisualStatePayload,
 } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/types'
 import { getAllDisplayInfo } from './displays'
+import { dmxClose, dmxOpen, dmxSend } from './dmxSerial'
 import { loadSettingsFromDisk, saveSettingsToDisk } from './settings'
 import {
   broadcastVisualState,
@@ -118,4 +120,7 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.publicSessionStop, () => stopPublicPhraseSession())
+  ipcMain.handle(IPC_CHANNELS.dmxOpen, (_e, kind: DmxInterface) => dmxOpen(kind))
+  ipcMain.handle(IPC_CHANNELS.dmxSend, (_e, universe: Uint8Array) => dmxSend(universe))
+  ipcMain.handle(IPC_CHANNELS.dmxClose, () => dmxClose())
 }

@@ -4,12 +4,18 @@ import {
   type AppSettings,
   type ControlApi,
   type DisplayInfo,
+  type DmxInterface,
   type OutputApi,
   type PublicSessionStatus,
   type VisualStatePayload,
 } from '@shared/types'
 
 const controlApi: ControlApi = {
+  dmxOpen: (kind: DmxInterface) =>
+    ipcRenderer.invoke(IPC_CHANNELS.dmxOpen, kind) as Promise<{ ok: boolean; error?: string }>,
+  dmxSend: (universe: Uint8Array) =>
+    ipcRenderer.invoke(IPC_CHANNELS.dmxSend, universe) as Promise<{ ok: boolean; error?: string }>,
+  dmxClose: () => ipcRenderer.invoke(IPC_CHANNELS.dmxClose) as Promise<void>,
   getDisplays: () => ipcRenderer.invoke(IPC_CHANNELS.getDisplays) as Promise<DisplayInfo[]>,
   openOutput: (displayId: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.openOutput, displayId) as Promise<{

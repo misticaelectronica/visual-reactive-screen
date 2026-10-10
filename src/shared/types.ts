@@ -247,6 +247,9 @@ export const IPC_CHANNELS = {
   toggleBioOverlay: 'fx:toggle-bio-overlay',
   /** Main → output: annotazione manuale del collaudatore Audio (Maiusc+0..4). */
   bioAudioMarker: 'fx:bio-audio-marker',
+  dmxOpen: 'fx:dmx-open',
+  dmxSend: 'fx:dmx-send',
+  dmxClose: 'fx:dmx-close',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -483,6 +486,9 @@ export type PublicSessionStatus = {
 }
 
 export interface ControlApi {
+  dmxOpen: (kind: DmxInterface) => Promise<{ ok: boolean; error?: string }>
+  dmxSend: (universe: Uint8Array) => Promise<{ ok: boolean; error?: string }>
+  dmxClose: () => Promise<void>
   getDisplays: () => Promise<DisplayInfo[]>
   openOutput: (displayId: number) => Promise<{ ok: boolean; error?: string }>
   closeOutput: () => Promise<void>
