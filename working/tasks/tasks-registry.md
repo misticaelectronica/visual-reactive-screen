@@ -1,5 +1,14 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## DMX Color Controller — PIANO-048 — 2026-10-10
+
+- [x] **`TASK-048-01`** `DONE`: brief archiviato, branch aperto, piano creato,
+  DEP-001 `NON COINVOLTO`.
+- [ ] **`TASK-048-02`** `BLOCKED`: modello del dongle e profilo canali dei PAR
+  dal Capo Supremo.
+- [ ] **`TASK-048-03`** `BLOCKED`: decisione sul trasporto seriale.
+- [ ] **`TASK-048-04..14`** `TODO`: vedi `working/plans/piano-048-dmx-color-controller.md`.
+
 ## DELIQUESCENCE fuori dalla pressurizzazione, finestra frasi — 2026-10-08
 
 - [x] **`TASK-045-01`** `DONE`: audit preventivo dei deprecati, DEP-001

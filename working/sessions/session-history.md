@@ -1,5 +1,15 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-10-10-APERTURA-DMX
+
+- Release `1.0.0-rc.9` pushata su `feature/animatronix-v1-grammatiche`.
+- Aperto il branch `feature/dmx-color-controller` per il brief del Vicario
+  «High Level DMX Color Controller», archiviato integralmente in
+  `team/briefs/`.
+- Audit preventivo dei deprecati: DEP-001 `NON COINVOLTO`.
+- Creato PIANO-048 (MACRO-037) in BOZZA. Stato finale: nessun codice,
+  in attesa di dongle, profilo PAR e scelta del trasporto seriale.
+
 ## SESSION-2026-10-08-DELIQUESCENCE-E-FINESTRA-FRASI
 
 - Sessione avviata su rilievo del Capo Supremo: la generazione di immagini ha

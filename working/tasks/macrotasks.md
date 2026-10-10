@@ -254,6 +254,15 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## ⚪ Macrotask Pianificati (Futuri)
 
+### `MACRO-037`: DMX Color Controller
+- **Descrizione**: attuatore cromatico autonomo per luci DMX (USB-DMX → 4 PAR
+  nella prima configurazione), indipendente da Brain e Morphing, con API di
+  alto livello, ownership dei producer, failure isolation e pannello manuale.
+- **Stato**: ⚪ PLANNED — branch `feature/dmx-color-controller`, in attesa di
+  modello del dongle e profilo canali dei PAR.
+- **Brief**: `team/briefs/brief-dmx-color-controller-2026-10-10.md`
+- **Piano di Lavoro**: `working/plans/piano-048-dmx-color-controller.md`
+
 ### `MACRO-007`: Preset Manager Avanzato & Snapshot Export
 - **Descrizione**: Espansione del salvataggio dei preset colore/morphing e possibilità di importare/esportare profili live personalizzati.
 - **Stato**: ⚪ PLANNED
