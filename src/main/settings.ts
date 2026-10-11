@@ -79,7 +79,10 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
     preserveExplicitSource: settings.preserveExplicitSource === true,
-    dmxBrainColorSource: settings.dmxBrainColorSource === 'render' ? 'render' : 'frame',
+    dmxBrainColorSource:
+      settings.dmxBrainColorSource === 'render' || settings.dmxBrainColorSource === 'sequence'
+        ? settings.dmxBrainColorSource
+        : 'frame',
     dmxSaturation: typeof settings.dmxSaturation === 'number' && Number.isFinite(settings.dmxSaturation)
       ? Math.min(1, Math.max(0, settings.dmxSaturation))
       : DEFAULT_SETTINGS.dmxSaturation,

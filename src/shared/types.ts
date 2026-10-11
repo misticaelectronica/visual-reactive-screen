@@ -152,9 +152,11 @@ export interface AppSettings {
   /**
    * Colori che Brain manda alle luci: `frame` = colori dominanti
    * dell'immagine generata, a ogni fotogramma; `render` = colori del render a
-   * schermo, aggiornati di continuo e veloci come il render.
+   * schermo, aggiornati di continuo e veloci come il render; `sequence` =
+   * tutte le luci insieme, un colore alla volta della sequenza
+   * dell'indicatore, avanzando a ogni beat.
    */
-  dmxBrainColorSource: 'frame' | 'render'
+  dmxBrainColorSource: 'frame' | 'render' | 'sequence'
   /** Saturazione delle luci per i producer: 0 colori veri, 1 tinta pura. */
   dmxSaturation: number
   /** Modulo luci DMX: caricato solo se attivo. */

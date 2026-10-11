@@ -16,6 +16,13 @@ describe('dmxRhythm', () => {
     for (const value of samples) expect(value).toBeCloseTo(0.6, 5)
   })
 
+  it('in silenzio nessun beat: la sequenza resta ferma', () => {
+    let beats = 0
+    const level = createDmxRhythm(() => null, () => 'techno', () => { beats += 1 })
+    for (let t = 0; t < 3000; t += 25) level(1000 + t)
+    expect(beats).toBe(0)
+  })
+
   it('il ritmo moltiplica il master senza toccare il colore', () => {
     const engine = createEngine(chainFixtures(['7ch']))
     setColors(engine, ['#FF3200'], 0, 0)

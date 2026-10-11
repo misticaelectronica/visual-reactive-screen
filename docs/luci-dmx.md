@@ -64,6 +64,13 @@ producer `screen`. Vale per Brain e Morphing. Sostituisce il campionamento
 del canvas del renderer dentro Brain (dismesso: leggeva un buffer interno e
 non vedeva dissolvenze e neri sopra).
 
+**Modalità «sequenza»** (`dmxBrainColorSource: 'sequence'`): tutte le
+luci mostrano lo stesso colore e, a ogni beat, passano al colore successivo
+della sequenza dell'owner (per Brain i colori dell'indicatore in basso a
+sinistra, per Morphing i colori del preset), con dissolvenza di mezzo beat
+(massimo 300 ms). Il beat viene dallo stesso clock ritmico del modulo; in
+silenzio non ci sono beat e le luci restano sull'ultimo colore.
+
 **Gamma**: i colori sono sRGB, il LED emette in lineare; il motore converte
 con esponente 2,2. Un quasi nero a schermo resta quasi spento sul PAR.
 

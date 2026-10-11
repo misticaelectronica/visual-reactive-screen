@@ -29,7 +29,11 @@ export function rhythmLevel(pulse: number, profile: MotionProfile): number {
   return floor + (1 - floor) * Math.min(1, Math.max(0, pulse))
 }
 
-export function createDmxRhythm(readFrame: () => DmxAudioFrame | null, readProfile: () => MotionProfile) {
+export function createDmxRhythm(
+  readFrame: () => DmxAudioFrame | null,
+  readProfile: () => MotionProfile,
+  onBeat?: (beatDurationMs: number) => void,
+) {
   const clock = new OutputRhythmClock()
   let lastSequence = -1
   let level = rhythmLevel(0, readProfile())
@@ -42,6 +46,7 @@ export function createDmxRhythm(readFrame: () => DmxAudioFrame | null, readProfi
       clock.ingestSample(frame.bands, frame.timestampMs, frame.movingAverages)
     }
     const state = clock.projectState(performance.timeOrigin + now)
+    if (state.beat && state.active !== false) onBeat?.(state.beatDurationMs)
     const target = rhythmLevel(state.active === false ? 0 : state.beatPulse, readProfile())
     const dt = lastNow > 0 ? Math.max(0, now - lastNow) : SMOOTHING_MS
     lastNow = now

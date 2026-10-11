@@ -36,6 +36,8 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
   const [fadeSeconds, setFadeSeconds] = useState(8)
   const [manual, setManual] = useState(false)
   const screenSource = settings.dmxBrainColorSource === 'render'
+  // Sequenza: ultimi colori ricevuti per producer e posizione corrente.
+  const sequenceRef = useRef({ index: 0 })
   const owner = manual ? MANUAL : screenSource ? 'screen' : settings.useBrain ? 'brain' : 'morphing'
 
   useEffect(() => {
@@ -43,6 +45,17 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
     controller.setRhythmSource(createDmxRhythm(
       () => audioFrameRef.current,
       () => settingsRef.current.motionProfile,
+      (beatDurationMs) => {
+        // Modalità sequenza: a ogni beat tutte le luci passano al colore
+        // successivo dell'owner. In silenzio non ci sono beat: luci ferme.
+        if (settingsRef.current.dmxBrainColorSource !== 'sequence') return
+        const owner = controller.getStatus().owner
+        const colors = owner && owner !== MANUAL ? lastCommandRef.current.get(owner)?.colors : undefined
+        if (!owner || !colors || colors.length === 0) return
+        const color = colors[sequenceRef.current.index % colors.length]
+        sequenceRef.current.index += 1
+        controller.setColors(owner, [color], Math.min(300, beatDurationMs / 2))
+      },
     ))
     controllerRef.current = controller
     // Modulo attivo = luci collegate: si connette da solo e, se il dongle
@@ -69,6 +82,8 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
       command = { ...command, colors: command.colors.map(color => stageColor(color, amount)) }
     }
     lastCommandRef.current.set(command.producer, command)
+    // In sequenza i colori si applicano un beat alla volta, non tutti insieme.
+    if (settingsRef.current.dmxBrainColorSource === 'sequence' && command.producer !== MANUAL) return
     controllerRef.current?.setColors(command.producer, command.colors, command.transitionMs)
   }
 
@@ -175,10 +190,13 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
           Colori{' '}
           <select
             value={settings.dmxBrainColorSource}
-            onChange={(e) => onChange({ dmxBrainColorSource: e.target.value === 'render' ? 'render' : 'frame' })}
+            onChange={(e) => onChange({
+              dmxBrainColorSource: e.target.value === 'render' || e.target.value === 'sequence' ? e.target.value : 'frame',
+            })}
           >
             <option value="frame">Brain: immagine generata (a ogni fotogramma) / Morphing: preset</option>
             <option value="render">schermo: ciò che si vede (veloce, Brain e Morphing)</option>
+            <option value="sequence">sequenza: tutte le luci insieme, un colore per beat</option>
           </select>
         </label>
         <label>
