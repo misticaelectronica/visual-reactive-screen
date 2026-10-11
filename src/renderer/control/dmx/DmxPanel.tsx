@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import type { AppSettings, DmxProducerCommand, DmxProfile } from '@shared/types'
-import { chainFixtures, PROFILE_CHANNELS, stageColor, usableLightColors } from './dmxEngine'
+import { chainFixtures, PROFILE_CHANNELS, stageColor } from './dmxEngine'
 import { createDmxController, type DmxController, type DmxStatus } from './dmxController'
 import { createDmxRhythm, type DmxAudioFrame } from './dmxRhythm'
 
@@ -54,10 +54,12 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
   }, [fixtures])
 
   const receive = (command: DmxProducerCommand) => {
-    // Il manuale manda esattamente ciò che si sceglie, nero compreso.
+    // Il manuale manda esattamente ciò che si sceglie.
     if (command.producer !== MANUAL) {
       const amount = settingsRef.current.dmxSaturation
-      command = { ...command, colors: usableLightColors(command.colors).map(color => stageColor(color, amount)) }
+      // Anche gli scuri passano (disp. Capo Supremo 2026-10-11): il buio fa
+      // parte del render; la saturazione non alza la luminosità.
+      command = { ...command, colors: command.colors.map(color => stageColor(color, amount)) }
     }
     lastCommandRef.current.set(command.producer, command)
     controllerRef.current?.setColors(command.producer, command.colors, command.transitionMs)

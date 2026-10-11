@@ -111,7 +111,7 @@ export function renderSurfaceColors(surface: Element, count: number): string[] {
   const context = renderSample.getContext('2d', { willReadFrequently: true })
   if (!context) return []
   context.drawImage(largest, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT)
-  const colors = dominantColors(context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data, count)
-  // Un buffer vuoto o tutto nero non è un colore del render: si tiene il precedente.
-  return colors.every(color => color === '#000000') ? [] : colors
+  // Anche un render scuro o nero passa; un buffer vuoto (tutto trasparente)
+  // non dà colori e le luci tengono i precedenti.
+  return dominantColors(context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data, count)
 }

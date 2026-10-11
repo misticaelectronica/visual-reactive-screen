@@ -59,13 +59,14 @@ invece dell'immagine generata, Brain campiona il canvas più grande del
 renderer attivo subito dopo il suo aggiornamento, nello stesso frame (così
 si legge anche il WebGL di ANIMATRONIX), 4 volte al secondo (2 in
 `lowPowerMode`), con dissolvenza pari all'intervallo. Un render senza canvas
-(fallback SVG) o tutto nero lascia le luci sui colori precedenti.
+(fallback SVG) o un buffer vuoto lascia le luci sui colori precedenti; un
+render scuro passa.
 L'indicatore in basso a sinistra segue la stessa sorgente.
 
 **Saturazione luci** (slider nel pannello, `dmxSaturation`, default 80%):
 Brain manda i colori veri dell'immagine o del render; il modulo DMX li porta
 verso la tinta pura per i comandi dei producer (0 = colori veri, 1 = tinta
-pura a luminosità piena; i grigi restano grigi/bianchi). Il manuale manda
+pura); la luminosità resta quella del colore, i grigi restano grigi. Il manuale manda
 esattamente il colore scelto. L'indicatore in basso a sinistra mostra i
 colori veri mandati da Brain, prima della saturazione.
 
@@ -73,9 +74,7 @@ colori veri mandati da Brain, prima della saturazione.
 Applica), il controller logga una volta `ignorato <producer>: comanda
 <owner>`. Si torna a Brain/Morphing con «Torna automatico».
 
-**Colori scuri**: dai comandi dei producer si scartano i colori con tutti i
-canali sotto 48 (una luce spenta); se sono tutti scuri restano com'erano. Il
-manuale manda esattamente il colore scelto.
+**Colori scuri**: passano anche loro (disp. Capo Supremo 2026-10-11): il buio fa parte del render e la luce si abbassa con la scena.
 
 Il modulo è **attivabile da configurazione**: `dmxEnabled` (default spento).
 Da spento il codice DMX non viene nemmeno caricato (`lazy()` in
