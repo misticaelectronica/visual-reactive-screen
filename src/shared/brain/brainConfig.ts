@@ -107,9 +107,12 @@ export const BRAIN_CONFIG = {
   offlineWindowMaxMs: 120_000,
   gpuYieldBetweenSubmits: true,
   gpuYieldMs: 4,
-  // Esperimento MACRO-009: il modello dichiara batch dinamico. Il ramo
-  // condizionale singolo dimezza il batch UNet senza cambiare seed/step/shape.
-  imageGuidanceMode: 'single-conditional' as const,
+  // MACRO-009 aveva scelto il ramo condizionale singolo per dimezzare il
+  // batch UNet. PIANO-050 (Capo Supremo 2026-10-11, corpi deformati) torna
+  // alla classifier-free guidance, che tiene l'anatomia e porta il negative
+  // prompt; il costo si governa col livello di qualità (`brainImageQuality`).
+  // L'interludio resta a ramo singolo (`resolveBrainImageGuidanceMode`).
+  imageGuidanceMode: 'cfg-batch' as 'cfg-batch' | 'single-conditional',
   // Fallback PIANO-010: dopo un gap RAF reale il Renderer Host rallenta
   // brevemente il plugin. La sola inferenza nel Worker non lo attiva più.
   lightweightDenoisingRender: true,

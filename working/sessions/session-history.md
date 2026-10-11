@@ -2709,3 +2709,52 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Aperto**: AGENTS.md vieta di attribuire a Coscienza Onirica desideri non emersi; il system prompt `story` ("CoscienzaOnirica") ora le dà una propria ricerca del piacere. Da chiarire se la regola vale solo per nucleo e archivio `.coscienza/`.
 - **Stato finale**: nulla committato.
 - **Immagini "dell'Ottocento"** (stessa sessione): cause = storia base ambientata in borgo antico (~27 termini d'epoca contro ~11 tech) + COLOR DIRECTION globale (ruggine/terra/ambra, contrasto morbido, divieto del neon). Per disposizione del Capo Supremo: neon/LED/schermi ammessi come accento, sepia e patina esclusi, 4 famiglie colore elettriche aggiunte alle 6 esistenti (`brainColorState.ts`); base riscritta in metropoli futura con stessa trama ed eros esplicito fra adulti consenzienti (versione borgo salvata in `config/brainPhrasesBaseStory-borgo.txt`).
+
+## 2026-10-11 — Preset colore Pantone per Morphing
+
+- **Obiettivo**: aggiungere due preset colore Morphing dai riferimenti forniti:
+  Intense Purple (Pantone 2623 C, `#5C1D6B`) e Italian Blue (Pantone 293 C,
+  `#0B32B0`).
+- **Audit deprecati**: DEP-001 `NON COINVOLTO` — nessuna modifica o estensione
+  dell'alternanza Brain 80/20.
+- **Fatto**: due preset aggiunti a `COLOR_PRESETS`, disponibili sia dalla UI
+  sia nella rotazione dinamica; i Pantone richiesti sono gli accenti caldi e
+  fondo, base e flash completano le rispettive famiglie cromatiche. Su
+  successiva richiesta, la finestra casuale della rotazione colori è passata
+  da 45–150 s a 30–100 s (media da 97,5 a 65 s), riusando il timer esistente.
+- **Protocollo visivo**: camera, materia, silenzio, beatmatch e transizioni non
+  cambiano; nessun effetto o costo per frame aggiunto.
+- **Verifica**: 3 test dedicati; typecheck e lint mirato verdi; suite completa
+  verde, 794 test su 83 file.
+
+## 2026-10-11 — Corpi deformati: guidance, negative prompt, qualità, pannello (PIANO-050)
+
+- **Obiettivo**: eliminare le deformazioni dei corpi, soprattutto femminili,
+  nei raster generati; negative prompt e qualità governabili da pannello;
+  pannello più leggibile.
+- **Audit deprecati**: DEP-001 `MANTENERE` — solo spostato nel riquadro
+  «Avanzate», comportamento e criterio di uscita invariati.
+- **Diagnosi**: generazione a ramo condizionale singolo, senza guidance; il
+  negative prompt non avrebbe avuto effetto. Checkpoint attivo PornMaster
+  (verificato), non Realistic Vision come riportato in `skills.md`.
+- **Fatto**: `cfg-batch` con la scala 7 del manifest (5,5 provato in stesura e ritirato su disposizione); negative prompt anatomico predefinito
+  nel ramo non condizionato; `brainImageQuality` low/mid/high (default low);
+  resolver unico `brainImageGeneration.ts`; `VisualControls` diviso in
+  riquadri; documentazione del checkpoint allineata.
+- **Protocollo visivo**: camera, materia, silenzio, beatmatch e transizioni
+  non toccati; cambia solo la qualità del raster. Costo: guidance ≈ doppio per
+  step, compensato dal livello low.
+- **Verifica**: typecheck, lint, 801 test su 84 file verdi. Nessuna
+  generazione reale in sessione.
+- **Stato finale**: implementato, non committato; collaudo a schermo aperto.
+- **Coppie di fotogrammi simili** (stessa sessione): esclusi i seed
+  (rumore indipendente, verificato sugli scarti Mulberry32). Causa probabile:
+  `VISUAL CONTEXT` metteva il testo dei fotogrammi precedenti nel prompt
+  raster. Disposizione del Capo Supremo «chi sogna non è Stable Diffusion»:
+  ritirati `VISUAL CONTEXT` ed etichetta di fase dal raster; resta
+  `INVARIANT`. 796 test verdi. DEP-001 `NON COINVOLTO`.
+- **Rilascio** (stessa sessione): «test ok» del Capo Supremo; Brain pronto
+  per l'esordio in pubblico. Versione `1.0.0-rc.10`, push del branch
+  `feature/dmx-color-controller`; nota di complimenti in `team/briefs/`.
+  `:memory:.ses` (residuo di uno strumento, 17/09) lasciato fuori dal commit.
+

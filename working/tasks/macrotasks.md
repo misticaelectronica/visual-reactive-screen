@@ -252,6 +252,13 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
   test completi. Si riapre singolarmente se qualcosa non va.
 - **Piano di Lavoro**: `working/plans/piano-016-filter-psiche-brain.md`
 
+### `MACRO-038`: Anatomia dei corpi nei raster Brain
+- **Descrizione**: guidance riattivata con negative prompt anatomico,
+  livelli di qualità low/mid/high da pannello, pannello di controllo
+  riordinato.
+- **Stato**: ✅ DONE (2026-10-11) — collaudo superato, rilasciato in 1.0.0-rc.10.
+- **Piano di Lavoro**: `working/plans/piano-050-anatomia-guidance-qualita-pannello.md`
+
 ## ⚪ Macrotask Pianificati (Futuri)
 
 ### `MACRO-037`: DMX Color Controller

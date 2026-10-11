@@ -1204,3 +1204,18 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **TASK-COLOR-02 [DONE]**: accelerare moderatamente `Rotazione colori`
   riusando il timer esistente: finestra casuale da 45–150 s a 30–100 s, con
   test dedicato e nessun nuovo scheduler.
+
+## PIANO-050 — Anatomia dei corpi, guidance, qualità e pannello (2026-10-11)
+
+- [x] **TASK-050-01 [DONE]**: impostazioni `brainImageQuality` (default `low`)
+  e `brainNegativePrompt` (default solo anatomico) con normalizzazione.
+- [x] **TASK-050-02 [DONE]**: resolver unico step/guidance
+  (`brainImageGeneration.ts`) per worker e generatore in-thread; il
+  controller aggiorna lo store a ogni payload.
+- [x] **TASK-050-03 [DONE]**: negative prompt nel ramo non condizionato,
+  `cfg-batch` predefinito, scala 7 del manifest; interludio a ramo singolo.
+- [x] **TASK-050-04 [DONE]**: pannello diviso in riquadri per funzione.
+- [x] **TASK-050-05 [DONE]**: typecheck, lint, 801 test verdi.
+- [x] **TASK-050-06 [DONE]**: collaudo a schermo del Capo Supremo — corpi
+  femminili a figura intera con e senza guidance, tempi sui tre livelli,
+  storia pronta prima della fine della precedente.

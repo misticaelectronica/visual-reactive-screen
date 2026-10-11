@@ -32,8 +32,8 @@ const silentBands = (): BandEnergies => ({
   high: 0,
 })
 
-const COLOR_ROTATION_MIN_MS = 45_000
-const COLOR_ROTATION_MAX_MS = 150_000
+export const COLOR_ROTATION_MIN_MS = 30_000
+export const COLOR_ROTATION_MAX_MS = 100_000
 const MORPHING_PRESET_MIN_MS = 18_000
 const MORPHING_PRESET_MAX_MS = 36_000
 const PSY_HYP_MORPHING_MIN_MS = 45_000
@@ -459,11 +459,10 @@ export function ControlApp() {
         <BandMeters meters={audio.meters} thresholds={thresholdPreview} />
       </section>
 
-      <PresetsSelector settings={settings} onApplyPreset={applyPresetSettings} onChangeSettings={patchSettings} />
-
-      <ThresholdControls settings={settings} onChange={patchSettings} />
       <VisualControls settings={settings} onChange={patchSettings} />
+      <PresetsSelector settings={settings} onApplyPreset={applyPresetSettings} onChangeSettings={patchSettings} />
       <SafetyControls settings={settings} onChange={patchSettings} />
+      <ThresholdControls settings={settings} onChange={patchSettings} />
       <PublicSessionPanel settings={settings} onChange={patchSettings} />
 
       <label className="inline">

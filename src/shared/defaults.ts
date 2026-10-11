@@ -1,5 +1,12 @@
 import type { AppSettings } from './types'
 
+/**
+ * Solo difetti anatomici (PIANO-050): nessun termine su nudità, contenuto o
+ * abbigliamento, per non censurare la generazione (linea Explicit V1).
+ */
+export const DEFAULT_BRAIN_NEGATIVE_PROMPT =
+  'deformed body, distorted anatomy, disfigured, mutated, extra limbs, extra arms, extra legs, missing limbs, fused fingers, malformed hands, extra fingers, elongated torso, twisted torso, duplicate person'
+
 export const DEFAULT_SETTINGS: AppSettings = {
   fftSize: 1024,
   smoothingTimeConstant: 0.75,
@@ -52,6 +59,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flashOnKick: false,
   lowPowerMode: false,
   preserveExplicitSource: false,
+  brainImageQuality: 'low',
+  brainNegativePrompt: DEFAULT_BRAIN_NEGATIVE_PROMPT,
   dmxBrainColorSource: 'frame',
   dmxSaturation: 0.8,
   dmxEnabled: false,

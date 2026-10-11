@@ -12,6 +12,11 @@ import type { ImageRenderMode } from '@shared/brain/brainTypes'
 import { brainLog, brainWarn } from './brainLog'
 import { Sd15OnnxWebGpuRuntime } from './sd15OnnxWebGpu'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
+import {
+  getBrainImageGenerationSettings,
+  resolveBrainImageGuidanceMode,
+  resolveBrainImageSteps,
+} from './brainImageGeneration'
 
 export interface PsychedelImageGenerator {
   generate(
@@ -286,15 +291,11 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
     const controller = new AbortController()
     this.activeGeneration = controller
     const renderingConfig = getBrainRenderingConfig()
+    const generationSettings = getBrainImageGenerationSettings()
     const steps =
       stepsOverride ??
-      (mode === 'high-quality'
-        ? renderingConfig.image.qualitySteps
-        : mode === 'enhanced'
-          ? renderingConfig.image.enhancedSteps
-          : mode === 'interlude'
-            ? renderingConfig.image.interludeSteps
-            : renderingConfig.image.standardSteps)
+      resolveBrainImageSteps(mode, generationSettings.quality, renderingConfig.image)
+    const guidanceMode = resolveBrainImageGuidanceMode(mode)
     const inferenceGeometry =
       mode === 'high-quality'
         ? {
@@ -328,6 +329,8 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
         inferenceWidth: inferenceGeometry.width,
         inferenceHeight: inferenceGeometry.height,
         steps,
+        guidanceMode,
+        negativePrompt: generationSettings.negativePrompt,
         signal: controller.signal,
         onProgress: (progress) => {
           const rounded = progress.pct === undefined

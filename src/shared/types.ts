@@ -18,6 +18,18 @@ const AUDIO_MODES: AudioMode[] = ['baseline', 'experimental']
 export function isAudioMode(value: unknown): value is AudioMode {
   return typeof value === 'string' && AUDIO_MODES.includes(value as AudioMode)
 }
+
+// Livelli di qualità della generazione Brain (PIANO-050).
+export type BrainImageQuality = 'low' | 'mid' | 'high'
+const BRAIN_IMAGE_QUALITIES: BrainImageQuality[] = ['low', 'mid', 'high']
+
+export function isBrainImageQuality(value: unknown): value is BrainImageQuality {
+  return typeof value === 'string' &&
+    BRAIN_IMAGE_QUALITIES.includes(value as BrainImageQuality)
+}
+
+/** Oltre questa lunghezza il negative prompt non entra in un blocco CLIP. */
+export const BRAIN_NEGATIVE_PROMPT_MAX_CHARS = 300
 export type BrainRendererId =
   | 'print2d'
   | 'psycho2d'
@@ -149,6 +161,17 @@ export interface AppSettings {
    * chiede di preservarlo alla lettera. Spento: il modello è libero.
    */
   preserveExplicitSource: boolean
+  /**
+   * Qualità della generazione Brain (disp. Capo Supremo 2026-10-11, PIANO-050):
+   * `low` = meno step, `high` = step di `config/brainRendering.json`. Con la
+   * classifier-free guidance ogni step costa circa il doppio.
+   */
+  brainImageQuality: BrainImageQuality
+  /**
+   * Negative prompt della generazione Brain: soltanto difetti anatomici, mai
+   * termini su nudità o contenuto (linea Explicit V1).
+   */
+  brainNegativePrompt: string
   /**
    * Colori che Brain manda alle luci: `frame` = colori dominanti
    * dell'immagine generata, a ogni fotogramma; `render` = colori del render a

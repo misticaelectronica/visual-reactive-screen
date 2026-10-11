@@ -10,6 +10,7 @@ import {
   Sd15OnnxWebGpuRuntime,
 } from './sd15OnnxWebGpu'
 import { ExplicitPsychedelImageGenerator } from './psychedelImageGenerator'
+import { DEFAULT_BRAIN_NEGATIVE_PROMPT } from '@shared/defaults'
 
 describe('runtime ONNX Explicit di Psichedel', () => {
   it('adatta il 16:9 a una geometria UNet valida e conserva l’uscita richiesta', () => {
@@ -205,7 +206,10 @@ describe('runtime ONNX Explicit di Psichedel', () => {
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({
       prompt: 'prompt trasmesso integralmente',
       seed: 42,
-      steps: 12,
+      // Livello `low` predefinito (PIANO-050), con guidance e negative prompt.
+      steps: 8,
+      guidanceMode: 'cfg-batch',
+      negativePrompt: DEFAULT_BRAIN_NEGATIVE_PROMPT,
       width: 640,
       height: 360,
       inferenceWidth: 448,

@@ -1,4 +1,4 @@
-import type { Sd15BrowserProgress } from './sd15OnnxWebGpu'
+import type { Sd15BrowserProgress, Sd15GuidanceMode } from './sd15OnnxWebGpu'
 
 export type BrainImageGenerateRequest = {
   id: string
@@ -14,6 +14,8 @@ export type BrainImageGenerateRequest = {
   inferenceWidth: number
   inferenceHeight: number
   steps: number
+  guidanceMode: Sd15GuidanceMode
+  negativePrompt: string
 }
 
 export type BrainImageReleaseRequest = {

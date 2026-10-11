@@ -199,3 +199,94 @@ input[type='number'] {
 label input[type='range'] {
   width: 100%;
 }
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.panel h3 {
+  margin: 18px 0 8px;
+  font-size: 0.95rem;
+  color: #d7d2ea;
+}
+
+fieldset.panel:disabled {
+  opacity: 0.5;
+}
+
+details.panel > summary,
+details.subpanel > summary {
+  cursor: pointer;
+  color: #d7d2ea;
+}
+
+details.panel[open] > summary,
+details.subpanel[open] > summary {
+  margin-bottom: 10px;
+}
+
+details.subpanel {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #2c273b;
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid #3b3550;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented label {
+  position: relative;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: #1a1724;
+  color: #cfcadf;
+}
+
+.segmented label + label {
+  border-left: 1px solid #3b3550;
+}
+
+.segmented label.active {
+  background: #3a2a5c;
+  color: #f4f4f8;
+  font-weight: 600;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel textarea {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #3b3550;
+  background: #1a1724;
+  color: #f4f4f8;
+  font: inherit;
+  resize: vertical;
+}
+
+.deprecated {
+  margin-top: 12px;
+  color: #a39bb8;
+}
+
+.segmented label:focus-within {
+  outline: 2px solid #6a3dff;
+  outline-offset: -2px;
+}

@@ -178,85 +178,33 @@ export class PsychedelInfrastructureError extends Error {
   }
 }
 
-/**
- * Nome inglese della fase onirica per il prompt raster. Gli identificativi
- * interni sono italiani (`soglia`, `metamorfosi`, `condensazione`, `eco`) e
- * non devono entrare in un prompt inglese dentro CLIP — è lo stesso difetto
- * corretto il 2026-10-08 su `inferInvariant`. Qui si traduce solo il nome:
- * il brief di fase (`ONEIRIC_PHASE_BRIEF` in `coscienzaOnirica.ts`) resta
- * istruzione per il Visual Plan e **non** entra nel raster, perché è scritto
- * in lingua meta ("story", "moment", "invariant") che Stable Diffusion
- * proverebbe a disegnare.
- */
-const ONEIRIC_PHASE_PROMPT_LABEL: Record<OneiricPhase, string> = {
-  soglia: 'THRESHOLD',
-  metamorfosi: 'METAMORPHOSIS',
-  condensazione: 'CONDENSATION',
-  eco: 'ECHO',
-}
-
 function frameVisualText(frame: DreamFrame): string {
   return frame.imagePrompt?.trim() || frame.description.trim() || frame.title.trim()
 }
 
 /**
- * Contesto visivo di un fotogramma: le frasi complete dei fotogrammi che lo
- * precedono e di cui è la continuazione (disp. Capo Supremo 2026-10-08).
+ * Prompt raster: descrizione del momento corrente + soggetto della storia.
  *
- *  - fotogramma 1 (soglia): nessun contesto. Non ha un precedente e non se
- *    ne inventa uno;
- *  - fotogrammi intermedi (metamorfosi, condensazione): il fotogramma
- *    immediatamente precedente;
- *  - ultimo fotogramma (eco): **prosegue dal secondo in avanti**, quindi
- *    riceve tutti gli intermedi in ordine cronologico — su quattro
- *    fotogrammi, il secondo e il terzo. Precisazione del Capo Supremo: l'eco
- *    NON torna al momento di soglia, prosegue la trasformazione. Il brief di
- *    fase del Visual Plan dice "return something recognizable from the
- *    threshold moment": quella resta un'indicazione al Visual Plan su come
- *    scrivere il momento, non la scelta del contesto raster.
- */
-function previousFrameVisualContext(story: DreamStory, frame: DreamFrame): string {
-  const index = story.frames.findIndex((candidate) => candidate.id === frame.id)
-  if (index <= 0) return ''
-  const isLastFrame = index === story.frames.length - 1
-  // Intermedi dal secondo (indice 1) fino a quello che precede l'eco.
-  const sources = isLastFrame && index >= 2
-    ? story.frames.slice(1, index)
-    : [story.frames[index - 1]]
-  return sources
-    .map((source) => (source ? frameVisualText(source) : ''))
-    .filter(Boolean)
-    .join(' ')
-}
-
-/**
- * Gerarchia del prompt raster (lettera Vice Consigliere §6-§7): momento
- * corrente (dal Visual Plan) + invariante stabile della storia.
+ * CHI SOGNA NON È STABLE DIFFUSION (disp. Capo Supremo 2026-10-11, testo
+ * originale): «si passano concetti da una immagine ad un'altra dentro stable
+ * diffusion: non è il modo giusto di fare le cose, l'echo e tutti quei
+ * problemi lì sono problemi cognitivi, non riguardano il generatore di
+ * immagini, chi genera connessioni è chi vede le immagini, l'influenza delle
+ * varie parti deve contendersi fino a definire il prompt. Non mettiamo troppe
+ * barriere nel prompt, lasciamolo libero, manteniamo magari molto ad alto
+ * livello il discorso del soggetto» — «chi sogna non è Stable Diffusion».
  *
- * NESSUNA INGERENZA CROMATICA (disp. Capo Supremo 2026-10-11, filosofia.md
- * §2.2): il blocco COLOR DIRECTION è stato rimosso. La generazione non
- * riceve direzioni di colore né famiglie cromatiche; il lavoro cromatico
- * avviene a runtime, nei renderer.
+ * Ritirati quindi dal raster `VISUAL CONTEXT` (testo dei fotogrammi
+ * precedenti, disp. 2026-10-08) e l'etichetta di fase `CURRENT MOMENT n/4 —
+ * FASE` (richiamo 2026-10-08): passavano concetti fra immagini dentro il
+ * generatore e producevano coppie di fotogrammi simili. Chi guarda le
+ * immagini è Brain (precisazione del Capo Supremo): fasi, eco e continuità
+ * sono lavoro cognitivo suo, a monte (storia, Visual Plan,
+ * `ONEIRIC_PHASE_BRIEF`); resta soltanto il soggetto (`INVARIANT`), ad alto
+ * livello.
  *
- * RIPRISTINO CONTESTO VISIVO PER FOTOGRAMMA (disp. Capo Supremo 2026-10-08):
- * torna un secondo livello di contesto, `VISUAL CONTEXT`, con la frase
- * completa del fotogramma immediatamente precedente. Serve come memoria
- * visiva locale, non come nuova scena concorrente: PIANO-046 aveva rimosso
- * insieme due livelli — `Associated stimulus` e il residuo del fotogramma
- * precedente — e **solo il secondo rientra**. `Associated stimulus` resta
- * fuori per disposizione esplicita.
- *
- * FASE ONIRICA NEL RASTER (richiamo del Capo Supremo 2026-10-08): ogni
- * fotogramma resta una fase precisa — soglia, metamorfosi, condensazione,
- * eco (`deriveOneiricPhase`, filosofia.md §2) — e la fase è ora dichiarata
- * **anche nel prompt raster**, non solo nell'istruzione al Visual Plan.
- * Prima compariva in quattro posti (brief del Visual Plan, profilo di
- * qualità per fase, `dataset.framePhase`, ciclo di revisione) ma non qui.
- *
- * Perimetro dell'intervento: cambia soltanto la composizione di questo
- * prompt. Visual Plan, riscrittura in 18-30 parole, logica dell'invariante,
- * palette, qualità, seed, step, checkpoint e struttura della storia non sono
- * toccati.
+ * NESSUNA INGERENZA CROMATICA (filosofia.md §2.2): nessuna direzione di
+ * colore né famiglia cromatica.
  */
 export function buildPsychedelImagePrompt(
   story: DreamStory,
@@ -272,28 +220,10 @@ export function buildPsychedelImagePrompt(
       `prompt raster rifiutato: fotogramma "${frame.id}" della storia "${story.id}" non ha testo utilizzabile`,
     )
   }
-  const frameIndex = story.frames.findIndex((candidate) => candidate.id === frame.id)
-  // Fotogramma estraneo alla storia (indice -1): nessuna fase dichiarata,
-  // non se ne indovina una.
-  const phaseLabel =
-    frameIndex >= 0
-      ? ONEIRIC_PHASE_PROMPT_LABEL[deriveOneiricPhase(frameIndex, story.frames.length)]
-      : ''
-  const momentLabel = phaseLabel
-    ? `CURRENT MOMENT ${frameIndex + 1}/${story.frames.length} — ${phaseLabel}`
-    : 'CURRENT MOMENT'
-  // Etichette in fondo (disp. Capo Supremo 2026-10-11): SD 1.5 pesa di più
-  // i primi token, che devono essere la descrizione dell'immagine come ad
-  // agosto, non `CURRENT MOMENT n/4 — FASE`.
   const promptParts = [framePrompt]
-  const visualContext = previousFrameVisualContext(story, frame)
-  if (visualContext) {
-    promptParts.push(`VISUAL CONTEXT: ${visualContext}`)
-  }
   if (story.invariant?.trim()) {
     promptParts.push(`INVARIANT: ${story.invariant.trim()}`)
   }
-  promptParts.push(momentLabel)
   return promptParts.join('\n\n')
 }
 

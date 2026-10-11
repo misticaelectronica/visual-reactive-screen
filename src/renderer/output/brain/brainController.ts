@@ -120,6 +120,7 @@ import { createBrainConsciousnessMotionLayer } from './brainConsciousnessMotion'
 import { BrainVectorizer } from './brainVectorQuality'
 import { BrainVectorSceneCache } from './brainVectorSceneCache'
 import { rasterDominantColors } from './brainDmxRasterColors'
+import { setBrainImageGenerationSettings } from './brainImageGeneration'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 // Luci DMX (PIANO-049): a ogni fotogramma, i colori dominanti del raster
@@ -2855,6 +2856,7 @@ export function createBrainController(
     updateState(payload: VisualStatePayload) {
       const previousRendererMode = latestPayload?.settings?.brainRendererMode
       latestPayload = payload
+      setBrainImageGenerationSettings(payload.settings)
       const rendererMode = payload.settings?.brainRendererMode ?? 'manual'
       if (
         currentProduction &&

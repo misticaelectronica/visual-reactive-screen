@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
   isAudioMode,
+  BRAIN_NEGATIVE_PROMPT_MAX_CHARS,
+  isBrainImageQuality,
   isBrainRendererId,
   isBrainRendererMode,
   isFlashMode,
@@ -79,6 +81,12 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
     preserveExplicitSource: settings.preserveExplicitSource === true,
+    brainImageQuality: isBrainImageQuality(settings.brainImageQuality)
+      ? settings.brainImageQuality
+      : DEFAULT_SETTINGS.brainImageQuality,
+    brainNegativePrompt: typeof settings.brainNegativePrompt === 'string'
+      ? settings.brainNegativePrompt.slice(0, BRAIN_NEGATIVE_PROMPT_MAX_CHARS)
+      : DEFAULT_SETTINGS.brainNegativePrompt,
     dmxBrainColorSource:
       settings.dmxBrainColorSource === 'render' || settings.dmxBrainColorSource === 'sequence'
         ? settings.dmxBrainColorSource

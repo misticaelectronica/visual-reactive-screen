@@ -54,6 +54,9 @@ export type Sd15GenerateOptions = {
   inferenceHeight?: number
   steps?: number
   guidanceMode?: Sd15GuidanceMode
+  /** Ramo non condizionato della guidance; ignorato a ramo singolo. */
+  negativePrompt?: string
+  guidanceScale?: number
   signal?: AbortSignal
   onProgress?: (progress: Sd15BrowserProgress) => void
 }
@@ -539,26 +542,34 @@ export class Sd15OnnxWebGpuRuntime {
 
     const guidanceMode = options.guidanceMode ?? BRAIN_CONFIG.imageGuidanceMode
     const batchSize = guidanceMode === 'cfg-batch' ? 2 : 1
-    const encoded = tokenizer(prompt, {
-      padding: false,
-      truncation: false,
-      add_special_tokens: false,
-      return_tensor: false,
-    }) as { input_ids?: unknown }
-    const rawIds = encoded.input_ids
-    const ids = Array.isArray(rawIds) && Array.isArray(rawIds[0]) ? rawIds[0] : rawIds
-    if (!Array.isArray(ids) || !ids.every((value) => typeof value === 'number')) {
-      throw new Error('Il tokenizer CLIP non ha restituito sequenze valide')
+    const tokenize = (text: string): number[] => {
+      const encoded = tokenizer(text, {
+        padding: false,
+        truncation: false,
+        add_special_tokens: false,
+        return_tensor: false,
+      }) as { input_ids?: unknown }
+      const rawIds = encoded.input_ids
+      const ids = Array.isArray(rawIds) && Array.isArray(rawIds[0]) ? rawIds[0] : rawIds
+      if (!Array.isArray(ids) || !ids.every((value) => typeof value === 'number')) {
+        throw new Error('Il tokenizer CLIP non ha restituito sequenze valide')
+      }
+      return ids as number[]
     }
-    const chunks = chunkSd15Prompt(ids as number[])
+    const ids = tokenize(prompt)
+    const chunks = chunkSd15Prompt(ids)
+    const negativePrompt = batchSize === 2 ? options.negativePrompt?.trim() ?? '' : ''
+    const negativeIds = negativePrompt ? tokenize(negativePrompt) : []
+    const negativeChunks = negativeIds.length > 0 ? chunkSd15Prompt(negativeIds) : []
     const encodingStart = performance.now()
     const embeddings = await encodeSd15PromptChunks(
-      ort, sessions.textEncoder, chunks, batchSize === 2, signal,
+      ort, sessions.textEncoder, chunks, batchSize === 2, signal, negativeChunks,
     )
     onProgress?.({
       phase: 'generazione',
-      message: `Contesto CLIP completo: ${ids.length} token, ${chunks.length} blocchi, ${Math.round(performance.now() - encodingStart)} ms; nessun taglio`,
+      message: `Contesto CLIP completo: ${ids.length} token, ${chunks.length} blocchi, negative ${negativeIds.length} token, ${Math.round(performance.now() - encodingStart)} ms; nessun taglio`,
     })
+    const guidanceScale = options.guidanceScale ?? this.manifest.guidanceScale
 
     try {
       const steps = Math.max(4, Math.min(
@@ -598,7 +609,7 @@ export class Sd15OnnxWebGpuRuntime {
         phase: 'generazione',
         message: guidanceMode === 'single-conditional'
           ? 'UNet batch 1: ramo condizionale singolo'
-          : 'UNet batch 2: classifier-free guidance',
+          : `UNet batch 2: classifier-free guidance ${guidanceScale}`,
         component: 'unet-guidance-mode',
         pct: 0,
       })
@@ -637,7 +648,7 @@ export class Sd15OnnxWebGpuRuntime {
             ? predictionData
             : classifierFreeGuidance(
               predictionData,
-              this.manifest.guidanceScale,
+              guidanceScale,
             )
           latents = eulerStep(latents, guided, step.sigma, step.nextSigma)
         } finally {

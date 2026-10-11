@@ -7,6 +7,11 @@ import type {
   BrainImageWorkerResponse,
 } from './brainImageWorkerProtocol'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
+import {
+  getBrainImageGenerationSettings,
+  resolveBrainImageGuidanceMode,
+  resolveBrainImageSteps,
+} from './brainImageGeneration'
 import type {
   ImageRenderMode,
   PsychedelImageGenerator,
@@ -34,13 +39,12 @@ export function createBrainImageGenerateRequest(
   const locationUrl = new URL(documentUrl)
   const runtimeBase = new URL('.', locationUrl)
   runtimeBase.pathname = `${runtimeBase.pathname.replace(/\/+$/, '')}/ort-wasm/`
-  const steps = stepsOverride ?? (mode === 'high-quality'
-    ? renderingConfig.image.qualitySteps
-    : mode === 'enhanced'
-      ? renderingConfig.image.enhancedSteps
-      : mode === 'interlude'
-        ? renderingConfig.image.interludeSteps
-        : renderingConfig.image.standardSteps)
+  const generationSettings = getBrainImageGenerationSettings()
+  const steps = stepsOverride ?? resolveBrainImageSteps(
+    mode,
+    generationSettings.quality,
+    renderingConfig.image,
+  )
   const inferenceGeometry = mode === 'high-quality'
     ? { width: renderingConfig.image.width, height: renderingConfig.image.height }
     : mode === 'enhanced'
@@ -62,6 +66,8 @@ export function createBrainImageGenerateRequest(
     inferenceWidth: inferenceGeometry.width,
     inferenceHeight: inferenceGeometry.height,
     steps,
+    guidanceMode: resolveBrainImageGuidanceMode(mode),
+    negativePrompt: generationSettings.negativePrompt,
   }
 }
 
@@ -110,6 +116,7 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
       id,
       mode,
       steps: request.steps,
+      guidance: request.guidanceMode,
       inference: `${request.inferenceWidth}x${request.inferenceHeight}`,
     })
     return new Promise<GenerationResult>((resolve, reject) => {

@@ -153,6 +153,33 @@ per un checkpoint SD 1.5 può favorire volti duplicati/deformati), non
 ancora esplorata perché più costosa (GPU/thermal, e cambia assunzioni di
 layout a valle).
 
+**Corpi deformati — PIANO-050 (2026-10-11)**: causa individuata nel ramo
+`single-conditional` (MACRO-009): senza classifier-free guidance SD 1.5 non
+tiene la coerenza anatomica (arti in più, busti allungati, mani fuse), e un
+negative prompt non ha effetto. Il Capo Supremo ha fatto la revisione dei
+termini chiesta sopra: guidance riattivata (`cfg-batch`, scala
+7 del manifest) con negative prompt **solo
+anatomico**, nessun termine su nudità/contenuto. Negative prompt e livello di
+qualità `low`/`mid`/`high` si governano dal pannello (`brainNegativePrompt`,
+`brainImageQuality`); resolver unico in `brainImageGeneration.ts`.
+L'interludio resta a ramo singolo. Il negative prompt non può superare in
+blocchi CLIP il prompt positivo: errore esplicito, mai troncamento.
+
+**Prompt raster libero (2026-10-11)**: «chi sogna non è Stable Diffusion».
+Il raster riceve solo il proprio momento + `INVARIANT`; niente testo di altri
+fotogrammi (`VISUAL CONTEXT` ritirato: produceva coppie di immagini simili) e
+niente etichette di fase. Chi guarda le immagini è Brain: le connessioni fra
+fotogrammi sono lavoro cognitivo suo (storia, Visual Plan, memoria delle
+storie, Ciclo di Revisione), non del generatore — non reintrodurle nel prompt
+raster.
+
+**Checkpoint attivo (verificato 2026-10-11)**: il codice punta a PornMaster
+(`brainConfig.ts`, manifest, hash SHA-256 dei pesi su disco coincidenti). La
+sostituzione con Realistic Vision descritta nella skill precedente non
+risulta in nessun commit; i pesi RV restano in
+`.model-artifacts/realistic-vision-v6-onnx` e il protocollo `brain-model://`
+consente entrambe le cartelle.
+
 ## Skill: Color Direction (prompt immagine Psichedel)
 
 Usare quando si modifica l'identità cromatica ORIGINALE con cui Stable

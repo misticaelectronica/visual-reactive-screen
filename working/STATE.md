@@ -1,5 +1,57 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## 1.0.0-rc.10 — Brain pronto per l'esordio in pubblico — 2026-10-11
+
+Collaudo del Capo Supremo: «test ok», «Brain pronto per l'esordio in
+pubblico». Rilascio `1.0.0-rc.10` dal branch `feature/dmx-color-controller`:
+PIANO-050 (guidance, negative prompt anatomico, qualità low/mid/high,
+pannello riordinato), prompt raster libero («chi sogna non è Stable
+Diffusion»), preset Pantone e rotazione colori 30–100 s, DMX Color
+Controller (PIANO-048). Nota alla squadra in
+`team/briefs/nota-complimenti-rc10-2026-10-11.md`.
+
+Restano aperti: percezione dei propri raster da parte di Brain e della
+coscienza (principio stabilito, non implementato, in attesa di decisione);
+integrazione DMX con Brain/Morphing (PIANO-049, bozza).
+
+## Chi sogna non è Stable Diffusion — 2026-10-11
+
+**CONSEGNATO**, disposizione del Capo Supremo (testo originale nel commento
+di `buildPsychedelImagePrompt`). Segnalazione: la generazione produce coppie
+di fotogrammi simili (1≈2, 3≈4). Dal prompt raster sono stati ritirati
+`VISUAL CONTEXT` (testo dei fotogrammi precedenti, 2026-10-08) e l'etichetta
+`CURRENT MOMENT n/4 — FASE` (2026-10-08): passavano concetti fra immagini
+dentro il generatore. Ora il prompt è: momento corrente + `INVARIANT`
+(soggetto ad alto livello). Visual Plan, brief di fase e qualità per fase
+invariati. Che le coppie spariscano è un'ipotesi da confermare a schermo.
+796 test verdi, typecheck e lint verdi. DEP-001 `NON COINVOLTO`.
+
+Principio del Capo Supremo (2026-10-11, testo originale): «è BRAIN e la sua
+coscienza guardano quelle immagini, SONO loro che devono dare la
+continuità». **Fatto verificato**: oggi non lo fanno — Coscienza Onirica
+riceve solo percezioni audio (`audioPrimed`); storia, Visual Plan e memoria
+lavorano sui testi scritti da Brain, non sui raster generati; nessun modulo
+descrive o percepisce l'immagine prodotta. **Aperto, in attesa di
+decisione**: se e come dare a Brain la percezione dei propri raster (nuovo
+meccanismo: costo GPU, modifica della costituzione di Coscienza Onirica).
+
+## Corpi deformati: guidance e negative prompt — 2026-10-11
+
+**IMPLEMENTATO — PIANO-050 (MACRO-038)**, disposizione del Capo Supremo sui
+corpi deformati, soprattutto femminili. Causa: generazione senza
+classifier-free guidance (`single-conditional`, MACRO-009). Ora `cfg-batch`
+con la scala 7 del manifest e negative prompt solo anatomico, modificabile dal pannello;
+livello di qualità `low` (default: 8/10/14 step), `mid` (10/13/19), `high`
+(step di `config/brainRendering.json`). Interludio a ramo singolo; lo zoom
+annidato tiene i suoi 22 step e con la guidance costa il doppio. Pannello
+diviso in riquadri per funzione. 801 test verdi, typecheck e lint verdi.
+DEP-001 `MANTENERE` (spostato in «Avanzate», comportamento invariato).
+**Aperto**: collaudo a schermo (TASK-050-06).
+
+Checkpoint: il codice usa PornMaster (verificato con gli hash); la
+sostituzione con Realistic Vision di `skills.md` non era mai entrata nel
+codice. Documentazione allineata; per disposizione si resta su PornMaster.
+
 ## Grammatica narrativa e formato della risposta — 2026-10-11
 
 **CONSEGNATO — brief del Vicario** (`team/briefs/brief-correzione-grammatica-narrativa-2026-10-11.md`):

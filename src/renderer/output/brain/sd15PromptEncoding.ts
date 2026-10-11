@@ -22,7 +22,9 @@ export function chunkSd15Prompt(ids: readonly number[]): number[][] {
 }
 
 /** CLIP encodes 77 positions at a time; UNet receives the concatenated sequence.
- * Keep CFG rows separate: [empty chunks][conditional chunks], never interleaved.
+ * Keep CFG rows separate: [unconditional chunks][conditional chunks], never
+ * interleaved. The unconditional row carries the negative prompt in its first
+ * chunks and empty chunks after it; it may not be longer than the prompt.
  */
 export async function encodeSd15PromptChunks(
   ort: { Tensor: typeof Tensor },
@@ -30,16 +32,20 @@ export async function encodeSd15PromptChunks(
   chunks: readonly number[][],
   cfg: boolean,
   signal?: AbortSignal,
+  unconditionalChunks: readonly number[][] = [],
 ): Promise<Tensor> {
   const batch = cfg ? 2 : 1
   const empty = chunkSd15Prompt([])[0]
+  if (unconditionalChunks.length > chunks.length) {
+    throw new Error(`Negative prompt più lungo del prompt: ${unconditionalChunks.length} blocchi contro ${chunks.length}. Nessun testo è stato troncato.`)
+  }
   let combined: Float32Array | Uint16Array | undefined
   let type: 'float32' | 'float16' | undefined
   let width = 0
   for (let index = 0; index < chunks.length; index++) {
     if (signal?.aborted) throw new DOMException('Generazione annullata', 'AbortError')
     const ids = new ort.Tensor('int64', BigInt64Array.from(
-      cfg ? [...empty, ...chunks[index]] : chunks[index], BigInt,
+      cfg ? [...(unconditionalChunks[index] ?? empty), ...chunks[index]] : chunks[index], BigInt,
     ), [batch, CLIP_TOKEN_COUNT])
     let output: Record<string, Tensor> = {}
     try {

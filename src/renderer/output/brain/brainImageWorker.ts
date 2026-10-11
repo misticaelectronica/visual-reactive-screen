@@ -58,6 +58,8 @@ async function generate(request: BrainImageGenerateRequest): Promise<void> {
       inferenceWidth: request.inferenceWidth,
       inferenceHeight: request.inferenceHeight,
       steps: request.steps,
+      guidanceMode: request.guidanceMode,
+      negativePrompt: request.negativePrompt,
       signal: controller.signal,
       onProgress: (progress) => post({
         id: request.id,

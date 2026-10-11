@@ -345,6 +345,11 @@ Pubblicazione artefatti: bloccata da repository/credenziali mancanti
 
 ## Sostituzione del checkpoint (procedura manuale)
 
+> **Stato al 2026-10-11**: il checkpoint attivo nel codice è PornMaster
+> (`brainConfig.ts` e manifest; hash dei pesi su disco verificati). La
+> sostituzione con Realistic Vision descritta sotto non è mai entrata in un
+> commit del codice; per disposizione del Capo Supremo si resta su PornMaster.
+
 Decisione: passare da `pornmaster-sd15-explicit-onnx-fp16` a
 `Realistic Vision V6.0 B1` (`SG161222/Realistic_Vision_V6.0_B1_noVAE`), stessa
 famiglia SD 1.5, stessa architettura, epsilon-prediction, 512×512 nativo. Non
