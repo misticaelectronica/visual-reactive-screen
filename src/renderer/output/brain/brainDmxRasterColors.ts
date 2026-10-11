@@ -17,8 +17,37 @@ const ACHROMATIC_SATURATION = 0.1
 // su un PAR RGB un colore pallido diventa bianco. Saturazione minima e
 // luminosità piena; l'intensità resta al master e al ritmo.
 const STAGE_MIN_SATURATION = 0.8
+// I gruppi più estesi sono spesso sfumature della stessa tinta: dopo la
+// saturazione diventano lo stesso colore (log 2026-10-11: #33b3ff #33caff
+// #33beff #33b4ff). Un colore entra solo se la sua tinta dista almeno
+// tanto da quelle già scelte; al massimo un bianco.
+const MIN_HUE_DISTANCE = 30
 
 const hex = (value: number) => Math.round(value).toString(16).padStart(2, '0')
+
+function hue(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b)
+  const delta = max - Math.min(r, g, b)
+  if (delta === 0) return 0
+  const h = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4
+  return (h * 60 + 360) % 360
+}
+
+function distinctHues(groups: Array<{ r: number; g: number; b: number; s: number }>, count: number) {
+  const chosen: typeof groups = []
+  for (const group of groups) {
+    if (chosen.length >= count) break
+    const achromatic = group.s < ACHROMATIC_SATURATION
+    const clash = chosen.some(other => {
+      const otherAchromatic = other.s < ACHROMATIC_SATURATION
+      if (achromatic || otherAchromatic) return achromatic && otherAchromatic
+      const distance = Math.abs(hue(group.r, group.g, group.b) - hue(other.r, other.g, other.b))
+      return Math.min(distance, 360 - distance) < MIN_HUE_DISTANCE
+    })
+    if (!clash) chosen.push(group)
+  }
+  return chosen
+}
 
 function saturation(r: number, g: number, b: number): number {
   const max = Math.max(r, g, b)
@@ -58,10 +87,8 @@ export function dominantColors(pixels: Uint8ClampedArray, count: number): string
     return { n: bin.n, r, g, b, s: saturation(r, g, b), weight }
   })
   const chromatic = groups.some(group => group.s >= ACHROMATIC_SATURATION)
-  return groups
-    .sort((a, b) => (chromatic ? b.n * b.weight - a.n * a.weight : b.n - a.n))
-    .slice(0, count)
-    .map(group => stageColor(group.r, group.g, group.b))
+  const ranked = groups.sort((a, b) => (chromatic ? b.n * b.weight - a.n * a.weight : b.n - a.n))
+  return distinctHues(ranked, count).map(group => stageColor(group.r, group.g, group.b))
 }
 
 export async function rasterDominantColors(raster: Blob, count: number): Promise<string[]> {

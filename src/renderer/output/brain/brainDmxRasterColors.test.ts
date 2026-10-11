@@ -43,4 +43,15 @@ describe('dominantColors', () => {
     const data = new Uint8ClampedArray([255, 0, 0, 0, 0, 255, 0, 255])
     expect(dominantColors(data, 4)).toEqual(['#00ff00'])
   })
+
+  it('sceglie tinte diverse, non quattro sfumature della stessa', () => {
+    const data = pixels([[40, 150, 230, 30], [45, 165, 235, 25], [50, 140, 225, 20], [230, 110, 40, 8], [200, 40, 160, 6]])
+    const colors = dominantColors(data, 4)
+    expect(colors).toHaveLength(3)
+    const [blue, orange, magenta] = colors.map(channels)
+    expect(blue[2]).toBe(255)
+    expect(orange[0]).toBe(255)
+    expect(magenta[0]).toBe(255)
+    expect(magenta[2]).toBeGreaterThan(magenta[1])
+  })
 })
