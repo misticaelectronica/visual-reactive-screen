@@ -3,6 +3,7 @@ import type { AppSettings, DmxProducerCommand, DmxProfile } from '@shared/types'
 import { chainFixtures, PROFILE_CHANNELS, stageColor } from './dmxEngine'
 import { createDmxController, type DmxController, type DmxStatus } from './dmxController'
 import { createDmxRhythm, type DmxAudioFrame } from './dmxRhythm'
+import { screenDominantColors } from './dmxScreenColors'
 
 interface Props {
   settings: AppSettings
@@ -14,6 +15,11 @@ interface Props {
 const MANUAL = 'manual'
 const DEFAULT_COLORS = ['#A82431', '#D78A45', '#273C72', '#72517E']
 const MORPHING_TRANSITION_MS = 4000
+// Modalità «schermo»: 4 catture al secondo (2 in basso consumo), dissolvenza
+// pari all'intervallo.
+const SCREEN_SAMPLE_MS = 250
+const SCREEN_SAMPLE_LOW_POWER_MS = 500
+const SCREEN_COLOR_COUNT = 4
 
 export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: Props) {
   const profiles = settings.dmxFixtureProfiles
@@ -29,7 +35,8 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
   const [master, setMaster] = useState(1)
   const [fadeSeconds, setFadeSeconds] = useState(8)
   const [manual, setManual] = useState(false)
-  const owner = manual ? MANUAL : settings.useBrain ? 'brain' : 'morphing'
+  const screenSource = settings.dmxBrainColorSource === 'render'
+  const owner = manual ? MANUAL : screenSource ? 'screen' : settings.useBrain ? 'brain' : 'morphing'
 
   useEffect(() => {
     const controller = createDmxController(fixtures, setStatus)
@@ -96,6 +103,26 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
     })
   }, [settings.basePinkColor, settings.hotPinkColor, settings.idleColor])
 
+  // Schermo: ciò che vede il pubblico, catturato dal main.
+  useEffect(() => {
+    if (!screenSource) return
+    const interval = settings.lowPowerMode ? SCREEN_SAMPLE_LOW_POWER_MS : SCREEN_SAMPLE_MS
+    let busy = false
+    const timer = window.setInterval(() => {
+      if (busy || !window.fxControl?.dmxCaptureScreen) return
+      busy = true
+      window.fxControl.dmxCaptureScreen()
+        .then((pixels) => {
+          if (!pixels) return
+          const colors = screenDominantColors(pixels, SCREEN_COLOR_COUNT)
+          if (colors.length > 0) receive({ producer: 'screen', colors, transitionMs: interval })
+        })
+        .catch(() => undefined)
+        .finally(() => { busy = false })
+    }, interval)
+    return () => window.clearInterval(timer)
+  }, [screenSource, settings.lowPowerMode])
+
   // Emergenza / Spegni spegne anche le luci; Riprendi le riaccende.
   useEffect(() => {
     controllerRef.current?.blackout(panic)
@@ -145,13 +172,13 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
       </div>
       <div className="toolbar">
         <label>
-          Colori di Brain{' '}
+          Colori{' '}
           <select
             value={settings.dmxBrainColorSource}
             onChange={(e) => onChange({ dmxBrainColorSource: e.target.value === 'render' ? 'render' : 'frame' })}
           >
-            <option value="frame">immagine generata (a ogni fotogramma)</option>
-            <option value="render">render a schermo (veloce, segue il render)</option>
+            <option value="frame">Brain: immagine generata (a ogni fotogramma) / Morphing: preset</option>
+            <option value="render">schermo: ciò che si vede (veloce, Brain e Morphing)</option>
           </select>
         </label>
         <label>

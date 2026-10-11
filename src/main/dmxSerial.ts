@@ -88,3 +88,39 @@ export async function dmxClose(): Promise<void> {
   if (!closing?.isOpen) return
   await call(cb => closing.close(cb)).catch(() => undefined)
 }
+
+// Modalità «schermo» delle luci (disp. Capo Supremo 2026-10-11): l'immagine
+// composta finale della finestra di output, come la vede il pubblico, con
+// transizioni e neri. Si escludono i bordi, dove stanno pannelli di testo e
+// monitor del raster. Ridotta a 32×18 pixel; restituisce RGBA.
+const SCREEN_SAMPLE_WIDTH = 32
+const SCREEN_SAMPLE_HEIGHT = 18
+const SCREEN_CROP = { left: 0.22, right: 0.1, top: 0.08, bottom: 0.14 }
+
+export async function dmxCaptureScreen(window: Electron.BrowserWindow | null): Promise<Uint8Array | null> {
+  if (!window || window.isDestroyed() || !window.isVisible()) return null
+  const [width, height] = window.getContentSize()
+  if (width === 0 || height === 0) return null
+  const rect = {
+    x: Math.round(width * SCREEN_CROP.left),
+    y: Math.round(height * SCREEN_CROP.top),
+    width: Math.round(width * (1 - SCREEN_CROP.left - SCREEN_CROP.right)),
+    height: Math.round(height * (1 - SCREEN_CROP.top - SCREEN_CROP.bottom)),
+  }
+  try {
+    const image = await window.webContents.capturePage(rect)
+    if (image.isEmpty()) return null
+    const bitmap = image.resize({ width: SCREEN_SAMPLE_WIDTH, height: SCREEN_SAMPLE_HEIGHT, quality: 'good' }).toBitmap()
+    // toBitmap è BGRA: si riordina in RGBA.
+    const rgba = new Uint8Array(bitmap.length)
+    for (let i = 0; i + 3 < bitmap.length; i += 4) {
+      rgba[i] = bitmap[i + 2]
+      rgba[i + 1] = bitmap[i + 1]
+      rgba[i + 2] = bitmap[i]
+      rgba[i + 3] = bitmap[i + 3]
+    }
+    return rgba
+  } catch {
+    return null
+  }
+}

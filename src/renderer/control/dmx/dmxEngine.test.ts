@@ -22,7 +22,8 @@ describe('dmxEngine', () => {
     engine.master = 0.5
     setColors(engine, ['#FF3200'], 0, 0)
     const u = buildUniverse(engine, 0, false)
-    expect(Array.from(u.slice(0, 14))).toEqual([128, 255, 50, 0, 0, 0, 0, 128, 255, 50, 0, 0, 0, 0])
+    // Il verde 50 sRGB diventa 7 lineare (gamma 2,2).
+    expect(Array.from(u.slice(0, 14))).toEqual([128, 255, 7, 0, 0, 0, 0, 128, 255, 7, 0, 0, 0, 0])
   })
 
   it('il blackout azzera l’emissione senza perdere il colore', () => {
@@ -39,5 +40,11 @@ describe('dmxEngine', () => {
     expect(stageColor('#b0a0c0', 1)).toBe('#6000c0')
     expect(stageColor('#808080', 1)).toBe('#808080')
     expect(stageColor('#10203a', 0.8)).toBe('#0c1d3a')
+  })
+
+  it('gamma: un quasi nero a schermo resta quasi spento sul PAR', () => {
+    const engine = createEngine(chainFixtures(['3ch']))
+    setColors(engine, ['#110311'], 0, 0)
+    expect(Array.from(buildUniverse(engine, 0, false).slice(0, 3))).toEqual([1, 0, 1])
   })
 })

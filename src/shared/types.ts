@@ -271,6 +271,8 @@ export const IPC_CHANNELS = {
   dmxOpen: 'fx:dmx-open',
   dmxSend: 'fx:dmx-send',
   dmxClose: 'fx:dmx-close',
+  /** Control → main: cattura ridotta dello schermo di output per le luci. */
+  dmxCaptureScreen: 'fx:dmx-capture-screen',
   /** Output → main: comando cromatico di un producer (Brain). */
   dmxProducer: 'fx:dmx-producer',
   /** Main → control: inoltro al controller DMX. */
@@ -514,6 +516,7 @@ export interface ControlApi {
   dmxOpen: (kind: DmxInterface) => Promise<{ ok: boolean; error?: string }>
   dmxSend: (universe: Uint8Array) => Promise<{ ok: boolean; error?: string }>
   dmxClose: () => Promise<void>
+  dmxCaptureScreen: () => Promise<Uint8Array | null>
   onDmxProducer: (cb: (command: DmxProducerCommand) => void) => () => void
   getDisplays: () => Promise<DisplayInfo[]>
   openOutput: (displayId: number) => Promise<{ ok: boolean; error?: string }>

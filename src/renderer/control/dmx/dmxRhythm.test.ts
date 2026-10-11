@@ -20,6 +20,6 @@ describe('dmxRhythm', () => {
     const engine = createEngine(chainFixtures(['7ch']))
     setColors(engine, ['#FF3200'], 0, 0)
     engine.rhythm = 0.5
-    expect(Array.from(buildUniverse(engine, 0, false).slice(0, 4))).toEqual([128, 255, 50, 0])
+    expect(Array.from(buildUniverse(engine, 0, false).slice(0, 4))).toEqual([128, 255, 7, 0])
   })
 })

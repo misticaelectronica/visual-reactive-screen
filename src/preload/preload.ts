@@ -17,6 +17,7 @@ const controlApi: ControlApi = {
   dmxSend: (universe: Uint8Array) =>
     ipcRenderer.invoke(IPC_CHANNELS.dmxSend, universe) as Promise<{ ok: boolean; error?: string }>,
   dmxClose: () => ipcRenderer.invoke(IPC_CHANNELS.dmxClose) as Promise<void>,
+  dmxCaptureScreen: () => ipcRenderer.invoke(IPC_CHANNELS.dmxCaptureScreen) as Promise<Uint8Array | null>,
   onDmxProducer: (cb: (command: DmxProducerCommand) => void) => {
     const channel = IPC_CHANNELS.dmxProducerPush
     const handler = (_event: unknown, command: DmxProducerCommand) => cb(command)

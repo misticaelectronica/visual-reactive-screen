@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dominantColors, renderSurfaceColors } from './brainDmxRasterColors'
+import { dominantColors } from './brainDmxRasterColors'
 
 const pixels = (colors: Array<[number, number, number, number]>) =>
   new Uint8ClampedArray(colors.flatMap(([r, g, b, n]) => Array.from({ length: n }, () => [r, g, b, 255]).flat()))
@@ -31,11 +31,5 @@ describe('dominantColors', () => {
   it('ignora i pixel trasparenti', () => {
     const data = new Uint8ClampedArray([255, 0, 0, 0, 0, 255, 0, 255])
     expect(dominantColors(data, 4)).toEqual(['#00ff00'])
-  })
-})
-
-describe('renderSurfaceColors', () => {
-  it('senza canvas nel renderer non inventa colori: le luci tengono i precedenti', () => {
-    expect(renderSurfaceColors(document.createElement('div'), 4)).toEqual([])
   })
 })

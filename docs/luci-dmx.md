@@ -54,14 +54,18 @@ autonomia non riusa `analyzeMaterialPixels` né
 `extractDeliquescenceColorZones`. La palette nominale della storia non va
 più alle luci.
 
-**Modalità «render»** (opzione nel pannello DMX, `dmxBrainColorSource`):
-invece dell'immagine generata, Brain campiona il canvas più grande del
-renderer attivo subito dopo il suo aggiornamento, nello stesso frame (così
-si legge anche il WebGL di ANIMATRONIX), 4 volte al secondo (2 in
-`lowPowerMode`), con dissolvenza pari all'intervallo. Un render senza canvas
-(fallback SVG) o un buffer vuoto lascia le luci sui colori precedenti; un
-render scuro passa.
-L'indicatore in basso a sinistra segue la stessa sorgente.
+**Modalità «schermo»** (opzione «Colori» nel pannello DMX,
+`dmxBrainColorSource: 'render'`): il main cattura la finestra di output
+(`capturePage`), cioè l'immagine composta finale con transizioni e neri,
+4 volte al secondo (2 in `lowPowerMode`), escludendo i bordi dove stanno
+pannelli di testo e monitor del raster; ridotta a 32×18. I colori sono
+ordinati per area con tinte distinte (`dmxScreenColors.ts`); comanda il
+producer `screen`. Vale per Brain e Morphing. Sostituisce il campionamento
+del canvas del renderer dentro Brain (dismesso: leggeva un buffer interno e
+non vedeva dissolvenze e neri sopra).
+
+**Gamma**: i colori sono sRGB, il LED emette in lineare; il motore converte
+con esponente 2,2. Un quasi nero a schermo resta quasi spento sul PAR.
 
 **Saturazione luci** (slider nel pannello, `dmxSaturation`, default 80%):
 Brain manda i colori veri dell'immagine o del render; il modulo DMX li porta

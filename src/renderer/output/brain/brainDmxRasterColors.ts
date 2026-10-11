@@ -93,25 +93,3 @@ export async function rasterDominantColors(raster: Blob, count: number): Promise
     bitmap.close()
   }
 }
-
-// Modalità «render» (disp. Capo Supremo 2026-10-11): colori di ciò che il
-// renderer attivo ha appena disegnato. Va chiamata nello stesso frame
-// dell'aggiornamento del renderer: un canvas WebGL senza
-// preserveDrawingBuffer (ANIMATRONIX) viene svuotato dopo la composizione.
-let renderSample: HTMLCanvasElement | null = null
-
-export function renderSurfaceColors(surface: Element, count: number): string[] {
-  let largest: HTMLCanvasElement | null = null
-  for (const canvas of surface.querySelectorAll('canvas')) {
-    if (canvas.width === 0 || canvas.height === 0) continue
-    if (!largest || canvas.width * canvas.height > largest.width * largest.height) largest = canvas
-  }
-  if (!largest) return []
-  renderSample ??= Object.assign(document.createElement('canvas'), { width: SAMPLE_WIDTH, height: SAMPLE_HEIGHT })
-  const context = renderSample.getContext('2d', { willReadFrequently: true })
-  if (!context) return []
-  context.drawImage(largest, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT)
-  // Anche un render scuro o nero passa; un buffer vuoto (tutto trasparente)
-  // non dà colori e le luci tengono i precedenti.
-  return dominantColors(context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data, count)
-}

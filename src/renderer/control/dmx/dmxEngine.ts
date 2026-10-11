@@ -90,9 +90,14 @@ export function setFixtures(engine: DmxColorEngine, fixtures: DmxFixture[], now:
   engine.duration = 0
 }
 
+// Gamma (disp. Capo Supremo 2026-10-11, «a schermo nero si vede il
+// fucsia»): i colori sono sRGB, il LED emette in lineare. Senza correzione
+// un 17/255 quasi nero a schermo (~0,6% di luce) diventa il 6,7% sul PAR.
+const toLinear = (value: number) => 255 * Math.pow(Math.max(0, value) / 255, 2.2)
+
 export function buildUniverse(engine: DmxColorEngine, now: number, blackout: boolean): Uint8Array {
   const universe = new Uint8Array(512)
-  const colors = currentColors(engine, now)
+  const colors = currentColors(engine, now).map(color => color.map(toLinear) as Rgb)
   const master = blackout ? 0 : Math.min(1, Math.max(0, engine.master * engine.rhythm))
   engine.fixtures.forEach((fixture, i) => {
     const base = fixture.address - 1
