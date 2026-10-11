@@ -1060,8 +1060,8 @@ describe('Psichedel', () => {
     const prompts = story.frames.map((frame) => buildPsychedelImagePrompt(story, frame))
     expect(new Set(prompts).size).toBe(4)
     prompts.forEach((prompt, index) => {
-      expect(prompt.startsWith(`CURRENT MOMENT ${index + 1}/4 — `)).toBe(true)
-      expect(prompt).toContain(`: ${story.frames[index].imagePrompt!}`)
+      expect(prompt.startsWith(story.frames[index].imagePrompt!)).toBe(true)
+      expect(prompt.split('\n').at(-1)!.startsWith(`CURRENT MOMENT ${index + 1}/4 — `)).toBe(true)
       expect(prompt).not.toContain('COLOR DIRECTION')
       expect(prompt).not.toContain('Colour family')
       expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
@@ -1780,7 +1780,8 @@ describe('VISUAL CONTEXT — memoria visiva locale del fotogramma precedente', (
   it('il primo fotogramma non riceve alcun contesto, e non se ne inventa uno', () => {
     const story = storyWithFourMoments()
     const prompt = buildPsychedelImagePrompt(story, story.frames[0])
-    expect(prompt).toContain(`CURRENT MOMENT 1/4 — THRESHOLD: ${story.frames[0].imagePrompt}`)
+    expect(prompt.startsWith(story.frames[0].imagePrompt!)).toBe(true)
+    expect(prompt).toContain('CURRENT MOMENT 1/4 — THRESHOLD')
     expect(prompt).not.toContain('VISUAL CONTEXT:')
   })
 
@@ -1789,7 +1790,7 @@ describe('VISUAL CONTEXT — memoria visiva locale del fotogramma precedente', (
     for (const index of [1, 2]) {
       const prompt = buildPsychedelImagePrompt(story, story.frames[index])
       expect(prompt).toContain(`${index + 1}/4 — `)
-      expect(prompt).toContain(`: ${story.frames[index].imagePrompt}`)
+      expect(prompt.startsWith(story.frames[index].imagePrompt!)).toBe(true)
       expect(prompt).toContain(`VISUAL CONTEXT: ${story.frames[index - 1].imagePrompt}`)
     }
   })
@@ -1812,10 +1813,11 @@ describe('VISUAL CONTEXT — memoria visiva locale del fotogramma precedente', (
     expect(prompt).not.toContain(story.frames[0].imagePrompt!)
   })
 
-  it('l’ordine dei blocchi resta momento, contesto, invariante', () => {
+  it('descrizione per prima, poi contesto, invariante e momento in fondo', () => {
     const story = storyWithFourMoments()
     const prompt = buildPsychedelImagePrompt(story, story.frames[2])
-    const order = ['CURRENT MOMENT', 'VISUAL CONTEXT:', 'INVARIANT:']
+    expect(prompt.startsWith(story.frames[2].imagePrompt!)).toBe(true)
+    const order = ['VISUAL CONTEXT:', 'INVARIANT:', 'CURRENT MOMENT']
       .map((label) => prompt.indexOf(label))
     expect(order.every((position) => position >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
@@ -1836,12 +1838,12 @@ describe('fase onirica dichiarata in ogni prompt raster', () => {
       frame.imagePrompt = `Visual moment ${index + 1}: the silver root changes shape.`
     })
     const labels = story.frames.map(
-      (frame) => buildPsychedelImagePrompt(story, frame).split('\n')[0],
+      (frame) => buildPsychedelImagePrompt(story, frame).split('\n').at(-1),
     )
-    expect(labels[0]).toContain('CURRENT MOMENT 1/4 — THRESHOLD:')
-    expect(labels[1]).toContain('CURRENT MOMENT 2/4 — METAMORPHOSIS:')
-    expect(labels[2]).toContain('CURRENT MOMENT 3/4 — CONDENSATION:')
-    expect(labels[3]).toContain('CURRENT MOMENT 4/4 — ECHO:')
+    expect(labels[0]).toBe('CURRENT MOMENT 1/4 — THRESHOLD')
+    expect(labels[1]).toBe('CURRENT MOMENT 2/4 — METAMORPHOSIS')
+    expect(labels[2]).toBe('CURRENT MOMENT 3/4 — CONDENSATION')
+    expect(labels[3]).toBe('CURRENT MOMENT 4/4 — ECHO')
   })
 
   it('non porta i nomi italiani delle fasi dentro un prompt inglese', () => {

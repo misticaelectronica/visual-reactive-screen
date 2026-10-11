@@ -282,7 +282,10 @@ export function buildPsychedelImagePrompt(
   const momentLabel = phaseLabel
     ? `CURRENT MOMENT ${frameIndex + 1}/${story.frames.length} — ${phaseLabel}`
     : 'CURRENT MOMENT'
-  const promptParts = [`${momentLabel}: ${framePrompt}`]
+  // Etichette in fondo (disp. Capo Supremo 2026-10-11): SD 1.5 pesa di più
+  // i primi token, che devono essere la descrizione dell'immagine come ad
+  // agosto, non `CURRENT MOMENT n/4 — FASE`.
+  const promptParts = [framePrompt]
   const visualContext = previousFrameVisualContext(story, frame)
   if (visualContext) {
     promptParts.push(`VISUAL CONTEXT: ${visualContext}`)
@@ -290,6 +293,7 @@ export function buildPsychedelImagePrompt(
   if (story.invariant?.trim()) {
     promptParts.push(`INVARIANT: ${story.invariant.trim()}`)
   }
+  promptParts.push(momentLabel)
   return promptParts.join('\n\n')
 }
 
