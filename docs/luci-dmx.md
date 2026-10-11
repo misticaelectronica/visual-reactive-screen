@@ -54,6 +54,14 @@ autonomia non riusa `analyzeMaterialPixels` né
 `extractDeliquescenceColorZones`. La palette nominale della storia non va
 più alle luci.
 
+**Modalità «render»** (opzione nel pannello DMX, `dmxBrainColorSource`):
+invece dell'immagine generata, Brain campiona il canvas più grande del
+renderer attivo subito dopo il suo aggiornamento, nello stesso frame (così
+si legge anche il WebGL di ANIMATRONIX), 4 volte al secondo (2 in
+`lowPowerMode`), con dissolvenza pari all'intervallo. Un render senza canvas
+(fallback SVG) o tutto nero lascia le luci sui colori precedenti.
+L'indicatore in basso a sinistra segue la stessa sorgente.
+
 **Colori scuri**: dai comandi dei producer si scartano i colori con tutti i
 canali sotto 48 (una luce spenta); se sono tutti scuri restano com'erano. Il
 manuale manda esattamente il colore scelto.

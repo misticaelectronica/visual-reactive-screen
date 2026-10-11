@@ -138,6 +138,18 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
         <span>{status?.connected ? 'Connesso' : 'Non connesso'} — comanda: {owner}</span>
         {manual ? <button type="button" onClick={() => setManual(false)}>Torna automatico</button> : null}
       </div>
+      <div className="toolbar">
+        <label>
+          Colori di Brain{' '}
+          <select
+            value={settings.dmxBrainColorSource}
+            onChange={(e) => onChange({ dmxBrainColorSource: e.target.value === 'render' ? 'render' : 'frame' })}
+          >
+            <option value="frame">immagine generata (a ogni fotogramma)</option>
+            <option value="render">render a schermo (veloce, segue il render)</option>
+          </select>
+        </label>
+      </div>
       {status?.error ? <p className="error">{status.error}</p> : null}
 
       {fixtures.map((fixture, i) => (

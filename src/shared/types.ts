@@ -149,6 +149,12 @@ export interface AppSettings {
    * chiede di preservarlo alla lettera. Spento: il modello è libero.
    */
   preserveExplicitSource: boolean
+  /**
+   * Colori che Brain manda alle luci: `frame` = colori dominanti
+   * dell'immagine generata, a ogni fotogramma; `render` = colori del render a
+   * schermo, aggiornati di continuo e veloci come il render.
+   */
+  dmxBrainColorSource: 'frame' | 'render'
   /** Modulo luci DMX: caricato solo se attivo. */
   dmxEnabled: boolean
   dmxInterface: DmxInterface

@@ -79,6 +79,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
     preserveExplicitSource: settings.preserveExplicitSource === true,
+    dmxBrainColorSource: settings.dmxBrainColorSource === 'render' ? 'render' : 'frame',
     dmxEnabled: settings.dmxEnabled === true,
     dmxInterface: settings.dmxInterface === 'usb-pro' ? 'usb-pro' : 'open-dmx',
     dmxFixtureProfiles: Array.isArray(settings.dmxFixtureProfiles) && settings.dmxFixtureProfiles.length > 0

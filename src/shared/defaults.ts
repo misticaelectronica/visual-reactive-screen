@@ -52,6 +52,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flashOnKick: false,
   lowPowerMode: false,
   preserveExplicitSource: false,
+  dmxBrainColorSource: 'frame',
   dmxEnabled: false,
   dmxInterface: 'open-dmx',
   dmxFixtureProfiles: ['7ch', '7ch', '7ch', '7ch'],

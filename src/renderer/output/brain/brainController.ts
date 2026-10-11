@@ -119,7 +119,7 @@ import { CoscienzaCore } from './coscienzaCore'
 import { createBrainConsciousnessMotionLayer } from './brainConsciousnessMotion'
 import { BrainVectorizer } from './brainVectorQuality'
 import { BrainVectorSceneCache } from './brainVectorSceneCache'
-import { rasterDominantColors } from './brainDmxRasterColors'
+import { rasterDominantColors, renderSurfaceColors } from './brainDmxRasterColors'
 
 const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 // Luci DMX (PIANO-049): a ogni fotogramma, i colori dominanti del raster
@@ -127,6 +127,11 @@ const SILENT_BANDS: BandEnergies = { low: 0, lowMid: 0, mid: 0, high: 0 }
 // manda solo colori e durata; nessun dettaglio DMX.
 const BRAIN_DMX_TRANSITION_MS = 4000
 const BRAIN_DMX_COLOR_COUNT = 4
+// Modalità «render»: campionamento del renderer attivo. 4 letture al secondo
+// (2 in basso consumo) con dissolvenza pari all'intervallo: le luci seguono il
+// render senza scatti e la lettura GPU resta piccola (32×18 pixel).
+const BRAIN_DMX_RENDER_SAMPLE_MS = 250
+const BRAIN_DMX_RENDER_SAMPLE_LOW_POWER_MS = 500
 
 function sendRasterColorsToLights(raster: Blob, onSent: (colors: string[]) => void): void {
   rasterDominantColors(raster, BRAIN_DMX_COLOR_COUNT)
@@ -1446,7 +1451,9 @@ export function createBrainController(
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
     frameStartedAt = performance.now()
-    if (synchronizedRaster) sendRasterColorsToLights(synchronizedRaster, renderPaletteIndicator)
+    if (synchronizedRaster && latestPayload?.settings?.dmxBrainColorSource !== 'render') {
+      sendRasterColorsToLights(synchronizedRaster, renderPaletteIndicator)
+    }
     rendererResolutionSequence += 1
     brainLog('render', 'brainRendererSelector.resolve per fotogramma', {
       sequence: rendererResolutionSequence,
@@ -2617,6 +2624,26 @@ export function createBrainController(
     completeStoryBoundary(beatDurationMs, beatIndex)
   }
 
+  let lastRenderColorSampleAt = 0
+  const sampleRenderColorsForLights = (now: number): void => {
+    const settings = latestPayload?.settings
+    if (settings?.dmxBrainColorSource !== 'render' || !currentSvg) return
+    const interval = settings.lowPowerMode === true
+      ? BRAIN_DMX_RENDER_SAMPLE_LOW_POWER_MS
+      : BRAIN_DMX_RENDER_SAMPLE_MS
+    if (now - lastRenderColorSampleAt < interval) return
+    lastRenderColorSampleAt = now
+    let colors: string[] = []
+    try {
+      colors = renderSurfaceColors(currentSvg.element, BRAIN_DMX_COLOR_COUNT)
+    } catch {
+      return
+    }
+    if (colors.length === 0) return
+    renderPaletteIndicator(colors)
+    window.fxOutput?.sendDmxColors?.({ producer: 'brain', colors, transitionMs: interval })
+  }
+
   const render = (now: number) => {
     rafId = requestAnimationFrame(render)
     if (destroyed) return
@@ -2829,6 +2856,7 @@ export function createBrainController(
         },
       )
     }
+    sampleRenderColorsForLights(now)
   }
 
   setStatus('generation')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dominantColors, stageColor } from './brainDmxRasterColors'
+import { dominantColors, renderSurfaceColors, stageColor } from './brainDmxRasterColors'
 
 const pixels = (colors: Array<[number, number, number, number]>) =>
   new Uint8ClampedArray(colors.flatMap(([r, g, b, n]) => Array.from({ length: n }, () => [r, g, b, 255]).flat()))
@@ -53,5 +53,11 @@ describe('dominantColors', () => {
     expect(orange[0]).toBe(255)
     expect(magenta[0]).toBe(255)
     expect(magenta[2]).toBeGreaterThan(magenta[1])
+  })
+})
+
+describe('renderSurfaceColors', () => {
+  it('senza canvas nel renderer non inventa colori: le luci tengono i precedenti', () => {
+    expect(renderSurfaceColors(document.createElement('div'), 4)).toEqual([])
   })
 })
