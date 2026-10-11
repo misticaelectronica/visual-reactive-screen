@@ -62,6 +62,17 @@ si legge anche il WebGL di ANIMATRONIX), 4 volte al secondo (2 in
 (fallback SVG) o tutto nero lascia le luci sui colori precedenti.
 L'indicatore in basso a sinistra segue la stessa sorgente.
 
+**Saturazione luci** (slider nel pannello, `dmxSaturation`, default 80%):
+Brain manda i colori veri dell'immagine o del render; il modulo DMX li porta
+verso la tinta pura per i comandi dei producer (0 = colori veri, 1 = tinta
+pura a luminosità piena; i grigi restano grigi/bianchi). Il manuale manda
+esattamente il colore scelto. L'indicatore in basso a sinistra mostra i
+colori veri mandati da Brain, prima della saturazione.
+
+**Comandi ignorati**: se comanda un altro producer (es. `manual` dopo
+Applica), il controller logga una volta `ignorato <producer>: comanda
+<owner>`. Si torna a Brain/Morphing con «Torna automatico».
+
 **Colori scuri**: dai comandi dei producer si scartano i colori con tutti i
 canali sotto 48 (una luce spenta); se sono tutti scuri restano com'erano. Il
 manuale manda esattamente il colore scelto.

@@ -53,6 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lowPowerMode: false,
   preserveExplicitSource: false,
   dmxBrainColorSource: 'frame',
+  dmxSaturation: 0.8,
   dmxEnabled: false,
   dmxInterface: 'open-dmx',
   dmxFixtureProfiles: ['7ch', '7ch', '7ch', '7ch'],

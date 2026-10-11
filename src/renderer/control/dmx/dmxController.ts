@@ -28,6 +28,8 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
   let wasFading = false
   let lastAttempt = 0
   let rhythmSource: ((now: number) => number) | null = null
+  // Producer già avvisati di essere ignorati: un solo log per cambio di owner.
+  const ignoredSince = new Set<string>()
 
   const emit = () => onStatus({ ...status })
 
@@ -97,6 +99,7 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
       if (status.owner && status.owner !== producer) return false
       if (status.owner !== producer) log(`producer acquired: ${producer}`)
       status.owner = producer
+      ignoredSince.clear()
       emit()
       return true
     },
@@ -107,7 +110,13 @@ export function createDmxController(fixtures: DmxFixture[], onStatus: (status: D
       emit()
     },
     setColors(producer: string, colors: string[], transitionMs: number): boolean {
-      if (status.owner !== producer) return false
+      if (status.owner !== producer) {
+        if (!ignoredSince.has(producer)) {
+          ignoredSince.add(producer)
+          log(`ignorato ${producer}: comanda ${status.owner ?? 'nessuno'}`)
+        }
+        return false
+      }
       setColors(engine, colors, transitionMs, performance.now())
       log(`target colors received: ${colors.join(' ')} in ${Math.round(transitionMs)} ms`)
       return true

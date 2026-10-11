@@ -35,6 +35,24 @@ export function parseHex(hex: string): Rgb {
 // dei producer si scartano; se sono tutti scuri restano com'erano.
 const DARK_MAX_CHANNEL = 48
 
+// Colore da palco (disp. Capo Supremo 2026-10-11): su un PAR RGB un colore
+// pallido diventa bianco. `amount` 0 = colore com'è; 1 = tinta pura e piena.
+// Saturazione almeno `amount`, luminosità avvicinata al pieno di `amount`.
+// Sotto 0,1 di saturazione la tinta non è affidabile: resta un grigio/bianco.
+export function stageColor(color: string, amount: number): string {
+  const [r, g, b] = parseHex(color)
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  if (amount <= 0 || max === 0) return color
+  const s = (max - min) / max
+  const value = max + (255 - max) * amount
+  const toHex = (v: number) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')
+  if (s < 0.1) return `#${toHex(value)}${toHex(value)}${toHex(value)}`
+  const target = Math.max(s, amount)
+  const channel = (c: number) => value * (1 - target * (max - c) / (max - min))
+  return `#${toHex(channel(r))}${toHex(channel(g))}${toHex(channel(b))}`
+}
+
 export function usableLightColors(colors: string[]): string[] {
   const lit = colors.filter(color => Math.max(...parseHex(color)) >= DARK_MAX_CHANNEL)
   return lit.length > 0 ? lit : colors

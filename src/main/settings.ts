@@ -80,6 +80,9 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     lowPowerMode: settings.lowPowerMode === true,
     preserveExplicitSource: settings.preserveExplicitSource === true,
     dmxBrainColorSource: settings.dmxBrainColorSource === 'render' ? 'render' : 'frame',
+    dmxSaturation: typeof settings.dmxSaturation === 'number' && Number.isFinite(settings.dmxSaturation)
+      ? Math.min(1, Math.max(0, settings.dmxSaturation))
+      : DEFAULT_SETTINGS.dmxSaturation,
     dmxEnabled: settings.dmxEnabled === true,
     dmxInterface: settings.dmxInterface === 'usb-pro' ? 'usb-pro' : 'open-dmx',
     dmxFixtureProfiles: Array.isArray(settings.dmxFixtureProfiles) && settings.dmxFixtureProfiles.length > 0

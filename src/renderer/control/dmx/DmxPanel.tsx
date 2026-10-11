@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import type { AppSettings, DmxProducerCommand, DmxProfile } from '@shared/types'
-import { chainFixtures, PROFILE_CHANNELS, usableLightColors } from './dmxEngine'
+import { chainFixtures, PROFILE_CHANNELS, stageColor, usableLightColors } from './dmxEngine'
 import { createDmxController, type DmxController, type DmxStatus } from './dmxController'
 import { createDmxRhythm, type DmxAudioFrame } from './dmxRhythm'
 
@@ -55,7 +55,10 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
 
   const receive = (command: DmxProducerCommand) => {
     // Il manuale manda esattamente ciò che si sceglie, nero compreso.
-    if (command.producer !== MANUAL) command = { ...command, colors: usableLightColors(command.colors) }
+    if (command.producer !== MANUAL) {
+      const amount = settingsRef.current.dmxSaturation
+      command = { ...command, colors: usableLightColors(command.colors).map(color => stageColor(color, amount)) }
+    }
     lastCommandRef.current.set(command.producer, command)
     controllerRef.current?.setColors(command.producer, command.colors, command.transitionMs)
   }
@@ -148,6 +151,14 @@ export default function DmxPanel({ settings, onChange, panic, audioFrameRef }: P
             <option value="frame">immagine generata (a ogni fotogramma)</option>
             <option value="render">render a schermo (veloce, segue il render)</option>
           </select>
+        </label>
+        <label>
+          Saturazione luci {Math.round(settings.dmxSaturation * 100)}%
+          <input
+            type="range" min={0} max={1} step={0.05}
+            value={settings.dmxSaturation}
+            onChange={(e) => onChange({ dmxSaturation: Number(e.target.value) })}
+          />
         </label>
       </div>
       {status?.error ? <p className="error">{status.error}</p> : null}

@@ -13,10 +13,6 @@ const SHIFT = 5
 // Sotto questa saturazione la tinta non è affidabile: il colore resta
 // com'è (luce bianca) invece di inventarne una.
 const ACHROMATIC_SATURATION = 0.1
-// Effetto scenico (Capo Supremo 2026-10-11): i raster nascono poco saturi e
-// su un PAR RGB un colore pallido diventa bianco. Saturazione minima e
-// luminosità piena; l'intensità resta al master e al ritmo.
-const STAGE_MIN_SATURATION = 0.8
 // I gruppi più estesi sono spesso sfumature della stessa tinta: dopo la
 // saturazione diventano lo stesso colore (log 2026-10-11: #33b3ff #33caff
 // #33beff #33b4ff). Un colore entra solo se la sua tinta dista almeno
@@ -54,23 +50,11 @@ function saturation(r: number, g: number, b: number): number {
   return max === 0 ? 0 : (max - Math.min(r, g, b)) / max
 }
 
-export function stageColor(r: number, g: number, b: number): string {
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  const s = saturation(r, g, b)
-  if (max === 0) return '#000000'
-  if (s < ACHROMATIC_SATURATION) return `#${hex(255)}${hex(255)}${hex(255)}`
-  // HSV: stessa tinta, saturazione alzata, valore pieno.
-  const target = Math.max(s, STAGE_MIN_SATURATION)
-  const channel = (c: number) => 255 * (1 - target * (max - c) / (max - min))
-  return `#${hex(channel(r))}${hex(channel(g))}${hex(channel(b))}`
-}
-
 // Gruppi di colore pesati per estensione × saturazione × luminosità: domina
 // il colore più esteso fra quelli che hanno una tinta visibile, non il
 // grigio né il nero di fondo (nei quasi neri la saturazione è rumore). Se
 // l'immagine è tutta grigia vale la sola estensione. Ogni gruppo usa la
-// media reale dei suoi pixel, poi portata a colore da palco.
+// media reale dei suoi pixel.
 export function dominantColors(pixels: Uint8ClampedArray, count: number): string[] {
   const bins = new Map<number, { n: number; r: number; g: number; b: number }>()
   for (let i = 0; i + 3 < pixels.length; i += 4) {
@@ -88,7 +72,9 @@ export function dominantColors(pixels: Uint8ClampedArray, count: number): string
   })
   const chromatic = groups.some(group => group.s >= ACHROMATIC_SATURATION)
   const ranked = groups.sort((a, b) => (chromatic ? b.n * b.weight - a.n * a.weight : b.n - a.n))
-  return distinctHues(ranked, count).map(group => stageColor(group.r, group.g, group.b))
+  // Colori veri dell'immagine: la saturazione per il palco la decide il
+  // modulo DMX (slider «Saturazione luci»), così l'indicatore mostra il vero.
+  return distinctHues(ranked, count).map(group => `#${hex(group.r)}${hex(group.g)}${hex(group.b)}`)
 }
 
 export async function rasterDominantColors(raster: Blob, count: number): Promise<string[]> {

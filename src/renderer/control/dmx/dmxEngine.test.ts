@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildUniverse, chainFixtures, createEngine, currentColors, setColors, usableLightColors } from './dmxEngine'
+import { buildUniverse, chainFixtures, createEngine, currentColors, setColors, stageColor, usableLightColors } from './dmxEngine'
 
 describe('dmxEngine', () => {
   it('porta quattro luci a quattro colori in 8 secondi, linearmente', () => {
@@ -37,5 +37,12 @@ describe('dmxEngine', () => {
   it('scarta i colori troppo scuri per una luce, ma non li svuota tutti', () => {
     expect(usableLightColors(['#111827', '#0f5f2a', '#010403', '#39ff6a'])).toEqual(['#0f5f2a', '#39ff6a'])
     expect(usableLightColors(['#111827', '#010403'])).toEqual(['#111827', '#010403'])
+  })
+
+  it('saturazione da palco regolabile: 0 lascia il colore vero, 1 tinta pura', () => {
+    expect(stageColor('#b0a0c0', 0)).toBe('#b0a0c0')
+    expect(stageColor('#b0a0c0', 1)).toBe('#8000ff')
+    expect(stageColor('#808080', 1)).toBe('#ffffff')
+    expect(stageColor('#000000', 1)).toBe('#000000')
   })
 })

@@ -155,6 +155,8 @@ export interface AppSettings {
    * schermo, aggiornati di continuo e veloci come il render.
    */
   dmxBrainColorSource: 'frame' | 'render'
+  /** Saturazione delle luci per i producer: 0 colori veri, 1 tinta pura. */
+  dmxSaturation: number
   /** Modulo luci DMX: caricato solo se attivo. */
   dmxEnabled: boolean
   dmxInterface: DmxInterface
