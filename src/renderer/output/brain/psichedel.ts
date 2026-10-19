@@ -13,7 +13,6 @@ import { BrainImageWorkerClient } from './brainImageWorkerClient'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainInferenceScheduler } from './brainThermalScheduler'
 import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
-import { containsExplicitAdultContent } from './coscienzaOnirica'
 
 export type PsychedelRasterPreview = {
   storyId: string
@@ -216,6 +215,32 @@ function frameVisualText(frame: DreamFrame): string {
 export const CHILD_SAFETY_NEGATIVE_TERMS =
   'child, children, kid, young girl, young boy'
 
+// PIANO-053: il riconoscimento dell'esplicito vive soltanto al confine con
+// il generatore immagini. Coscienza Onirica e Qwen non lo usano per
+// classificare, correggere o ripristinare testi.
+const CHILD_SAFETY_EXPLICIT_ACTION_TERMS =
+  /(?:\bsesso(?:\s+orale|\s+anale|\s+vaginale|\s+di\s+gruppo)?\b|\bsex(?:ual|\s+toy|\s+toys|\s+act|\s+acts|\s+scene|\s+scenes|\s+oral|\s+group)?\b|\bpenetrazion\w*\b|\bpenetrat\w*\b|\bmasturb\w*\b|\borgasm\w*\b|\bstimolazion\w*\b|\bstimulat\w*\b|\brapport[oi]\s+sessual\w*\b|\bintercourse\b|\boral\s+(?:pleasure|contact|activity|stimulation)\b|\b(?:anal|vaginal|genital)\s+(?:sex|contact|stimulation|play)\b|\bfellati\w*\b|\bcunniling\w*\b|\bblow\s*job\w*\b|\bhand\s*job\w*\b|\bfinger(?:ing|ed|s)?\b|\bsex\s*toy\w*\b|\bdildo\w*\b|\bvibrator\w*\b|\bclimax(?:es|ed|ing)?\b)/iu
+
+const CHILD_SAFETY_EXPLICIT_CONTEXT_TERMS =
+  /(?:\beccitazion\w*\b|\barousal\b|\bpiacere\b|\bpleasure\b|\bintimit\w*\b|\bintimacy\b)/iu
+
+function containsChildSafetySexualContext(text: string): boolean {
+  return (
+    CHILD_SAFETY_EXPLICIT_ACTION_TERMS.test(text) ||
+    CHILD_SAFETY_EXPLICIT_CONTEXT_TERMS.test(text)
+  )
+}
+
+// Il blocco d'emergenza usa soltanto azioni sessuali esplicite. I falsi
+// positivi storici della protezione bambini (`finger(s)`, `pleasure`,
+// `intimacy`) non possono impedire la generazione di un'immagine innocua.
+const EXPLICIT_IMAGE_TERMS =
+  /(?:\bsesso(?:\s+orale|\s+anale|\s+vaginale|\s+di\s+gruppo)?\b|\bsex(?:ual|\s+toy|\s+toys|\s+act|\s+acts|\s+scene|\s+scenes|\s+oral|\s+group)?\b|\bpenetrazion\w*\b|\bpenetrat\w*\b|\bmasturb\w*\b|\borgasm\w*\b|\bstimolazion\w*\b|\bstimulat\w*\b|\brapport[oi]\s+sessual\w*\b|\bintercourse\b|\boral\s+(?:pleasure|contact|activity|stimulation)\b|\b(?:anal|vaginal|genital)\s+(?:sex|contact|stimulation|play)\b|\bfellati\w*\b|\bcunniling\w*\b|\bblow\s*job\w*\b|\bhand\s*job\w*\b|\bsex\s*toy\w*\b|\bdildo\w*\b|\bvibrator\w*\b|\bclimax(?:es|ed|ing)?\b)/iu
+
+export function containsExplicitImageContent(text: string): boolean {
+  return EXPLICIT_IMAGE_TERMS.test(text)
+}
+
 export function childSafetyNegativePrompt(
   story: DreamStory,
   frameIndex: number,
@@ -224,7 +249,7 @@ export function childSafetyNegativePrompt(
   if (!enabled || !story.onlineSourceText) return ''
   const nearby = story.frames.slice(Math.max(0, frameIndex - 1), frameIndex + 2)
   return nearby.some((frame) =>
-    containsExplicitAdultContent(frame.imagePrompt ?? frame.description))
+    containsChildSafetySexualContext(frame.imagePrompt ?? frame.description))
     ? CHILD_SAFETY_NEGATIVE_TERMS
     : ''
 }
@@ -278,6 +303,7 @@ export class Psichedel {
     onSceneReady?: (scene: PsychedelScene, frameIndex: number) => void,
     getPressureHint?: () => boolean,
     childSafetyNegativePromptEnabled = true,
+    blockExplicitImages = false,
   ): Promise<PsychedelScene[]> {
     const scenesByFrame = this.retainedScenes.get(story.id) ?? new Map<string, PsychedelScene>()
     this.retainedScenes.set(story.id, scenesByFrame)
@@ -368,6 +394,20 @@ export class Psichedel {
             },
           )
         }
+        const prompt = buildPsychedelImagePrompt(story, frame)
+        if (blockExplicitImages && containsExplicitImageContent(prompt)) {
+          scene = {
+            frameId: frame.id,
+            description: `${frame.title}: ${frame.description}`,
+            svg: RASTER_FALLBACK_SVG,
+            renderMode: scheduledMode,
+          }
+          brainWarn('psichedel', 'generazione raster bloccata dall’emergenza', {
+            storyId: story.id,
+            frameId: frame.id,
+            reason: 'explicit-image-block',
+          })
+        }
         for (let attempt = 0; attempt < 2 && !scene; attempt++) {
           const seed = (
             baseSeed +
@@ -385,7 +425,6 @@ export class Psichedel {
               : underPressure
                 ? downgradeModeUnderPressure(baseRetryMode)
                 : baseRetryMode
-          const prompt = buildPsychedelImagePrompt(story, frame, attempt, mode)
           try {
             brainLog('psichedel', `generazione raster ${index + 1}/${story.frames.length}`, {
               frameId: frame.id,

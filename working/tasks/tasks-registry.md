@@ -1,5 +1,23 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## PIANO-053 — Libertà esplicita e blocco immagini d'emergenza (2026-10-19)
+
+- [x] **TASK-053-01..04 [DONE]**: dismettere ripristino, verifica,
+  reinserimento e classificazione dell'esplicito da Coscienza Onirica;
+  rimuovere `preserveExplicitSource` dal percorso testuale.
+- [x] **TASK-053-05..09 [DONE]**: collocare il solo blocco in Psichedel subito
+  prima dell'inferenza; con `blockExplicitImages` acceso, un prompt esplicito
+  usa il fallback neutro senza chiamare il generatore o fare retry.
+- [x] **TASK-053-10..12 [DONE]**: mantenere separata e invariata la protezione
+  bambini della Sessione pubblica.
+- [x] **TASK-053-13..16 [DONE]**: rinominare UI e impostazione, default spento,
+  senza migrare automaticamente la vecchia chiave di significato opposto.
+- [x] **TASK-053-17..21 [DONE]**: testare blocco, libertà, child safety,
+  settings; eseguire typecheck, lint, suite completa e build.
+- [x] **TASK-053-22 [DONE]**: matrice coperta dai test; avvio reale della
+  Control Window riuscito e nuova etichetta verificata nel bundle. Ispezione
+  UI automatizzata non disponibile per i permessi macOS di Computer Use.
+
 ## DMX — Brain e Morphing producer, luci a tempo — PIANO-049 — 2026-10-11
 
 - [x] **`TASK-049-01`** `DONE`: canale producer, Brain (palette per storia),

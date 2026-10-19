@@ -11,7 +11,7 @@ export const BRAIN_CONFIG = {
   // di sorgente, mentre la sinossi richiesta è di 55-80 — il modello deve
   // inventare più di metà della storia, e il risultato è riempitivo generico.
   // Due effetti collaterali misurati sulla stessa base: le righe che fanno
-  // scattare `containsExplicitAdultContent` sono 2 su 39, quindi la quota di
+  // essere riconosciute come esplicite erano 2 su 39, quindi la quota di
   // storie che conservano il contenuto esplicito scende dal 20% al 5-10%; e
   // nei giri di `sessionSynthesis` la finestra scende a 1 riga contro 3 memo.
   // Il difetto misurato sulle basi a paragrafi resta reale — lì la finestra

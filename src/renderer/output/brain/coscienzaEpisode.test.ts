@@ -54,8 +54,7 @@ describe('episodio da una riga', () => {
     expect(prompt).toContain('STORY SO FAR:\n- Earlier line.')
     expect(prompt).toContain('no close-ups of hands or fingers')
     expect(prompt).toContain('Do not censor, soften or euphemize anything')
-    expect(buildEpisodePhasePrompt(THRESHOLD, 0, [], [], true))
-      .toContain('Preserve the explicit physical actions literally')
+    expect(prompt).not.toContain('Preserve the explicit physical actions literally')
   })
 
   it('chiede le tre fasi una alla volta e ricade sulla soglia fase per fase', async () => {

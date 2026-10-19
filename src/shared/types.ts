@@ -156,11 +156,10 @@ export interface AppSettings {
   flashOnKick: boolean
   lowPowerMode: boolean
   /**
-   * Emergenza (disp. Capo Supremo 2026-10-11, default spento): se il modello
-   * perde il contenuto esplicito delle frasi, lo ripristina incollandolo e
-   * chiede di preservarlo alla lettera. Spento: il modello è libero.
+   * Emergenza (PIANO-053, default spento): impedisce l'inferenza dei prompt
+   * immagine riconosciuti espliciti. Non modifica testi o prompt.
    */
-  preserveExplicitSource: boolean
+  blockExplicitImages: boolean
   /**
    * Episodi del pubblico: aggiunge termini relativi ai bambini al negative
    * prompt della scena esplicita e delle immagini immediatamente vicine.

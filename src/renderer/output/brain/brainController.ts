@@ -1865,8 +1865,6 @@ export function createBrainController(
         const previousStory = recentStories.at(-1) ?? null
         const continuityPhrase = nextContinuityPhrase
         const onlineSourceText = pendingOnlinePhrases.shift() ?? null
-        const preserveExplicitSource =
-          latestPayload?.settings?.preserveExplicitSource === true
         // PIANO-051 (disp. Capo Supremo 2026-10-19): ogni riga è un episodio
         // di quattro immagini; nessuna riga ripetuta fra episodi.
         const context = brainPhrasesBeforeCursor(phraseCursor, 2)
@@ -1915,7 +1913,6 @@ export function createBrainController(
               continuitySeed: continuityPhrase,
               recentBridges,
               consciousnessInfluence,
-              preserveExplicitSource,
             })
           } else {
             let line: string
@@ -1925,7 +1922,6 @@ export function createBrainController(
               line = await coscienza.rewritePublicPhrase(
                 onlineSourceText,
                 context.slice(-1),
-                preserveExplicitSource,
               )
               insertOnlinePhraseIntoSessionSequence(line)
               brainLog('pipeline', 'storia dedicata a un input online', {
@@ -1949,7 +1945,6 @@ export function createBrainController(
               context,
               continuitySeed: continuityPhrase,
               consciousnessInfluence,
-              preserveExplicitSource,
             })
           }
           story.onlineSourceText = onlineSourceText
@@ -2228,6 +2223,7 @@ export function createBrainController(
           },
           () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
           latestPayload?.settings?.childSafetyNegativePromptEnabled !== false,
+          latestPayload?.settings?.blockExplicitImages === true,
         )
       }
       const scenes = BRAIN_CONFIG.offlineGenerationEnabled

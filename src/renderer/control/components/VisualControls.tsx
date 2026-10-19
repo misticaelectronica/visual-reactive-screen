@@ -197,10 +197,10 @@ export function VisualControls({ settings, onChange }: Props) {
           <label className="inline">
             <input
               type="checkbox"
-              checked={settings.preserveExplicitSource === true}
-              onChange={(e) => onChange({ preserveExplicitSource: e.target.checked })}
+              checked={settings.blockExplicitImages === true}
+              onChange={(e) => onChange({ blockExplicitImages: e.target.checked })}
             />
-            Emergenza: ripristina il testo esplicito delle frasi (di norma spento: il modello è libero)
+            Emergenza: impedisci la generazione di immagini esplicite (di norma spento: il modello è libero)
           </label>
         </div>
 

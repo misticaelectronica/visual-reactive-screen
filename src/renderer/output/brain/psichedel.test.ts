@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { DreamStory } from '@shared/brain/brainTypes'
 import type { ImageRenderMode, PsychedelImageGenerator } from './psychedelImageGenerator'
 import {
+  containsExplicitImageContent,
   Psichedel,
   downgradeModeUnderPressure,
 } from './psichedel'
@@ -99,5 +100,66 @@ describe('Psichedel — riduzione sotto pressione reale', () => {
     await psichedel.generate(buildStory(), Number.POSITIVE_INFINITY, undefined, () => true)
 
     expect(generator.modes).toEqual(['standard'])
+  })
+})
+
+describe('Psichedel — blocco immagini esplicite d’emergenza', () => {
+  it('blocca azioni esplicite senza ereditare i falsi positivi della protezione bambini', () => {
+    expect(containsExplicitImageContent('Two consenting adults have sex on a bed.')).toBe(true)
+    expect(containsExplicitImageContent('Her fingers rest on the piano keys.')).toBe(false)
+    expect(containsExplicitImageContent('They share intimacy and pleasure.')).toBe(false)
+    expect(containsExplicitImageContent('Two people cross a bridge at sunrise.')).toBe(false)
+  })
+
+  it('con il blocco acceso non chiama il generatore e consegna il fallback neutro', async () => {
+    const story = buildStory()
+    story.frames[0].imagePrompt = 'Two consenting adults have sex on a bed.'
+    const generator = createRecordingGenerator()
+    const generationState = vi.fn()
+
+    const scenes = await new Psichedel(
+      generator,
+      undefined,
+      undefined,
+      generationState,
+    ).generate(
+      story,
+      Number.POSITIVE_INFINITY,
+      undefined,
+      undefined,
+      true,
+      true,
+    )
+
+    expect(generator.modes).toEqual([])
+    expect(generationState).not.toHaveBeenCalled()
+    expect(scenes).toHaveLength(1)
+    expect(scenes[0].raster).toBeUndefined()
+    expect(scenes[0].svg).toContain('#050005')
+  })
+
+  it('con il blocco spento genera anche i prompt espliciti', async () => {
+    const story = buildStory()
+    story.frames[0].imagePrompt = 'Two consenting adults have sex on a bed.'
+    const generator = createRecordingGenerator()
+
+    await new Psichedel(generator).generate(story)
+
+    expect(generator.modes).toEqual(['enhanced'])
+  })
+
+  it('con il blocco acceso continua a generare i prompt non espliciti', async () => {
+    const generator = createRecordingGenerator()
+
+    await new Psichedel(generator).generate(
+      buildStory(),
+      Number.POSITIVE_INFINITY,
+      undefined,
+      undefined,
+      true,
+      true,
+    )
+
+    expect(generator.modes).toEqual(['enhanced'])
   })
 })

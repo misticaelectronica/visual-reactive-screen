@@ -39,7 +39,7 @@ Per ogni intervento si registra una decisione:
 
 - **Stato**: `DEPRECATO — NON PIÙ CHIAMATO` (2026-10-19, PIANO-051).
 - **Superficie**: `CoscienzaOnirica.generate` (prompt storia, recupero del
-  formato, ripristino esplicito), `generateVisualPlan`, `parseVisualPlan`,
+  formato), `generateVisualPlan`, `parseVisualPlan`,
   `splitIntoFourMoments` per le storie, `generateSessionMemo`,
   `selectSessionSynthesisInterval`; in `brainConfig.ts`
   `phraseSampleMinCount`, `phraseSampleMaxCount`, `phraseWindowOverlapCount`,
@@ -66,3 +66,7 @@ Per ogni intervento si registra una decisione:
   elencati in un unico intervento.
 - **Audit 2026-10-19**: `MANTENERE` fino al collaudo. Ragione: poter tornare
   indietro se il nuovo flusso non regge dal vivo. Uscita: il criterio sopra.
+- **Audit 2026-10-19 — PIANO-053**: `AGGIORNARE`. Rimosso dal percorso
+  compatibile il ripristino testuale dell'esplicito, dismesso globalmente;
+  nessuna nuova capacità aggiunta a `generate`. Stato, sostituto e criterio
+  di dismissione del deprecato restano invariati.

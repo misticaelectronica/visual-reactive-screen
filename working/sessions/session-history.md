@@ -2837,3 +2837,39 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   frase iniziale; campionamento per `scene`. Qualità immagini non toccata.
   811 test verdi.
 
+## 2026-10-19 — PIANO-053: libertà esplicita e blocco immagini d'emergenza
+
+- **Precisazione vincolante**: il vecchio checkbox non deve più ripristinare
+  testo esplicito. Va rifatto per fare una sola cosa: impedire la generazione
+  dei frame riconosciuti espliciti. A interruttore spento il modello è libero.
+- **Piano**: rimuovere da Coscienza Onirica istruzioni, verifiche,
+  reinserimenti e fallback espliciti; rinominare l'impostazione in
+  `blockExplicitImages`; applicare il blocco sul prompt finale subito prima
+  dell'inferenza Psichedel e usare il fallback neutro già esistente senza
+  chiamare Stable Diffusion o fare retry.
+- **Separazione dei criteri**: il checkbox bambini conserva esattamente i
+  criteri larghi attuali, compresi `finger(s)`, `pleasure` e `intimacy`; il
+  blocco d'emergenza usa soltanto azioni sessuali esplicite, quindi quei
+  falsi positivi non fermano la generazione.
+- **Protezione bambini**: resta indipendente, soltanto nella Sessione
+  pubblica, con comportamento attuale e unico effetto sul negative prompt.
+- **Migrazione**: la vecchia chiave `preserveExplicitSource` non abilita
+  automaticamente il nuovo blocco, perché il significato è opposto; il nuovo
+  controllo parte spento.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 `AGGIORNARE` per
+  rimuovere il vecchio ripristino anche dal percorso compatibile, senza
+  estenderlo o cambiare il criterio di dismissione.
+- **Protocollo**: riuso del confine d'inferenza, del fallback SVG e del
+  crossfade esistenti; nessuna nuova AI o riscrittura.
+- **Implementazione**: rimossi da Coscienza Onirica rilevatore, ripristino,
+  verifica, diagnostica e istruzioni letterali; `preserveExplicitSource`
+  sostituito da `blockExplicitImages`, spento di default e senza migrazione
+  automatica. Il blocco vive in Psichedel prima dell'inferenza: prompt
+  riconosciuto esplicito → fallback SVG, zero chiamate GPU e zero retry.
+- **Verifica**: test mirati 104/104; suite completa 816/816; typecheck e lint
+  verdi; build app/ZIP/DMG verde. Control Window avviata realmente e preload
+  caricato. Computer Use privo dei permessi macOS, quindi l'etichetta è stata
+  verificata nel bundle compilato anziché tramite ispezione visiva automatica.
+- **Stato finale**: PIANO-053 completato; nessuna modifica a camera, audio,
+  renderer, low power o protezione bambini.
+
