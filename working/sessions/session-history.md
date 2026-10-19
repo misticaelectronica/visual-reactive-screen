@@ -2758,3 +2758,82 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   `feature/dmx-color-controller`; nota di complimenti in `team/briefs/`.
   `:memory:.ses` (residuo di uno strumento, 17/09) lasciato fuori dal commit.
 
+
+## 2026-10-17 — Luci DMX fisse e rotazione morphing ferma
+
+- **DMX**: nessun difetto del codice. Dal log di sessione: interfaccia su
+  `usb-pro` con un FT232R (serve Open DMX); PAR 2 e 3 sempre rossi con
+  impulsi a tempo e colore fermo, compatibile con PAR in modalità RGB a 3
+  canali che leggono il canale 1 (intensità) come rosso. Indicazioni date:
+  Open DMX, profilo `3ch` o PAR a 7 canali, indirizzi d001/d008/d015.
+- **Rotazione morphing**: restava spenta dopo essere passati da Brain,
+  perché pannello e normalizzazione forzavano
+  `dynamicMorphingRotationEnabled` a false con Brain attivo. Tolti entrambi:
+  la scelta dell'operatore resta, la rotazione si ferma già da sola con
+  Brain (ControlApp). 796 test verdi, typecheck e lint verdi. DEP-001
+  `NON COINVOLTO`.
+
+## 2026-10-19 — Troppi volti di donna con la storia di Marta
+
+- **Diagnosi dal log** (`session-2026-10-19-11-36-52`): le righe sorgente non
+  contengono volti. (1) Qwen 0.5B ha riscritto una storia inventata con
+  parole da primo piano (occhi, labbra, sguardo) e `INVARIANT: hands`;
+  (2) le etichette scritte dal modello in Markdown (`### **STORY**`,
+  `**BRIDGE**`, `Bridge` isolata, `---`) finivano nella storia e nei prompt;
+  (3) ipotesi non misurata: PornMaster tende al ritratto femminile.
+- **Fatto**: `canonicalEnvelopeLabels` in `brainTranslator.ts` riporta le
+  etichette alla forma `LABEL: testo`; test sui due casi reali. 797 test
+  verdi, typecheck e lint verdi. DEP-001 `NON COINVOLTO`.
+
+## 2026-10-19 — PIANO-051: ogni riga degli scribacchini è una quartina
+
+- **Obiettivo**: una riga = un episodio di quattro immagini (Soglia letterale,
+  Metamorfosi, Condensazione, Eco); frasi del pubblico riscritte da Qwen con
+  le regole degli scribacchini, legate alla storia in corso, e inserite già
+  riscritte in `brainPhrases.txt`.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 creato (`MANTENERE`
+  fino al collaudo).
+- **Fatto**: `generateEpisode`, `rewritePublicPhrase`, `storyFromLine`,
+  `parseEpisodePhases`, `parsePublicPhraseRewrite` (`coscienzaOnirica.ts`);
+  `brainPhrasesBeforeCursor` (`brainPhrases.ts`); controller a riga singola,
+  memo/memoria lunga/«Questo sogno» tolti; linee guida per 12 righe all'ora.
+- **Verifica**: 805 test su 85 file, typecheck e lint verdi. Nessuna
+  generazione reale in sessione.
+- **Stato finale**: implementato, non committato; collaudo aperto.
+- **Correzioni** (stessa sessione): ritirato «occhi e labbra» dalle regole a
+  Qwen (aggiunta non richiesta); memo di sessione, memoria lunga e «Questo
+  sogno» ripristinati (D3 non decisa). 805 test verdi, typecheck e lint verdi.
+- **Protezione minori** (stessa sessione, disposizione del Capo Supremo):
+  `brainMinorProtection.ts` scarta le frasi del pubblico che associano minori
+  e contenuto sessuale, in tre punti (frase originale, riga riscritta,
+  immagini dell'episodio). Chiesta «abilitata di default da pannello»:
+  implementata sempre attiva, visibile nel riquadro Sessione pubblica, senza
+  interruttore. Il log non riporta il testo scartato. 807 test verdi.
+- **Correzioni del Capo Supremo** (stessa sessione): ritirato il filtro che
+  scartava le frasi (`brainMinorProtection`, iniziativa non richiesta nella
+  forma); implementata la sua regola: bambini nel negative prompt delle
+  immagini dell'episodio del pubblico quando la scena o le vicine sono
+  esplicite. Interruttore da pannello non realizzato (protezione sempre
+  attiva, riga di stato). Riscrittura pubblica legata all'ultima riga di
+  contesto. Codifica CLIP: ramo più corto completato con blocchi vuoti.
+
+## 2026-10-19 — PIANO-052: protezione bambini configurabile
+
+- **Obiettivo**: rendere attivabile e disattivabile dal pannello la protezione
+  sui negative prompt degli episodi pubblici; rimuovere `minor`, `teenager`,
+  `schoolgirl`, `schoolboy` e `baby` dai termini aggiunti.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 `NON COINVOLTO`.
+- **Fatto**: nuova impostazione `childSafetyNegativePromptEnabled`, attiva di
+  default e normalizzata come attiva quando manca nelle configurazioni
+  precedenti; checkbox nel riquadro Sessione pubblica; scelta inoltrata alla
+  singola produzione Psichedel. Termini rimasti: `child`, `children`, `kid`,
+  `young girl`, `young boy`.
+- **Protocollo visivo**: Camera, Materia, Silenzio, Beatmatch e Transizione
+  invariati; nessun nuovo costo per frame o inferenza.
+- **Verifica**: test mirati 9/9, typecheck e lint verdi; suite completa verde,
+  810 test su 86 file; build completa app/ZIP/DMG verde.
+- **Quattro immagini uguali** (stessa sessione): fasi mai prodotte (etichette
+  ignorate, loop in greedy). Ora una fase per richiesta, ciascuna completa la
+  frase iniziale; campionamento per `scene`. Qualità immagini non toccata.
+  811 test verdi.
+

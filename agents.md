@@ -9,11 +9,12 @@ Ruoli con lettera di presentazione conservati in `team/`:
 - [`team/capo-supremo-analisi-audio.md`](team/capo-supremo-analisi-audio.md): Capo Supremo dell'Analisi Audio / Sound Designer di Brain — responsabile della lettura audio-percettiva (feature, transient, stato nel tempo). Confina con la Direzione VJ (manifestazione visiva) e con il Capo Supremo degli Ingegneri (implementazione tecnica), senza sconfinare nelle loro autonomie.
 - [`team/capo-supremo-designer-visual-vj.md`](team/capo-supremo-designer-visual-vj.md): Capo Supremo dei Designer/Visual VJ di Brain — responsabile dell'identità visiva, della grammatica dei renderer e delle trasformazioni/morph. Riceve la lettura audio-percettiva dal Capo Supremo dell'Analisi Audio e la traduce in linguaggio visivo, sempre nel rispetto del Protocollo Obbligatorio Di Verifica Filosofia Visiva più sotto in questo file.
 - [`team/capo-supremo-ingegneri.md`](team/capo-supremo-ingegneri.md): Capo Supremo degli Ingegneri del Sistema VJ — responsabile della traduzione tecnica dei brief artistici e percettivi in renderer Canvas2D reali, dell'architettura condivisa (selezione/passthrough/gating/budget) e della verifica che ogni implementazione superi davvero il Protocollo Obbligatorio Di Verifica Filosofia Visiva, non solo sulla carta. Riceve i requisiti dal Capo Supremo dell'Analisi Audio e dalla Direzione VJ e ne rispetta l'autonomia, senza deciderne significato percettivo o identità visiva.
+- [`team/capo-supremo-scribacchini.md`](team/capo-supremo-scribacchini.md): Capo Supremo degli Scribacchini di Brain — responsabile della scrittura, dell'elaborazione e dell'adattamento delle storie destinate alla Coscienza Onirica di Brain. Interpreta i materiali narrativi, sviluppa soggetti originali e trasforma opere esistenti in storie utilizzabili dal sistema. Opera con autonomia creativa nella propria competenza, in coordinamento con la Direzione VJ e gli altri responsabili di Brain, rispettandone le rispettive autonomie decisionali.
 
 La continuità operativa fra Vecchio Consigliere e Vicario è disciplinata dalla
 [`Nota ai ruoli del progetto Brain`](team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md).
 
-Documenti di indirizzo scambiati fra questi tre ruoli, quando eccedono la lettera di presentazione, in `team/briefs/` — ognuno indica il ruolo destinatario in apertura. Non sostituiscono le lettere sopra, le estendono nel tempo su un tema specifico (es. stato bio-percettivo, campionamento frasi).
+Documenti di indirizzo scambiati fra questi ruoli, quando eccedono la lettera di presentazione, in `team/briefs/` — ognuno indica il ruolo destinatario in apertura. Non sostituiscono le lettere sopra, le estendono nel tempo su un tema specifico (es. stato bio-percettivo, campionamento frasi).
 
 ## Missione Del Progetto
 
@@ -94,6 +95,21 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
   - Una condizione a più requisiti è quasi sempre un errore di progetto, non una specifica precisa: se il corpo/l'occhio riconosce una cosa in mezzo battito, il codice non dovrebbe avere bisogno di quattro verifiche incrociate.
   - Se un criterio non scatta mai dal vivo, non va tarato: va rimosso.
   - Segnalare la sovrastrutturazione quando arriva dall'alto — **anche quando il brief è firmato da un Capo Supremo**: se chiede un meccanismo che duplica qualcosa di già esistente, va riportato prima di essere implementato, non eseguito silenziosamente.
+
+### Decisioni Etiche E Misure Di Protezione (regola permanente, disposizione del Capo Supremo 2026-10-19)
+
+
+- **Le misure etiche e di protezione le decide il Capo Supremo.** Un agente le
+  realizza esattamente come sono state disposte: né più severe né più blande.
+- **Nessun filtro, blocco o limite aggiunto di propria iniziativa**, e nessun
+  cambio della forma o della portata di una misura chiesta (termini, soglie,
+  punti in cui si applica, comportamento di default).
+- **Nessuna decisione presa per lui**: una proposta non approvata non si
+  applica, nemmeno se è scritta in un piano.
+- **Se un agente non può fare qualcosa, lo dice subito, all'inizio, una sola
+  volta**, e non realizza al suo posto una propria versione
+  alternativa e non aggiunge protezioni al codice al posto di ciò che è stato
+  chiesto.
 
 ### Precisione Delle Formulazioni Nei Documenti Di Progetto (regola permanente, richiamo dello Stalliere del Vice Consigliere 2026-09-11)
 

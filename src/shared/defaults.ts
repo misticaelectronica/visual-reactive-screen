@@ -5,7 +5,7 @@ import type { AppSettings } from './types'
  * abbigliamento, per non censurare la generazione (linea Explicit V1).
  */
 export const DEFAULT_BRAIN_NEGATIVE_PROMPT =
-  'deformed body, distorted anatomy, disfigured, mutated, extra limbs, extra arms, extra legs, missing limbs, fused fingers, malformed hands, extra fingers, elongated torso, twisted torso, duplicate person'
+  'deformed body, distorted anatomy, disfigured, mutated, extra limbs, extra arms, extra legs, missing limbs, fused fingers, malformed hands, extra fingers, elongated torso, twisted torso'
 
 export const DEFAULT_SETTINGS: AppSettings = {
   fftSize: 1024,
@@ -59,6 +59,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flashOnKick: false,
   lowPowerMode: false,
   preserveExplicitSource: false,
+  childSafetyNegativePromptEnabled: true,
   brainImageQuality: 'low',
   brainNegativePrompt: DEFAULT_BRAIN_NEGATIVE_PROMPT,
   dmxBrainColorSource: 'frame',

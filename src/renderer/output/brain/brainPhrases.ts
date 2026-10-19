@@ -83,6 +83,20 @@ export function sampleBrainPhraseWindow(cursor: number, count: number): BrainPhr
   return { phrases, nextCursor: start + step }
 }
 
+/**
+ * Righe già lette prima del cursore, dalla più vicina (PIANO-051): il legame
+ * con la storia in corso. All'inizio della sequenza non ce ne sono e non se
+ * ne inventano.
+ */
+export function brainPhrasesBeforeCursor(cursor: number, count: number): string[] {
+  const length = BRAIN_PHRASES.length
+  const lines: string[] = []
+  for (let i = 1; i <= count && cursor - i >= 0 && length > 0; i += 1) {
+    lines.push(BRAIN_PHRASES[(cursor - i) % length])
+  }
+  return lines.reverse()
+}
+
 export interface PhraseSequenceInsertion {
   lines: string[]
   nextCursor: number

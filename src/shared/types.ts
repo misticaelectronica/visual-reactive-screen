@@ -162,6 +162,11 @@ export interface AppSettings {
    */
   preserveExplicitSource: boolean
   /**
+   * Episodi del pubblico: aggiunge termini relativi ai bambini al negative
+   * prompt della scena esplicita e delle immagini immediatamente vicine.
+   */
+  childSafetyNegativePromptEnabled: boolean
+  /**
    * Qualità della generazione Brain (disp. Capo Supremo 2026-10-11, PIANO-050):
    * `low` = meno step, `high` = step di `config/brainRendering.json`. Con la
    * classifier-free guidance ogni step costa circa il doppio.

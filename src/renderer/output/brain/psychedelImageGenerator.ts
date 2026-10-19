@@ -13,6 +13,7 @@ import { brainLog, brainWarn } from './brainLog'
 import { Sd15OnnxWebGpuRuntime } from './sd15OnnxWebGpu'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import {
+  combinedNegativePrompt,
   getBrainImageGenerationSettings,
   resolveBrainImageGuidanceMode,
   resolveBrainImageSteps,
@@ -27,6 +28,9 @@ export interface PsychedelImageGenerator {
     // HYPNOTIC ZOOM ANNIDATO: sostituisce lo step count derivato da `mode`
     // (`DreamStory.denoisingStepsOverride`, disp. Capo Supremo 2026-09-22).
     stepsOverride?: number,
+    // Termini aggiunti al negative prompt per questa sola immagine
+    // (`childSafetyNegativePrompt` in psichedel.ts).
+    extraNegativePrompt?: string,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }>
   release(): Promise<void>
   destroy(): void
@@ -282,6 +286,7 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
     stepsOverride?: number,
+    extraNegativePrompt?: string,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }> {
     if (this.destroyed) throw new Error('Psichedel è stato arrestato')
     if (!prompt.trim()) {
@@ -330,7 +335,10 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
         inferenceHeight: inferenceGeometry.height,
         steps,
         guidanceMode,
-        negativePrompt: generationSettings.negativePrompt,
+        negativePrompt: combinedNegativePrompt(
+          extraNegativePrompt,
+          generationSettings.negativePrompt,
+        ),
         signal: controller.signal,
         onProgress: (progress) => {
           const rounded = progress.pct === undefined

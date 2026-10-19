@@ -1219,3 +1219,23 @@ manuale finale viene eseguito dal Capo Supremo.
 - [x] **TASK-050-06 [DONE]**: collaudo a schermo del Capo Supremo — corpi
   femminili a figura intera con e senza guidance, tempi sui tre livelli,
   storia pronta prima della fine della precedente.
+
+## PIANO-051 — Ogni riga degli scribacchini è una quartina (2026-10-19)
+
+- [x] **TASK-051-01..09, 11 [DONE]**: una riga per episodio; Soglia letterale
+  e tre fasi scritte da Qwen con le regole degli scribacchini; frase del
+  pubblico riscritta e inserita già riscritta; fallback senza perdite; memo e
+  «Questo sogno» tolti dal controller; DEP-002; test, typecheck, lint;
+  documentazione.
+- [ ] **TASK-051-10 [TODO]**: collaudo del Capo Supremo — un'ora con storia
+  curata e frasi pubbliche; misura di episodi e righe per ora.
+
+## PIANO-052 — Protezione bambini configurabile (2026-10-19)
+
+- [x] **TASK-052-01 [DONE]**: impostazione persistita, attiva di default
+  e compatibile con configurazioni precedenti.
+- [x] **TASK-052-02 [DONE]**: checkbox nella Sessione pubblica e inoltro alla
+  generazione dell'episodio.
+- [x] **TASK-052-03 [DONE]**: lista negativa ristretta e test di attivazione,
+  disattivazione e termini esclusi.
+- [x] **TASK-052-04 [DONE]**: aggiornamento della documentazione operativa.

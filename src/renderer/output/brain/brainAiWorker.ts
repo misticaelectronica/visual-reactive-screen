@@ -550,15 +550,21 @@ async function handleRequest(request: BrainAiRequest): Promise<BrainAiResponse> 
     )
     const creativeStory = request.task === 'story'
     const reflectiveMemo = request.task === 'memo'
+    // Fasi degli episodi e frasi del pubblico (PIANO-051): in greedy il
+    // modello 0.5B andava in loop e dava sempre la stessa fase per la stessa
+    // riga (log 2026-10-19).
+    const sceneLine = request.task === 'scene'
     let output: unknown = await generator(messages, {
       max_new_tokens: maxNewTokens,
       min_new_tokens: minNewTokens,
-      do_sample: creativeStory || reflectiveMemo,
+      do_sample: creativeStory || reflectiveMemo || sceneLine,
       ...(creativeStory
         ? { temperature: 0.78, top_p: 0.92, repetition_penalty: 1.08 }
         : reflectiveMemo
           ? { temperature: 0.58, top_p: 0.86, repetition_penalty: 1.05 }
-          : {}),
+          : sceneLine
+            ? { temperature: 0.7, top_p: 0.9, repetition_penalty: 1.12 }
+            : {}),
       streamer: progressStreamer(generator, request.task, 1),
     })
     let text: string
@@ -626,12 +632,14 @@ async function handleRequest(request: BrainAiRequest): Promise<BrainAiResponse> 
       output = await generator(messages, {
         max_new_tokens: maxNewTokens,
         min_new_tokens: minNewTokens,
-        do_sample: creativeStory || reflectiveMemo,
+        do_sample: creativeStory || reflectiveMemo || sceneLine,
         ...(creativeStory
           ? { temperature: 0.78, top_p: 0.92, repetition_penalty: 1.08 }
           : reflectiveMemo
             ? { temperature: 0.58, top_p: 0.86, repetition_penalty: 1.05 }
-            : {}),
+            : sceneLine
+              ? { temperature: 0.7, top_p: 0.9, repetition_penalty: 1.12 }
+              : {}),
         streamer: progressStreamer(generator, request.task, 3),
       })
       text = generatedText(output)

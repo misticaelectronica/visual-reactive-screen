@@ -44,7 +44,7 @@ import {
   loadBrainPhrases,
   parseBrainPhrases,
   sampleBrainPhraseWindow,
-  selectBrainPhraseCount,
+  brainPhrasesBeforeCursor,
 } from './brainPhrases'
 import {
   createBrainSvgScene,
@@ -340,11 +340,12 @@ export function createBrainController(
     boxShadow:
       '0 0 12px rgba(29,150,53,0.08), inset 0 0 18px rgba(31,111,48,0.08)',
     fontFamily: '"SFMono-Regular", "IBM Plex Mono", "Courier New", monospace',
-    fontSize: 'clamp(11px, 0.7vw, 13px)',
+    // Caratteri più grandi e pannello meno visibile (Capo Supremo 2026-10-19).
+    fontSize: 'clamp(14px, 0.95vw, 17px)',
     fontWeight: '500',
     lineHeight: '1.42',
     letterSpacing: '0.035em',
-    opacity: '0.616',
+    opacity: '0.4',
     whiteSpace: 'pre-line',
     textShadow: '0 0 4px rgba(84,255,115,0.28)',
     display: 'flex',
@@ -620,8 +621,9 @@ export function createBrainController(
             destroyed,
           })
           if (destroyed) return
+          // PIANO-051: la frase entra in brainPhrases.txt già riscritta,
+          // quando Qwen la elabora per la sua storia dedicata.
           pendingOnlinePhrases.push(text)
-          insertOnlinePhraseIntoSessionSequence(text)
           storyQueue.length = 0
           brainLog('pipeline', 'input online ricevuto: storia dedicata in coda prioritaria', {
             preview: text.slice(0, 200),
@@ -1863,45 +1865,11 @@ export function createBrainController(
         const previousStory = recentStories.at(-1) ?? null
         const continuityPhrase = nextContinuityPhrase
         const onlineSourceText = pendingOnlinePhrases.shift() ?? null
-        let phrases: string[]
-        let sessionSynthesis = false
-        let synthesizedMemo: SessionMemo | null = null
-        if (onlineSourceText !== null) {
-          phrases = [onlineSourceText]
-          brainLog('pipeline', 'storia dedicata a un input online', {
-            batchAttempt: attempts,
-            continuityPhrase,
-            previousStoryId: previousStory?.title ?? null,
-            preview: onlineSourceText.slice(0, 200),
-          })
-        } else {
-          sessionSynthesis =
-            dreamMemoryBuffer.length > 0 &&
-            ordinaryStoriesSinceSynthesis >= nextSessionSynthesisAt
-          if (sessionSynthesis) {
-            synthesizedMemo = sampleDistributedDreamMemo(dreamMemoryBuffer)
-          }
-          const requestedPhraseCount = sessionSynthesis
-            ? BRAIN_CONFIG.phraseSampleMaxCount
-            : selectBrainPhraseCount()
-          const memoPhrases: readonly string[] = synthesizedMemo ?? []
-          const windowCount = Math.max(1, requestedPhraseCount - memoPhrases.length)
-          const windowResult = sampleBrainPhraseWindow(phraseCursor, windowCount)
-          phraseCursor = windowResult.nextCursor
-          phrases = [...windowResult.phrases, ...memoPhrases]
-          brainLog('pipeline', 'nuova finestra della base curata inviata a CoscienzaOnirica', {
-            batchAttempt: attempts,
-            requested: requestedPhraseCount,
-            windowPhrases: windowResult.phrases,
-            continuityPhrase,
-            previousStoryId: previousStory?.title ?? null,
-            sessionMemo,
-            sessionSynthesis,
-            ordinaryStoriesSinceSynthesis,
-            nextSessionSynthesisAt,
-            phrases,
-          })
-        }
+        const preserveExplicitSource =
+          latestPayload?.settings?.preserveExplicitSource === true
+        // PIANO-051 (disp. Capo Supremo 2026-10-19): ogni riga è un episodio
+        // di quattro immagini; nessuna riga ripetuta fra episodi.
+        const context = brainPhrasesBeforeCursor(phraseCursor, 2)
         try {
           const coscienza = new CoscienzaOnirica(
             storyAi,
@@ -1910,14 +1878,80 @@ export function createBrainController(
           const consciousnessInfluence = await requestConsciousnessInfluence(
             currentProduction?.story ?? null,
           )
-          const story = await coscienza.generate(phrases, recentStories, {
-            sessionMemo: sessionMemo ?? undefined,
-            sessionSynthesis,
-            continuitySeed: continuityPhrase,
-            recentBridges,
-            consciousnessInfluence,
-            preserveExplicitSource: latestPayload?.settings?.preserveExplicitSource === true,
-          })
+          // «Questo sogno» ripristinato com'era (disp. Capo Supremo
+          // 2026-10-19): scatta solo fra storie della base curata e passa
+          // ancora dal percorso storico (DEP-002) finché non si decide come
+          // renderlo compatibile con gli episodi da una riga.
+          const sessionSynthesis =
+            onlineSourceText === null &&
+            dreamMemoryBuffer.length > 0 &&
+            ordinaryStoriesSinceSynthesis >= nextSessionSynthesisAt
+          const synthesizedMemo: SessionMemo | null = sessionSynthesis
+            ? sampleDistributedDreamMemo(dreamMemoryBuffer)
+            : null
+          let story: BrainProduction['story']
+          if (synthesizedMemo) {
+            const windowCount = Math.max(
+              1,
+              BRAIN_CONFIG.phraseSampleMaxCount - synthesizedMemo.length,
+            )
+            const windowResult = sampleBrainPhraseWindow(phraseCursor, windowCount)
+            phraseCursor = windowResult.nextCursor
+            const phrases = [...windowResult.phrases, ...synthesizedMemo]
+            brainLog('pipeline', 'nuova finestra della base curata inviata a CoscienzaOnirica', {
+              batchAttempt: attempts,
+              windowPhrases: windowResult.phrases,
+              continuityPhrase,
+              previousStoryId: previousStory?.title ?? null,
+              sessionMemo,
+              sessionSynthesis,
+              ordinaryStoriesSinceSynthesis,
+              nextSessionSynthesisAt,
+              phrases,
+            })
+            story = await coscienza.generate(phrases, recentStories, {
+              sessionMemo: sessionMemo ?? undefined,
+              sessionSynthesis,
+              continuitySeed: continuityPhrase,
+              recentBridges,
+              consciousnessInfluence,
+              preserveExplicitSource,
+            })
+          } else {
+            let line: string
+            if (onlineSourceText !== null) {
+              // Legata alla sola ULTIMA riga di contesto (disp. Capo Supremo
+              // 2026-10-19).
+              line = await coscienza.rewritePublicPhrase(
+                onlineSourceText,
+                context.slice(-1),
+                preserveExplicitSource,
+              )
+              insertOnlinePhraseIntoSessionSequence(line)
+              brainLog('pipeline', 'storia dedicata a un input online', {
+                batchAttempt: attempts,
+                previousStoryId: previousStory?.title ?? null,
+                original: onlineSourceText.slice(0, 200),
+                line,
+              })
+            } else {
+              const windowResult = sampleBrainPhraseWindow(phraseCursor, 1)
+              phraseCursor = windowResult.nextCursor
+              line = windowResult.phrases[0]
+              brainLog('pipeline', 'nuova riga della base curata inviata a CoscienzaOnirica', {
+                batchAttempt: attempts,
+                line,
+                context,
+                previousStoryId: previousStory?.title ?? null,
+              })
+            }
+            story = await coscienza.generateEpisode(line, {
+              context,
+              continuitySeed: continuityPhrase,
+              consciousnessInfluence,
+              preserveExplicitSource,
+            })
+          }
           story.onlineSourceText = onlineSourceText
           // Ordinale = storie realmente PRODOTTE + in coda + questa. Prima
           // contava ogni `coscienza.generate` riuscita: nei loop di errore
@@ -2193,6 +2227,7 @@ export function createBrainController(
           })
           },
           () => performance.now() < thermalScheduler.getSnapshot().longFrameBlockedUntil,
+          latestPayload?.settings?.childSafetyNegativePromptEnabled !== false,
         )
       }
       const scenes = BRAIN_CONFIG.offlineGenerationEnabled

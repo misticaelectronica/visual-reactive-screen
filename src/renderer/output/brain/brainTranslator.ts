@@ -106,8 +106,37 @@ function outgoingBridgeFromStory(story: string): string | null {
   return sentences.at(-1) ?? null
 }
 
+/**
+ * Il modello scrive spesso le etichette del formato come titoli Markdown
+ * (`### **STORY**`), da sole su una riga (`Bridge`) o con separatori `---`
+ * (log reali 2026-10-19). Non riconosciute, finivano dentro la storia e da lì
+ * nei prompt delle immagini. Qui diventano `LABEL: testo della riga dopo`.
+ */
+function canonicalEnvelopeLabels(text: string): string {
+  const lines: string[] = []
+  let pendingLabel: string | null = null
+  for (const rawLine of text.split(/\r?\n/u)) {
+    const line = rawLine.replace(/^\s*#{1,6}\s*/u, '').trim()
+    if (/^(?:-{3,}|_{3,})$/u.test(line)) continue
+    const bareLabel = line.match(/^(TITLE|STORY|BRIDGE|COLORS|INVARIANT)\s*:?$/iu)?.[1]
+    if (bareLabel) {
+      if (pendingLabel) lines.push(`${pendingLabel}:`)
+      pendingLabel = bareLabel.toUpperCase()
+      continue
+    }
+    if (pendingLabel && line) {
+      lines.push(`${pendingLabel}: ${line}`)
+      pendingLabel = null
+      continue
+    }
+    lines.push(line)
+  }
+  if (pendingLabel) lines.push(`${pendingLabel}:`)
+  return lines.join('\n').trim()
+}
+
 export function normalizeEnglishStoryEnvelope(text: string): string | null {
-  const cleaned = text.replace(/[*`]/g, '').trim()
+  const cleaned = canonicalEnvelopeLabels(text.replace(/[*`]/g, ''))
   const labeledTitle = cleaned.match(/^TITLE:\s*([^\n\r]+)/imu)?.[1]?.trim()
   const labeledStory = cleaned
     .match(/^STORY:\s*([\s\S]*?)(?=^BRIDGE:|$(?![\s\S]))/imu)?.[1]

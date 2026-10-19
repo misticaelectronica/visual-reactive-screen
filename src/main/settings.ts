@@ -81,6 +81,8 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
     preserveExplicitSource: settings.preserveExplicitSource === true,
+    childSafetyNegativePromptEnabled:
+      settings.childSafetyNegativePromptEnabled !== false,
     brainImageQuality: isBrainImageQuality(settings.brainImageQuality)
       ? settings.brainImageQuality
       : DEFAULT_SETTINGS.brainImageQuality,
@@ -102,8 +104,9 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     selectedColorPresetId: selectedColorPresetId ?? null,
     dynamicPresetEnabled: settings.dynamicPresetEnabled === true,
     dynamicColorRotationEnabled: settings.dynamicColorRotationEnabled !== false,
-    dynamicMorphingRotationEnabled: useBrain
-      ? false
-      : settings.dynamicMorphingRotationEnabled !== false,
+    // Scelta dell'operatore, conservata anche con Brain attivo: la rotazione
+    // si ferma già da sola quando Brain comanda (ControlApp). Forzarla a
+    // false la lasciava spenta al ritorno al morphing.
+    dynamicMorphingRotationEnabled: settings.dynamicMorphingRotationEnabled !== false,
   }
 }

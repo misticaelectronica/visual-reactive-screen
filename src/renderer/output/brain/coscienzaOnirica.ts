@@ -755,6 +755,177 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
   }
 }
 
+/**
+ * PIANO-051 (disp. Capo Supremo 2026-10-19): ogni riga degli scribacchini è
+ * un episodio di quattro immagini. La riga, alla lettera, è la Soglia; Qwen
+ * scrive Metamorfosi, Condensazione ed Eco, una fase per richiesta. Ogni
+ * immagine è una fase del sogno e insieme completa la frase iniziale con
+ * altri elementi della stessa scena (disposizione del 2026-10-19).
+ */
+export type EpisodePhaseLines = [string | null, string | null, string | null]
+
+const EPISODE_PHASES = [
+  {
+    name: 'METAMORPHOSIS',
+    brief: 'something from image 1 changes form, place or function and is still recognizable',
+  },
+  {
+    name: 'CONDENSATION',
+    brief: 'the densest moment: the elements of images 1 and 2 overlap in a single image',
+  },
+  {
+    name: 'ECHO',
+    brief: 'image 1 returns, deformed by what happened in images 2 and 3',
+  },
+] as const
+const EPISODE_LINE_MIN_WORDS = 10
+const EPISODE_LINE_MAX_WORDS = 45
+
+// Regole degli scribacchini (docs/linee-guida-storie-brain.md), date a Qwen
+// sia per le fasi sia per le frasi del pubblico. Nessun filtro: il contenuto
+// non si ammorbidisce (disposizione del Capo Supremo 2026-10-19).
+function scribeRules(preserveExplicit: boolean): string[] {
+  return [
+    'Rules for every line: 15-30 English words; one concrete visible scene; the same named person; one place; one gesture or action; light and materials.',
+    'Show the body through posture and gesture, never through feelings. Wide framing: no close-ups of hands or fingers.',
+    'Use only words that can be seen: no abstract concepts, quotations, negations, memories or time jumps.',
+    'Do not censor, soften or euphemize anything. If sexual content appears, every person involved is an adult.',
+    ...(preserveExplicit
+      ? ['Preserve the explicit physical actions literally, without euphemisms or symbolism.']
+      : []),
+  ]
+}
+
+function contextBlock(label: string, context: readonly string[]): string[] {
+  const lines = context.map((line) => line.trim()).filter(Boolean)
+  return lines.length > 0 ? [`${label}:\n${lines.map((line) => `- ${line}`).join('\n')}`] : []
+}
+
+export function buildEpisodePhasePrompt(
+  line: string,
+  phaseIndex: 0 | 1 | 2,
+  written: readonly string[] = [],
+  context: readonly string[] = [],
+  preserveExplicit = false,
+): string {
+  const phase = EPISODE_PHASES[phaseIndex]
+  const imageNumber = phaseIndex + 2
+  return [
+    'A dream scene is told in four images, one sentence per image.',
+    `IMAGE 1 (THRESHOLD): ${line}`,
+    ...written.map((text, index) => `IMAGE ${index + 2} (${EPISODE_PHASES[index].name}): ${text}`),
+    ...contextBlock('STORY SO FAR', context),
+    `Write IMAGE ${imageNumber} (${phase.name}): ${phase.brief}.`,
+    'It must also complete the sentence of image 1: keep its person and its place, and add new concrete elements of the same scene that image 1 does not show (objects, materials, light, other people, other parts of the place).',
+    ...scribeRules(preserveExplicit),
+    `Write only the sentence for image ${imageNumber}, on one line.`,
+  ].join('\n')
+}
+
+export function buildPublicPhraseRewritePrompt(
+  phrase: string,
+  context: readonly string[] = [],
+  preserveExplicit = false,
+): string {
+  return [
+    'Rewrite an audience phrase as one line of the story in progress.',
+    `AUDIENCE PHRASE: ${phrase}`,
+    ...contextBlock('STORY IN PROGRESS', context),
+    'Keep everything the phrase says and shows. Link it to the main elements of the story in progress: its protagonist, its recurring object or material, its place.',
+    ...scribeRules(preserveExplicit),
+    'Return exactly one line beginning LINE:.',
+  ].join('\n')
+}
+
+function cleanedModelText(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/[*`#]/g, '')
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .join('\n')
+    .trim()
+}
+
+function firstLineOf(block: string | null): string | null {
+  return block?.split(/\r?\n/u).map((line) => line.trim()).find(Boolean) ?? null
+}
+
+function acceptableEpisodeLine(line: string | null): string | null {
+  if (!line) return null
+  const count = line.split(/\s+/u).length
+  return count >= EPISODE_LINE_MIN_WORDS && count <= EPISODE_LINE_MAX_WORDS ? line : null
+}
+
+/** Prime frasi della riga entro il massimo di parole: un modello che si
+ * dilunga in un paragrafo resta utilizzabile per la sua prima scena. */
+function leadingSentences(line: string): string {
+  const sentences = line.match(/[^.!?]+[.!?]*/gu)?.map((sentence) => sentence.trim()) ?? [line]
+  let kept = ''
+  for (const sentence of sentences) {
+    const next = kept ? `${kept} ${sentence}` : sentence
+    if (next.split(/\s+/u).length > EPISODE_LINE_MAX_WORDS) break
+    kept = next
+    if (kept.split(/\s+/u).length >= EPISODE_LINE_MIN_WORDS) break
+  }
+  return kept || line
+}
+
+export function parseEpisodePhaseLine(
+  text: string,
+  alreadyUsed: readonly string[],
+): string | null {
+  const first = firstLineOf(cleanedModelText(text))
+    ?.replace(/^(?:IMAGE\s*\d+|METAMORPHOSIS|CONDENSATION|ECHO|THRESHOLD)\s*(?:\([^)]*\))?\s*:\s*/iu, '')
+    .replace(/^["“']+|["”']+$/gu, '')
+    .trim()
+  const line = acceptableEpisodeLine(first ? leadingSentences(first) : null)
+  if (!line) return null
+  const used = new Set(alreadyUsed.map(normalizedSentence))
+  return used.has(normalizedSentence(line)) ? null : line
+}
+
+export function parsePublicPhraseRewrite(text: string): string | null {
+  const cleaned = cleanedModelText(text)
+  return acceptableEpisodeLine(
+    firstLineOf(labeledBlock(cleaned, 'LINE', [])) ?? firstLineOf(cleaned),
+  )
+}
+
+/**
+ * Episodio da una riga: Soglia letterale, poi le tre fasi. Senza fasi valide
+ * la riga vale per tutte e quattro le immagini (seed diversi): nessun
+ * episodio perso. Nessun invariante nel prompt raster: ogni immagine riceve
+ * solo il proprio testo («chi sogna non è Stable Diffusion»).
+ */
+export function storyFromLine(line: string, phases: EpisodePhaseLines | null): DreamStory {
+  const source = line.trim()
+  // Fase non valida → al suo posto la Soglia (disp. Capo Supremo 2026-10-19).
+  const texts = [source, ...(phases ?? [null, null, null]).map((phase) => phase ?? source)]
+  const core = fallbackUiCore([source])
+  const story = storyFromCore(
+    // Testi uguali (riga ripetuta quando le fasi mancano) una sola volta.
+    { ...core, synopsis: [...new Set(texts)].map(completeSentence).join(' '), invariant: '' },
+    [source],
+  )
+  story.frames = story.frames.map((frame, index) => ({
+    ...frame,
+    description: texts[index],
+    imagePrompt: texts[index],
+    visualIntent: texts[index],
+  }))
+  return story
+}
+
+type EpisodeGenerationOptions = {
+  /** Righe che precedono, per il legame con la storia in corso. */
+  context?: readonly string[]
+  continuitySeed?: string | null
+  consciousnessInfluence?: ConsciousnessMotionCandidate | null
+  /** Opzione di emergenza dal pannello, per tutte le righe. */
+  preserveExplicitSource?: boolean
+}
+
 export class CoscienzaOnirica {
   constructor(
     private readonly ai: Pick<BrainAiClient, 'generate'> &
@@ -1242,6 +1413,122 @@ export class CoscienzaOnirica {
    * funzione della propria fase onirica (`deriveOneiricPhase`, già usata
    * dal ciclo di Riattivazione) e un rapporto esplicito con l'invariante.
    */
+  async generateEpisode(
+    line: string,
+    options: EpisodeGenerationOptions = {},
+  ): Promise<DreamStory> {
+    const source = line.trim()
+    const preserveExplicit =
+      options.preserveExplicitSource === true && containsExplicitAdultContent(source)
+    // Una fase per richiesta: ogni richiesta riceve la Soglia e le fasi già
+    // scritte valide.
+    const phases: EpisodePhaseLines = [null, null, null]
+    for (const phaseIndex of [0, 1, 2] as const) {
+      const written = phases.slice(0, phaseIndex).map((phase) => phase ?? source)
+      try {
+        const response = await this.ai.generate(
+          'scene',
+          buildEpisodePhasePrompt(
+            source,
+            phaseIndex,
+            written,
+            options.context ?? [],
+            preserveExplicit,
+          ),
+          { maxNewTokens: 80, minNewTokens: 15 },
+        )
+        phases[phaseIndex] = parseEpisodePhaseLine(response, [source, ...written])
+        if (!phases[phaseIndex]) {
+          brainWarn('coscienza', 'fase dell’episodio rifiutata; al suo posto la soglia', {
+            line: source,
+            phase: EPISODE_PHASES[phaseIndex].name,
+            response: response.slice(0, 2_000),
+          })
+        }
+      } catch (error) {
+        if (error instanceof BrainAiCancelledError) throw error
+        brainWarn('coscienza', 'fase dell’episodio non disponibile; al suo posto la soglia', {
+          line: source,
+          phase: EPISODE_PHASES[phaseIndex].name,
+          error,
+        })
+      }
+    }
+    const story = storyFromLine(source, phases)
+    story.continuityPhrase = options.continuitySeed?.trim() || null
+    const influence = options.consciousnessInfluence ?? null
+    if (influence) {
+      story.palette = applyConsciousnessPalette(story.palette, influence)
+      story.consciousnessInfluence = {
+        memoryId: influence.memoryId,
+        kind: influence.kind,
+        title: influence.title,
+        relevanceReason: influence.relevanceReason,
+      }
+    }
+    brainLog('coscienza', 'episodio da una riga', {
+      line: source,
+      phasesFromModel: phases.map((phase) => phase !== null),
+      imagePrompts: story.frames.map((frame) => frame.imagePrompt),
+    })
+    return story
+  }
+
+  /**
+   * Frase del pubblico → una riga con le regole degli scribacchini, legata
+   * alla storia in corso. Se la riscrittura fallisce entra la frase tradotta:
+   * nessuna frase del pubblico va persa.
+   */
+  async rewritePublicPhrase(
+    phrase: string,
+    context: readonly string[] = [],
+    preserveExplicitSource = false,
+  ): Promise<string> {
+    const original = phrase.trim()
+    let english = original
+    try {
+      english = (await this.translator?.inputsToEnglish([original]))?.[0]?.trim() || original
+      await this.ai.releaseTranslationModels?.()
+    } catch (error) {
+      if (error instanceof BrainAiCancelledError) throw error
+      brainWarn('coscienza', 'traduzione della frase del pubblico non disponibile; uso il testo originale', {
+        error,
+      })
+    }
+    const preserveExplicit =
+      preserveExplicitSource && containsExplicitAdultContent(`${original} ${english}`)
+    try {
+      const response = await this.ai.generate(
+        'scene',
+        buildPublicPhraseRewritePrompt(english, context, preserveExplicit),
+        { maxNewTokens: 90, minNewTokens: 15 },
+      )
+      const rewritten = parsePublicPhraseRewrite(response)
+      if (rewritten) {
+        brainLog('coscienza', 'frase del pubblico riscritta come riga della storia', {
+          original,
+          english,
+          context,
+          rewritten,
+        })
+        return rewritten
+      }
+      brainWarn('coscienza', 'riscrittura della frase del pubblico rifiutata; entra la frase tradotta', {
+        original,
+        english,
+        response: response.slice(0, 2_000),
+      })
+    } catch (error) {
+      if (error instanceof BrainAiCancelledError) throw error
+      brainWarn('coscienza', 'riscrittura della frase del pubblico non disponibile; entra la frase tradotta', {
+        original,
+        english,
+        error,
+      })
+    }
+    return english
+  }
+
   async generateVisualPlan(synopsis: string, invariant: string): Promise<VisualPlan> {
     const frameCount = BRAIN_CONFIG.renderFrameCount
     const phaseBriefs = Array.from({ length: frameCount }, (_value, index) => {

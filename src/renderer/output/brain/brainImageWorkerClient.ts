@@ -8,6 +8,7 @@ import type {
 } from './brainImageWorkerProtocol'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
 import {
+  combinedNegativePrompt,
   getBrainImageGenerationSettings,
   resolveBrainImageGuidanceMode,
   resolveBrainImageSteps,
@@ -34,6 +35,7 @@ export function createBrainImageGenerateRequest(
   // HYPNOTIC ZOOM ANNIDATO: sostituisce lo step count derivato da `mode`
   // (`DreamStory.denoisingStepsOverride`, disp. Capo Supremo 2026-09-22).
   stepsOverride?: number,
+  extraNegativePrompt?: string,
 ): BrainImageGenerateRequest {
   const renderingConfig = getBrainRenderingConfig()
   const locationUrl = new URL(documentUrl)
@@ -67,7 +69,10 @@ export function createBrainImageGenerateRequest(
     inferenceHeight: inferenceGeometry.height,
     steps,
     guidanceMode: resolveBrainImageGuidanceMode(mode),
-    negativePrompt: generationSettings.negativePrompt,
+    negativePrompt: combinedNegativePrompt(
+      extraNegativePrompt,
+      generationSettings.negativePrompt,
+    ),
   }
 }
 
@@ -95,6 +100,7 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
     stepsOverride?: number,
+    extraNegativePrompt?: string,
   ): Promise<GenerationResult> {
     if (this.destroyed || !this.worker) {
       return Promise.reject(new Error('Psichedel è stato arrestato'))
@@ -111,6 +117,7 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
       timeoutMs,
       window.location.href,
       stepsOverride,
+      extraNegativePrompt,
     )
     brainLog('psichedel-image', 'inferenza inviata al worker ONNX', {
       id,

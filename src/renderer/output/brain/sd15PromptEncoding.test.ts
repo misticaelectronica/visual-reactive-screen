@@ -56,7 +56,7 @@ describe('contesto CLIP completo', () => {
     expect(disposed).toHaveBeenCalledOnce()
   })
 
-  it('porta il negative prompt nel ramo non condizionato, mai più lungo del prompt', async () => {
+  it('porta il negative prompt nel ramo non condizionato e completa il ramo più corto', async () => {
     const run = vi.fn(async (feeds: Record<string, Tensor>) => {
       const data = Array.from(feeds.input_ids.data as BigInt64Array, Number)
       return { last_hidden_state: new Tensor('float32', new Float32Array(data), [2, 77, 1]) }
@@ -68,8 +68,14 @@ describe('contesto CLIP completo', () => {
     expect(values.slice(0, 154)).toEqual([...negative[0], ...chunkSd15Prompt([])[0]])
     expect(values.slice(154)).toEqual(chunks.flat())
     result.dispose()
-    await expect(encodeSd15PromptChunks(
-      ort, { run }, chunkSd15Prompt([1]), true, undefined, chunks,
-    )).rejects.toThrow('Nessun testo è stato troncato')
+    // Negative prompt di due blocchi su un prompt di uno: il prompt viene
+    // completato con un blocco vuoto, nessun errore.
+    const prompt = chunkSd15Prompt([1])
+    const padded = await encodeSd15PromptChunks(ort, { run }, prompt, true, undefined, chunks)
+    const paddedValues = Array.from(padded.data as Float32Array)
+    expect(padded.dims).toEqual([2, 154, 1])
+    expect(paddedValues.slice(0, 154)).toEqual(chunks.flat())
+    expect(paddedValues.slice(154)).toEqual([...prompt[0], ...chunkSd15Prompt([])[0]])
+    padded.dispose()
   })
 })

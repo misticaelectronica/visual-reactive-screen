@@ -38,6 +38,14 @@ type QualitySteps = Pick<
   'standardSteps' | 'enhancedSteps' | 'qualitySteps'
 >
 
+/** I termini aggiunti per una singola immagine vanno per primi. */
+export function combinedNegativePrompt(
+  extra: string | undefined,
+  configured: string,
+): string {
+  return [extra?.trim(), configured.trim()].filter(Boolean).join(', ')
+}
+
 /**
  * Con la classifier-free guidance ogni step costa circa il doppio: `low`
  * (default, disp. Capo Supremo 2026-10-11) resta vicino ai tempi del ramo

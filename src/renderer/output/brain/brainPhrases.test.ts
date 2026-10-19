@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OutputApi } from '@shared/types'
 import {
   insertPhraseAtCursor,
+  brainPhrasesBeforeCursor,
   loadBrainPhrases,
   parseBrainPhrases,
   sampleBrainPhraseWindow,
@@ -66,6 +67,14 @@ describe('finestra scorrevole sequenziale su BRAIN_PHRASES', () => {
   it('legge righe contigue a partire dal cursore', async () => {
     await loadPhrases(['a', 'b', 'c', 'd', 'e'])
     expect(sampleBrainPhraseWindow(1, 3).phrases).toEqual(['b', 'c', 'd'])
+  })
+
+  it('restituisce le righe già lette prima del cursore, senza inventarne all\'inizio', async () => {
+    await loadPhrases(['a', 'b', 'c', 'd'])
+    expect(brainPhrasesBeforeCursor(0, 2)).toEqual([])
+    expect(brainPhrasesBeforeCursor(1, 2)).toEqual(['a'])
+    expect(brainPhrasesBeforeCursor(3, 2)).toEqual(['b', 'c'])
+    expect(brainPhrasesBeforeCursor(5, 2)).toEqual(['d', 'a'])
   })
 
   it('si avvolge a fine file', async () => {

@@ -23,8 +23,9 @@ export function chunkSd15Prompt(ids: readonly number[]): number[][] {
 
 /** CLIP encodes 77 positions at a time; UNet receives the concatenated sequence.
  * Keep CFG rows separate: [unconditional chunks][conditional chunks], never
- * interleaved. The unconditional row carries the negative prompt in its first
- * chunks and empty chunks after it; it may not be longer than the prompt.
+ * interleaved. The unconditional row carries the negative prompt; the shorter
+ * row is padded with empty chunks, so a long negative prompt never fails a
+ * short image prompt.
  */
 export async function encodeSd15PromptChunks(
   ort: { Tensor: typeof Tensor },
@@ -36,16 +37,17 @@ export async function encodeSd15PromptChunks(
 ): Promise<Tensor> {
   const batch = cfg ? 2 : 1
   const empty = chunkSd15Prompt([])[0]
-  if (unconditionalChunks.length > chunks.length) {
-    throw new Error(`Negative prompt più lungo del prompt: ${unconditionalChunks.length} blocchi contro ${chunks.length}. Nessun testo è stato troncato.`)
-  }
+  const chunkCount = cfg ? Math.max(chunks.length, unconditionalChunks.length) : chunks.length
   let combined: Float32Array | Uint16Array | undefined
   let type: 'float32' | 'float16' | undefined
   let width = 0
-  for (let index = 0; index < chunks.length; index++) {
+  for (let index = 0; index < chunkCount; index++) {
     if (signal?.aborted) throw new DOMException('Generazione annullata', 'AbortError')
     const ids = new ort.Tensor('int64', BigInt64Array.from(
-      cfg ? [...(unconditionalChunks[index] ?? empty), ...chunks[index]] : chunks[index], BigInt,
+      cfg
+        ? [...(unconditionalChunks[index] ?? empty), ...(chunks[index] ?? empty)]
+        : chunks[index],
+      BigInt,
     ), [batch, CLIP_TOKEN_COUNT])
     let output: Record<string, Tensor> = {}
     try {
@@ -59,7 +61,7 @@ export async function encodeSd15PromptChunks(
       if (!combined) {
         width = embedding.dims[2]
         type = embedding.type
-        const length = batch * chunks.length * CLIP_TOKEN_COUNT * width
+        const length = batch * chunkCount * CLIP_TOKEN_COUNT * width
         combined = type === 'float32' ? new Float32Array(length) : new Uint16Array(length)
       }
       if (embedding.type !== type || embedding.dims[2] !== width) {
@@ -74,7 +76,7 @@ export async function encodeSd15PromptChunks(
       const rowSize = CLIP_TOKEN_COUNT * width
       for (let row = 0; row < batch; row++) {
         combined.set(data.subarray(row * rowSize, (row + 1) * rowSize),
-          (row * chunks.length + index) * rowSize)
+          (row * chunkCount + index) * rowSize)
       }
     } finally {
       ids.dispose()
@@ -83,5 +85,5 @@ export async function encodeSd15PromptChunks(
   }
   if (!combined || !type) throw new Error('Nessun blocco CLIP da codificare')
   if (signal?.aborted) throw new DOMException('Generazione annullata', 'AbortError')
-  return new ort.Tensor(type, combined, [batch, chunks.length * CLIP_TOKEN_COUNT, width])
+  return new ort.Tensor(type, combined, [batch, chunkCount * CLIP_TOKEN_COUNT, width])
 }

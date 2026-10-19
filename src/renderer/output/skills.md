@@ -165,6 +165,29 @@ qualità `low`/`mid`/`high` si governano dal pannello (`brainNegativePrompt`,
 L'interludio resta a ramo singolo. Il negative prompt non può superare in
 blocchi CLIP il prompt positivo: errore esplicito, mai troncamento.
 
+**Una riga = una quartina (PIANO-051, 2026-10-19)**: Brain legge una riga
+alla volta (`sampleBrainPhraseWindow(cursor, 1)`). `generateEpisode` usa la
+riga alla lettera come Soglia e chiede a Qwen le tre fasi **una per
+richiesta** (Qwen 0.5B non rispetta tre etichette in una risposta); ogni
+fase completa la frase iniziale con nuovi elementi della scena; fase non
+valida → la Soglia al suo posto. Il task `scene` campiona (temperature 0.7,
+repetition_penalty 1.12): in greedy andava in loop. Le frasi pubbliche passano da
+`rewritePublicPhrase` (traduzione → riga legata alla storia in corso →
+fallback alla frase tradotta) e vengono inserite già riscritte nel file. Il
+vecchio percorso (storia Qwen, Visual Plan) è DEP-002: non reintrodurlo.
+Memo di sessione, memoria lunga e «Questo sogno» restano attivi (ripristinati
+dal Capo Supremo il 2026-10-19); «Questo sogno» usa ancora il percorso
+storico finché non si decide come adattarlo.
+
+**Bambini vicino alle scene esplicite (2026-10-19)**: negli episodi del
+pubblico, `childSafetyNegativePrompt` aggiunge `CHILD_SAFETY_NEGATIVE_TERMS`
+al negative prompt dell'immagine se la scena, la precedente o la successiva
+sono esplicite. `childSafetyNegativePromptEnabled` governa la regola dal
+checkbox della Sessione pubblica ed è attivo di default. I termini sono
+`child, children, kid, young girl, young boy`. Il negative prompt può
+superare il prompt in blocchi CLIP:
+`encodeSd15PromptChunks` completa il ramo più corto con blocchi vuoti.
+
 **Prompt raster libero (2026-10-11)**: «chi sogna non è Stable Diffusion».
 Il raster riceve solo il proprio momento + `INVARIANT`; niente testo di altri
 fotogrammi (`VISUAL CONTEXT` ritirato: produceva coppie di immagini simili) e

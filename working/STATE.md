@@ -1,5 +1,38 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Bambini evitati vicino alle scene esplicite — 2026-10-19
+
+**CONSEGNATO**, disposizione del Capo Supremo: negli episodi nati da una frase
+del pubblico, se la scena, la precedente o la successiva sono esplicite
+(`containsExplicitAdultContent`), quella immagine riceve nel negative prompt
+`CHILD_SAFETY_NEGATIVE_TERMS` (`childSafetyNegativePrompt`, `psichedel.ts`).
+Ritirato il filtro precedente che scartava le frasi (`brainMinorProtection`).
+PIANO-052: la protezione è attivabile dal checkbox nel riquadro Sessione
+pubblica, resta attiva di default anche per impostazioni precedenti e usa
+soltanto `child, children, kid, young girl, young boy`; rimossi `minor`,
+`teenager`, `schoolgirl`, `schoolboy`, `baby`. Riscrittura delle frasi del
+pubblico legata alla sola ultima riga di contesto. La codifica CLIP completa
+il prompt con blocchi vuoti quando il negative prompt è più lungo (prima
+falliva). 810 test verdi; typecheck e lint verdi.
+Build completa app/ZIP/DMG verde.
+
+## Righe degli scribacchini come immagini — 2026-10-19
+
+**IMPLEMENTATO — PIANO-051 (MACRO-039)**, collaudo aperto. Vecchia catena
+storia Qwen / Visual Plan / «Questo sogno» registrata come DEP-002. Disposizione del Capo Supremo: le righe
+curate diventano direttamente i prompt delle immagini; Qwen riscrive solo le
+frasi della Sessione pubblica, con le regole degli scribacchini, prima di
+scriverle in `brainPhrases.txt`. Integrazioni dello stesso giorno: concetti del
+Visual Plan mantenuti nella scrittura in quartine (soglia, metamorfosi,
+condensazione, eco); ogni frase pubblica genera una quartina legata agli
+elementi principali della storia in corso. Riprogettato: ogni riga
+degli scribacchini è una quartina (riga letterale = Soglia, Qwen scrive
+Metamorfosi, Condensazione, Eco); frase pubblica riscritta in riga legata
+alla storia; opzione «testo esplicito» per tutti; nessuna frase del pubblico
+persa. Aperta D3.
+Corretto nello stesso giorno il parser delle etichette (`canonicalEnvelopeLabels`):
+`### STORY`, `**BRIDGE**`, `Bridge` e `---` non entrano più nei prompt.
+
 ## 1.0.0-rc.10 — Brain pronto per l'esordio in pubblico — 2026-10-11
 
 Collaudo del Capo Supremo: «test ok», «Brain pronto per l'esordio in

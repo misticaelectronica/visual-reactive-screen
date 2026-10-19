@@ -13,6 +13,7 @@ import { BrainImageWorkerClient } from './brainImageWorkerClient'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainInferenceScheduler } from './brainThermalScheduler'
 import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
+import { containsExplicitAdultContent } from './coscienzaOnirica'
 
 export type PsychedelRasterPreview = {
   storyId: string
@@ -206,6 +207,28 @@ function frameVisualText(frame: DreamFrame): string {
  * NESSUNA INGERENZA CROMATICA (filosofia.md §2.2): nessuna direzione di
  * colore né famiglia cromatica.
  */
+/**
+ * Disposizione del Capo Supremo 2026-10-19: negli episodi nati da una frase
+ * del pubblico, evitare di rappresentare bambini quando la scena, quella
+ * precedente o quella successiva sono esplicite. Per quella immagine i
+ * termini qui sotto entrano nel negative prompt.
+ */
+export const CHILD_SAFETY_NEGATIVE_TERMS =
+  'child, children, kid, young girl, young boy'
+
+export function childSafetyNegativePrompt(
+  story: DreamStory,
+  frameIndex: number,
+  enabled = true,
+): string {
+  if (!enabled || !story.onlineSourceText) return ''
+  const nearby = story.frames.slice(Math.max(0, frameIndex - 1), frameIndex + 2)
+  return nearby.some((frame) =>
+    containsExplicitAdultContent(frame.imagePrompt ?? frame.description))
+    ? CHILD_SAFETY_NEGATIVE_TERMS
+    : ''
+}
+
 export function buildPsychedelImagePrompt(
   story: DreamStory,
   frame: DreamFrame,
@@ -254,6 +277,7 @@ export class Psichedel {
     deadlineAt: number = Number.POSITIVE_INFINITY,
     onSceneReady?: (scene: PsychedelScene, frameIndex: number) => void,
     getPressureHint?: () => boolean,
+    childSafetyNegativePromptEnabled = true,
   ): Promise<PsychedelScene[]> {
     const scenesByFrame = this.retainedScenes.get(story.id) ?? new Map<string, PsychedelScene>()
     this.retainedScenes.set(story.id, scenesByFrame)
@@ -386,6 +410,11 @@ export class Psichedel {
                     mode,
                     remainingMs,
                     story.denoisingStepsOverride,
+                    childSafetyNegativePrompt(
+                      story,
+                      index,
+                      childSafetyNegativePromptEnabled,
+                    ) || undefined,
                   )
                 } finally {
                   this.onImageGenerationState?.(false)

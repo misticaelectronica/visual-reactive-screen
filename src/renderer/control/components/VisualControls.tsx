@@ -87,7 +87,7 @@ export function VisualControls({ settings, onChange }: Props) {
 
   const selectSource = (next: VisualSource) => {
     if (next === 'brain') {
-      onChange({ useBrain: true, useMorphing: false, dynamicMorphingRotationEnabled: false })
+      onChange({ useBrain: true, useMorphing: false })
     } else if (next === 'morphing') {
       onChange({ useBrain: false, useMorphing: true })
     } else {

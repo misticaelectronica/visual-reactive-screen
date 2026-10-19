@@ -261,6 +261,15 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## ⚪ Macrotask Pianificati (Futuri)
 
+### `MACRO-039`: Ogni riga degli scribacchini è una quartina
+- **Descrizione**: righe curate usate direttamente come prompt raster (una
+  riga, un fotogramma); Qwen riscrive solo le frasi della Sessione pubblica
+  con le regole degli scribacchini, prima di scriverle in `brainPhrases.txt`.
+- **Stato**: 🟢 IMPLEMENTATO (2026-10-19) — collaudo aperto.
+- **Piano di Lavoro**: `working/plans/piano-051-righe-scribacchini-come-immagini.md`
+- **Estensione**: PIANO-052 — protezione bambini presso scene esplicite
+  configurabile da pannello, attiva di default.
+
 ### `MACRO-037`: DMX Color Controller
 - **Descrizione**: attuatore cromatico autonomo per luci DMX (USB-DMX → 4 PAR
   nella prima configurazione), indipendente da Brain e Morphing, con API di
