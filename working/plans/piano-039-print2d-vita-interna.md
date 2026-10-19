@@ -118,3 +118,11 @@ ogni punto sull'implementazione reale:
    piccolo di `drawImage` extra (contorno core/faint, eco moiré, scia
    d'inchiostro) alla stessa risoluzione già in uso — nessun nuovo
    `getImageData`/loop per-pixel nel ciclo di rendering.
+
+## Correzione strutturale successiva — 2026-09-07
+
+PIANO-042 sostituisce gli offset globali elastici con fase filtrata, velocità e
+posizione per regione. La descrizione sopra del reset geometrico in silenzio
+è superata: si arresta la velocità e si conserva la posizione, entro limiti
+permanenti. Il freeze non accumula più delta da recuperare alla ripresa.
+Wash-out, impulso locale e lock leggibile attendono il collaudo di questa base.

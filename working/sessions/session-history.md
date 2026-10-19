@@ -1,5 +1,325 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-10-10-APERTURA-DMX
+
+- Release `1.0.0-rc.9` pushata su `feature/animatronix-v1-grammatiche`.
+- Aperto il branch `feature/dmx-color-controller` per il brief del Vicario
+  «High Level DMX Color Controller», archiviato integralmente in
+  `team/briefs/`.
+- Audit preventivo dei deprecati: DEP-001 `NON COINVOLTO`.
+- Creato PIANO-048 (MACRO-037).
+- Implementato il modulo DMX attivabile da `dmxEnabled`; collaudo con PAR
+  xkl-A4 e DSD TECH SH-RS09B. Tre cause trovate in ordine: dongle non
+  enumerato (cavo/connettore), PAR non impostato su `d001`, break `TIOCSBRK`
+  che blocca il driver FTDI di macOS. Trasporto spostato nel main con
+  `serialport` 13 e break emulato a 57600 baud. Funziona dall'app.
+
+## SESSION-2026-10-08-DELIQUESCENCE-E-FINESTRA-FRASI
+
+- Sessione avviata su rilievo del Capo Supremo: la generazione di immagini ha
+  perso spinta, è più brutta, triste e ripetitiva. Audit preventivo dei
+  deprecati eseguito, DEP-001 `NON COINVOLTO`.
+- Escluso subito il motore immagini: `config/brainRendering.json` verificato
+  identico a HEAD (step 12/16/24, 640×360).
+- Primo intervento, poi **ritirato nella stessa sessione**: finestra delle
+  frasi da 4-5 a 1-2 righe, misurata su un pool di 5 paragrafi da ~115
+  parole. Il pool è stato cambiato dal Capo Supremo in corso di sessione a 39
+  righe da 7-39 parole, forma per cui 4-5 erano tarati: con 1-2 la sorgente
+  scendeva a 21-42 parole contro 55-80 di sinossi richiesta. Ripristinato.
+- Effetto collaterale della stessa modifica, misurato e non ipotizzato: le
+  righe che fanno scattare `containsExplicitAdultContent` sono 2 su 39, e la
+  quota di finestre che le contengono passava dal 20% (4 righe) al 5-10%
+  (1-2 righe) — causa diretta del rilievo «c'è poco sesso nelle storie».
+- Vincolo emerso e registrato in memoria: nelle sessioni online l'input del
+  pubblico è inserito nello stesso `brainPhrases.txt`, quindi il pool dal vivo
+  è misto per costruzione e nessun valore per riga è corretto per entrambe le
+  forme. La via che tiene è una finestra con budget in parole: non
+  implementata, non richiesta.
+- Secondo intervento, **consegnato**: DELIQUESCENCE escluso anche in
+  `pressurized`, unico regime che non aveva alcuna esclusione. Tre singleton
+  identici unificati in `DELIQUESCENCE_OUT_OF_LOW_REGIME`. In `respiro-alto`
+  era già escluso: riportato al Capo Supremo invece di aggiungere un secondo
+  filtro.
+- Analisi consegnata senza modifiche sul percorso del prompt raster: Visual
+  Plan che vieta colore e luce per istruzione, 6 famiglie di palette tutte
+  scure, una sola famiglia per storia. Identità visiva, non toccata.
+- Terzo intervento, **consegnato**: invariante senza invenzioni. Misurato sul
+  corpus di validazione che il ripiego produceva `stands` (un verbo) e
+  precisato al Capo Supremo che la stringa italiana da lui confermata era
+  quasi irraggiungibile — il difetto reale era l'altro.
+- Quarto intervento, **consegnato** su brief scritto del Capo Supremo:
+  `VISUAL CONTEXT` ripristinato nel prompt raster, solo quel livello,
+  `Associated stimulus` lasciato fuori, primo fotogramma senza contesto.
+- Quinto intervento, **consegnato**: indicatore palette in basso a sinistra,
+  mattoncini affiancati nell'ordine della palette, aggiornato al cambio
+  storia, indipendente dalla dissolvenza DMX.
+- Verifiche: `pnpm typecheck` verde, `pnpm lint` verde, 776 test su 79 file
+  verdi.
+- Stato finale: gating DELIQUESCENCE da collaudare dal vivo. Resta aperta
+  l'analisi su soggetti e scena, indicata dal Capo Supremo come il vero
+  perimetro. Modifiche non committate su `brainAnimatronix*` estranee alla
+  sessione, non indagate.
+
+## SESSION-2026-10-07-DECOMPRESSIONE-VARCO
+
+- Sessione avviata su richiesta diretta del Capo Supremo; audit preventivo dei
+  deprecati eseguito, DEP-001 `NON COINVOLTO`.
+- Obiettivi: (1) ritarare la decompressione col nuovo campione
+  `decompressione-5.mp3`; (2) verificare l'assenza di conflitto fra livelli;
+  (3) correggere il respiro alto che parte troppo spesso sui lavori con gli
+  alti; (4) — chiesto in corso di sessione — Varco più scuro in decompressione
+  e respiro profondo.
+- Misurazione prima di ogni modifica: replay dei 16 campioni con i moduli di
+  produzione e il metodo condiviso del corpus, su entrambi i regimi, con dump
+  delle osservabili e timeline per finestra di analisi.
+- Esito (1) e (2): **PROPOSTA RITIRATA**, nessuna modifica al runtime audio.
+  `decompression` emessa su 0 file su 4; `constraint` sale monotonicamente su
+  entrambi i file lunghi di decompressione, quindi `falling` è irraggiungibile
+  per qualunque deadband. Conflitto fra livelli confermato strutturale:
+  baseline vede i passaggi e azzera le stasi, experimental il contrario.
+- Esito (3): rilievo dal vivo riprodotto sul corpus; la soglia alto/profondo
+  è di fatto un rilevatore di banda `high`. Provate 4 varianti di ancoraggio
+  a `physicalConfirmation` (segnale già calcolato e mai usato, scelto per la
+  regola anti-sovrastrutturazione): tutte scartate su dati, una rompe
+  `respiro-alto-1`. Harness validato contro la baseline prima dell'uso.
+- Esito (4): **consegnato.** Fasi basse accoppiate per il colore del Varco
+  riusando l'accoppiamento già presente nel file; tinte scure abbassate;
+  scurimento pre-Varco separato dal moltiplicatore del flash — difetto reale,
+  nel respiro profondo lo scurimento era spento del tutto.
+- Verifiche: `pnpm typecheck` verde, `pnpm lint` verde, 662 test su 62 file
+  verdi, test dedicato aggiunto per le fasi basse del Varco.
+- Stato finale: Varco consegnato; decompressione e asse alto/profondo
+  rimessi alla decisione del Capo Supremo dell'Analisi Audio con referto di
+  calibrazione a supporto. Nessun collaudo dal vivo ancora svolto.
+
+## SESSION-2026-09-25-SPECTRAL-OCCUPANCY
+
+- Sessione avviata su PIANO-040; DEP-001 `NON COINVOLTO`.
+- Perimetro: sola continuità di `spectralOccupancy`, quindi replay reale e
+  verifica della dominanza semantica ritmica. Congelati `classifyLevel`,
+  soglie, pesi, bande e detector.
+- Mappa certificata: C03=`respiro-alto-0`, C04=`respiro-profondo`,
+  C06=`respiro-alto-1`. C05/C08/C09 restano non certificabili.
+- Provata la sola correzione continua: contributo di banda proporzionale al
+  floor esistente, senza nuovi pesi o soglie.
+- Replay 15 file: C03 PP 0,4956 < C04 0,5188; C06 0,5510 > C04. Anchor e
+  grounded low-end restano invertiti; persistenza semplice smentita da
+  `test-1`. La memoria experimental ordina i tre casi ma non discrimina
+  ancora `test-1`, quindi non è stata duplicata o trapiantata.
+- Decisione finale: **PROPOSTA RITIRATA** perché C03>C04 è un gate bloccante.
+  Funzione e test sperimentale ripristinati; harness, diagnostica e report
+  conservati come evidenza negativa. Nessuna modifica runtime accettata.
+- Verifica post-ritiro: 56 test bio-percettivi mirati, typecheck e lint verdi.
+
+## SESSION-2026-09-11-EXPERIMENTAL-PRIMA-CONSEGNA
+
+- Direttiva completa del Vice Consigliere acquisita; DEP-001 `NON COINVOLTO`.
+- Baseline, `rhythmConstraint`, `classifyLevel` e `pressureLanded` invariati.
+- Implementata nel clock experimental una memoria temporale multibanda da
+  8 s, analizzata ogni 500 ms: ricorrenza, conferma low/lowMid, confronto di
+  sei cicli, ancoraggio con perdita/recupero, prima costrizione e traiettoria.
+- Il contratto pubblico resta baseline e il Visual è scollegato; la nuova
+  diagnostica entra nel logger 1 Hz e nell'harness A/B.
+- Corpus verificato: C03 0,351 > C04 0,109; C06 0,252 > C04. C02/C08/C09 non
+  mappati nel repository. `test-1.mp3` resta non discriminato: nessuna
+  classificazione finale autorizzata.
+- Test mirati 6/6; suite completa 73 file / 689 test, typecheck e lint verdi.
+  Build applicativa e ZIP arm64 riusciti; packaging DMG fallito esclusivamente
+  in `hdiutil create` dopo i retry automatici. Nessuna immagine montata e
+  16 GiB disponibili; il DMG rc.4 preesistente non è stato sovrascritto.
+
+## SESSION-2026-09-11-REGIME-SPERIMENTALE-OSSERVABILITA
+
+- Ripreso il tentativo sospeso sul gate Respiri. Audit DEP-001:
+  `NON COINVOLTO`.
+- Ritirato il criterio a range `settleFloor`/`settleCeiling`: non riconosceva
+  nessuno dei tre `respiro-profondo*`, aggiungeva stato senza risolvere il
+  problema e violava il congelamento della baseline stabilito da PIANO-044.
+- Esteso `compare-audio-regimes.mjs` nel solo dominio diagnostico con
+  componenti motorie esistenti, conferma fisica dei beat, autocorrelazione
+  normalizzata dei fronti raw e finestre scorrevoli da 8 s.
+- Evidenza: il clock attuale conta zero beat nei due campioni
+  `respiro-alto-*`. La periodicità raw separa i campioni di Respiro Alto dai
+  tre Profondi, ma resta alta anche in trasformazioni e `test-1.mp3`: misura
+  entrainment/livello, non assestamento. Nessuna formula runtime promossa.
+- Stato finale: PIANO-044 Fase 2 parziale; Task 2.4 aperto. Baseline di
+  produzione invariata.
+
+## SESSION-2026-09-11-DIAGNOSI-RESPIRI
+
+- Audit preventivo deprecati: DEP-001 Alternanza 80/20 `NON COINVOLTO`; non
+  partecipa alla macchina bio-percettiva.
+- Analizzati i log `session-2026-09-11-00-13-49`, `00-18-21` e `00-29-01`.
+  Transizioni: 32, 186 e almeno 117; intervallo mediano 1,73 / 1,70 / 1,68 s;
+  rispettivamente 30/31, 181/185 e 109/116 intervalli sotto i 9 s.
+- Respiro Profondo accertato: 1 + 1 + 8 ingressi. Quasi tutti inizialmente
+  autorizzati dal silenzio; nell'ultima sessione compaiono poi `stasis-held`
+  e un tratto ancora attivo oltre 100 s con Deliquescence già selezionato.
+- Respiro Alto: zero ingressi nei log datati 9, 10 e 11 settembre. Il suo
+  accesso dipende da `pressureJustLanded` (9 s continui senza cambio trend) o
+  dalla ri-promozione lenta di `reference`; non possiede la via diretta del
+  silenzio riservata al Profondo.
+- Causa strutturale: `pressureFlatMs` viene azzerato a ogni variazione del
+  trend, mentre il segnale live oscilla ogni ~1,7 s. Il gate non rappresenta
+  una stasi musicale ordinaria. I test positivi usano segmenti costanti da
+  60 s e non coprono questa traiettoria reale.
+- Nessuna correzione applicata: soglie, segnali, renderer e selettore restano
+  invariati. Prossima decisione tecnica: rivalutare o ritirare il criterio di
+  atterraggio esistente prima di introdurre qualunque nuovo meccanismo.
+
+## SESSION-2026-09-10-RIPRESA-INGEGNERIA
+
+- Audit deprecati introdotto come fase preventiva obbligatoria in `AGENTS.md`:
+  lettura integrale del registro e decisione `NON COINVOLTO`, `MANTENERE`,
+  `AGGIORNARE` o `DISMETTERE` prima di ogni intervento.
+- Creato `working/DEPRECATED.md`. `Alternate with Brain (80/20)` è registrato
+  come deprecato ma attivo per compatibilità; default spento, UI marcata e
+  proprietà TypeScript annotata. Decisione corrente: `MANTENERE` fino a una
+  dismissione completa delle impostazioni, UI, runtime, test e documentazione.
+- Validazione della deprecazione documentale/UI: typecheck, lint e build
+  completa app macOS arm64, ZIP e DMG verdi; comportamento runtime invariato.
+- Applicata la disposizione finale del Vice Consigliere: rimossi dal runtime
+  il contatore e i range 2–4 / 1–2 / 1–1. La chiusura della storia è ora
+  l'unica autorità della Riattivazione.
+- Aggiunta memoria stabile della sessione `storyId → 3 raster`: la terna viene
+  scelta una volta con il `renderMode` già prodotto dalla pipeline, non può
+  essere sostituita e resta disponibile fino alla distruzione del controller.
+- La prima storia fissa la terna senza ciclo; dalla seconda, ogni chiusura
+  riattiva tutte le storie precedenti in ordine cronologico. Rimosso anche il
+  rimescolamento delle immagini fra i giri.
+- Archivio storico su disco ancora alimentato, ma escluso dall'autorità di
+  cadenza e selezione della sessione. Nessun tag I/O, metadato semantico,
+  classificatore, criterio narrativo o renderer aggiunto o modificato.
+- Validazione finale della disposizione: 72 file / 680 test, typecheck, lint,
+  build completa app macOS arm64, ZIP e DMG; ricerca statica senza vecchi
+  simboli di cadenza in `src/`.
+- Ripresi e verificati i tre interventi tecnici presenti nel working tree:
+  CONTAMINATION Slice 01, rete di sicurezza casuale fra renderer eleggibili e
+  fallback della Riattivazione sui raster a qualità media già in memoria.
+- Applicata la disposizione del Capo Supremo sulla sola cadenza:
+  `REVISION_CYCLE_MIN/MAX_STORIES` da 2–4 a 1–2. Registrato come voluto che,
+  con cicli da 2–3,5 minuti, la Riattivazione possa occupare oltre metà serata.
+- Correzione finale della cadenza: eliminata la variabilità residua 1–2;
+  `REVISION_CYCLE_MIN/MAX_STORIES` è ora 1–1, quindi la Riattivazione viene
+  programmata dopo ogni storia.
+- Audit dei confini: nessun movimento di camera/quadro, nessun nuovo segnale
+  audio, nessuna grammatica raster condivisa, silenzio e low power invariati;
+  la taratura percettiva di CONTAMINATION resta separata.
+- Corrette le descrizioni tecniche rimaste ancorate al vecchio fallback fisso
+  Print2D/FilterPsiche e riallineato il registro dei task.
+- Validazione: test mirati, suite completa, typecheck, lint e build. Il solo
+  `git diff --check` globale segnala spazi finali nel file di frasi modificato
+  da un lavoro concorrente, lasciato intatto.
+
+## SESSION-2026-09-09-PSICOFANTASMA-DIAGNOSI-LOG
+
+- Analizzati tutti i log runtime disponibili e distinti gli ingressi del
+  renderer dalle decisioni effettive del matcher.
+- Dopo l'integrazione del repertorio: 49 decisioni con candidati, 0 accolte;
+  24 rifiuti `affinity`, 17 `margin`, 8 `structure`.
+- Finestre: 2026-09-08 23:00:58–23:06:00 CEST e 2026-09-09
+  14:34:54–14:40:13 CEST. Persistenza osservata 1,37–1,73 s, quindi non è il
+  vincolo che impedisce il riconoscimento.
+- Esito: matching attivo, gate mai superato, 0% osservato rispetto al criterio
+  Visual 20–40%. Nessuna modifica a codice o soglie.
+
+## SESSION-2026-09-08-PSICOFANTASMA-REPERTORIO-V2
+
+- Importato senza modificare gli SVG il pacchetto approvato: 120 silhouette,
+  24 per famiglia, 40/40 archetipi guida. Verificati nomi, hash, JSON,
+  impronte binarie e assenza di costrutti SVG eseguibili.
+- Aggiunto import deterministico dall'impronta morfologica 32×32 consegnata
+  ai contorni normalizzati runtime. Il round-trip riproduce 120/120 impronte.
+- Il loader e il build accettano la nuova base V1 da almeno 120 sagome e 24
+  per famiglia; il repertorio viene incluso nel bundle e abilita la rotazione.
+- Matching reale: 120/120 descrittori finiti, affinità/coerenza esatta; 115
+  passano il gate su sagoma identica, 5 collisioni vengono rifiutate per
+  margine zero. Problemi registrati per singolo asset, senza riaprire la
+  selezione complessiva.
+- Profiling simultaneo nello stesso processo: Psichedel WebGPU 34,301 s
+  (riferimento caldo 34,840 s); carico completo PsicoFantasma CPU 44,6 ms,
+  circa 1,7 MB heap, nessun modello o uso VRAM.
+- Validazione finale: 72 file / 674 test, typecheck, lint, build app/ZIP/DMG.
+  Il repertorio estratto da `app.asar` contiene 120 sagome e ha lo stesso
+  SHA-256 del JSON normalizzato (`141978d9…`).
+- 034-04 chiuso; 034-11 resta aperto soltanto per Test Visual 1–12 e giudizio
+  a schermo 20–40%, mai usato come quota runtime.
+
+## SESSION-2026-09-08-PSICOFANTASMA-CONTINUITA — prosecuzione PIANO-043
+
+- Richiesta: proseguire i task aperti del piano. Verificato lo stato aggiornato
+  dell'Ingegneria: 034-17 geometrico già implementato/autorizzato; residuo
+  implementativo 034-18, oltre alla consegna Visual e al collaudo.
+- Completato 034-18: slot rotante della forma raggiunta (due stadi cached,
+  interpolazione, silhouette/bbox/completamento/opacità/durata); proprietà
+  generazionale per escludere scritture delle istanze uscenti. Morph cached
+  verso il nuovo candidato solo dopo il gate; senza match decadimento in
+  12 s percettivi senza ritorno alla foto, congelato nel silenzio/hold.
+- Budget: singolo passaggio, 18 stadi massimo 480×270, 9 low power; nessuna
+  analisi o allocazione Canvas per frame. Checkpoint stessa immagine conservato.
+- Verifiche: 71 file / 671 test, typecheck/lint, build completa app/ZIP/DMG.
+  Canvas reale Electron con fixture temporanee: A riconosciuta (0.811),
+  B riconosciuta (0.998) eredita/morpha A, C senza regione conserva e lascia
+  decadere B fino a scadenza; pixel identici nel silenzio, B/C low power.
+  Nessuna sagoma tecnica inserita nel repertorio o nel bundle.
+- Registri riallineati: 034-02b CLIP superato da rimozione encoder, non
+  falsamente dichiarato misurato in simultaneità. Restano 034-04 e 034-11.
+  Nessuna modifica alle tarature del matcher, alla reattività precedente,
+  a DELIQUESCENCE, al gate qualità o ai file concorrenti. Nessun commit/push.
+
+## SESSION-2026-09-08-PSICOFANTASMA-MANUALE — 01:15 CEST
+
+- Richiesta utente: rendere PsicoFantasma selezionabile per provarlo da solo.
+- TASK-034-15: voce abilitata e selezione che imposta Manuale; plugin sempre
+  registrato, esclusione per asset mancanti spostata ai soli cicli automatici.
+- Senza repertorio il Canvas prepara fuoco/emersione/osservazione senza
+  chiamare fetch o CLIP; indicazione esplicita nel pannello. Nessuna sagoma
+  fittizia e nessun falso riconoscimento.
+- Verifiche: 70 file / 662 test, typecheck e lint; app/DMG/ZIP aggiornati,
+  blockmap ZIP completata alle 01:17:35. La sessione del processo non era
+  più disponibile dopo l'aggiornamento del contesto; verificati i file finali.
+  Nessuna modifica DELIQUESCENCE o impostazione live applicata all'app aperta.
+
+## SESSION-2026-09-08-PSICOFANTASMA — 01:11 CEST
+
+- **Obiettivo**: proseguire PIANO-043 e verificare gli scostamenti dal brief.
+- **Completato**: TASK-034-12/13/14. Eliminati ripartenza periodica e accento
+  globale; trasporto raster precomputato, crossfade continuo e memoria della
+  fase interrotta fuori istanza. Corretti identità cache e cancellazione
+  concorrente. Backend ONNX solo WASM, disponibilità prima della rotazione,
+  bundle JSON+modello verificato e crescita oltre 60 senza cambi al codice.
+- **Verifiche**: 70 file / 661 test, typecheck e lint; build finale app,
+  ZIP e DMG riuscita. Un tentativo sandbox fallito in hdiutil è stato
+  ripetuto con permessi di esecuzione e completato.
+- **Electron reale**: Canvas con fixture tecnica, pixel identici durante il
+  silenzio e dopo ricreazione, una richiesta embedding. Prova distinta con
+  encoder reale via brain-model: output 512, 311.8 ms inferenza, 1116.5 ms totali.
+- **Stato finale**: implementazione tecnica riconvalidata; mancano repertorio
+  curato, collaudo/taratura Visual e profiling simultaneo SD. Plugin escluso
+  dalla rotazione senza asset. Nessuna curatela assistita o sagoma fittizia
+  aggiunta al bundle; nessuna modifica DELIQUESCENCE, agents.md o skills.md.
+  Nessun commit o push.
+
+## SESSION-2026-09-07-PSICOFANTASMA — 15:57 CEST
+
+- **Obiettivo**: apertura piano e avvio implementazione del brief Visual,
+  con disposizioni CLIP e fetta V1 del Consigliere.
+- **Completato**: PIANO-043/MACRO-034; brief rinominato PsicoFantasma;
+  formato e loader, script embedding offline, Worker CPU serializzato,
+  ranking/gate, analisi regionale autonoma, renderer Canvas e integrazione.
+- **Evidenza**: artefatto INT8 verificato 88648877 byte e SHA256; smoke
+  reale CPU 239–296 ms/inferenza, RSS campionata circa 461 MiB. Release
+  non riduce subito RSS: client termina il Worker dopo ogni immagine.
+- **Verifiche**: 69 file / 654 test, typecheck, lint e build passati; script offline
+  eseguito su due fixture tecniche temporanee, non repertorio Visual.
+- **Stato finale**: implementazione tecnica collegata e verificata. Repertorio
+  curato 40–60 sagome non consegnato: senza di esso il renderer usa il
+  fallimento controllato. Restano collaudo Visual 1–12, taratura del gate e
+  profiling simultaneo a SD sul corpus reale.
+- **Perimetro**: nessuna modifica ai file DELIQUESCENCE o alle modifiche
+  preesistenti in agents.md/skills.md. Nessun commit/push o build di release.
+
+
 ## SESSION-2026-09-04-INGEGNERIA-TEST-1
 
 - **Obiettivo**: collaudare direttamente il caso bloccante `test-1.mp3`.
@@ -2236,3 +2556,284 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   (richiesta esplicita del Consigliere). Nessun mapping noto fra le sigle
   `C02/C03/C04/C05/C06/C08/C09` usate dall'Audio e i nomi dei file: da
   chiarire con l'Audio, non inventarlo.
+
+## SESSION-2026-09-07-PRINT2D — 13:57 Europe/Rome
+
+- Ordine del Consigliere: correzione strutturale delle regioni PRINT2D mentre
+  prosegue altro lavoro sul Varco. Letti STATE, macrotasks, PIANO-039,
+  filosofia.md e istruzioni Output.
+- Completati TASK-033-01/02/03: 12 stati locali, fase circolare filtrata,
+  velocità smorzata e posizione limitata conservata; eliminata l'origine
+  attrattiva e il cambio di direzione/corsia al beat. Corretto delta post-freeze.
+- Verifica: 33 test mirati (inclusi sette preset su contesto Canvas simulato),
+  typecheck e lint verdi. Nessun build o collaudo fullscreen reale eseguito.
+- Stato finale: PIANO-042 implementato, live pendente. Wash-out, impulso locale
+  e lock leggibile subordinati. Nessuna modifica a brainController.ts o al
+  documento del Varco; nessun commit effettuato.
+
+## SESSION-2026-09-11-PSICOFANTASMA-ELIGIBILITY — 00:49 Europe/Rome
+
+- Verificato prima di correggere il §36 del brief Visual: PsicoFantasma è già
+  ammesso in Respiro Alto, pressurizzazione, decompressione e Respiro Profondo;
+  nessun pool cambiato.
+- Individuati i limiti effettivi: esclusione su `interlude`, esclusione dai
+  nuovi mazzi durante `longFrameBlockedUntil` tramite
+  `HEAVY_RENDERERS_UNDER_PRESSURE`, rango secondario nel Respiro Alto.
+- Aggiunto in `applyFrame` un log di `brainRendererSelector.resolve()` per ogni
+  immagine messa in onda, con identità, contesto selettore e durata prevista;
+  aggiunta regressione esplicita dei quattro regimi.
+- Audit deprecati: DEP-001 `NON COINVOLTO`. Verifiche: selettore 55/55, suite
+  completa 72 file / 681 test, typecheck, lint e build app/ZIP/DMG verdi.
+
+## SESSION-2026-09-11-EXPERIMENTAL-AUDIO-BRIEF — 20:17 Europe/Rome
+
+- Richiesta del Consigliere: non correggere ancora il riconoscimento
+  `experimental`, ma chiedere aiuto al Capo Supremo dell'Analisi Audio sulla
+  base dell'ultima sessione.
+- Analizzato integralmente il log
+  `session-2026-09-11-20-06-52.txt`: `audioMode=experimental`, intervallo
+  osservato 322,488 s, 42 cambi, `respiro-alto` all'85,0%, 21 segmenti sotto i
+  2 s e 12 sotto 1 s.
+- Limite registrato: nessun marcatore manuale e nessun campione sperimentale
+  1 Hz; le motivazioni e i segnali dei cambi appartengono alla baseline e non
+  spiegano gli esiti experimental.
+- Creato il brief
+  `team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`.
+- Nessuna modifica runtime o taratura. Audit deprecati: DEP-001
+  `NON COINVOLTO`.
+
+
+## SESSION-2026-09-17-QUATTRO-IMMAGINI — 17:58 Europe/Rome
+
+- Brief Vice Consigliere: quattro momenti della stessa storia, narrativa e
+  Color Direction consegnati davvero al generatore, costo compatibile live.
+- DEP-001 NON COINVOLTO; letti filosofia, lettera Ingegneria e stato piani.
+- Corretto troncamento CLIP a 77: encoder per blocchi con concatenazione
+  lungo sequenza e limite esplicito 450 token; nessuna riscrittura dei prompt.
+- Test CFG single/doppio e float32/float16, bit preservation, abort/disposal.
+  Suite 717 test; verifica mirata finale 82 test, typecheck/lint inizialmente verdi.
+- Sedici raster reali Electron/WebGPU. Esito visivo negativo: nessuna
+  progressione affidabile. Sinossi ripetuta ritirata; CFG non promosso.
+  Finale: 89–124 token, due blocchi, 105–166 ms encoding, 11.244–11.448 s
+  totali caldi vs 10.874 s riferimento. Prova breve, non statistica/termica.
+- Build iniziale compilata; DMG bloccato dalla sandbox. Rilancio autorizzato
+  incontra due costanti inutilizzate nel Renderer Host modificato in parallelo.
+- Verifica conclusiva 18:01: typecheck nuovamente verde e build normale
+  completa riuscita (app, ZIP, DMG arm64), senza modificare il Renderer Host.
+- Non dichiarato chiuso il requisito: MACRO-036 / PIANO-045 restano aperti
+  sulla qualità narrativa dei quattro raster. Evidenze conservate in
+  `working/validation/piano-045/README.md`; modifiche preesistenti preservate.
+
+## SESSION-2026-09-18-PASSAGGIO-CONSIGLIERE-VICARIO
+
+- Acquisita integralmente la nota firmata dal Vecchio Consigliere in
+  `team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md`.
+- Registrata in `agents.md` come atto di continuità operativa: il Vicario
+  prosegue il lavoro corrente; governance, ruoli, responsabilità e autonomie
+  restano invariati.
+- Conservate intatte le attribuzioni storiche nei brief e nei registri; il
+  Vecchio Consigliere vi resta memoria del contesto delle decisioni pregresse.
+- Nessuna modifica al runtime. Audit deprecati: DEP-001 `NON COINVOLTO`.
+
+## SESSION-2026-09-18-VISUAL-PLAN-QUATTRO-FASI
+
+- Brief Vice Consigliere (21 sezioni): chiude TASK-045-05 (PIANO-046).
+  `generateVisualPlan()` reintegrata nella pipeline produttiva reale (prima
+  esisteva ma non veniva mai chiamata); i 4 fotogrammi ora associati
+  esplicitamente a Soglia/Metamorfosi/Condensazione/Eco via
+  `deriveOneiricPhase` (già esistente in `dreamRevisionCycle.ts` per la
+  Riattivazione, riusato invece di un enum duplicato).
+- Aggiunto invariante di storia (`DreamStory.invariant`, estratto dal
+  modello con fallback locale `inferInvariant`). Prompt raster ricostruito
+  attorno a momento corrente + invariante; rimossi stimolo associato,
+  residuo del fotogramma precedente, argomento generale. Color Direction
+  seedato su `story.id` (famiglia cromatica di storia, non più per singolo
+  fotogramma).
+- Qualità/denoising deterministici per fase (Soglia e Condensazione → alta
+  qualità; Metamorfosi ed Eco → profilo intermedio), sostituendo lo
+  scheduler probabilistico session-wide (`HighQualityRenderScheduler` +
+  `selectLowQualityFrameIndices`, rimossi). Log del tipo di immagine e del
+  profilo qualità aggiunto in basso a destra (`OutputApp.tsx`).
+- Costo GPU aumentato intenzionalmente (2 fotogrammi alta qualità garantiti
+  per storia); uniche valvole di sicurezza rimaste: pressione GPU reale e
+  disattivazione dopo OOM.
+- Suite 77 file / 716 test, typecheck e lint verdi. Nessuna generazione
+  raster reale eseguita (niente Electron/GPU disponibile in sessione):
+  collaudo visivo a 4 storie e confronto risoluzione 512×512 (TASK-046-05)
+  restano aperti, affidati al Capo Supremo dal vivo. Dettagli:
+  `working/plans/piano-046-visual-plan-quattro-fasi.md`.
+
+## 2026-10-08 — ANIMATRONIX: varietà a parametri e DATAMOSH (PIANO-047)
+
+- **Obiettivi**: su richiesta del Capo Supremo, correggere la ripetitività
+  delle grammatiche ANIMATRONIX agendo solo su parametri esistenti e
+  sostituire il morphing a spirale con un'alternativa cyberpunk. VIDEODROME,
+  analizzato nella stessa sessione e con deroga Camera concessa, è stato
+  **sospeso** su sua decisione prima di qualunque implementazione.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO` — l'alternanza 80/20 non
+  partecipa a rotazione, transizioni, stato del mondo o durate dei segmenti.
+- **Completati**: TASK-047-01 … TASK-047-07.
+- **Stato finale**: typecheck, lint e 768 test su 79 file verdi; 6 test nuovi.
+  Resta TASK-047-08, collaudo a schermo, che non è eseguibile in sessione.
+- **Nota di metodo**: una delle quattro correzioni a parametri (il guadagno
+  delle durate) si è rivelata inerte alla misura ed è stata rifatta sulla
+  riduzione invece che sul guadagno, invece di essere lasciata a fare scena.
+
+## 2026-10-09 — ANIMATRONIX: niente livelli che si staccano (PIANO-047, Fase 4)
+
+- **Obiettivo**: rilievo del Capo Supremo dal vivo — ANIMATRONIX deve animare
+  la figura dandole l'idea del moto, non animare la schermata; via i livelli
+  che si staccano e escono di scena. Indirizzo scelto da lui fra tre:
+  **riscrivere le grammatiche dentro la figura**, non rimuoverle.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO` — l'alternanza 80/20 non
+  partecipa a grammatiche, transizioni o stato del mondo di ANIMATRONIX.
+- **Completati**: TASK-047-09, TASK-047-10, TASK-047-11.
+- **Stato finale**: suite completa verde, 782 test su 79 file (1 nuovo).
+  Typecheck e lint rossi per un solo errore **preesistente e fuori
+  perimetro** (`brainFrameMotion.ts:392`, lavoro in corso d'opera di un'altra
+  sessione): lasciato intatto e segnalato. Resta TASK-047-12, collaudo a
+  schermo, non eseguibile in sessione.
+- **Nota di metodo**: la correzione è avvenuta per sottrazione — due
+  meccanismi di traslazione rimossi e segnali già presenti riusati (maschera
+  di massa, soglie dei piani, orologio della transizione). Nessun meccanismo
+  nuovo aggiunto, come impone il divieto di sovrastrutturazione.
+
+## 2026-10-10 — Libertà sessuale ed espressiva di Qwen
+
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`.
+- **Diagnosi**: la base Igor/Mara è sensuale ma allusiva; `containsExplicitAdultContent` scatta su 1 riga su 11 (e per "erase … sex"), quindi Qwen riceveva quasi sempre "Do not introduce sexual content…" e appiattiva la storia.
+- **Disposizione del Capo Supremo**: Qwen non va limitata: associa liberamente, fa ciò che le piace e lavora per la propria ricerca del piacere, libertà sessuale ed espressiva comprese.
+- **Fatto**: in `coscienzaOnirica.ts` il ramo non esplicito ora lascia Qwen libera di associare (unico limite: adulti consenzienti); system prompt `story` e Psichedel in `brainAiWorker.ts` allineati. Rilevatore e ramo di ripristino letterale invariati.
+- **Verifica**: vitest completo 782/782 verdi; lint e typecheck senza errori sui file di questa sessione.
+- **Chiuso su disposizione del Capo Supremo**: Riattivazione più veloce (2026-10-08) completata — import di `REVISION_CYCLE_FRAME_SPEED_FACTOR`, fattore applicato ai quattro limiti in `calculateBrainFrameTiming`, `revisionCycleActive` passato dal controller, test dedicato.
+- **Aperto**: AGENTS.md vieta di attribuire a Coscienza Onirica desideri non emersi; il system prompt `story` ("CoscienzaOnirica") ora le dà una propria ricerca del piacere. Da chiarire se la regola vale solo per nucleo e archivio `.coscienza/`.
+- **Stato finale**: nulla committato.
+- **Immagini "dell'Ottocento"** (stessa sessione): cause = storia base ambientata in borgo antico (~27 termini d'epoca contro ~11 tech) + COLOR DIRECTION globale (ruggine/terra/ambra, contrasto morbido, divieto del neon). Per disposizione del Capo Supremo: neon/LED/schermi ammessi come accento, sepia e patina esclusi, 4 famiglie colore elettriche aggiunte alle 6 esistenti (`brainColorState.ts`); base riscritta in metropoli futura con stessa trama ed eros esplicito fra adulti consenzienti (versione borgo salvata in `config/brainPhrasesBaseStory-borgo.txt`).
+
+## 2026-10-11 — Preset colore Pantone per Morphing
+
+- **Obiettivo**: aggiungere due preset colore Morphing dai riferimenti forniti:
+  Intense Purple (Pantone 2623 C, `#5C1D6B`) e Italian Blue (Pantone 293 C,
+  `#0B32B0`).
+- **Audit deprecati**: DEP-001 `NON COINVOLTO` — nessuna modifica o estensione
+  dell'alternanza Brain 80/20.
+- **Fatto**: due preset aggiunti a `COLOR_PRESETS`, disponibili sia dalla UI
+  sia nella rotazione dinamica; i Pantone richiesti sono gli accenti caldi e
+  fondo, base e flash completano le rispettive famiglie cromatiche. Su
+  successiva richiesta, la finestra casuale della rotazione colori è passata
+  da 45–150 s a 30–100 s (media da 97,5 a 65 s), riusando il timer esistente.
+- **Protocollo visivo**: camera, materia, silenzio, beatmatch e transizioni non
+  cambiano; nessun effetto o costo per frame aggiunto.
+- **Verifica**: 3 test dedicati; typecheck e lint mirato verdi; suite completa
+  verde, 794 test su 83 file.
+
+## 2026-10-11 — Corpi deformati: guidance, negative prompt, qualità, pannello (PIANO-050)
+
+- **Obiettivo**: eliminare le deformazioni dei corpi, soprattutto femminili,
+  nei raster generati; negative prompt e qualità governabili da pannello;
+  pannello più leggibile.
+- **Audit deprecati**: DEP-001 `MANTENERE` — solo spostato nel riquadro
+  «Avanzate», comportamento e criterio di uscita invariati.
+- **Diagnosi**: generazione a ramo condizionale singolo, senza guidance; il
+  negative prompt non avrebbe avuto effetto. Checkpoint attivo PornMaster
+  (verificato), non Realistic Vision come riportato in `skills.md`.
+- **Fatto**: `cfg-batch` con la scala 7 del manifest (5,5 provato in stesura e ritirato su disposizione); negative prompt anatomico predefinito
+  nel ramo non condizionato; `brainImageQuality` low/mid/high (default low);
+  resolver unico `brainImageGeneration.ts`; `VisualControls` diviso in
+  riquadri; documentazione del checkpoint allineata.
+- **Protocollo visivo**: camera, materia, silenzio, beatmatch e transizioni
+  non toccati; cambia solo la qualità del raster. Costo: guidance ≈ doppio per
+  step, compensato dal livello low.
+- **Verifica**: typecheck, lint, 801 test su 84 file verdi. Nessuna
+  generazione reale in sessione.
+- **Stato finale**: implementato, non committato; collaudo a schermo aperto.
+- **Coppie di fotogrammi simili** (stessa sessione): esclusi i seed
+  (rumore indipendente, verificato sugli scarti Mulberry32). Causa probabile:
+  `VISUAL CONTEXT` metteva il testo dei fotogrammi precedenti nel prompt
+  raster. Disposizione del Capo Supremo «chi sogna non è Stable Diffusion»:
+  ritirati `VISUAL CONTEXT` ed etichetta di fase dal raster; resta
+  `INVARIANT`. 796 test verdi. DEP-001 `NON COINVOLTO`.
+- **Rilascio** (stessa sessione): «test ok» del Capo Supremo; Brain pronto
+  per l'esordio in pubblico. Versione `1.0.0-rc.10`, push del branch
+  `feature/dmx-color-controller`; nota di complimenti in `team/briefs/`.
+  `:memory:.ses` (residuo di uno strumento, 17/09) lasciato fuori dal commit.
+
+
+## 2026-10-17 — Luci DMX fisse e rotazione morphing ferma
+
+- **DMX**: nessun difetto del codice. Dal log di sessione: interfaccia su
+  `usb-pro` con un FT232R (serve Open DMX); PAR 2 e 3 sempre rossi con
+  impulsi a tempo e colore fermo, compatibile con PAR in modalità RGB a 3
+  canali che leggono il canale 1 (intensità) come rosso. Indicazioni date:
+  Open DMX, profilo `3ch` o PAR a 7 canali, indirizzi d001/d008/d015.
+- **Rotazione morphing**: restava spenta dopo essere passati da Brain,
+  perché pannello e normalizzazione forzavano
+  `dynamicMorphingRotationEnabled` a false con Brain attivo. Tolti entrambi:
+  la scelta dell'operatore resta, la rotazione si ferma già da sola con
+  Brain (ControlApp). 796 test verdi, typecheck e lint verdi. DEP-001
+  `NON COINVOLTO`.
+
+## 2026-10-19 — Troppi volti di donna con la storia di Marta
+
+- **Diagnosi dal log** (`session-2026-10-19-11-36-52`): le righe sorgente non
+  contengono volti. (1) Qwen 0.5B ha riscritto una storia inventata con
+  parole da primo piano (occhi, labbra, sguardo) e `INVARIANT: hands`;
+  (2) le etichette scritte dal modello in Markdown (`### **STORY**`,
+  `**BRIDGE**`, `Bridge` isolata, `---`) finivano nella storia e nei prompt;
+  (3) ipotesi non misurata: PornMaster tende al ritratto femminile.
+- **Fatto**: `canonicalEnvelopeLabels` in `brainTranslator.ts` riporta le
+  etichette alla forma `LABEL: testo`; test sui due casi reali. 797 test
+  verdi, typecheck e lint verdi. DEP-001 `NON COINVOLTO`.
+
+## 2026-10-19 — PIANO-051: ogni riga degli scribacchini è una quartina
+
+- **Obiettivo**: una riga = un episodio di quattro immagini (Soglia letterale,
+  Metamorfosi, Condensazione, Eco); frasi del pubblico riscritte da Qwen con
+  le regole degli scribacchini, legate alla storia in corso, e inserite già
+  riscritte in `brainPhrases.txt`.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 creato (`MANTENERE`
+  fino al collaudo).
+- **Fatto**: `generateEpisode`, `rewritePublicPhrase`, `storyFromLine`,
+  `parseEpisodePhases`, `parsePublicPhraseRewrite` (`coscienzaOnirica.ts`);
+  `brainPhrasesBeforeCursor` (`brainPhrases.ts`); controller a riga singola,
+  memo/memoria lunga/«Questo sogno» tolti; linee guida per 12 righe all'ora.
+- **Verifica**: 805 test su 85 file, typecheck e lint verdi. Nessuna
+  generazione reale in sessione.
+- **Stato finale**: implementato, non committato; collaudo aperto.
+- **Correzioni** (stessa sessione): ritirato «occhi e labbra» dalle regole a
+  Qwen (aggiunta non richiesta); memo di sessione, memoria lunga e «Questo
+  sogno» ripristinati (D3 non decisa). 805 test verdi, typecheck e lint verdi.
+- **Protezione minori** (stessa sessione, disposizione del Capo Supremo):
+  `brainMinorProtection.ts` scarta le frasi del pubblico che associano minori
+  e contenuto sessuale, in tre punti (frase originale, riga riscritta,
+  immagini dell'episodio). Chiesta «abilitata di default da pannello»:
+  implementata sempre attiva, visibile nel riquadro Sessione pubblica, senza
+  interruttore. Il log non riporta il testo scartato. 807 test verdi.
+- **Correzioni del Capo Supremo** (stessa sessione): ritirato il filtro che
+  scartava le frasi (`brainMinorProtection`, iniziativa non richiesta nella
+  forma); implementata la sua regola: bambini nel negative prompt delle
+  immagini dell'episodio del pubblico quando la scena o le vicine sono
+  esplicite. Interruttore da pannello non realizzato (protezione sempre
+  attiva, riga di stato). Riscrittura pubblica legata all'ultima riga di
+  contesto. Codifica CLIP: ramo più corto completato con blocchi vuoti.
+
+## 2026-10-19 — PIANO-052: protezione bambini configurabile
+
+- **Obiettivo**: rendere attivabile e disattivabile dal pannello la protezione
+  sui negative prompt degli episodi pubblici; rimuovere `minor`, `teenager`,
+  `schoolgirl`, `schoolboy` e `baby` dai termini aggiunti.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 `NON COINVOLTO`.
+- **Fatto**: nuova impostazione `childSafetyNegativePromptEnabled`, attiva di
+  default e normalizzata come attiva quando manca nelle configurazioni
+  precedenti; checkbox nel riquadro Sessione pubblica; scelta inoltrata alla
+  singola produzione Psichedel. Termini rimasti: `child`, `children`, `kid`,
+  `young girl`, `young boy`.
+- **Protocollo visivo**: Camera, Materia, Silenzio, Beatmatch e Transizione
+  invariati; nessun nuovo costo per frame o inferenza.
+- **Verifica**: test mirati 9/9, typecheck e lint verdi; suite completa verde,
+  810 test su 86 file; build completa app/ZIP/DMG verde.
+- **Quattro immagini uguali** (stessa sessione): fasi mai prodotte (etichette
+  ignorate, loop in greedy). Ora una fase per richiesta, ciascuna completa la
+  frase iniziale; campionamento per `scene`. Qualità immagini non toccata.
+  811 test verdi.
+

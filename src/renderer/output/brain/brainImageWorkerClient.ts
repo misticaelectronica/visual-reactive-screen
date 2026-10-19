@@ -7,6 +7,12 @@ import type {
   BrainImageWorkerResponse,
 } from './brainImageWorkerProtocol'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
+import {
+  combinedNegativePrompt,
+  getBrainImageGenerationSettings,
+  resolveBrainImageGuidanceMode,
+  resolveBrainImageSteps,
+} from './brainImageGeneration'
 import type {
   ImageRenderMode,
   PsychedelImageGenerator,
@@ -26,18 +32,21 @@ export function createBrainImageGenerateRequest(
   mode: ImageRenderMode,
   requestedTimeoutMs: number,
   documentUrl: string,
+  // HYPNOTIC ZOOM ANNIDATO: sostituisce lo step count derivato da `mode`
+  // (`DreamStory.denoisingStepsOverride`, disp. Capo Supremo 2026-09-22).
+  stepsOverride?: number,
+  extraNegativePrompt?: string,
 ): BrainImageGenerateRequest {
   const renderingConfig = getBrainRenderingConfig()
   const locationUrl = new URL(documentUrl)
   const runtimeBase = new URL('.', locationUrl)
   runtimeBase.pathname = `${runtimeBase.pathname.replace(/\/+$/, '')}/ort-wasm/`
-  const steps = mode === 'high-quality'
-    ? renderingConfig.image.qualitySteps
-    : mode === 'enhanced'
-      ? renderingConfig.image.enhancedSteps
-      : mode === 'interlude'
-        ? renderingConfig.image.interludeSteps
-        : renderingConfig.image.standardSteps
+  const generationSettings = getBrainImageGenerationSettings()
+  const steps = stepsOverride ?? resolveBrainImageSteps(
+    mode,
+    generationSettings.quality,
+    renderingConfig.image,
+  )
   const inferenceGeometry = mode === 'high-quality'
     ? { width: renderingConfig.image.width, height: renderingConfig.image.height }
     : mode === 'enhanced'
@@ -59,6 +68,11 @@ export function createBrainImageGenerateRequest(
     inferenceWidth: inferenceGeometry.width,
     inferenceHeight: inferenceGeometry.height,
     steps,
+    guidanceMode: resolveBrainImageGuidanceMode(mode),
+    negativePrompt: combinedNegativePrompt(
+      extraNegativePrompt,
+      generationSettings.negativePrompt,
+    ),
   }
 }
 
@@ -85,9 +99,14 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
     seed: number,
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
+    stepsOverride?: number,
+    extraNegativePrompt?: string,
   ): Promise<GenerationResult> {
     if (this.destroyed || !this.worker) {
       return Promise.reject(new Error('Psichedel è stato arrestato'))
+    }
+    if (!prompt.trim()) {
+      return Promise.reject(new Error('generazione immagine worker rifiutata: prompt vuoto'))
     }
     const id = `image-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const request = createBrainImageGenerateRequest(
@@ -97,11 +116,14 @@ export class BrainImageWorkerClient implements PsychedelImageGenerator {
       mode,
       timeoutMs,
       window.location.href,
+      stepsOverride,
+      extraNegativePrompt,
     )
     brainLog('psichedel-image', 'inferenza inviata al worker ONNX', {
       id,
       mode,
       steps: request.steps,
+      guidance: request.guidanceMode,
       inference: `${request.inferenceWidth}x${request.inferenceHeight}`,
     })
     return new Promise<GenerationResult>((resolve, reject) => {

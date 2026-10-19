@@ -4,9 +4,16 @@ Questa cartella contiene i file modificabili senza ricompilare l'applicazione.
 
 ## `brainPhrases.txt`
 
-È il file attivo letto da Brain prima di generare ogni nuova storia.
+È il file attivo letto da Brain prima di generare ogni nuova storia. A ogni
+avvio dell'app viene ripristinato da `brainPhrasesBaseStory.txt`.
 
-- una frase per riga;
+**Una riga = un episodio di quattro immagini** (PIANO-051): la riga, alla
+lettera, è la prima immagine; Brain scrive le altre tre fasi (metamorfosi,
+condensazione, eco). Finite le righe, ricomincia dalla prima. Le frasi della
+Sessione pubblica entrano già riscritte come righe della storia. Come
+scrivere le righe: [`docs/linee-guida-storie-brain.md`](../docs/linee-guida-storie-brain.md).
+
+- una scena per riga;
 - righe vuote ignorate;
 - righe che iniziano con `#` considerate commenti;
 - almeno una frase valida obbligatoria.

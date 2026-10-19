@@ -9,6 +9,22 @@ import {
 } from './brainTranslator'
 import { extractJsonObjects } from './extractJsonObjects'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
+import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
+
+// Funzione di ciascuna fase onirica nel Visual Plan (lettera Vice
+// Consigliere §2): non 4 atti narrativi equivalenti, ma 4 stati della
+// stessa immagine mentale, ciascuno con un criterio qualitativo e un
+// rapporto diverso con l'invariante della storia.
+const ONEIRIC_PHASE_BRIEF: Record<OneiricPhase, string> = {
+  soglia:
+    'Found the imaginative field: introduce the invariant in a stable, legible configuration strong enough to be transformed later. It does not need to explain the whole story, only to establish it.',
+  metamorfosi:
+    'Transform the invariant introduced in the threshold moment: keep a recognizable relation to it, but change its form, relation, material, space or meaning, and make the transformation already visibly in progress.',
+  condensazione:
+    'Reach the point of maximum conceptual density of the story: the invariant and its transformation reach their most significant configuration. It can be visually simple; never confuse density with mere complexity, noise or spectacle.',
+  eco:
+    'Return something recognizable from the threshold moment, deformed by what has happened since: memory plus deformation, not a fresh independent fourth scene.',
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -259,6 +275,38 @@ type StoryCore = {
   synopsis: string
   bridge: string | null
   palette: DreamStory['palette']
+  invariant: string
+}
+
+const INVARIANT_HINT_TERMS =
+  /\b(?:corpo|volto|mani|occhi|specchio|porta|albero|radici|luce|ombra|segnale|voce|mappa|chiave|filo|acqua|pietra|maschera|body|face|hands|eyes|mirror|door|tree|roots|light|shadow|signal|voice|map|key|thread|water|stone|mask)\b/iu
+
+/**
+ * Rete di sicurezza quando il modello non produce la riga INVARIANT/E: un
+ * sostantivo concreto ricorrente nella sinossi o nelle frasi sorgente, non
+ * un tema astratto (quello resta compito di `inferMainArgument`).
+ *
+ * Restituisce stringa vuota quando non lo trova, e NON tira a indovinare
+ * (correzione 2026-10-08). Le due vie precedenti producevano entrambe un
+ * invariante falso, e l'invariante non è un campo di servizio: viene
+ * riattaccato come `Invariant: ...` a tutti e quattro i prompt raster
+ * (`buildPsychedelImagePrompt`) ed è dichiarato al Visual Plan come la cosa
+ * che deve restare riconoscibile attraverso i quattro momenti.
+ *   - la prima parola della sinossi lunga almeno 5 lettere non è un
+ *     sostantivo: su una sinossi inglese reale del corpus di validazione
+ *     restituiva `stands`, cioè un verbo, ripetuto quattro volte;
+ *   - il ripiego finale era la stringa italiana `una presenza ricorrente`,
+ *     che finiva in un prompt inglese dentro CLIP. Era però raggiungibile
+ *     solo con una sinossi priva di parole di 5 lettere, quindi quasi mai:
+ *     il difetto che si vedeva dal vivo era il primo, non questo.
+ * A valle la stringa vuota è già gestita: `buildPsychedelImagePrompt`
+ * aggiunge la riga solo se l'invariante non è vuoto, e `generateVisualPlan`
+ * omette la propria riga. Meglio nessun invariante che uno inventato.
+ */
+export function inferInvariant(source: readonly string[], synopsis: string): string {
+  const text = `${synopsis} ${source.join(' ')}`
+  const hinted = text.match(INVARIANT_HINT_TERMS)?.[0]
+  return hinted ? hinted.toLocaleLowerCase() : ''
 }
 
 const BRIDGE_STOP_WORDS = new Set([
@@ -305,13 +353,13 @@ function storyCoreFromResponse(
   const labeledSynopsis = labeledBlock(
     cleaned,
     'STORIA',
-    ['LEGAME', 'COLORI', 'F1-TITOLO', 'F1'],
+    ['LEGAME', 'COLORI', 'INVARIANTE', 'F1-TITOLO', 'F1'],
   )
   const looseSynopsis =
     !labeledSynopsis && titleMatch?.index !== undefined
       ? cleaned
           .slice(titleMatch.index + titleMatch[0].length)
-          .split(/^(?:LEGAME|COLORI):/im)[0]
+          .split(/^(?:LEGAME|COLORI|INVARIANTE):/im)[0]
           .replace(/^STORIA:\s*/i, '')
           .trim()
       : null
@@ -330,18 +378,26 @@ function storyCoreFromResponse(
     synopsisWords.filter((word) => !sourceWords.has(word)).length / Math.max(1, synopsisWords.length)
   if (copiedPhraseCount >= 2 && novelWordRatio < 0.18) return null
   const bridge = requiredText(
-    labeledBlock(cleaned, 'LEGAME', ['COLORI', 'F1-TITOLO', 'F1']),
+    labeledBlock(cleaned, 'LEGAME', ['COLORI', 'INVARIANTE', 'F1-TITOLO', 'F1']),
     6,
+  )
+  const invariant = requiredText(
+    labeledBlock(cleaned, 'INVARIANTE', ['F1-TITOLO', 'F1']),
+    1,
   )
   return {
     title: title.slice(0, 100),
     synopsis: synopsis.slice(0, 1_200),
     bridge: bridge?.slice(0, 420) ?? null,
-    palette: paletteFromUnknown(labeledBlock(cleaned, 'COLORI', ['F1-TITOLO', 'F1'])),
+    palette: paletteFromUnknown(labeledBlock(cleaned, 'COLORI', ['INVARIANTE', 'F1-TITOLO', 'F1'])),
+    invariant: invariant?.slice(0, 120) ?? inferInvariant(phrases, synopsis),
   }
 }
 
-function storyCoreFromEnglishEnvelope(text: string): StoryCore | null {
+function storyCoreFromEnglishEnvelope(
+  text: string,
+  phrases: readonly string[] = [],
+): StoryCore | null {
   const title = requiredText(
     labeledBlock(text, 'TITLE', ['STORY']),
     1,
@@ -351,15 +407,20 @@ function storyCoreFromEnglishEnvelope(text: string): StoryCore | null {
     20,
   )
   if (!title || !synopsis || !isRenderableNarrative(synopsis)) return null
+  const invariant = requiredText(
+    labeledBlock(text, 'INVARIANT', []),
+    1,
+  )
   return {
     title: title.slice(0, 100),
     synopsis: synopsis.slice(0, 1_200),
     bridge:
       requiredText(
-        labeledBlock(text, 'BRIDGE', ['COLORS']),
+        labeledBlock(text, 'BRIDGE', ['COLORS', 'INVARIANT']),
         5,
       )?.slice(0, 420) ?? null,
-    palette: paletteFromUnknown(labeledBlock(text, 'COLORS', [])),
+    palette: paletteFromUnknown(labeledBlock(text, 'COLORS', ['INVARIANT'])),
+    invariant: invariant?.slice(0, 120) ?? inferInvariant(phrases, synopsis),
   }
 }
 
@@ -467,6 +528,7 @@ function fallbackUiCore(phrases: readonly string[]): StoryCore {
     synopsis,
     bridge: `${lastPhrase.replace(/[.!?]$/u, '')} apre un dettaglio inatteso oltre la soglia successiva.`,
     palette: [...DEFAULT_DREAM_PALETTE],
+    invariant: inferInvariant(phrases, synopsis),
   }
 }
 
@@ -500,6 +562,7 @@ export function storyFromCore(core: StoryCore, phrases: string[]): DreamStory {
     palette: core.palette,
     sourcePhrases: phrases,
     mainArgument: inferMainArgument(phrases, core.synopsis),
+    invariant: core.invariant,
     frames: moments.map((description, index) => ({
       id: `frame-${index + 1}`,
       title: labels[index],
@@ -588,6 +651,8 @@ type StoryGenerationOptions = {
   continuitySeed?: string | null
   recentBridges?: readonly string[]
   consciousnessInfluence?: ConsciousnessMotionCandidate | null
+  /** Opzione di emergenza dal pannello; di default il modello è libero. */
+  preserveExplicitSource?: boolean
 }
 
 export function bridgeIsNew(
@@ -683,8 +748,182 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
     mainArgument:
       requiredText(data.mainArgument, 3)?.slice(0, 160) ??
       inferMainArgument(phrases, synopsis),
+    invariant:
+      requiredText(data.invariant, 1)?.slice(0, 120) ??
+      inferInvariant(phrases, synopsis),
     frames,
   }
+}
+
+/**
+ * PIANO-051 (disp. Capo Supremo 2026-10-19): ogni riga degli scribacchini è
+ * un episodio di quattro immagini. La riga, alla lettera, è la Soglia; Qwen
+ * scrive Metamorfosi, Condensazione ed Eco, una fase per richiesta. Ogni
+ * immagine è una fase del sogno e insieme completa la frase iniziale con
+ * altri elementi della stessa scena (disposizione del 2026-10-19).
+ */
+export type EpisodePhaseLines = [string | null, string | null, string | null]
+
+const EPISODE_PHASES = [
+  {
+    name: 'METAMORPHOSIS',
+    brief: 'something from image 1 changes form, place or function and is still recognizable',
+  },
+  {
+    name: 'CONDENSATION',
+    brief: 'the densest moment: the elements of images 1 and 2 overlap in a single image',
+  },
+  {
+    name: 'ECHO',
+    brief: 'image 1 returns, deformed by what happened in images 2 and 3',
+  },
+] as const
+const EPISODE_LINE_MIN_WORDS = 10
+const EPISODE_LINE_MAX_WORDS = 45
+
+// Regole degli scribacchini (docs/linee-guida-storie-brain.md), date a Qwen
+// sia per le fasi sia per le frasi del pubblico. Nessun filtro: il contenuto
+// non si ammorbidisce (disposizione del Capo Supremo 2026-10-19).
+function scribeRules(preserveExplicit: boolean): string[] {
+  return [
+    'Rules for every line: 15-30 English words; one concrete visible scene; the same named person; one place; one gesture or action; light and materials.',
+    'Show the body through posture and gesture, never through feelings. Wide framing: no close-ups of hands or fingers.',
+    'Use only words that can be seen: no abstract concepts, quotations, negations, memories or time jumps.',
+    'Do not censor, soften or euphemize anything. If sexual content appears, every person involved is an adult.',
+    ...(preserveExplicit
+      ? ['Preserve the explicit physical actions literally, without euphemisms or symbolism.']
+      : []),
+  ]
+}
+
+function contextBlock(label: string, context: readonly string[]): string[] {
+  const lines = context.map((line) => line.trim()).filter(Boolean)
+  return lines.length > 0 ? [`${label}:\n${lines.map((line) => `- ${line}`).join('\n')}`] : []
+}
+
+export function buildEpisodePhasePrompt(
+  line: string,
+  phaseIndex: 0 | 1 | 2,
+  written: readonly string[] = [],
+  context: readonly string[] = [],
+  preserveExplicit = false,
+): string {
+  const phase = EPISODE_PHASES[phaseIndex]
+  const imageNumber = phaseIndex + 2
+  return [
+    'A dream scene is told in four images, one sentence per image.',
+    `IMAGE 1 (THRESHOLD): ${line}`,
+    ...written.map((text, index) => `IMAGE ${index + 2} (${EPISODE_PHASES[index].name}): ${text}`),
+    ...contextBlock('STORY SO FAR', context),
+    `Write IMAGE ${imageNumber} (${phase.name}): ${phase.brief}.`,
+    'It must also complete the sentence of image 1: keep its person and its place, and add new concrete elements of the same scene that image 1 does not show (objects, materials, light, other people, other parts of the place).',
+    ...scribeRules(preserveExplicit),
+    `Write only the sentence for image ${imageNumber}, on one line.`,
+  ].join('\n')
+}
+
+export function buildPublicPhraseRewritePrompt(
+  phrase: string,
+  context: readonly string[] = [],
+  preserveExplicit = false,
+): string {
+  return [
+    'Rewrite an audience phrase as one line of the story in progress.',
+    `AUDIENCE PHRASE: ${phrase}`,
+    ...contextBlock('STORY IN PROGRESS', context),
+    'Keep everything the phrase says and shows. Link it to the main elements of the story in progress: its protagonist, its recurring object or material, its place.',
+    ...scribeRules(preserveExplicit),
+    'Return exactly one line beginning LINE:.',
+  ].join('\n')
+}
+
+function cleanedModelText(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/[*`#]/g, '')
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .join('\n')
+    .trim()
+}
+
+function firstLineOf(block: string | null): string | null {
+  return block?.split(/\r?\n/u).map((line) => line.trim()).find(Boolean) ?? null
+}
+
+function acceptableEpisodeLine(line: string | null): string | null {
+  if (!line) return null
+  const count = line.split(/\s+/u).length
+  return count >= EPISODE_LINE_MIN_WORDS && count <= EPISODE_LINE_MAX_WORDS ? line : null
+}
+
+/** Prime frasi della riga entro il massimo di parole: un modello che si
+ * dilunga in un paragrafo resta utilizzabile per la sua prima scena. */
+function leadingSentences(line: string): string {
+  const sentences = line.match(/[^.!?]+[.!?]*/gu)?.map((sentence) => sentence.trim()) ?? [line]
+  let kept = ''
+  for (const sentence of sentences) {
+    const next = kept ? `${kept} ${sentence}` : sentence
+    if (next.split(/\s+/u).length > EPISODE_LINE_MAX_WORDS) break
+    kept = next
+    if (kept.split(/\s+/u).length >= EPISODE_LINE_MIN_WORDS) break
+  }
+  return kept || line
+}
+
+export function parseEpisodePhaseLine(
+  text: string,
+  alreadyUsed: readonly string[],
+): string | null {
+  const first = firstLineOf(cleanedModelText(text))
+    ?.replace(/^(?:IMAGE\s*\d+|METAMORPHOSIS|CONDENSATION|ECHO|THRESHOLD)\s*(?:\([^)]*\))?\s*:\s*/iu, '')
+    .replace(/^["“']+|["”']+$/gu, '')
+    .trim()
+  const line = acceptableEpisodeLine(first ? leadingSentences(first) : null)
+  if (!line) return null
+  const used = new Set(alreadyUsed.map(normalizedSentence))
+  return used.has(normalizedSentence(line)) ? null : line
+}
+
+export function parsePublicPhraseRewrite(text: string): string | null {
+  const cleaned = cleanedModelText(text)
+  return acceptableEpisodeLine(
+    firstLineOf(labeledBlock(cleaned, 'LINE', [])) ?? firstLineOf(cleaned),
+  )
+}
+
+/**
+ * Episodio da una riga: Soglia letterale, poi le tre fasi. Senza fasi valide
+ * la riga vale per tutte e quattro le immagini (seed diversi): nessun
+ * episodio perso. Nessun invariante nel prompt raster: ogni immagine riceve
+ * solo il proprio testo («chi sogna non è Stable Diffusion»).
+ */
+export function storyFromLine(line: string, phases: EpisodePhaseLines | null): DreamStory {
+  const source = line.trim()
+  // Fase non valida → al suo posto la Soglia (disp. Capo Supremo 2026-10-19).
+  const texts = [source, ...(phases ?? [null, null, null]).map((phase) => phase ?? source)]
+  const core = fallbackUiCore([source])
+  const story = storyFromCore(
+    // Testi uguali (riga ripetuta quando le fasi mancano) una sola volta.
+    { ...core, synopsis: [...new Set(texts)].map(completeSentence).join(' '), invariant: '' },
+    [source],
+  )
+  story.frames = story.frames.map((frame, index) => ({
+    ...frame,
+    description: texts[index],
+    imagePrompt: texts[index],
+    visualIntent: texts[index],
+  }))
+  return story
+}
+
+type EpisodeGenerationOptions = {
+  /** Righe che precedono, per il legame con la storia in corso. */
+  context?: readonly string[]
+  continuitySeed?: string | null
+  consciousnessInfluence?: ConsciousnessMotionCandidate | null
+  /** Opzione di emergenza dal pannello, per tutte le righe. */
+  preserveExplicitSource?: boolean
 }
 
 export class CoscienzaOnirica {
@@ -706,8 +945,13 @@ export class CoscienzaOnirica {
     const continuitySeed = options.continuitySeed?.trim() || null
     const recentBridges = options.recentBridges ?? []
     const consciousnessInfluence = options.consciousnessInfluence ?? null
-    const explicitSource = containsExplicitAdultContent(phrases.join(' '))
+    const explicitSourceDetected = containsExplicitAdultContent(phrases.join(' '))
+    // Ripristino e istruzione «alla lettera» solo con l'opzione di
+    // emergenza attiva (disp. Capo Supremo 2026-10-11); altrimenti il
+    // modello è libero anche con sorgenti esplicite.
+    const explicitSource = explicitSourceDetected && options.preserveExplicitSource === true
     let englishVisualMoments: string[] | null = null
+    let englishInvariant: string | null = null
     let englishDisplay: Pick<
       DreamStory,
       'englishTitle' | 'englishSynopsis' | 'englishBridge'
@@ -773,6 +1017,7 @@ export class CoscienzaOnirica {
       }
       story.continuityPhrase = continuitySeed
       if (englishDisplay) Object.assign(story, englishDisplay)
+      if (englishInvariant) story.invariant = englishInvariant
       if (englishVisualMoments?.length === story.frames.length) {
         story.frames.forEach((frame, index) => {
           frame.imagePrompt = englishVisualMoments?.[index]
@@ -803,7 +1048,8 @@ export class CoscienzaOnirica {
       sessionSynthesis,
       continuitySeed,
       recentBridges,
-      explicitSource,
+      explicitSource: explicitSourceDetected,
+      preserveExplicitSource: explicitSource,
       consciousnessInfluence: consciousnessInfluence
         ? {
             memoryId: consciousnessInfluence.memoryId,
@@ -867,30 +1113,42 @@ export class CoscienzaOnirica {
           `Provenance: ${consciousnessInfluence.kind}. Source memory: ${consciousnessInfluence.title}.`,
           `Influence: ${consciousnessInfluence.influenceText}`,
           `Reason: ${consciousnessInfluence.relevanceReason}.`,
-          'Let it change one concrete story element, one local visual form and the five-color palette.',
+          'Let it change one concrete story element and one local visual form.',
           'Keep it secondary and traceable. If provenance is imagination, never present it as an external fact.',
         ].join('\n')
       : 'No consciousness motion is active for this story.'
     const storyPrompt = [
-      'WRITE ONE STORY NOW. Output only the four requested lines.',
+      'WRITE ONE STORY NOW. Output only the five requested lines.',
       ...(this.translator
         ? ['Write the complete intermediate story in natural English.']
         : ['Think privately in English if useful. The visible answer must contain only natural Italian.']),
-      'STORY must contain 55-80 words in exactly 4-6 complete chronological sentences.',
-      'Use a named adult protagonist, one concrete place, an initiating event, conflict, transformation and conclusion.',
-      'Connect the source prompts causally. Never discuss or copy the instructions.',
+      // Brief del Vicario «Correzione della grammatica narrativa» (2026-10-11):
+      // tolti l'ordine cronologico rigido e la causalità obbligatoria.
+      'STORY must contain 55-80 words. Write 4-6 complete sentences as one continuous narrative. The sequence may use ellipsis and does not need to explain every connection.',
+      // Manuale di sceneggiatura kubrickiano, nota del Vicario (2026-10-11,
+      // team/briefs/manuale-sceneggiatura-kubrickiana-2026-10-11.md): la
+      // vecchia riga «named adult protagonist … initiating event, conflict,
+      // transformation and conclusion» diventava intestazioni nella storia.
+      // «Inside STORY» (disp. Capo Supremo 2026-10-11): il divieto di
+      // etichette vale dentro la storia, non per le righe del formato.
+      `Inside ${this.translator ? 'STORY' : 'STORIA'}, write one continuous narrative with no headings or labels. Build the story around a person in a concrete place and use a few strong visual situations. Let the story freely generate its characters, names and relationships. Each situation should visibly change a relationship between a person, object, body or place. Let motives and causes remain partly inferable. Do not explain themes or name narrative functions. End with a concrete image or action that changes the meaning of something seen earlier.`,
+      'Let connections between the source prompts emerge through events, association or partial causality. Some links may remain implicit. Never discuss or copy the instructions.',
       ...(explicitSource
         ? [
             'All participants are consenting adults. Preserve the explicit physical actions literally, without euphemisms or symbolism.',
           ]
         : [
-            'Do not introduce sexual content that is absent from the source prompts.',
+            // Libertà del 2026-10-10 nella forma della nota del Vicario
+            // (2026-10-11): l'adultità è un vincolo solo se compare
+            // materiale sessuale, non per tutta la generazione.
+            'Associate freely. Sex, tenderness, violence, humor, absurdity or other material may appear if the story leads there. If sexual content appears, every person involved must be an adult.',
           ]),
       recentStoryConstraint,
       continuityConstraint,
       synthesisConstraint,
       consciousnessConstraint,
-      'BRIDGE must be one new concrete open-ended sentence of 8-16 words. COLORS must be exactly five hexadecimal colors.',
+      'BRIDGE must be one new concrete open-ended sentence of 8-16 words.',
+      'INVARIANT must name one concrete recurring subject, body, shape or material from the story (2-6 words, a noun phrase, not a theme or emotion) that can persist and be transformed across the four visual moments.',
       ...(recentBridges.length > 0
         ? [
             `NEVER REPEAT THESE EARLIER BRIDGES:\n${recentBridges
@@ -907,10 +1165,14 @@ export class CoscienzaOnirica {
         : [
             `SOURCE INPUT PROMPTS (Italian or English; understand them directly):\n${narrativePhrases.map((phrase) => `- ${phrase}`).join('\n')}`,
           ]),
+      // COLORS non si chiede più (2026-10-11): la palette non entra nella
+      // generazione (filosofia.md §2.2) e il modello la scriveva nell'11%
+      // delle storie; i token liberati servono all'INVARIANT, l'ultima riga.
+      // Se il modello la scrive comunque, il parser la accetta.
       `Return exactly four lines. Line 1 starts with ${this.translator ? 'TITLE' : 'TITOLO'}:.`,
       `Line 2 starts with ${this.translator ? 'STORY' : 'STORIA'}: and contains the complete story.`,
       `Line 3 starts with ${this.translator ? 'BRIDGE' : 'LEGAME'}: and contains the outgoing bridge only.`,
-      `Line 4 starts with ${this.translator ? 'COLORS' : 'COLORI'}: and contains exactly five hexadecimal colors.`,
+      `Line 4 starts with ${this.translator ? 'INVARIANT' : 'INVARIANTE'}: and contains only the recurring noun phrase.`,
       'No markdown, headings, lists, notes, placeholders or extra fields.',
     ].join('\n')
     try {
@@ -988,17 +1250,29 @@ export class CoscienzaOnirica {
             'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
           )
         }
-        englishVisualMoments = englishSynopsis
-          ? splitIntoFourMoments(englishSynopsis)
-          : null
         englishDisplay = {
           englishTitle:
             labeledBlock(normalizedEnglishStory, 'TITLE', ['STORY']) ?? undefined,
           englishSynopsis,
           englishBridge:
-            labeledBlock(normalizedEnglishStory, 'BRIDGE', ['COLORS']) ?? null,
+            labeledBlock(normalizedEnglishStory, 'BRIDGE', ['COLORS', 'INVARIANT']) ?? null,
         }
-        englishCore = storyCoreFromEnglishEnvelope(normalizedEnglishStory)
+        englishCore = storyCoreFromEnglishEnvelope(normalizedEnglishStory, narrativePhrases)
+        if (englishSynopsis) {
+          const invariant = englishCore?.invariant
+            ?? inferInvariant(narrativePhrases, englishSynopsis)
+          englishInvariant = invariant
+          try {
+            englishVisualMoments = await this.generateVisualPlan(englishSynopsis, invariant)
+          } catch (visualPlanError) {
+            brainWarn(
+              'psichedel',
+              'visual plan non disponibile; uso la segmentazione meccanica come rete di sicurezza',
+              { error: visualPlanError },
+            )
+            englishVisualMoments = splitIntoFourMoments(englishSynopsis)
+          }
+        }
         if (normalizedEnglishStory !== coreText.replace(/[*`]/g, '').trim()) {
           brainLog(
             'coscienza',
@@ -1132,22 +1406,159 @@ export class CoscienzaOnirica {
     return memo
   }
 
-  async generateVisualPlan(story: DreamStory): Promise<VisualPlan> {
+  /**
+   * Progetta visivamente i 4 momenti PRIMA della generazione raster (lettera
+   * Vice Consigliere §4-§5): non 4 prompt quasi indipendenti, ma 4
+   * manifestazioni della stessa storia immaginativa, ciascuna con la
+   * funzione della propria fase onirica (`deriveOneiricPhase`, già usata
+   * dal ciclo di Riattivazione) e un rapporto esplicito con l'invariante.
+   */
+  async generateEpisode(
+    line: string,
+    options: EpisodeGenerationOptions = {},
+  ): Promise<DreamStory> {
+    const source = line.trim()
+    const preserveExplicit =
+      options.preserveExplicitSource === true && containsExplicitAdultContent(source)
+    // Una fase per richiesta: ogni richiesta riceve la Soglia e le fasi già
+    // scritte valide.
+    const phases: EpisodePhaseLines = [null, null, null]
+    for (const phaseIndex of [0, 1, 2] as const) {
+      const written = phases.slice(0, phaseIndex).map((phase) => phase ?? source)
+      try {
+        const response = await this.ai.generate(
+          'scene',
+          buildEpisodePhasePrompt(
+            source,
+            phaseIndex,
+            written,
+            options.context ?? [],
+            preserveExplicit,
+          ),
+          { maxNewTokens: 80, minNewTokens: 15 },
+        )
+        phases[phaseIndex] = parseEpisodePhaseLine(response, [source, ...written])
+        if (!phases[phaseIndex]) {
+          brainWarn('coscienza', 'fase dell’episodio rifiutata; al suo posto la soglia', {
+            line: source,
+            phase: EPISODE_PHASES[phaseIndex].name,
+            response: response.slice(0, 2_000),
+          })
+        }
+      } catch (error) {
+        if (error instanceof BrainAiCancelledError) throw error
+        brainWarn('coscienza', 'fase dell’episodio non disponibile; al suo posto la soglia', {
+          line: source,
+          phase: EPISODE_PHASES[phaseIndex].name,
+          error,
+        })
+      }
+    }
+    const story = storyFromLine(source, phases)
+    story.continuityPhrase = options.continuitySeed?.trim() || null
+    const influence = options.consciousnessInfluence ?? null
+    if (influence) {
+      story.palette = applyConsciousnessPalette(story.palette, influence)
+      story.consciousnessInfluence = {
+        memoryId: influence.memoryId,
+        kind: influence.kind,
+        title: influence.title,
+        relevanceReason: influence.relevanceReason,
+      }
+    }
+    brainLog('coscienza', 'episodio da una riga', {
+      line: source,
+      phasesFromModel: phases.map((phase) => phase !== null),
+      imagePrompts: story.frames.map((frame) => frame.imagePrompt),
+    })
+    return story
+  }
+
+  /**
+   * Frase del pubblico → una riga con le regole degli scribacchini, legata
+   * alla storia in corso. Se la riscrittura fallisce entra la frase tradotta:
+   * nessuna frase del pubblico va persa.
+   */
+  async rewritePublicPhrase(
+    phrase: string,
+    context: readonly string[] = [],
+    preserveExplicitSource = false,
+  ): Promise<string> {
+    const original = phrase.trim()
+    let english = original
+    try {
+      english = (await this.translator?.inputsToEnglish([original]))?.[0]?.trim() || original
+      await this.ai.releaseTranslationModels?.()
+    } catch (error) {
+      if (error instanceof BrainAiCancelledError) throw error
+      brainWarn('coscienza', 'traduzione della frase del pubblico non disponibile; uso il testo originale', {
+        error,
+      })
+    }
+    const preserveExplicit =
+      preserveExplicitSource && containsExplicitAdultContent(`${original} ${english}`)
+    try {
+      const response = await this.ai.generate(
+        'scene',
+        buildPublicPhraseRewritePrompt(english, context, preserveExplicit),
+        { maxNewTokens: 90, minNewTokens: 15 },
+      )
+      const rewritten = parsePublicPhraseRewrite(response)
+      if (rewritten) {
+        brainLog('coscienza', 'frase del pubblico riscritta come riga della storia', {
+          original,
+          english,
+          context,
+          rewritten,
+        })
+        return rewritten
+      }
+      brainWarn('coscienza', 'riscrittura della frase del pubblico rifiutata; entra la frase tradotta', {
+        original,
+        english,
+        response: response.slice(0, 2_000),
+      })
+    } catch (error) {
+      if (error instanceof BrainAiCancelledError) throw error
+      brainWarn('coscienza', 'riscrittura della frase del pubblico non disponibile; entra la frase tradotta', {
+        original,
+        english,
+        error,
+      })
+    }
+    return english
+  }
+
+  async generateVisualPlan(synopsis: string, invariant: string): Promise<VisualPlan> {
+    const frameCount = BRAIN_CONFIG.renderFrameCount
+    const phaseBriefs = Array.from({ length: frameCount }, (_value, index) => {
+      const phase = deriveOneiricPhase(index, frameCount)
+      return `VISUAL${index + 1} (${phase.toLocaleUpperCase()}): ${ONEIRIC_PHASE_BRIEF[phase]}`
+    })
+    // Invariante assente (`inferInvariant` non ha trovato un sostantivo
+    // concreto e non ne inventa uno): la riga viene omessa invece di
+    // dichiarare al modello un invariante vuoto o falso.
+    const invariantLine = invariant.trim()
     const prompt = [
-      'Convert the four Italian story moments into four concise English image prompts.',
+      'Design four English image prompts for the same imaginative story, one per visual moment.',
+      ...(invariantLine
+        ? [
+          `The invariant of this story is: ${invariantLine}. It is the concrete subject, shape or material that must stay recognizable while it is transformed across the moments.`,
+        ]
+        : []),
       'Each prompt must describe a concrete visible scene with one identifiable subject, one physical action, a coherent place and a clear camera view.',
       'Use literal nouns and observable actions. Prefer people, creatures, animals, plants or distinctive objects when present.',
-      'Do not discuss meaning, mood, artistic style, color, symbolism or the writing task.',
+      // Il colore non è più vietato: nessuna ingerenza cromatica sulla
+      // generazione (filosofia.md §2.2).
+      'Do not discuss meaning, mood, artistic style, symbolism or the writing task.',
       'Use 18-30 English words per line.',
       'Return exactly four lines beginning VISUAL1:, VISUAL2:, VISUAL3:, VISUAL4:.',
-      ...story.frames.map(
-        (frame, index) =>
-          `MOMENTO${index + 1}: ${frame.description}`,
-      ),
+      ...phaseBriefs,
+      `STORY: ${synopsis}`,
     ].join('\n')
-    brainLog('psichedel', 'interpretazione visiva inglese dei fotogrammi avviata', {
-      storyId: story.id,
-      frames: story.frames.map((frame) => frame.description),
+    brainLog('psichedel', 'visual plan avviato', {
+      invariant,
+      synopsis,
     })
     const response = await this.ai.generate('scene', prompt, {
       maxNewTokens: 240,
@@ -1155,16 +1566,12 @@ export class CoscienzaOnirica {
     })
     const plan = parseVisualPlan(response)
     if (!plan) {
-      brainWarn('psichedel', 'piano visivo inglese rifiutato', {
-        storyId: story.id,
+      brainWarn('psichedel', 'visual plan rifiutato', {
         response: response.slice(0, 3_000),
       })
       throw new Error('Psichedel non ha prodotto quattro descrizioni visive concrete')
     }
-    brainLog('psichedel', 'piano visivo inglese verificato', {
-      storyId: story.id,
-      plan,
-    })
+    brainLog('psichedel', 'visual plan verificato', { plan })
     return plan
   }
 }

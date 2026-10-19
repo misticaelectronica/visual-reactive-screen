@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { appendFile, readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { BrainConfigFileName } from '@shared/types'
 
@@ -71,22 +71,12 @@ export async function resetBrainPhrasesToBaseIfPossible(): Promise<void> {
 }
 
 /**
- * Una riga del CSV può contenere newline al suo interno (risposta
- * multi-riga del Form): se finisse così com'è dentro `brainPhrases.txt`,
- * il campionamento a riga (`parseBrainPhrases`) la spezzerebbe in più frasi
- * scollegate. Una riga del CSV deve restare una riga del file.
+ * BrainPhrasesBaseStory di Sessione (disp. Capo Supremo 2026-09-18): il
+ * renderer possiede il cursore della sequenza (`phraseCursor`) e decide
+ * dove inserire un input appena arrivato (`insertPhraseAtCursor` in
+ * `brainPhrases.ts`); main si limita a scrivere il contenuto già composto,
+ * senza conoscere la posizione.
  */
-function collapseToSingleLine(text: string): string {
-  return text.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-/** Apertura sessione: sovrascrive brainPhrases.txt con tutto ciò che è già nel foglio online. */
-export async function overwriteBrainPhrasesWithOnlineRows(rows: string[]): Promise<void> {
-  const content = rows.map((row) => `${collapseToSingleLine(row)}\n`).join('')
+export async function writeBrainPhrasesFile(content: string): Promise<void> {
   await writeFile(brainPhrasesFilePath(), content, 'utf8')
-}
-
-/** Nuova riga online durante la sessione: si aggiunge in coda a brainPhrases.txt. */
-export async function appendOnlinePhraseToBrainPhrases(text: string): Promise<void> {
-  await appendFile(brainPhrasesFilePath(), `${collapseToSingleLine(text)}\n`, 'utf8')
 }

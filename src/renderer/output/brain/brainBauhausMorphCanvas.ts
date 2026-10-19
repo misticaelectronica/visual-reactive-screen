@@ -82,11 +82,21 @@ function smoothstep(value: number): number {
 // Le forme devono comparire e stabilizzarsi prima che l'immagine di sfondo
 // inizi a ritirarsi: il fondo resta fermo al soffitto durante la fase di
 // reveal (0 → UNDERLAY_REVEAL_PHASE_END) e scende verso il pavimento solo
-// dopo. Il soffitto stesso è basso: le forme devono dominare la scena, non
-// l'immagine sottostante.
-const UNDERLAY_CEILING = 0.24
-const UNDERLAY_FLOOR = 0.08
-const UNDERLAY_REVEAL_PHASE_END = 0.4
+// dopo. Disposizione del Capo Supremo (2026-09-07, "presenza del raster")
+// + secondo giro ("raster ancora più visibile"): soffitto 0.24 → 0.44,
+// pavimento 0.08 → 0.16. `UNDERLAY_HARD_CEILING` 0.45 è il limite
+// invalicabile fissato dal Capo Supremo — oltre, il raster compete con le
+// piane e le forme non dominano più: è imposto sull'output finale, respiro
+// del beat incluso. Altri aumenti richiedono una nuova disposizione.
+const UNDERLAY_CEILING = 0.44
+const UNDERLAY_FLOOR = 0.16
+const UNDERLAY_HARD_CEILING = 0.45
+// Dissoluzione più lenta (Capo Supremo, terzo giro — "deve stare un po' di
+// più in presenza"): il raster resta fermo al soffitto fino a
+// `abstractionProgress` 0.55 (era 0.40) prima di iniziare a ritirarsi. È
+// solo tempistica: non tocca il tetto invalicabile 0.45 né il principio
+// "le forme dominano" a piena astrazione (pavimento invariato).
+const UNDERLAY_REVEAL_PHASE_END = 0.55
 const UNDERLAY_BEAT_MODULATION = 0.04
 
 export function computeBauhausUnderlayOpacity(
@@ -103,7 +113,7 @@ export function computeBauhausUnderlayOpacity(
   return clamp(
     base + beatBreath,
     UNDERLAY_FLOOR - UNDERLAY_BEAT_MODULATION,
-    UNDERLAY_CEILING + UNDERLAY_BEAT_MODULATION,
+    UNDERLAY_HARD_CEILING,
   )
 }
 

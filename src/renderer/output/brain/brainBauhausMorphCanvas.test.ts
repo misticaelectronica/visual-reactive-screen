@@ -86,35 +86,43 @@ describe('Bauhaus Morph motion', () => {
 })
 
 describe('computeBauhausUnderlayOpacity', () => {
-  it('resta al soffitto durante la fase di reveal delle forme', () => {
+  it('resta al soffitto durante la fase di reveal delle forme (dissoluzione lenta fino a 0.55)', () => {
     const silentMotion = { activity: 0, beat: 0 }
-    expect(computeBauhausUnderlayOpacity(0, silentMotion)).toBeCloseTo(0.24, 5)
-    expect(computeBauhausUnderlayOpacity(0.2, silentMotion)).toBeCloseTo(0.24, 5)
-    expect(computeBauhausUnderlayOpacity(0.4, silentMotion)).toBeCloseTo(0.24, 5)
+    expect(computeBauhausUnderlayOpacity(0, silentMotion)).toBeCloseTo(0.44, 5)
+    expect(computeBauhausUnderlayOpacity(0.2, silentMotion)).toBeCloseTo(0.44, 5)
+    expect(computeBauhausUnderlayOpacity(0.4, silentMotion)).toBeCloseTo(0.44, 5)
+    expect(computeBauhausUnderlayOpacity(0.5, silentMotion)).toBeCloseTo(0.44, 5)
+  })
+
+  it('non sfonda mai il limite invalicabile 0.45, respiro del beat incluso', () => {
+    // Disposizione del Capo Supremo: oltre 0.45 il raster compete con le piane.
+    for (const progress of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1]) {
+      expect(
+        computeBauhausUnderlayOpacity(progress, { activity: 1, beat: 1 }),
+      ).toBeLessThanOrEqual(0.45)
+    }
   })
 
   it('scende dal soffitto al pavimento soltanto nella fase di fade successiva', () => {
     const silentMotion = { activity: 0, beat: 0 }
     const midFade = computeBauhausUnderlayOpacity(0.7, silentMotion)
     const fullFade = computeBauhausUnderlayOpacity(1, silentMotion)
-    expect(midFade).toBeLessThan(0.24)
-    expect(midFade).toBeGreaterThan(0.08)
-    expect(fullFade).toBeCloseTo(0.08, 5)
+    expect(midFade).toBeLessThan(0.44)
+    expect(midFade).toBeGreaterThan(0.16)
+    expect(fullFade).toBeCloseTo(0.16, 5)
   })
 
   it('non modula col beat in silenzio', () => {
     const value = computeBauhausUnderlayOpacity(0.2, { activity: 0, beat: 1 })
-    expect(value).toBeCloseTo(0.24, 5)
+    expect(value).toBeCloseTo(0.44, 5)
   })
 
-  it('respira leggermente col beat quando c’è attività, senza sfondare il range', () => {
-    const withBeat = computeBauhausUnderlayOpacity(0.2, { activity: 1, beat: 1 })
-    const withoutBeat = computeBauhausUnderlayOpacity(0.2, { activity: 1, beat: 0 })
+  it('respira col beat quando c’è attività (misurato in fase di fade, dove c’è margine sotto il tetto duro)', () => {
+    const withBeat = computeBauhausUnderlayOpacity(0.85, { activity: 1, beat: 1 })
+    const withoutBeat = computeBauhausUnderlayOpacity(0.85, { activity: 1, beat: 0 })
     expect(withBeat).toBeGreaterThan(withoutBeat)
-    // Il respiro ha un margine dedicato oltre soffitto/pavimento, ma resta piccolo.
     expect(withBeat - withoutBeat).toBeCloseTo(0.04, 5)
-    expect(withBeat).toBeLessThan(0.29)
-    expect(withBeat).toBeGreaterThan(0.24)
+    expect(withBeat).toBeLessThan(0.45)
   })
 })
 

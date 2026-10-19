@@ -221,6 +221,26 @@ export const COLOR_PRESETS: Preset[] = [
       whiteFlashColor: '#d8d8cf',
     },
   },
+  {
+    id: 'intense-purple-pantone-2623-c',
+    name: 'Intense Purple — Pantone 2623 C',
+    settings: {
+      idleColor: '#09020b',
+      basePinkColor: '#2f0f37',
+      hotPinkColor: '#5c1d6b',
+      whiteFlashColor: '#d5b0de',
+    },
+  },
+  {
+    id: 'italian-blue-pantone-293-c',
+    name: 'Italian Blue — Pantone 293 C',
+    settings: {
+      idleColor: '#01030d',
+      basePinkColor: '#071a5d',
+      hotPinkColor: '#0b32b0',
+      whiteFlashColor: '#b7c5ff',
+    },
+  },
 ]
 
 interface Props {

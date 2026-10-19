@@ -22,6 +22,7 @@ const story: DreamStory = {
   continuityPhrase: null,
   palette: ['#111111', '#222222', '#333333', '#444444', '#555555'],
   sourcePhrases: ['ponte', 'segnale'],
+  invariant: 'il ponte',
   frames: [{
     id: 'frame-1',
     title: 'Passaggio',

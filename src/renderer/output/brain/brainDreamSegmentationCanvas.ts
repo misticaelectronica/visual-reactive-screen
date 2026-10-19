@@ -999,6 +999,11 @@ export function createBrainDreamSegmentationScene(
       outputCanvas.style.opacity = String(clamp(opacity))
     },
     getMorphShapes: () => [],
+    // Material↔Dream (disposizione Vice Consigliere, brief bidirezionale
+    // 2026-09-17): espone il `MaterialField` correntemente in uso, cosi'
+    // che l'host possa passarlo a material-morph se entra subito dopo
+    // sullo stesso raster — simmetrico a `exportHandoff` di Material Morph.
+    exportHandoff: () => preparedFor(currentSource)?.field,
     setMorphPattern(pattern) {
       morphPattern = pattern
       outputCanvas.dataset.brainMorphPattern = pattern
@@ -1022,7 +1027,45 @@ export function createBrainDreamSegmentationScene(
         preparedFor(previousSource) ??
         preparedFor(nextSource)
       if (!current) return
-      if (!stableField) stableField = current
+      if (!stableField) {
+        // PoC Material→Dream (disposizione Vice Consigliere, brief PoC
+        // 2026-09-14): se l'host ha passato il `MaterialField` che
+        // material-morph aveva già elaborato per questo stesso raster,
+        // il primo fotogramma di Dream non riparte da una struttura
+        // ferma: arma direttamente una trasformazione dalla decomposizione
+        // di Material verso quella (già pronta) di Dream, invece di
+        // mostrare `current` come stato stabile senza moto.
+        const handoffField = pluginContext.materialFieldHandoff
+        if (handoffField && handoffField !== current.field) {
+          const handoffSource: CachedDreamField = {
+            source: current.source,
+            field: handoffField,
+            base: current.base,
+          }
+          stableField = handoffSource
+          const matches = matchMaterialRegions(handoffField.regions, current.field.regions)
+          transformState = {
+            transforming: true,
+            localProgress: 0,
+            fromField: handoffSource,
+            toField: current,
+            matches,
+            condensationPairs: findCondensationPairs(
+              matches,
+              handoffField.regions,
+              current.field.regions,
+            ),
+          }
+          surpriseState = { accumulator: 0, lastEventAt: time }
+          brainLog('render', 'Dream Segmentation: handoff MaterialField da Material-Morph', {
+            frameId: pluginContext.scene.frameId,
+            regionsHandoff: handoffField.regions.length,
+            regionsDream: current.field.regions.length,
+          })
+        } else {
+          stableField = current
+        }
+      }
 
       const motionElapsed = Number.isFinite(lastMotionAt) ? Math.max(0, time - lastMotionAt) : 16
       lastMotionAt = time
@@ -1194,7 +1237,7 @@ export function createBrainDreamSegmentationScene(
       // riconoscibile sotto (Check Materia), solo con meno contrasto
       // locale, non sostituito.
       context.globalCompositeOperation = 'multiply'
-      context.globalAlpha = clamp(0.32 + regimeProfile.darkeningAdd + motion.tension * 0.12)
+      context.globalAlpha = clamp(0.12 + regimeProfile.darkeningAdd + motion.tension * 0.12)
       context.fillStyle = '#05050a'
       context.fillRect(0, 0, width, height)
       context.globalAlpha = 1

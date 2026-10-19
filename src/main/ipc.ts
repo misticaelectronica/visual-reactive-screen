@@ -6,22 +6,26 @@ import type {
   ConsciousnessMemoryDraft,
   ConsciousnessMotionQuery,
   ConsciousnessStateSnapshot,
+  DmxInterface,
+  DmxProducerCommand,
   SaveDreamImageRequest,
   VisualStateAck,
   VisualStatePayload,
 } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/types'
 import { getAllDisplayInfo } from './displays'
+import { dmxCaptureScreen, dmxClose, dmxOpen, dmxSend } from './dmxSerial'
 import { loadSettingsFromDisk, saveSettingsToDisk } from './settings'
 import {
   broadcastVisualState,
   closeOutputWindow,
   createOutputWindow,
+  getControlWindow,
   getOutputWindow,
   handleVisualStateAck,
 } from './windows'
 import { vectorizeBrainImageOffMainThread } from './brainVectorizerClient'
-import { readBrainConfigFile } from './brainConfigFiles'
+import { readBrainConfigFile, writeBrainPhrasesFile } from './brainConfigFiles'
 import { startPublicPhraseSession, stopPublicPhraseSession } from './publicPhraseSession'
 import {
   saveConsciousnessMemory,
@@ -75,6 +79,11 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(
+    IPC_CHANNELS.writeBrainPhrasesFile,
+    (_event, content: string) => writeBrainPhrasesFile(content),
+  )
+
+  ipcMain.handle(
     IPC_CHANNELS.saveConsciousnessMemory,
     (_event, draft: ConsciousnessMemoryDraft) => saveConsciousnessMemory(draft),
   )
@@ -113,4 +122,11 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.publicSessionStop, () => stopPublicPhraseSession())
+  ipcMain.handle(IPC_CHANNELS.dmxOpen, (_e, kind: DmxInterface) => dmxOpen(kind))
+  ipcMain.handle(IPC_CHANNELS.dmxSend, (_e, universe: Uint8Array) => dmxSend(universe))
+  ipcMain.handle(IPC_CHANNELS.dmxClose, () => dmxClose())
+  ipcMain.handle(IPC_CHANNELS.dmxCaptureScreen, () => dmxCaptureScreen(getOutputWindow()))
+  ipcMain.on(IPC_CHANNELS.dmxProducer, (_e, command: DmxProducerCommand) => {
+    getControlWindow()?.webContents.send(IPC_CHANNELS.dmxProducerPush, command)
+  })
 }

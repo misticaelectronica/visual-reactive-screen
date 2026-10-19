@@ -12,6 +12,8 @@ import type {
 import { BrainImageWorkerClient } from './brainImageWorkerClient'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainInferenceScheduler } from './brainThermalScheduler'
+import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
+import { containsExplicitAdultContent } from './coscienzaOnirica'
 
 export type PsychedelRasterPreview = {
   storyId: string
@@ -28,55 +30,15 @@ const RASTER_FALLBACK_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">' +
   '<rect width="640" height="360" fill="#050005"/></svg>'
 
-export class HighQualityRenderScheduler {
-  private remaining: number
-
-  constructor(private readonly random: () => number = Math.random) {
-    this.remaining = this.nextInterval()
-  }
-
-  next(): ImageRenderMode {
-    this.remaining -= 1
-    if (this.remaining > 0) return 'standard'
-    this.remaining = this.nextInterval()
-    return 'high-quality'
-  }
-
-  private nextInterval(): number {
-    return 2 + Math.floor(this.random() * 4)
-  }
-}
-
-// L'ultimo fotogramma è l'"eco" della struttura onirica (soglia → metamorfosi
-// → condensazione → eco, vedi filosofia.md §2): un ritorno deformato del
-// nucleo, non una scena fresca indipendente. Costa meno perché è meno
-// risolto per natura, non solo per necessità tecnica — quindi resta sempre
-// nel budget di fotogrammi a qualità leggera, invece di finirci per caso.
-export function selectLowQualityFrameIndices(
-  frameCount: number,
-  random: () => number = Math.random,
-): Set<number> {
-  if (frameCount <= 1) return new Set()
-  const echoFrameIndex = frameCount - 1
-  const budget = Math.min(2, frameCount - 1)
-  const otherCandidates = Array.from(
-    { length: Math.max(0, frameCount - 2) },
-    (_, index) => index + 1,
-  )
-  for (let index = otherCandidates.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.min(
-      index,
-      Math.floor(Math.max(0, Math.min(0.999999, random())) * (index + 1)),
-    )
-    ;[otherCandidates[index], otherCandidates[randomIndex]] =
-      [otherCandidates[randomIndex], otherCandidates[index]]
-  }
-  const selected = new Set<number>([echoFrameIndex])
-  for (const candidate of otherCandidates) {
-    if (selected.size >= budget) break
-    selected.add(candidate)
-  }
-  return selected
+// Qualità/denoising per fase onirica (lettera Vice Consigliere §8-§9): Soglia
+// e Condensazione sono le due immagini obbligatoriamente forti della storia
+// (fondano il campo percettivo / manifestano il massimo carico immaginativo)
+// e usano il profilo di risoluzione piena; Metamorfosi ed Eco tollerano
+// instabilità e rarefazione come parte del proprio linguaggio e usano il
+// profilo intermedio — mai una nomenclatura nuova, solo i 4 profili già
+// implementati in `psychedelImageGenerator.ts`.
+export function frameRenderModeForPhase(phase: OneiricPhase): ImageRenderMode {
+  return phase === 'soglia' || phase === 'condensazione' ? 'high-quality' : 'enhanced'
 }
 
 function hashSeed(value: string): number {
@@ -217,6 +179,56 @@ export class PsychedelInfrastructureError extends Error {
   }
 }
 
+function frameVisualText(frame: DreamFrame): string {
+  return frame.imagePrompt?.trim() || frame.description.trim() || frame.title.trim()
+}
+
+/**
+ * Prompt raster: descrizione del momento corrente + soggetto della storia.
+ *
+ * CHI SOGNA NON È STABLE DIFFUSION (disp. Capo Supremo 2026-10-11, testo
+ * originale): «si passano concetti da una immagine ad un'altra dentro stable
+ * diffusion: non è il modo giusto di fare le cose, l'echo e tutti quei
+ * problemi lì sono problemi cognitivi, non riguardano il generatore di
+ * immagini, chi genera connessioni è chi vede le immagini, l'influenza delle
+ * varie parti deve contendersi fino a definire il prompt. Non mettiamo troppe
+ * barriere nel prompt, lasciamolo libero, manteniamo magari molto ad alto
+ * livello il discorso del soggetto» — «chi sogna non è Stable Diffusion».
+ *
+ * Ritirati quindi dal raster `VISUAL CONTEXT` (testo dei fotogrammi
+ * precedenti, disp. 2026-10-08) e l'etichetta di fase `CURRENT MOMENT n/4 —
+ * FASE` (richiamo 2026-10-08): passavano concetti fra immagini dentro il
+ * generatore e producevano coppie di fotogrammi simili. Chi guarda le
+ * immagini è Brain (precisazione del Capo Supremo): fasi, eco e continuità
+ * sono lavoro cognitivo suo, a monte (storia, Visual Plan,
+ * `ONEIRIC_PHASE_BRIEF`); resta soltanto il soggetto (`INVARIANT`), ad alto
+ * livello.
+ *
+ * NESSUNA INGERENZA CROMATICA (filosofia.md §2.2): nessuna direzione di
+ * colore né famiglia cromatica.
+ */
+/**
+ * Disposizione del Capo Supremo 2026-10-19: negli episodi nati da una frase
+ * del pubblico, evitare di rappresentare bambini quando la scena, quella
+ * precedente o quella successiva sono esplicite. Per quella immagine i
+ * termini qui sotto entrano nel negative prompt.
+ */
+export const CHILD_SAFETY_NEGATIVE_TERMS =
+  'child, children, kid, young girl, young boy'
+
+export function childSafetyNegativePrompt(
+  story: DreamStory,
+  frameIndex: number,
+  enabled = true,
+): string {
+  if (!enabled || !story.onlineSourceText) return ''
+  const nearby = story.frames.slice(Math.max(0, frameIndex - 1), frameIndex + 2)
+  return nearby.some((frame) =>
+    containsExplicitAdultContent(frame.imagePrompt ?? frame.description))
+    ? CHILD_SAFETY_NEGATIVE_TERMS
+    : ''
+}
+
 export function buildPsychedelImagePrompt(
   story: DreamStory,
   frame: DreamFrame,
@@ -225,33 +237,15 @@ export function buildPsychedelImagePrompt(
 ): string {
   void _attempt
   void _mode
-  const framePrompt = frame.imagePrompt?.trim() || frame.description.trim()
-  const frameIndex = Math.max(0, story.frames.findIndex((candidate) => candidate.id === frame.id))
-  const normalizedFrameWords = new Set(
-    framePrompt.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
-  )
-  const associatedStimulus = story.sourcePhrases
-    .map((phrase, index) => ({
-      phrase: phrase.trim(),
-      distance: (index - frameIndex + story.sourcePhrases.length) % Math.max(1, story.sourcePhrases.length),
-    }))
-    .filter(({ phrase }) => phrase.length > 0)
-    .sort((left, right) => left.distance - right.distance)
-    .find(({ phrase }) => {
-      const words = phrase.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
-      if (words.length === 0) return false
-      const shared = words.filter((word) => normalizedFrameWords.has(word)).length
-      return shared / Math.max(words.length, normalizedFrameWords.size, 1) < 0.72
-    })?.phrase
-  const previousFrame = frameIndex > 0 ? story.frames[frameIndex - 1] : null
-  const previousResidual = previousFrame
-    ? previousFrame.imagePrompt?.trim() || previousFrame.description.trim()
-    : null
+  const framePrompt = frameVisualText(frame)
+  if (!framePrompt) {
+    throw new Error(
+      `prompt raster rifiutato: fotogramma "${frame.id}" della storia "${story.id}" non ha testo utilizzabile`,
+    )
+  }
   const promptParts = [framePrompt]
-  if (associatedStimulus) promptParts.push(`Associated stimulus: ${associatedStimulus}`)
-  if (previousResidual) promptParts.push(`Residual visual trace: ${previousResidual}`)
-  if (story.mainArgument?.trim()) {
-    promptParts.push(`Main argument: ${story.mainArgument.trim()}`)
+  if (story.invariant?.trim()) {
+    promptParts.push(`INVARIANT: ${story.invariant.trim()}`)
   }
   return promptParts.join('\n\n')
 }
@@ -265,7 +259,6 @@ export class Psichedel {
     private readonly imageGenerator: PsychedelImageGenerator = new BrainImageWorkerClient(),
     _vectorizer?: PsychedelVectorizer,
     private readonly onRaster?: (preview: PsychedelRasterPreview) => void,
-    private readonly renderScheduler: HighQualityRenderScheduler = new HighQualityRenderScheduler(),
     // Il ritorno di `active: true` può essere una Promise: il chiamante la
     // usa come semaforo — arma il passthrough visivo (flash/glitch/mix) e
     // attende che sia già in scena PRIMA che l'inferenza GPU parta
@@ -284,16 +277,16 @@ export class Psichedel {
     deadlineAt: number = Number.POSITIVE_INFINITY,
     onSceneReady?: (scene: PsychedelScene, frameIndex: number) => void,
     getPressureHint?: () => boolean,
+    childSafetyNegativePromptEnabled = true,
   ): Promise<PsychedelScene[]> {
     const scenesByFrame = this.retainedScenes.get(story.id) ?? new Map<string, PsychedelScene>()
     this.retainedScenes.set(story.id, scenesByFrame)
     const baseSeed = hashSeed(`${story.title}|${story.synopsis}`)
-    const lowQualityFrameIndices = selectLowQualityFrameIndices(story.frames.length)
-    brainLog('psichedel', 'profili qualità selezionati per la storia', {
+    brainLog('psichedel', 'profili qualità selezionati per fase onirica', {
       storyId: story.id,
-      lowQualityFrames: [...lowQualityFrameIndices].map((index) => index + 1),
-      fastMode: 'standard',
-      detailedMode: 'enhanced',
+      phases: story.frames.map((_frame, index) =>
+        deriveOneiricPhase(index, story.frames.length),
+      ),
     })
     const generationRound = this.generationRounds.get(story.id) ?? 0
     this.generationRounds.set(story.id, generationRound + 1)
@@ -322,6 +315,7 @@ export class Psichedel {
               description: `${frame.title}: ${frame.description}`,
               svg: reusableScene.svg,
               raster: reusableScene.raster,
+              renderMode: reusableScene.renderMode,
             }
             scenesByFrame.set(frame.id, deadlineScene)
             onSceneReady?.(deadlineScene, index)
@@ -341,17 +335,15 @@ export class Psichedel {
 
         let scene: PsychedelScene | null = null
         let lastError: unknown = null
-        const requestedMode = this.renderScheduler.next()
+        const phase = deriveOneiricPhase(index, story.frames.length)
+        const targetMode = frameRenderModeForPhase(phase)
         const progressiveLiveGeneration = Number.isFinite(deadlineAt)
-        const lowQualityFrame = lowQualityFrameIndices.has(index)
         const baseScheduledMode: ImageRenderMode =
-          lowQualityFrame
-            ? 'standard'
-            : progressiveLiveGeneration
+          targetMode === 'high-quality' && progressiveLiveGeneration
+            ? 'enhanced'
+            : targetMode === 'high-quality' && !this.highQualityAvailable
               ? 'enhanced'
-              : requestedMode === 'high-quality' && !this.highQualityAvailable
-                ? 'enhanced'
-                : requestedMode
+              : targetMode
         const underPressure = getPressureHint?.() ?? false
         const scheduledMode: ImageRenderMode = underPressure
           ? downgradeModeUnderPressure(baseScheduledMode)
@@ -364,13 +356,14 @@ export class Psichedel {
             to: scheduledMode,
           })
         }
-        if (requestedMode === 'high-quality' && progressiveLiveGeneration) {
+        if (targetMode === 'high-quality' && progressiveLiveGeneration) {
           brainLog(
             'psichedel',
             'alta qualità rinviata: completo prima tutti i fotogrammi della storia',
             {
               storyId: story.id,
               frameId: frame.id,
+              phase,
               deadlineAt,
             },
           )
@@ -401,7 +394,8 @@ export class Psichedel {
               mode,
               seed,
               prompt,
-              promptPolicy: 'testo AI tradotto letteralmente; nessuna aggiunta o riscrittura',
+              promptPolicy:
+                'testo narrativo AI mantenuto senza riscrittura; nessuna direzione cromatica aggiunta',
             })
             const raster: Awaited<ReturnType<PsychedelImageGenerator['generate']>> =
               await this.runInference(async () => {
@@ -415,6 +409,12 @@ export class Psichedel {
                     seed,
                     mode,
                     remainingMs,
+                    story.denoisingStepsOverride,
+                    childSafetyNegativePrompt(
+                      story,
+                      index,
+                      childSafetyNegativePromptEnabled,
+                    ) || undefined,
                   )
                 } finally {
                   this.onImageGenerationState?.(false)
@@ -443,6 +443,7 @@ export class Psichedel {
               description: `${frame.title}: ${frame.description}`,
               svg: RASTER_FALLBACK_SVG,
               raster: raster.blob,
+              renderMode: mode,
             }
             brainLog('psichedel', `fotogramma raster ${index + 1} pronto per Canvas 2D`, {
               rasterBytes: raster.blob.size,
@@ -461,6 +462,7 @@ export class Psichedel {
                   description: `${frame.title}: ${frame.description}`,
                   svg: reusableScene.svg,
                   raster: reusableScene.raster,
+                  renderMode: reusableScene.renderMode,
                 }
                 brainWarn(
                   'psichedel',

@@ -5,6 +5,31 @@ export type BandKey = 'low' | 'lowMid' | 'mid' | 'high'
 export type MorphingAlgorithm = 'liquid' | 'oniric' | 'psy-hyp' | '2001'
 export type FlashMode = 'high' | 'mid' | 'low' | 'off'
 export type MotionProfile = 'dub' | 'techno' | 'ambient'
+
+// Regime Audio bio-percettivo (PIANO-044): `baseline` è il regime corrente
+// (pressione aggregata, brainBioPerception.ts, congelato); `experimental` è
+// il regime sotto collaudo (ballabilità/entrainment/costrizione motoria,
+// brainBioPerceptionExperimental.ts). Selezione esplicita, nessuna migrazione
+// automatica: nella prima consegna experimental è solo diagnostico e il
+// Visual resta collegato alla baseline.
+export type AudioMode = 'baseline' | 'experimental'
+const AUDIO_MODES: AudioMode[] = ['baseline', 'experimental']
+
+export function isAudioMode(value: unknown): value is AudioMode {
+  return typeof value === 'string' && AUDIO_MODES.includes(value as AudioMode)
+}
+
+// Livelli di qualità della generazione Brain (PIANO-050).
+export type BrainImageQuality = 'low' | 'mid' | 'high'
+const BRAIN_IMAGE_QUALITIES: BrainImageQuality[] = ['low', 'mid', 'high']
+
+export function isBrainImageQuality(value: unknown): value is BrainImageQuality {
+  return typeof value === 'string' &&
+    BRAIN_IMAGE_QUALITIES.includes(value as BrainImageQuality)
+}
+
+/** Oltre questa lunghezza il negative prompt non entra in un blocco CLIP. */
+export const BRAIN_NEGATIVE_PROMPT_MAX_CHARS = 300
 export type BrainRendererId =
   | 'print2d'
   | 'psycho2d'
@@ -16,6 +41,7 @@ export type BrainRendererId =
   | 'glitch-morph'
   | 'fractal-spiral-degeneration'
   | 'deliquescence'
+  | 'psicofantasma'
 export type BrainRendererMode = 'manual' | 'rotation' | 'story-cycle'
 
 export const MORPHING_ALGORITHMS: MorphingAlgorithm[] = ['liquid', 'oniric', 'psy-hyp', '2001']
@@ -32,6 +58,7 @@ export const BRAIN_RENDERER_IDS: BrainRendererId[] = [
   'glitch-morph',
   'fractal-spiral-degeneration',
   'deliquescence',
+  'psicofantasma',
 ]
 export const BRAIN_RENDERER_MODES: BrainRendererMode[] = [
   'manual',
@@ -62,6 +89,18 @@ export interface BandEnergies {
   high: number
 }
 
+// `usb-pro`: Enttec DMX USB Pro e compatibili. `open-dmx`: FTDI senza firmware (Open DMX).
+export type DmxInterface = 'usb-pro' | 'open-dmx'
+// `7ch`: PAR xkl-A4 (master, R, G, B, vuoto, funzione, velocità). `3ch`: RGB.
+export type DmxProfile = '7ch' | '3ch'
+
+/** Comando cromatico di alto livello: nessun dettaglio DMX. */
+export interface DmxProducerCommand {
+  producer: string
+  colors: string[]
+  transitionMs: number
+}
+
 export interface AppSettings {
   fftSize: 256 | 512 | 1024 | 2048 | 4096 | 8192
   smoothingTimeConstant: number
@@ -84,13 +123,18 @@ export interface AppSettings {
   selectedAudioInputId: string | null
   useMorphing: boolean
   useBrain: boolean
+  /** @deprecated Compatibilità con sessioni salvate; non estendere. Vedi working/DEPRECATED.md. */
   alternateBrainWithMorphing: boolean
+  /** ANIMATRONIX: fase post-storia che anima i 4 raster della storia conclusa. Default spento. */
+  animatronixEnabled: boolean
   brainRendererId: BrainRendererId
   brainRendererMode: BrainRendererMode
   brainRendererRotationMs: number
   morphingAlgorithm: MorphingAlgorithm
   morphingPresetId: string
   motionProfile: MotionProfile
+  /** Regime Audio bio-percettivo: 'baseline' (default) o 'experimental' (PIANO-044). */
+  audioMode: AudioMode
   debugMorphingVisibility: boolean
   morphingOpacity: number
   morphingMinOpacity: number
@@ -111,6 +155,43 @@ export interface AppSettings {
   kickMovement: number
   flashOnKick: boolean
   lowPowerMode: boolean
+  /**
+   * Emergenza (disp. Capo Supremo 2026-10-11, default spento): se il modello
+   * perde il contenuto esplicito delle frasi, lo ripristina incollandolo e
+   * chiede di preservarlo alla lettera. Spento: il modello è libero.
+   */
+  preserveExplicitSource: boolean
+  /**
+   * Episodi del pubblico: aggiunge termini relativi ai bambini al negative
+   * prompt della scena esplicita e delle immagini immediatamente vicine.
+   */
+  childSafetyNegativePromptEnabled: boolean
+  /**
+   * Qualità della generazione Brain (disp. Capo Supremo 2026-10-11, PIANO-050):
+   * `low` = meno step, `high` = step di `config/brainRendering.json`. Con la
+   * classifier-free guidance ogni step costa circa il doppio.
+   */
+  brainImageQuality: BrainImageQuality
+  /**
+   * Negative prompt della generazione Brain: soltanto difetti anatomici, mai
+   * termini su nudità o contenuto (linea Explicit V1).
+   */
+  brainNegativePrompt: string
+  /**
+   * Colori che Brain manda alle luci: `frame` = colori dominanti
+   * dell'immagine generata, a ogni fotogramma; `render` = colori del render a
+   * schermo, aggiornati di continuo e veloci come il render; `sequence` =
+   * tutte le luci insieme, un colore alla volta della sequenza
+   * dell'indicatore, avanzando a ogni beat.
+   */
+  dmxBrainColorSource: 'frame' | 'render' | 'sequence'
+  /** Saturazione delle luci per i producer: 0 colori veri, 1 tinta pura. */
+  dmxSaturation: number
+  /** Modulo luci DMX: caricato solo se attivo. */
+  dmxEnabled: boolean
+  dmxInterface: DmxInterface
+  /** Fixture in cascata, indirizzi consecutivi da 1. */
+  dmxFixtureProfiles: DmxProfile[]
   selectedColorPresetId: string | null
   dynamicPresetEnabled: boolean
   dynamicColorRotationEnabled: boolean
@@ -197,6 +278,7 @@ export const IPC_CHANNELS = {
   outputClosed: 'fx:output-closed',
   vectorizeBrainImage: 'fx:vectorize-brain-image',
   readBrainConfigFile: 'fx:read-brain-config-file',
+  writeBrainPhrasesFile: 'fx:write-brain-phrases-file',
   saveConsciousnessMemory: 'fx:save-consciousness-memory',
   updateConsciousnessState: 'fx:update-consciousness-state',
   suggestConsciousnessMotion: 'fx:suggest-consciousness-motion',
@@ -216,6 +298,15 @@ export const IPC_CHANNELS = {
   toggleBioOverlay: 'fx:toggle-bio-overlay',
   /** Main → output: annotazione manuale del collaudatore Audio (Maiusc+0..4). */
   bioAudioMarker: 'fx:bio-audio-marker',
+  dmxOpen: 'fx:dmx-open',
+  dmxSend: 'fx:dmx-send',
+  dmxClose: 'fx:dmx-close',
+  /** Control → main: cattura ridotta dello schermo di output per le luci. */
+  dmxCaptureScreen: 'fx:dmx-capture-screen',
+  /** Output → main: comando cromatico di un producer (Brain). */
+  dmxProducer: 'fx:dmx-producer',
+  /** Main → control: inoltro al controller DMX. */
+  dmxProducerPush: 'fx:dmx-producer-push',
 } as const
 
 export type BrainConfigFileName = 'brainPhrases.txt' | 'brainRendering.json'
@@ -452,6 +543,11 @@ export type PublicSessionStatus = {
 }
 
 export interface ControlApi {
+  dmxOpen: (kind: DmxInterface) => Promise<{ ok: boolean; error?: string }>
+  dmxSend: (universe: Uint8Array) => Promise<{ ok: boolean; error?: string }>
+  dmxClose: () => Promise<void>
+  dmxCaptureScreen: () => Promise<Uint8Array | null>
+  onDmxProducer: (cb: (command: DmxProducerCommand) => void) => () => void
   getDisplays: () => Promise<DisplayInfo[]>
   openOutput: (displayId: number) => Promise<{ ok: boolean; error?: string }>
   closeOutput: () => Promise<void>
@@ -468,6 +564,7 @@ export interface ControlApi {
 }
 
 export interface OutputApi {
+  sendDmxColors: (command: DmxProducerCommand) => void
   onVisualState: (cb: (state: VisualStatePayload) => void) => () => void
   sendVisualStateAck: (sequenceNumber?: number) => void
   notifyVisualStateReady: () => void
@@ -476,6 +573,8 @@ export interface OutputApi {
     options?: BrainVectorizationOptions,
   ) => Promise<BrainVectorizationResult>
   readBrainConfigFile: (fileName: BrainConfigFileName) => Promise<string>
+  /** BrainPhrasesBaseStory di Sessione (disp. Capo Supremo 2026-09-18): il renderer possiede il cursore e compone il contenuto; scrive sempre e solo `brainPhrases.txt`. */
+  writeBrainPhrasesFile: (content: string) => Promise<void>
   saveConsciousnessMemory: (
     draft: ConsciousnessMemoryDraft,
   ) => Promise<ConsciousnessMemorySaveResult>

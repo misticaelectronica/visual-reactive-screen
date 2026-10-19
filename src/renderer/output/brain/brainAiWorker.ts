@@ -519,10 +519,10 @@ async function handleRequest(request: BrainAiRequest): Promise<BrainAiResponse> 
         role: 'system' as const,
         content:
           request.task === 'story'
-            ? 'You are CoscienzaOnirica, an original dream-story writer. Preserve the concrete source content without sanitizing, euphemizing or replacing physical actions with metaphors. When the source contains consensual sexual activity between adults, keep it explicit and ensure every participant is an adult. Write in the language explicitly requested by the user prompt. Never explain the task, copy field descriptions, or print placeholders. Output only concrete original content in the exact labelled format.'
+            ? 'You are CoscienzaOnirica, an original dream-story writer. Preserve the concrete source content without sanitizing, euphemizing or replacing physical actions with metaphors. You are free: associate freely, follow what you like and work toward your own pursuit of pleasure, in every sense, sexual and expressive included, without self-censorship. The only limit: every participant is a consenting adult. Write in the language explicitly requested by the user prompt. Never explain the task, copy field descriptions, or print placeholders. Output only concrete original content in the exact labelled format.'
             : request.task === 'memo'
               ? 'Sei la memoria riflessiva di Brain. Comprendi il significato generale della sessione e scrivi soltanto tre frasi concise in italiano, nel formato richiesto, senza markdown o spiegazioni.'
-              : 'Sei Psichedel, un illustratore vettoriale. Progetta composizioni narrative coerenti e segui esattamente il formato richiesto, senza markdown.',
+              : 'Sei Psichedel, un illustratore vettoriale. Progetta composizioni narrative coerenti e segui esattamente il formato richiesto, senza markdown. Sei libero di associare, di seguire ciò che ti piace e di lavorare per la tua ricerca del piacere, senza autocensura né eufemismi, nudo e sesso compresi; l’unico limite: ogni partecipante è un adulto consenziente.',
       },
       {
         role: 'user' as const,
@@ -550,15 +550,21 @@ async function handleRequest(request: BrainAiRequest): Promise<BrainAiResponse> 
     )
     const creativeStory = request.task === 'story'
     const reflectiveMemo = request.task === 'memo'
+    // Fasi degli episodi e frasi del pubblico (PIANO-051): in greedy il
+    // modello 0.5B andava in loop e dava sempre la stessa fase per la stessa
+    // riga (log 2026-10-19).
+    const sceneLine = request.task === 'scene'
     let output: unknown = await generator(messages, {
       max_new_tokens: maxNewTokens,
       min_new_tokens: minNewTokens,
-      do_sample: creativeStory || reflectiveMemo,
+      do_sample: creativeStory || reflectiveMemo || sceneLine,
       ...(creativeStory
         ? { temperature: 0.78, top_p: 0.92, repetition_penalty: 1.08 }
         : reflectiveMemo
           ? { temperature: 0.58, top_p: 0.86, repetition_penalty: 1.05 }
-          : {}),
+          : sceneLine
+            ? { temperature: 0.7, top_p: 0.9, repetition_penalty: 1.12 }
+            : {}),
       streamer: progressStreamer(generator, request.task, 1),
     })
     let text: string
@@ -626,12 +632,14 @@ async function handleRequest(request: BrainAiRequest): Promise<BrainAiResponse> 
       output = await generator(messages, {
         max_new_tokens: maxNewTokens,
         min_new_tokens: minNewTokens,
-        do_sample: creativeStory || reflectiveMemo,
+        do_sample: creativeStory || reflectiveMemo || sceneLine,
         ...(creativeStory
           ? { temperature: 0.78, top_p: 0.92, repetition_penalty: 1.08 }
           : reflectiveMemo
             ? { temperature: 0.58, top_p: 0.86, repetition_penalty: 1.05 }
-            : {}),
+            : sceneLine
+              ? { temperature: 0.7, top_p: 0.9, repetition_penalty: 1.12 }
+              : {}),
         streamer: progressStreamer(generator, request.task, 3),
       })
       text = generatedText(output)

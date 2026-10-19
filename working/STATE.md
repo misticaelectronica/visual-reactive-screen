@@ -1,5 +1,1745 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Bambini evitati vicino alle scene esplicite — 2026-10-19
+
+**CONSEGNATO**, disposizione del Capo Supremo: negli episodi nati da una frase
+del pubblico, se la scena, la precedente o la successiva sono esplicite
+(`containsExplicitAdultContent`), quella immagine riceve nel negative prompt
+`CHILD_SAFETY_NEGATIVE_TERMS` (`childSafetyNegativePrompt`, `psichedel.ts`).
+Ritirato il filtro precedente che scartava le frasi (`brainMinorProtection`).
+PIANO-052: la protezione è attivabile dal checkbox nel riquadro Sessione
+pubblica, resta attiva di default anche per impostazioni precedenti e usa
+soltanto `child, children, kid, young girl, young boy`; rimossi `minor`,
+`teenager`, `schoolgirl`, `schoolboy`, `baby`. Riscrittura delle frasi del
+pubblico legata alla sola ultima riga di contesto. La codifica CLIP completa
+il prompt con blocchi vuoti quando il negative prompt è più lungo (prima
+falliva). 810 test verdi; typecheck e lint verdi.
+Build completa app/ZIP/DMG verde.
+
+## Righe degli scribacchini come immagini — 2026-10-19
+
+**IMPLEMENTATO — PIANO-051 (MACRO-039)**, collaudo aperto. Vecchia catena
+storia Qwen / Visual Plan / «Questo sogno» registrata come DEP-002. Disposizione del Capo Supremo: le righe
+curate diventano direttamente i prompt delle immagini; Qwen riscrive solo le
+frasi della Sessione pubblica, con le regole degli scribacchini, prima di
+scriverle in `brainPhrases.txt`. Integrazioni dello stesso giorno: concetti del
+Visual Plan mantenuti nella scrittura in quartine (soglia, metamorfosi,
+condensazione, eco); ogni frase pubblica genera una quartina legata agli
+elementi principali della storia in corso. Riprogettato: ogni riga
+degli scribacchini è una quartina (riga letterale = Soglia, Qwen scrive
+Metamorfosi, Condensazione, Eco); frase pubblica riscritta in riga legata
+alla storia; opzione «testo esplicito» per tutti; nessuna frase del pubblico
+persa. Aperta D3.
+Corretto nello stesso giorno il parser delle etichette (`canonicalEnvelopeLabels`):
+`### STORY`, `**BRIDGE**`, `Bridge` e `---` non entrano più nei prompt.
+
+## 1.0.0-rc.10 — Brain pronto per l'esordio in pubblico — 2026-10-11
+
+Collaudo del Capo Supremo: «test ok», «Brain pronto per l'esordio in
+pubblico». Rilascio `1.0.0-rc.10` dal branch `feature/dmx-color-controller`:
+PIANO-050 (guidance, negative prompt anatomico, qualità low/mid/high,
+pannello riordinato), prompt raster libero («chi sogna non è Stable
+Diffusion»), preset Pantone e rotazione colori 30–100 s, DMX Color
+Controller (PIANO-048). Nota alla squadra in
+`team/briefs/nota-complimenti-rc10-2026-10-11.md`.
+
+Restano aperti: percezione dei propri raster da parte di Brain e della
+coscienza (principio stabilito, non implementato, in attesa di decisione);
+integrazione DMX con Brain/Morphing (PIANO-049, bozza).
+
+## Chi sogna non è Stable Diffusion — 2026-10-11
+
+**CONSEGNATO**, disposizione del Capo Supremo (testo originale nel commento
+di `buildPsychedelImagePrompt`). Segnalazione: la generazione produce coppie
+di fotogrammi simili (1≈2, 3≈4). Dal prompt raster sono stati ritirati
+`VISUAL CONTEXT` (testo dei fotogrammi precedenti, 2026-10-08) e l'etichetta
+`CURRENT MOMENT n/4 — FASE` (2026-10-08): passavano concetti fra immagini
+dentro il generatore. Ora il prompt è: momento corrente + `INVARIANT`
+(soggetto ad alto livello). Visual Plan, brief di fase e qualità per fase
+invariati. Che le coppie spariscano è un'ipotesi da confermare a schermo.
+796 test verdi, typecheck e lint verdi. DEP-001 `NON COINVOLTO`.
+
+Principio del Capo Supremo (2026-10-11, testo originale): «è BRAIN e la sua
+coscienza guardano quelle immagini, SONO loro che devono dare la
+continuità». **Fatto verificato**: oggi non lo fanno — Coscienza Onirica
+riceve solo percezioni audio (`audioPrimed`); storia, Visual Plan e memoria
+lavorano sui testi scritti da Brain, non sui raster generati; nessun modulo
+descrive o percepisce l'immagine prodotta. **Aperto, in attesa di
+decisione**: se e come dare a Brain la percezione dei propri raster (nuovo
+meccanismo: costo GPU, modifica della costituzione di Coscienza Onirica).
+
+## Corpi deformati: guidance e negative prompt — 2026-10-11
+
+**IMPLEMENTATO — PIANO-050 (MACRO-038)**, disposizione del Capo Supremo sui
+corpi deformati, soprattutto femminili. Causa: generazione senza
+classifier-free guidance (`single-conditional`, MACRO-009). Ora `cfg-batch`
+con la scala 7 del manifest e negative prompt solo anatomico, modificabile dal pannello;
+livello di qualità `low` (default: 8/10/14 step), `mid` (10/13/19), `high`
+(step di `config/brainRendering.json`). Interludio a ramo singolo; lo zoom
+annidato tiene i suoi 22 step e con la guidance costa il doppio. Pannello
+diviso in riquadri per funzione. 801 test verdi, typecheck e lint verdi.
+DEP-001 `MANTENERE` (spostato in «Avanzate», comportamento invariato).
+**Aperto**: collaudo a schermo (TASK-050-06).
+
+Checkpoint: il codice usa PornMaster (verificato con gli hash); la
+sostituzione con Realistic Vision di `skills.md` non era mai entrata nel
+codice. Documentazione allineata; per disposizione si resta su PornMaster.
+
+## Grammatica narrativa e formato della risposta — 2026-10-11
+
+**CONSEGNATO — brief del Vicario** (`team/briefs/brief-correzione-grammatica-narrativa-2026-10-11.md`):
+«Connect the source prompts causally» e «exactly 4-6 complete chronological
+sentences» sostituite alla lettera.
+
+**CONSEGNATO — COLORS non si chiede più al modello**, su valutazione chiesta
+dal Capo Supremo («se obsoleto, togliamolo»). TITLE (21 usi), STORY, BRIDGE
+(continuità fra storie) e INVARIANT (prompt raster, Visual Plan) sono
+attivi; COLORS no: la palette non entra nella generazione (filosofia.md
+§2.2), le luci usano il raster, il modello la scriveva nell'11% delle
+storie. Formato a 4 righe; il parser accetta ancora COLORS se compare;
+i renderer ricevono la palette di riserva come già nell'89% dei casi.
+Tolto anche «and the five-color palette» dal moto di coscienza. Il
+riferimento a Color Direction nella nota del Vicario è superato (rimosso
+lo stesso giorno). 794 test verdi.
+
+## Prompt storia secondo il manuale kubrickiano — 2026-10-11
+
+Manuale di sceneggiatura e nota del Vicario archiviati in
+`team/briefs/manuale-sceneggiatura-kubrickiana-2026-10-11.md`. Applicate
+alla lettera le due righe proposte dal Vicario: sostituiscono «Use a named
+adult protagonist … initiating event, conflict, transformation and
+conclusion» e la riga di libertà del 2026-10-10 (ramo non di emergenza).
+Il ramo di emergenza (`preserveExplicitSource`) resta invariato. 794 test
+verdi. Segnalati al Capo Supremo, non toccati: conflitto fra «no headings
+or labels» e le cinque righe etichettate richieste dal formato; «Connect
+the source prompts causally» e «chronological sentences» contro ellissi e
+cause parzialmente inferibili; la nota cita Color Direction, già rimosso.
+
+## Ripristino esplicito: opzione di emergenza, default spento — 2026-10-11
+
+Disposizione del Capo Supremo: il ripristino del testo esplicito delle frasi
+(`preserveExplicitSourceContent`, dal 2026-07-29) diventa un'opzione da
+pannello, **spenta di default**, da usare in emergenza; altrimenti il modello
+è libero. Impostazione `preserveExplicitSource`. Spenta: niente incolla del
+paragrafo sorgente e niente istruzione «Preserve the explicit physical
+actions literally» (il prompt usa il ramo libero del 2026-10-10). 794 test
+verdi. DEP-001 `NON COINVOLTO`.
+
+Segnalato e non toccato: la scaletta «Initiating Event:/Conflict:/
+Transformation:/Conclusion:» viene dalla riga del prompt storia «Use a named
+adult protagonist, one concrete place, an initiating event, conflict,
+transformation and conclusion», presa dal modello come titoli di sezione.
+
+## Nessuna ingerenza cromatica sulla generazione — 2026-10-11
+
+Disposizione del Capo Supremo, fissata in `filosofia.md` §2.2: la
+generazione delle immagini non riguarda il regime bio-percettivo; il regime
+riguarda il lavoro cromatico dei renderer a runtime; nessuna ingerenza
+cromatica sulla generazione. DEP-001 `NON COINVOLTO`.
+
+**CONSEGNATO.** Rimosso il blocco `COLOR DIRECTION` dal prompt raster
+(`brainColorState.ts` e test dismessi) e la parola `color` dal divieto del
+Visual Plan. Verificato: nessun modulo di generazione (`psichedel.ts`,
+`coscienzaOnirica.ts`, `sd15OnnxWebGpu.ts`, `brainImageWorker.ts`,
+`psychedelImageGenerator.ts`) legge il regime bio-percettivo. 793 test verdi.
+
+## Preset Pantone e rotazione colori più rapida — 2026-10-11
+
+**CONSEGNATO.** Aggiunti alla normale selezione e rotazione dinamica colori i
+preset `Intense Purple — Pantone 2623 C` e
+`Italian Blue — Pantone 293 C`. I colori richiesti `#5C1D6B` e `#0B32B0`
+sono gli accenti caldi esatti; ciascun preset completa il contratto del motore
+con fondo, base e flash nella stessa famiglia cromatica. Nessuna nuova
+meccanica visuale o costo per frame. La finestra casuale di `Rotazione colori`
+è stata ridotta da 45–150 s a 30–100 s (attesa media: 65 s). DEP-001
+`NON COINVOLTO`. Typecheck, lint mirato e suite completa verdi: 794 test su
+83 file.
+
+## DMX Color Controller aperto — 2026-10-10
+
+Brief del Vicario archiviato in
+`team/briefs/brief-dmx-color-controller-2026-10-10.md`. Branch
+`feature/dmx-color-controller` aperto da `1.0.0-rc.9`. Piano PIANO-048
+(MACRO-037) IN_PROGRESS. DEP-001 `NON COINVOLTO`.
+
+**IMPLEMENTATO** il modulo `src/renderer/control/dmx/` (Web Serial, profilo
+PAR xkl-A4 7ch e RGB 3ch, cascata a indirizzi consecutivi, dissolvenza
+lineare senza salti, master separato, blackout), attivabile da
+`dmxEnabled` e caricato solo se attivo. Typecheck e 787 test verdi.
+
+**COLLAUDATO 2026-10-11** con PAR xkl-A4 (`d001`) e DSD TECH SH-RS09B
+(FTDI FT232R): funziona dall'app. Trasporto nel main
+(`src/main/dmxSerial.ts`, `serialport` 13): il break via `TIOCSBRK` blocca
+il driver FTDI di macOS, si emula con un byte 0 a 57600 baud.
+
+**Prossimi passi**: PAR in cascata (indirizzi d008, d015, d022); poi
+integrazione Brain (palette nominale della storia) e Morphing come producer.
+**PIANO-049 IMPLEMENTATO**: Brain manda la palette della storia (8 s),
+Morphing i colori del preset (4 s), la musica muove l'intensità (pavimento
+per `motionProfile`), Emergenza spegne anche le luci. Collaudo dal vivo
+pendente. Da fare dopo: palette Brain nel 89% delle storie è il ripiego
+fisso (TASK-049-03).
+
+## ANIMATRONIX: il moto torna dentro la figura — 2026-10-09
+
+Rilievo diretto del Capo Supremo dal vivo: in ANIMATRONIX non devono esserci
+livelli che si staccano e si muovono fuori scena — è un'animazione **della
+figura**, alla quale dare l'idea del moto, non un'animazione della schermata.
+DEP-001 `NON COINVOLTO`.
+
+**CONSEGNATO.** Tre traslazioni rigide di piani e sagome, trovate nello
+shader, sono state riscritte dentro la figura (PIANO-047, Fase 4):
+OCCLUSION PASSAGE non scala più la sagoma fino a 6× né la trasla oltre il
+bordo del quadro — il raster successivo arriva dentro la figura e il fronte
+si propaga al campo seguendo la forma della figura stessa; DEPTH FRACTURE non
+separa più i tre piani in direzioni opposte (fino a una volta e mezza il
+quadro in transizione) e non apre vuoti sullo sfondo scuro — resta uno scarto
+del ~2% e la transizione cede per profondità, prima il primo piano poi il
+fondo; PARALLAX COLLAPSE scende da ~13% a ~4% di scorrimento fra piani.
+Nessun meccanismo nuovo: due meccanismi di traslazione **rimossi**, e riusati
+segnali già presenti. Costo in calo (un campionamento di profondità invece di
+tre nella frattura). Suite 782 test su 79 file verdi. Collaudo a schermo
+aperto, affidato al Capo Supremo dal vivo (TASK-047-12).
+
+**Fuori perimetro, preesistente**: `brainFrameMotion.ts:392` non compila
+(`REVISION_CYCLE_FRAME_SPEED_FACTOR` non importato, `speedFactor` mai letto) —
+lavoro in corso d'opera di un'altra sessione, non toccato; typecheck e lint
+restano rossi solo per questo.
+
+## DELIQUESCENCE fuori dalla pressurizzazione, finestra frasi ritirata — 2026-10-08
+
+Sessione su rilievi diretti del Capo Supremo. DEP-001 `NON COINVOLTO`.
+
+**CONSEGNATO — contesto visivo per fotogramma ripristinato.** Il prompt
+raster è ora `CURRENT MOMENT:` / `VISUAL CONTEXT:` / `INVARIANT:` /
+`COLOR DIRECTION:`. `VISUAL CONTEXT` porta la frase completa del fotogramma
+immediatamente precedente, come memoria visiva locale. Dei due livelli che
+PIANO-046 aveva rimosso insieme rientra **solo** questo: `Associated
+stimulus` resta fuori per disposizione esplicita. Il primo fotogramma non ha
+un precedente e non riceve alcun contesto — nessun contesto artificiale.
+Fuori perimetro e non toccati: Visual Plan, riscrittura in 18-30 parole,
+logica dell'invariante, palette, qualità, seed, step, checkpoint, struttura
+della storia. Sette test nuovi (ordine dei blocchi, primo fotogramma senza
+contesto, solo il precedente immediato, fotogramma estraneo alla storia); il
+test che fissava l'assenza del residuo è stato riscritto, non cancellato.
+
+**CONSEGNATO — fase onirica dichiarata nel prompt raster.** Richiamo del
+Capo Supremo: le fasi oniriche non vanno dimenticate. Verificato che la fase
+(`deriveOneiricPhase`, filosofia.md §2) era presente in quattro posti — brief
+del Visual Plan, profilo di qualità per fase (`frameRenderModeForPhase`:
+soglia e condensazione in alta qualità, metamorfosi ed eco in intermedio),
+`root.dataset.framePhase`, ciclo di revisione — **ma non nel prompt raster**.
+Ora la prima riga è `CURRENT MOMENT <n>/<tot> — <FASE>:`. Due scelte
+esplicite: i nomi di fase sono tradotti in inglese (THRESHOLD, METAMORPHOSIS,
+CONDENSATION, ECHO) perché gli identificativi interni sono italiani e non
+devono entrare in CLIP — stesso difetto corretto su `inferInvariant` lo
+stesso giorno; e il brief di fase (`ONEIRIC_PHASE_BRIEF`) resta istruzione
+del Visual Plan e **non** entra nel raster, perché è lingua meta ("story",
+"moment", "invariant") che Stable Diffusion proverebbe a disegnare. Tre test
+dedicati, compreso quello che vieta i nomi italiani e il brief nel raster.
+
+**Contesto dell'eco risolto dal Capo Supremo.** L'ultimo fotogramma **non**
+torna al momento di soglia: *prosegue dal secondo in avanti*. Riceve quindi
+tutti gli intermedi in ordine cronologico — su quattro fotogrammi il secondo
+e il terzo. Il brief di fase del Visual Plan ("return something recognizable
+from the threshold moment") resta un'indicazione su come **scrivere** il
+momento, non sulla scelta del contesto raster: le due cose non sono in
+conflitto, sono due livelli diversi. Regola finale del contesto: fotogramma
+1 nessun contesto; intermedi il precedente immediato; ultimo gli intermedi
+dal secondo in avanti. Tre test dedicati.
+
+**CONSEGNATO — indicatore palette.** In basso a sinistra, i colori della
+palette della storia corrente come mattoncini rettangolari affiancati
+(9×4 px, gap 2 px), nell'ordine originale, senza testo, bordo, etichetta o
+box contenitore. Si aggiorna in `startProduction`, cioè al cambio storia e
+non per fotogramma. Elemento statico: nessuna reazione all'audio, nessun
+ciclo di movimento, nessun costo nel budget RAF. Mostra la palette nominale
+della storia; la dissolvenza cromatica DMX resta indipendente e non viene
+letta. `zIndex: 4` perché il pannello storia occupa lo stesso angolo finché
+non dissolve a 0 all'avvio della visualizzazione.
+
+**CONSEGNATO — invariante: nessuna invenzione.** `inferInvariant` non tira
+più a indovinare. Aveva due ripieghi, entrambi falsi: la prima parola della
+sinossi lunga almeno 5 lettere — su una sinossi reale del corpus di
+validazione restituiva `stands`, un verbo, riattaccato a tutti e quattro i
+prompt — e la stringa italiana `una presenza ricorrente` dentro un prompt
+inglese. **Precisazione sul rilievo iniziale**: la stringa italiana era
+raggiungibile solo con una sinossi priva di parole di 5 lettere, quindi quasi
+mai; il difetto che si vedeva dal vivo era il primo. Ora restituisce stringa
+vuota e a valle la riga viene omessa (`buildPsychedelImagePrompt` già la
+guardava, `generateVisualPlan` ora anche). Resta non toccata la stringa
+italiana `invariant: 'un ricordo già immaginato'` della Riattivazione
+(`brainController.ts`): quella storia riusa raster già generati e non passa
+dal prompt, quindi è inerte — segnalata, non corretta.
+
+**CONSEGNATO — DELIQUESCENCE non è più eleggibile in `pressurized`.**
+In `respiro-alto` e in `unresolved` era già escluso; `pressurized` era l'unico
+regime senza alcuna esclusione (trattato come un passaggio e non come uno
+stato con un pool proprio), quindi DELIQUESCENCE poteva esservi scelto o
+restare in scena attraversandola. I tre singleton identici di esclusione sono
+ora un solo insieme, `DELIQUESCENCE_OUT_OF_LOW_REGIME`: la regola è che
+DELIQUESCENCE vive solo nel regime basso. Nessun altro renderer cambia pool.
+`reconcileCurrentRegime` espelle già l'attivo quando il regime lo esclude, e
+la selezione manuale resta fuori dal filtro come prima.
+
+**RITIRATA — modifica alla finestra delle frasi.** `phraseSampleMinCount` e
+`phraseSampleMaxCount` erano stati portati da 4-5 a 1-2 nella stessa sessione
+e sono stati **riportati a 4-5**. Motivo: il pool attivo è cambiato in corso
+di sessione da 5 paragrafi da ~115 parole a 39 righe da 7-39 parole (media
+21), che è la forma per cui 4-5 erano tarati. Con 1-2 righe la sorgente
+scende a 21-42 parole contro una sinossi richiesta di 55-80: il modello
+inventa più di metà della storia e produce riempitivo generico. Due effetti
+collaterali misurati sullo stesso pool: le righe che fanno scattare
+`containsExplicitAdultContent` sono 2 su 39, quindi la quota di storie che
+conservano il contenuto esplicito scendeva dal 20% al 5-10%; e nei giri di
+`sessionSynthesis` la finestra scendeva a 1 riga contro 3 memo.
+
+**Vincolo registrato, da cui dipendono le scelte future:** durante le
+sessioni online l'input del pubblico viene inserito **nello stesso
+`brainPhrases.txt`** al cursore corrente (`insertPhraseAtCursor`,
+`writeBrainPhrasesFile`). Il pool dal vivo è quindi misto per costruzione —
+paragrafi curati lunghi e righe brevi del pubblico interlacciati — e **non
+esiste un valore per riga corretto per entrambi**. Il difetto misurato sulle
+basi a paragrafi resta reale ma non si corregge con quei due numeri: serve
+una finestra con budget in parole. Non implementata, non richiesta.
+
+**Analisi consegnata, nessuna modifica:** ciò che arriva a Stable Diffusion è
+`<18-30 parole di soli sostantivi letterali>` + `Invariant: <2-6 parole>` +
+il blocco COLOR DIRECTION. Il Visual Plan vieta per istruzione
+*meaning, mood, artistic style, color, symbolism*, quindi la scena arriva
+senza colore né luce; le 6 famiglie di palette in `brainColorState.ts` usano
+10 parole tutte scure e desature; la chiave è `story.id`, quindi i 4
+fotogrammi condividono una sola famiglia. È identità visiva (chiusura Vice
+Consigliere 2026-09-17 §7/§11): riportato, non modificato. Il Capo Supremo ha
+indicato che il problema è di **soggetti e scena**, non di colore.
+
+Typecheck, lint e 768 test su 79 file verdi.
+
+`brainAnimatronix.ts` e `brainAnimatronixGl.ts` hanno modifiche non
+committate estranee a questa sessione; la sparizione e ricomparsa di
+ANIMATRONIX segnalata dal vivo non è stata indagata.
+
+## Decompressione, conflitto livelli e colore del Varco — 2026-10-07
+
+Richiesta del Capo Supremo: nuovo campione `decompressione-5.mp3`, ritarare
+la decompressione, verificare il conflitto fra livelli, correggere il respiro
+alto che «parte troppo spesso quando ci sono lavori con gli alti»; in corso di
+sessione, Varco più scuro in decompressione e respiro profondo.
+DEP-001 `NON COINVOLTO` (l'alternanza non partecipa a direzione, costrizione,
+livello o colore del Varco).
+
+**CONSEGNATO — Varco Percettivo, fasi basse più scure.**
+`decompression` e `respiro-profondo` condividono ora il colore del Varco,
+usando l'accoppiamento già presente nello stesso file per il passthrough
+(`regimeAllowsPsycho2d`/`regimeAllowsPrint2d`), senza criteri nuovi. Tinte
+del glitch del set scuro per entrambe e abbassate verso il nero; scurimento
+pre-Varco con un proprio moltiplicatore (1.35) invece di essere moltiplicato
+per quello del flash — **correzione di un difetto reale**: con `flash` a 0 nel
+respiro profondo lo scurimento risultava spento, cioè il Varco era meno scuro
+proprio nella fase che deve esserlo di più. Nella decompressione il flash
+scende (0.35) ma non si azzera: è un passaggio, non una stasi, e deve ancora
+mascherare lo stallo. Typecheck, lint e 662 test verdi (62 file), test
+dedicato aggiunto.
+
+**PROPOSTA RITIRATA — nessuna modifica al runtime audio.** Il replay dei 16
+campioni mostra che la decompressione **non è taratile** così com'è definita:
+`decompression` è emessa su 0 file su 4, e su entrambi i file lunghi
+`constraint` sale monotonicamente per l'intera durata (0,021→0,407 e
+0,044→0,420) senza mai scendere. `classifyExperimentalRegime` richiede
+`falling`: nessun valore di `CONSTRAINT_TREND_DEADBAND` può produrlo su un
+ingresso che sale — l'osservabile si muove nella direzione opposta al
+fenomeno. Il conflitto fra livelli è confermato e **strutturale**: il baseline
+vede la decompressione (presente 4 su 4, dominante 2 su 4) ma il suo
+`pressureTrend` è `stable` ≈ 0 % del corpus, quindi azzera i respiri;
+l'experimental si assesta nei respiri ma non vede i passaggi. Il respiro alto
+sugli alti è riprodotto: `ALTO_CONSTRAINT_THRESHOLD` su `constraint` funziona
+di fatto come rilevatore di banda `high`, perché `eventActivity` e
+`recurrence` pesano le quattro bande uguali. Provato l'ancoraggio graduato a
+`physicalConfirmation` (già calcolata, mai usata) in 4 combinazioni: nessuna
+produce `decompression`, nessuna separa l'asse alto/profondo, una rompe
+`respiro-alto-1`. Nessun peso, soglia, banda, detector o `classifyLevel`
+modificato. Referto:
+`working/calibration-v1/decompressione-conflitto-livelli-2026-10-07.md`.
+
+Rilievi aperti per l'Analisi Audio: (1) serve un osservabile che *scenda*
+quando la materia è sottratta; (2) `decompressione-5.mp3` dura 20,9s, meno
+della finestra di memoria più l'avvio a freddo — 45,6 % `unresolved` e il
+`pressurized` 46,4 % è l'ancoraggio che esce dal proprio avvio, non il
+materiale: non certifica una taratura; (3) lo stesso avvio a freddo fa
+dichiarare `pressurized` per ~9s a ogni avvio di sessione su tutti i 16 file,
+mentre `ANCHOR_WARMUP_GRACE_MS` copre 1,5s.
+
+## Revisione audio spectralOccupancy / rhythmConstraint completata — 2026-09-25
+
+Ripreso PIANO-040 con perimetro stretto: rendere `spectralOccupancy` continua
+e meno dipendente dal salto del floor, poi rieseguire il corpus prima di
+valutare qualunque altro meccanismo. `classifyLevel`, soglie, bande, detector
+e pesi restano congelati. Ordine probatorio: replay → gate C03>C04/C06>C04 →
+dominanza semantica di `rhythmConstraint`; `anchor`, `groundedLowEnd` e
+persistenza si toccano solo se i dati lo rendono necessario. Mappa certa:
+C03=`respiro-alto-0`, C04=`respiro-profondo`, C06=`respiro-alto-1`;
+C05/C08/C09 non certificabili dal repository e non attribuiti. DEP-001
+`NON COINVOLTO`.
+
+**PROPOSTA RITIRATA**: `spectralOccupancy` continua è stata provata usando
+esclusivamente floor e pesi esistenti, poi rimossa dal runtime. Replay sui 15
+file: C03 PP 0,4956 < C04 0,5188; C06 0,5510 >
+C04. La ritmica baseline è a sua volta invertita C03/C04 (0,0108/0,0502):
+anchor e grounded low-end non correggono il dato. La persistenza semplice
+ordina i tre casi ma resta alta su `test-1` (0,8822); non è stata promossa.
+La periodicità utile è già nel clock experimental e non è stata duplicata:
+il suo constraint ordina C03/C06 sopra C04 ma resta 0,2915 su `test-1`,
+quindi non è stato trapiantato nella pressione. Il gate Audio richiede entrambi
+i confronti: nessuna modifica runtime è accettata. Nessun peso, soglia, banda,
+detector o `classifyLevel` modificato. Report sperimentale:
+`working/calibration-v1/spectral-occupancy-replay-2026-09-25.md`.
+Dopo il ritiro: 56 test bio-percettivi mirati, typecheck e lint verdi.
+
+## ANIMATRONIX validato dal vivo — 2026-09-24
+
+Comunicato del Vicario (`team/briefs/comunicato-esito-collaudo-animatronix-2026-09-24.md`):
+collaudo dal vivo **positivo**. Chiuso il primo gate percettivo; ANIMATRONIX
+passa da "implementazione da verificare" a **componente validato dal vivo**
+ed entra nel linguaggio operativo di Brain. La deroga Camera è confermata
+dal risultato. Restano separati e non rimettono in discussione il principio:
+affinamenti e taratura delle singole grammatiche (HYPNOTIC ZOOM, HYPNOTIC
+ZOOM ANNIDATO e le altre). Le limitazioni note nelle risposte Ingegneria
+(morph a bassa risoluzione, ricircolo senza immagini nuove appena pronte)
+restano aperte come affinamenti.
+
+## Storia pronta: si parte subito — 2026-09-24
+
+Nel ricircolo in attesa la nuova storia entrava solo al confine del
+fotogramma ricircolato (~14s dopo essere pronta, log 09:54:16 → 09:54:29).
+Ora `advanceTimeline` la avvia subito dal primo fotogramma appena
+`nextProduction` esiste, senza attendere fotogramma né beat, salvo durante
+ANIMATRONIX e Riattivazione (che non si interrompono). Se una Riattivazione
+è dovuta, parte prima di lei come al solito.
+
+## ANIMATRONIX: transizioni senza scatti e morph vero — 2026-09-24
+
+Le transizioni fra raster scattavano e non morphavano. Provato con lo shader
+vero in Electron (`scripts/animatronix-check/`): render di transizioni su
+raster sintetici e scarto medio fra fotogrammi consecutivi (mediana ~0,1).
+Costo GPU basso (0,6-2,6 ms/fotogramma): non era la GPU, erano **discontinuità
+dello shader**, con scarti di 5-60 su un solo fotogramma:
+
+- `fractureWorld`: al superare la soglia di `fracture` la scurita dei piani
+  medio/lontano (x0,94/x0,88) entrava a scatto; e il raster successivo
+  sostituiva lo sfondo scuro nelle fessure a scatto all'inizio della
+  transizione. Ora entrambi in dissolvenza.
+- KINETIC MATCH e FOCUS INVERSION campionavano l'immagine grezza ignorando
+  lo stato accumulato: salto a inizio transizione (e KINETIC MATCH finiva
+  mostrando ancora A fuori dal disco: salto di 61 al confine). Ora partono
+  da cA e finiscono in cB.
+- OCCLUSION PASSAGE: stessa cosa sulla massa. Ora parte da cA.
+- RESIDUAL (tracce): le ombre entravano a piena forza al primo fotogramma.
+  Ora fade-in di 700 ms.
+
+Dopo le correzioni nessun fotogramma isolato fuori scala; i confini fra
+segmenti restano entro ~0,4 (uno a 2,5, time-crush → parallax-collapse).
+
+**Morph vero.** Prima era un richiamo verso il punto di fuga + crossfade.
+Ora un flusso di corrispondenza A→B (block matching 32×32, patch 5×5,
+ricerca ±8, penalità di spostamento, levigato: `computeMorphFlow`,
+calcolato in `prepareAnimatronix` un frame alla volta prima del confine,
+~50 ms a coppia). Nello shader al tempo t un pixel pesca A a q−tF e B a
+q+(1−t)F, poi le fonde: le forme di A scivolano verso quelle di B; a t=0 e
+t=1 il warp è identità (nessuno scatto). Si applica a morph (traversal,
+perspective-melt, hypnotic-zoom) e, al 70%, a fracture/residual/focus.
+Limite: block matching su luma a bassa risoluzione, non un vero
+optical flow; su immagini molto diverse il flusso è approssimativo.
+
+## ANIMATRONIX rifatto sui log reali (prova visiva negativa) — 2026-09-24
+
+Prova dal vivo negativa su rc.7. Letti i log reali delle sessioni
+(`~/Library/Application Support/mevrs-origine-fx/log/`), non ipotesi:
+
+- In 4 finestre ANIMATRONIX su 5 (sessione 23/09) giravano **denoising SD**
+  (fino a 13s di inferenza) DENTRO la fase; in tutte partiva anche la
+  **generazione narrativa LLM** (`ciclo associazioni narrative avviato`,
+  `generazione storia avviata`) — l'`inferenceHold` copriva solo lo
+  scheduler SD, non l'LLM. Stesso lag: `long-frame` fino a 1,2s.
+- I **renderer sotto l'overlay** giravano a pieno ritmo, più il passthrough
+  del Varco (`denoising-filter-psiche: active` durante la fase).
+- Il **moto di coscienza** partiva 0,5s dopo la fine della fase, durante la
+  dissolvenza d'uscita (z-index 4 sopra l'overlay z-index 2): `pauseMs`
+  12634 nel log.
+- Al primo fotogramma `start` creava contesto WebGL2, linkava lo shader
+  fuso a 11 grammatiche e caricava/mipmap-pava 4 texture sul main thread.
+
+Corretto: `generateNext` sospeso durante ANIMATRONIX (come la
+Riattivazione); avvio della fase differito fino a 15s se un'inferenza SD è
+già in corso; renderer sotto fermi e `visibility:hidden` + Varco spento
+mentre l'overlay copre (`isCovering`); `warmUp` del contesto/shader/texture
+in `prepareAnimatronix`, prima del confine; moto di coscienza vietato anche
+durante la dissolvenza d'uscita e per 6s dopo la fase, e un moto già attivo
+si chiude subito. Più animazioni: ogni raster ha ora una seconda animazione
+(`handoff`) che entra oltre il 40% del tratto mentre la principale cala
+(8 animazioni a storia invece di 4; non sulle due tratte annidate).
+
+Limite: nessuna verifica visiva mia (serve GPU, audio e modelli); la
+generazione della storia successiva ora parte dopo la fase, quindi l'attesa
+del ricircolo può allungarsi.
+
+## ANIMATRONIX: GPU libera durante la fase, transizione morph non dissolvenza — 2026-09-24
+
+Due richieste del Capo Supremo.
+
+**GPU libera durante ANIMATRONIX.** `BrainThermalScheduler` (già usato per
+serializzare le inferenze SD e far respirare la GPU fra un'inferenza e
+l'altra) ha un nuovo `setInferenceHold(active)`: mentre attivo,
+`waitForPermit()` non lascia mai partire una nuova inferenza (ricontrolla
+ogni `WAIT_SLICE_MS`). `brainController.ts` lo attiva quando
+`beginAnimatronixIfEnabled` avvia davvero la fase, lo disattiva quando
+`animatronixStage.update()` segnala `finished`. Non interrompe
+un'inferenza già in corso — la pipeline in background continua a generare
+le storie in anticipo, solo la GPU non viene contesa da una NUOVA
+inferenza mentre lo shader ANIMATRONIX gira.
+
+**Transizione `morph`, non `dissolve`.** La dissolvenza piatta introdotta
+ieri per sostituire l'iride "buco della serratura" (TRAVERSAL, PERSPECTIVE
+MELT, HYPNOTIC ZOOM) leggeva come un crossfade, non una trasformazione.
+Corretto in `brainAnimatronixGl.ts`: durante la transizione, i punti
+campionati di A e B convergono ciascuno verso il proprio punto di fuga
+(`uWA.vp`/`uWB.vp`) con intensità crescente insieme a `uTrans`, poi si
+sfumano l'uno nell'altro — le due immagini si tirano verso l'interno
+invece di limitarsi a sovrapporsi. Stesso costo della dissolvenza piatta:
+cambia solo il punto campionato prima delle due `renderWorld` già
+esistenti, nessuna chiamata aggiuntiva. Rinominata la transizione
+`AnimatronixTransition` da `'dissolve'` a `'morph'` ovunque (tipo, mappe,
+shader `KIND_INDEX`) per coerenza.
+
+**Limite onesto**: non è un morph con corrispondenza di forma reale (nessun
+optical flow, nessun matching di feature fra A e B) — è un richiamo
+convergente verso il punto di fuga più una sfumatura, pensato per leggersi
+come trasformazione senza il costo di un vero morph con corrispondenza.
+Un morph "vero" fra due fotografie arbitrarie servirebbe un'infrastruttura
+nuova (stima di corrispondenza), non tentata qui.
+
+Verifica: suite (754 test, +1 su `setInferenceHold`) verde, typecheck e
+lint verdi. Nessun collaudo dal vivo su nessuno dei due punti.
+
+## ANIMATRONIX collegato a Sensibilità — 2026-09-23
+
+Segnalato dal Capo Supremo mentre verificava "preset e livelli" del
+pannello controlli: ANIMATRONIX era l'unico renderer Brain completamente
+scollegato dallo slider globale **Sensibilità** (`settings.sensitivity`).
+Verificato file per file: nessun riferimento a `sensitivity`,
+`brainPresetMotionTuning` o `motionProfile` in `brainAnimatronix.ts`,
+`brainAnimatronixGl.ts`, `brainAnimatronixStage.ts`.
+
+Corretto in `brainController.ts`: l'`energy` passato ad
+`animatronixStage.update()` (media dei bandEnergies grezzi) è ora scalato
+da `brainPresetMotionTuning(settings).movementScale` — lo stesso helper già
+usato da Vector Morph e altri renderer, non una taratura nuova. Nota: oltre
+a Sensibilità, questo porta con sé anche `motionProfile` (techno/ambient) e
+`dynamicPresetEnabled` — coerenza con lo stesso bundle già usato altrove,
+non un collegamento mirato alla sola Sensibilità.
+
+**Correzione di percorso durante l'indagine**: prima affermazione errata
+("Vector Morph non legge mai `settings.sensitivity`") — falsa, la legge
+indirettamente via `brainPresetMotionTuning` dentro `brainSvgScene.ts`. Il
+grep iniziale cercava solo riferimenti letterali nel file di Vector Morph e
+mancava il percorso indiretto.
+
+**Preset genere/colore/dinamici e Soglie** (pannello "Preset dinamici"):
+verificato che appartengono esclusivamente al motore flash legacy
+(`visualEngine.ts`, `PresetsSelector.tsx`) — zero riferimenti a Brain in
+quei file. Non collegati a Brain, disposizione esplicita del Capo Supremo
+di lasciarli così (nessuna mappatura genere→comportamento Brain).
+
+Verifica: suite (753 test) verde, typecheck e lint verdi. Nessun collaudo
+dal vivo.
+
+## HYPNOTIC ZOOM ANNIDATO: "non viene mai generato" — 2026-09-23
+
+Segnalato dal Capo Supremo. Controllato tutto il percorso — tagging della
+storia (`storyGenerationCount`, mai resettato/duplicato), propagazione
+dell'oggetto `story` (stessa istanza dalla generazione fino a
+`currentProduction.story`, nessuna clonazione che perda i campi extra),
+ordine ANIMATRONIX→Riattivazione — nessun bug di cablaggio trovato.
+
+Causa più probabile: `applyNestedZoomTargets` richiede che **sia** A **sia**
+B superino la soglia di leggibilità del dettaglio (`anchor.score`), a
+differenza di KINETIC MATCH che ha quattro occasioni indipendenti per
+storia (una qualsiasi delle quattro immagini). Con la soglia a 0.15 (stessa
+di KINETIC MATCH) la probabilità che ENTRAMBI i punteggi la superino è
+quella singola al quadrato — su raster reali morbidi/pittorici, plausibilmente
+vicina a zero anche quando KINETIC MATCH la supera regolarmente altrove
+nella stessa storia. Soglia abbassata a 0.05 in `brainAnimatronix.ts`
+(`NESTED_ZOOM_MIN_ANCHOR_SCORE`).
+
+Aggiunta visibilità a schermo richiesta esplicitamente: nuovi log dedicati
+in `beginAnimatronixIfEnabled` (`brainController.ts`) — `brainLog`
+"HYPNOTIC ZOOM ANNIDATO in corso" quando scatta davvero, `brainWarn`
+"HYPNOTIC ZOOM ANNIDATO saltato" con `fallbackReason` quando no — entrambi
+compaiono nel monitor di processo a schermo (`processHeader`/`processBody`,
+alimentato da `subscribeBrainLog`), non solo in console.
+
+Verifica: suite (753 test) verde, typecheck e lint verdi. **Non ancora
+osservato dal vivo se la soglia abbassata basta** — resta da confermare
+alla prossima sessione con lo schermo sotto osservazione.
+
+## Vector Morph: "solo il raster" al fallimento QC, cambio più rapido — 2026-09-22
+
+Segnalato dal Capo Supremo: "ogni tanto in vector morph c'è solo il
+raster". Meccanismo già noto e già in parte mitigato (vedi commento in
+`brainRendererHost.ts`): quando Vector Morph respinge la propria
+vettorializzazione (< `MIN_VECTOR_SHAPES` forme, `brainVectorMorphScene.ts`),
+`inner` non viene mai creato — resta visibile solo `rasterBackground` a
+piena opacità. L'host rileva `hasFailed()` e chiede subito un sostituto, ma
+il crossfade verso di lui usava comunque `SWITCH_DURATION_MS` (1800ms) o
+perfino `CONTAMINATION_DURATION_MS` (3400ms) — un renderer che non ha MAI
+mostrato nulla di reale non ha nulla da preservare con un crossfade lungo.
+
+Nuovo `FAILED_BEFORE_READY_SWITCH_DURATION_MS` (250ms): quando il renderer
+uscente ha `hasFailed()===true` **e** non è mai stato `isReady()` (mai
+mostrato contenuto vero, non solo "fallito dopo aver funzionato"), il
+cambio verso la rete di sicurezza usa questa durata invece delle due sopra.
+Non tocca il caso di un renderer che ha funzionato e fallisce più tardi
+(quello mantiene il crossfade normale).
+
+Verifica: suite (753 test, +1 su questo percorso) verde, typecheck e lint
+verdi. Nessun collaudo dal vivo.
+
+## Moto di coscienza: mai durante ANIMATRONIX/Riattivazione, cooldown più lungo — 2026-09-22
+
+Disposizione del Capo Supremo: il moto di coscienza non deve mai attivarsi
+durante ANIMATRONIX o Riattivazione, e deve partire meno spesso in
+generale.
+
+`consciousnessMotionLayer.update()` (`brainConsciousnessMotion.ts`) prende
+un nuovo parametro opzionale `allowActivation` (default vero, per
+compatibilità con i test esistenti): quando falso, un candidato già in
+coda resta in coda — non passa mai da "in coda" ad "attivo" — finché non
+torna vero. Un moto già attivo prima dell'inizio della fase non viene
+interrotto, solo la nuova attivazione è bloccata. `brainController.ts`
+passa `!animatronixRunning && !revisionCycleActive`.
+
+`MOTION_COOLDOWN_MS` 75s → 180s: meno frequente in generale, non solo
+durante le due fasi escluse.
+
+Verifica: suite (752 test, +1 sul nuovo gate) verde, typecheck e lint
+verdi. Nessun collaudo dal vivo.
+
+## ANIMATRONIX / HYPNOTIC ZOOM ANNIDATO — 2026-09-22
+
+Prima implementazione (minimo intervento, dietro flag `animatronixEnabled`
+già esistente) del brief `team/briefs/brief-animatronix-hypnotic-zoom-annidato-2026-09-22.md`.
+
+Ogni 8 storie generate (`storyGenerationCount % 8 === 0`,
+`brainController.ts`, mai casualizzato): `story.nestedZoomStory = true`,
+`story.denoisingStepsOverride = 22`. Non introdotto un secondo generatore
+narrativo: nessuna modifica a `coscienzaOnirica.ts`. I due dettagli target
+A1/B1 **riusano** l'euristica `anchor` già esistente in `AnimatronixStructure`
+(rilevazione di una struttura locale saliente e compatta, già usata da
+KINETIC MATCH/VERTIGO LOCK) — il dettaglio di A è l'`anchor` del raster A,
+quello di B è l'`anchor` del raster B. Nessuna nuova analisi visiva.
+
+Nuova funzione pura `applyNestedZoomTargets(plan, structures)` in
+`brainAnimatronix.ts`: forza i primi due segmenti a HYPNOTIC ZOOM con
+`zoomTarget: 'anchor'` riusando `withForcedGrammars` (nessuna logica di piano
+duplicata); il quarto segmento (ECO/uscita) resta quello scelto dal planner
+ordinario, come richiesto dal brief. FAILURE: se meno di tre raster o se
+`anchor.score` di A o B è sotto soglia (0.15, stessa scala di VIABILITY
+'kinetic-match'), il piano resta quello ordinario e riporta
+`fallbackReason` — mai una sequenza annidata incompiuta.
+
+Shader: nuovo uniform `uZoomUsesAnchor` — `zoomMap` (HYPNOTIC ZOOM) zooma
+verso `mix(W.vp, W.anchor, uZoomUsesAnchor)` invece che sempre verso il
+punto di fuga. Zero verso 0 di default (uso ordinario di HYPNOTIC ZOOM
+invariato).
+
+Step di denoising: nuovo `DreamStory.denoisingStepsOverride`, opzionale,
+sostituisce lo step count derivato da `ImageRenderMode` nei tre
+implementatori di `PsychedelImageGenerator` (`ExplicitPsychedelImageGenerator`,
+`BrainImageWorkerClient`/`createBrainImageGenerateRequest` — il percorso
+reale via worker ONNX — e ignorato dal percorso legacy
+`LocalPsychedelImageGenerator`, che non ha un concetto di step). Nessuna
+modifica alla geometria d'inferenza.
+
+Log aggiunti a `brainLog('animatronix', 'fase ANIMATRONIX avviata', ...)`
+quando `nestedZoomStory`: `storyOrdinal`, `denoisingSteps`, `targetA`,
+`targetB`, `transitionAtoB`, `transitionBtoC`, `fallbackReason`. Log dedicato
+alla generazione della storia speciale in `brainController.ts`.
+
+Confini rispettati: nessun nuovo modello generativo, nessuna depth
+inference/ControlNet/img2img, nessuna modifica alla Riattivazione, nessuna
+modifica ai renderer ordinari, nessuna nuova semantica Audio, nessun
+refactor della pipeline Psichedel.
+
+Verifica: suite (751 test, +3 su `applyNestedZoomTargets`) verde, typecheck
+e lint verdi. **Nessun collaudo visivo dal vivo**: non verificato se la
+percezione "contenuto in" richiesta dal brief (vs. "sto guardando una
+fotografia ingrandita") sia effettivamente raggiunta — dipende da quanto
+`anchor` individua davvero un dettaglio leggibile sui raster reali e da come
+il crossfade `dissolve` copre il momento in cui la distinzione si perde. Il
+collaudo percettivo finale resta alla Direzione Designer/Visual VJ, come
+indicato dal brief.
+
+## ANIMATRONIX — via i "buco della serratura", HYPNOTIC ZOOM, fase più lunga — 2026-09-22
+
+Disposizione del Capo Supremo, stesso giorno del Wave 2 sotto: via **ogni**
+effetto a rivelazione a foro/iride. Rimossa **RECURSIVE PORTAL** (zoom nel
+`portal` interno del raster poi reveal — l'esempio più letterale di "buco
+della serratura"). TRAVERSAL e PERSPECTIVE MELT, che aprivano la stessa
+iride centrata sul punto di fuga come propria transizione d'uscita, ora
+dissolvono a piena inquadratura (nuovo `kind` `dissolve`) invece di aprire
+un varco. Undici grammatiche restano undici: al posto di RECURSIVE PORTAL,
+**HYPNOTIC ZOOM** — zoom continuo e ininterrotto verso il punto di fuga
+(nuovo canale di stato `zoom`, irreversibile come gli altri, accumulo lento
+apposta per restare percepibile sui 26–40s della fase), dissolvenza fluida
+verso il raster successivo. Nessun requisito strutturale (VIABILITY 0):
+funziona su qualunque raster, fotografico o vettoriale — non ha bisogno di
+un varco o di una massa da leggere. `AnimatronixStructure.portal` e
+`findPortal` rimossi (erano usati solo da RECURSIVE PORTAL).
+
+Fase estesa: `ANIMATRONIX_MIN_TOTAL_MS`/`MAX_TOTAL_MS`/`BASE_TOTAL_MS`
+26–40s (`BASE` 32s), erano 18–28s (`BASE` 23s) — più spazio per uno zoom
+ipnotico da percepire, non solo attraversarlo.
+
+Brief di direzione per il Vicario Capo Visual in
+`team/briefs/brief-animatronix-hypnotic-zoom-2026-09-22.md`.
+
+Verifica: suite Brain (648 test) verde, typecheck e lint verdi. Nessun
+collaudo visivo dal vivo di HYPNOTIC ZOOM o della dissolvenza `dissolve` —
+da fare come per le grammatiche precedenti.
+
+## ANIMATRONIX Wave 2 — cinque grammatiche ad alta salienza — 2026-09-22
+
+Branch `feature/animatronix-v1-grammatiche`. Aggiunte le cinque grammatiche
+del brief Wave 2, ad alta salienza percettiva: **KINETIC MATCH, VERTIGO
+LOCK, RECURSIVE PORTAL, TIME CRUSH, FOCUS INVERSION**. Undici grammatiche
+totali ora disponibili (sei V1 + cinque Wave 2).
+
+Vincoli del brief rispettati nel planner: al più **due** grammatiche ad alta
+salienza per storia (`ANIMATRONIX_MAX_HIGH_SALIENCE_PER_STORY`); nessuna di
+quelle usate nella storia precedente può ripresentarsi nella successiva
+(`avoidHighSalience`/`usedHighSalience`, propagato dal controller). Le undici
+grammatiche vivono in un unico ciclo interfogliato (`ANIMATRONIX_CYCLE`); il
+planner cammina sul ciclo scegliendo fino a quattro grammatiche distinte,
+saltando quelle non praticabili sulla struttura del raster.
+
+Analisi raster estesa con due nuovi punti: `anchor` (struttura locale
+saliente e compatta — volto, ruota, apertura — via picco di densità di
+bordo) per KINETIC MATCH e VERTIGO LOCK; `portal` (regione interna compatta,
+non a contatto col bordo, con soglie di percentile multiple per non perdere
+macchie piccole) per RECURSIVE PORTAL.
+
+Shader WebGL2: tre nuovi `kind` di transizione (kinetic, recursive, focus) e
+due modificatori continui (`vertigo`, applicato come deformazione a piani
+attorno a un'ancora bloccata — mai per-pixel sulla depth map grezza, altrimenti
+diventa un liquify; `crush`, che scala la magnitudine di flight/camera per
+piano di profondità, innestato su un flusso simile al TRAVERSAL perché senza
+un vettore proprio non ci sarebbe nulla da "schiacciare" nel tempo).
+
+Verifica: suite (750 test) verde, typecheck e lint verdi. Collaudo visivo
+su raster reali con lo stesso banco di prova Electron del V1: KINETIC MATCH
+mostra l'inserto circolare bloccato dentro il turbine che rivela il raster
+successivo; RECURSIVE PORTAL zoom-in nel dettaglio poi reveal; VERTIGO LOCK
+tenuto su piani quantizzati (non sulla depth grezza) per restare un dolly
+zoom leggibile e non un liquify; FOCUS INVERSION sposta LOD/saturazione fra
+primo piano e sfondo; TIME CRUSH è un'approssimazione onesta — un'immagine
+statica non ha "tempo" proprio, quindi modula la velocità del warp spaziale
+per piano invece di una vera desincronizzazione temporale.
+
+Limiti noti aggiuntivi: `anchor`/`portal` sono euristiche non tarate su un
+corpus, come le altre; nessun collaudo dal vivo in Electron con audio reale.
+
+## ANIMATRONIX V1 — sei grammatiche cinetiche — 2026-09-22
+
+Branch `feature/animatronix-v1-grammatiche`. La V0 (pan/zoom/deriva) è stata
+sostituita dalle sei grammatiche del brief Ingegneria V1: **TRAVERSAL,
+DEPTH FRACTURE, PERSPECTIVE MELT, PARALLAX COLLAPSE, OCCLUSION PASSAGE,
+RESIDUAL SPACE**. Pan/zoom/scala esistono solo dentro le grammatiche.
+
+Invarianti di sistema: flag `animatronixEnabled`, **default OFF**; posizione
+nel ciclo `STORIA → ANIMATRONIX → RIATTIVAZIONE → STORIA SUCCESSIVA`; usa
+**esclusivamente i raster già prodotti**, nessuna nuova inferenza immagini;
+ingresso e uscita come overlay sopra il renderer attivo; deroga Camera in
+`agents.md`. Silenzio, Beatmatch e Transizione restano applicati.
+
+Moduli: `brainAnimatronix.ts` (analisi spaziale del raster: punto di fuga,
+proxy di profondità a tre piani, massa occludente; piano di storia: quattro
+eventi, uno per raster e nell'ordine originale delle immagini, quattro
+grammatiche diverse per storia, una per immagine, scelte da una rotazione di
+tre quaterne bilanciate (storie consecutive ne condividono due; una
+grammatica non praticabile sulla struttura viene sostituita dalla successiva
+del ciclo), nessun A→B→A, contaminazione fra raster vicini, una transizione
+anche sull'ultimo raster; orologio con stato irreversibile
+ereditato in parte al cambio di raster; silenzio congela lo stato),
+`brainAnimatronixGl.ts` (renderer WebGL2: un passaggio di mondo con le sei
+grammatiche e uno di composizione per le tracce residue) e
+`brainAnimatronixStage.ts` (overlay, canvas nuovo a ogni fase, degrada a
+"fase saltata" senza WebGL2). Aggancio in `brainController.ts`.
+Dopo ANIMATRONIX riparte il confine di storia normale: Riattivazione, poi
+storia successiva. Ogni confine fra raster è una transizione fisica (portale, frattura,
+occlusione, traccia residua), mai un fade puro; l'audio modula solo il
+metabolismo, non sceglie la grammatica e non muove la camera a tempo.
+
+Verifica: suite verde, typecheck e lint verdi. Collaudo visivo su raster reali
+(`dream-images`) con banco di prova Electron fuori repo: ogni grammatica è
+leggibile e una storia pianificata coerente (massa che scorre con il raster
+successivo dietro, poi traccia residua). Costo misurato su questa GPU a
+1280×720: mediana 0,8 ms, 95° percentile 1,7 ms per fotogramma — da
+riconfermare sull'hardware di palco.
+
+Limiti noti: nessuna depth map reale, il proxy di profondità è euristico e i
+piani hanno bordi morbidi non oggetto-per-oggetto; soglie d'analisi non tarate
+su un corpus; PARALLAX COLLAPSE e DEPTH FRACTURE risentono di questo proxy;
+nessun collaudo dal vivo in Electron reale con audio; aperto: lettura A della
+regola DELIQUESCENCE 95%.
+
+## BrainPhrasesBaseStory di Sessione — 2026-09-18
+
+Ordine del Capo Supremo: durante la Sessione pubblica la storia principale
+curata (`brainPhrasesBaseStory.txt`) deve continuare ad avanzare paragrafo
+per paragrafo, non restare ferma. Prima: all'apertura sessione
+`brainPhrases.txt` veniva svuotato del tutto e ripopolato solo dalle frasi
+del pubblico; un input online veniva sempre accodato in fondo al file
+(mai inserito al punto reale della sequenza) e un meccanismo separato
+("residuo online") lo reiniettava più tardi, a caso, in una finestra
+ordinaria — nessuna delle due cose rispettava la posizione vera dell'input.
+
+Corretto: all'apertura sessione `brainPhrases.txt` riparte da una copia
+fresca di `brainPhrasesBaseStory.txt` (riusa `resetBrainPhrasesToBase()`,
+già esistente); un input online arrivato durante la sessione si inserisce
+ora esattamente al cursore della sequenza (`insertPhraseAtCursor`, nuova
+funzione pura in `brainPhrases.ts`) — non più in coda al file — e il
+cursore avanza di conseguenza, così la storia base riprende dal paragrafo
+successivo senza saltarlo né rileggerlo. Il renderer (unico luogo dove vive
+il cursore) possiede ora anche la scrittura del file di sessione tramite
+un nuovo canale IPC (`writeBrainPhrasesFile`); main non scrive più
+`brainPhrases.txt` per gli input online, si limita a notificarli. Rimosso
+del tutto il meccanismo del "residuo online" (ridondante e potenzialmente
+duplicante, dato che l'input è già seduto al suo posto esatto nella
+sequenza).
+
+Suite 77 file / 718 test, typecheck e lint verdi. Nessuna verifica dal
+vivo della Sessione pubblica reale in questa sessione (richiede Electron +
+un CSV pubblicato) — resta da collaudare dal vivo dal Capo Supremo.
+
+## Riattivazione — correzione esclusione consciousnessInfluence — 2026-09-18
+
+Segnalato dal Capo Supremo dopo un test dal vivo con Sessione pubblica attiva
+(log reale ispezionato: 14 chiusure di storia in 30 minuti, `moto di
+coscienza preparato` su 13 di esse, Riattivazione scattata una sola volta):
+l'esclusione in `rememberCompletedStory` (`brainController.ts`) scartava
+dalla memoria di Riattivazione l'INTERA storia quando questa portava
+`consciousnessInfluence`, mentre l'ordine originale del Capo Supremo
+(disposizione 2026-09-17) riguardava una sola IMMAGINE, non la storia
+intera. Verificato che l'architettura attuale non marca alcun fotogramma
+specifico come "quello" del moto di coscienza — `consciousnessInfluence` è
+un campo a livello di storia che tinge la palette di tutti e 4 i fotogrammi
+(`applyConsciousnessPalette`). Confermato dal Capo Supremo: nessuna delle 4
+immagini va esclusa. Rimossa la riga `if
+(production.story.consciousnessInfluence) return false`; le storie con
+moto di coscienza partecipano ora normalmente alla Riattivazione come
+qualunque altra storia. Nessun test dedicato esisteva su questo guard
+(`brainController.ts` non ha un file di test). Suite 77 file / 716 test,
+typecheck e lint verdi.
+
+
+## Quattro immagini — PIANO-046 — 2026-09-18
+
+Chiuso il lavoro residuo di PIANO-045 (TASK-045-05) sulla lettera del Vice
+Consigliere: `generateVisualPlan()` reintegrata nella pipeline produttiva
+reale (prima esisteva ma non veniva mai chiamata); i 4 fotogrammi sono ora
+associati esplicitamente a Soglia/Metamorfosi/Condensazione/Eco tramite
+`deriveOneiricPhase` (già esistente in `dreamRevisionCycle.ts` per la
+Riattivazione, riusato invece di un enum duplicato). Aggiunto un invariante
+di storia (`DreamStory.invariant`, estratto dal modello narrativo con
+fallback locale) e ricostruito il prompt raster attorno a
+"momento corrente + invariante", rimuovendo stimolo associato/residuo del
+fotogramma precedente/argomento generale (materiale narrativo concorrente).
+Palette Color Direction seedata sulla storia intera (`story.id`), non più
+per singolo fotogramma. Qualità/denoising ora deterministici per fase (Soglia
+e Condensazione → profilo alta qualità; Metamorfosi ed Eco → profilo
+intermedio), sostituendo lo scheduler probabilistico session-wide
+(`HighQualityRenderScheduler`/`selectLowQualityFrameIndices`, rimossi). Log
+del tipo di immagine e del profilo qualità aggiunto in basso a destra
+(`OutputApp.tsx`), derivato dallo stato reale della storia via dataset già
+usato per la Riattivazione.
+
+Costo GPU aumentato intenzionalmente (2 fotogrammi ad alta qualità garantiti
+per storia invece della vecchia media probabilistica ~1 ogni 2-5 disegni);
+le uniche valvole di sicurezza rimaste sono pressione GPU reale e
+disattivazione dopo OOM, non un nuovo throttling — da verificare in sessione
+prolungata. **Nessuna generazione raster reale eseguita in questa sessione**
+(niente Electron/GPU disponibile): il collaudo visivo a 4 storie e il
+confronto controllato di risoluzione 512×512 (TASK-046-05) restano aperti e
+richiedono il Capo Supremo dal vivo, con la stessa procedura già usata in
+PIANO-045. Suite 77 file / 716 test, typecheck e lint verdi.
+Dettagli: `working/plans/piano-046-visual-plan-quattro-fasi.md`.
+
+## Governance team — passaggio Vecchio Consigliere → Vicario — 2026-09-18
+
+Acquisita la nota firmata dal Vecchio Consigliere: il suo incarico operativo
+si conclude e la continuità del lavoro corrente passa al Vicario. Decisioni,
+principi e brief consolidati restano acquisiti; ruoli, responsabilità e
+autonomie del progetto non cambiano. Il Vecchio Consigliere resta richiamabile
+esclusivamente come memoria storica del ramo precedente. Atto canonico:
+`team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md`, collegato da
+`agents.md`. I documenti storici non sono stati riscritti. Nessuna modifica al
+runtime. Audit deprecati: DEP-001 `NON COINVOLTO`.
+
+
+## Quattro immagini — PIANO-045 — 2026-09-17
+
+Corretto il troncamento CLIP nel runtime SD1.5: fino a 450 token in sei
+blocchi da 77 posizioni, tutti consegnati all'UNet; overflow esplicito,
+log token/blocchi/costo, ordine CFG e FP16 verificati. Color Direction
+preservato senza cambiarne la grammatica. DEP-001 NON COINVOLTO.
+**Criterio visivo NON raggiunto**: 4 raster reali generati in Electron
+WebGPU non restituiscono una progressione narrativa affidabile. Ritirata
+l'aggiunta della sinossi integrale per immagine; CFG provato ma non promosso.
+Nessuna modifica a step, seed, modello o scheduler di produzione.
+Misure finali calde 11.244–11.448 s vs riferimento 10.874 s; prova breve,
+non termica/live. Suite 717 test verde, verifica mirata finale 82 test,
+typecheck/lint verdi; build finale app/ZIP/DMG arm64 riuscita dopo la
+conclusione delle modifiche concorrenti al Renderer Host.
+Resoconto e immagini: `working/validation/piano-045/README.md`.
+Prossimo passo aperto: descrizioni dei quattro momenti autosufficienti e
+coerenti nella generazione narrativa esistente, con accettazione sui raster;
+non confondere trasporto integro con risultato artistico riuscito.
+
+## Regime Audio experimental — ritarato il deadband della direzione, corretto artefatto di warmup residuo — 2026-09-13
+
+Segnalato: "troppo in respiro alto, ritara gli altri stati basandoti sui
+campioni". Nel ritarare trovata un'inconsistenza fra i due strumenti di
+calibrazione: `compare-audio-regimes.mjs` istanziava l'experimental clock
+PRIMA del warmup di rumore rosa (non dopo, come già corretto in
+`assert-regime-corpus.mjs` due round fa) — la storia usata dal confronto a
+lungo raggio (`constraintHistory`) veniva quindi contaminata da 40s di
+rumore, dando numeri diversi (e sbagliati) fra i due script sullo stesso
+codice. Corretto anche qui: experimental clock istanziato solo all'inizio
+del contenuto reale.
+
+Con numeri ora affidabili, `CONSTRAINT_TREND_DEADBAND` ritarato da 0,09 a
+0,07 sull'intero corpus (non solo i 5 file respiro-alto-*): a 0,09 la
+direzione quasi non usciva mai da "stable" sui file transitivi
+(`decompression` praticamente assente ovunque tranne rari casi); a 0,05
+(troppo sensibile) rompeva `respiro-profondo.mp3` (da 47s a 13,6s
+dominante) e `respiro-alto-3.mp3`. A 0,07: tutti i 5 campioni
+respiro-alto-*.mp3 restano verdi, i file profondo restano dominanti
+(`respiro-profondo-1`/`respirto-profondo-3` 80,8%, `respiro-profondo.mp3`
+57,9% con transizioni reali verso pressurized/decompression invece di
+restare piatto), e i file transitivi mostrano ora varietà reale fra tutti
+gli stati (`pressurizzazione-2.mp3`: pressurized 7,1s, profondo 22,8s,
+alto 4,1s, decompression 5,6s — prima quasi solo alto).
+
+Limite residuo confermato ancora presente e non peggiorato:
+`decompresisone.mp3` e `test-1.mp3` non mostrano `decompression` — limite
+noto della metrica `constraint` (non del deadband), già documentato.
+
+Suite (73 file / 696 test), typecheck e lint verdi.
+
+## Regime Audio experimental — riscritta la classificazione secondo la semantica dell'Analisi Audio — 2026-09-13
+
+Risposta dell'Analisi Audio al brief del 12/9
+(`team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`)
+stabilisce un disallineamento concettuale nell'implementazione corrente,
+indipendente dal giudizio sulla sessione specifica:
+
+1. `pressurized`/`decompression` devono derivare dalla **direzione della
+   costrizione**, non da una variazione locale dell'ancoraggio
+   ("una variazione dell'anchoring può essere evidenza utile, non è
+   semanticamente sufficiente da sola per determinare lo stato").
+2. `respiro-alto`/`respiro-profondo` richiedono un **vero assestamento**
+   (persistenza della configurazione), non solo il valore di `constraint`
+   ("un valore di constraint alto, da solo, non autorizza respiro-alto").
+3. Falsa stasi: un'oscillazione a direzione media nulla non è
+   automaticamente assestamento (caso di riferimento: `test-1.mp3`).
+
+Riscritto `classifyExperimentalRegime`:
+- Rimossi `anchoring.gaining/losing/recovered` (basati sul delta
+  dell'ancoraggio) e il vecchio calcolo di `constraint.direction` via
+  `trajectoryDelta` (EMA-vs-EMA, soglia 0,035 — mai in `falling` dopo
+  l'assestamento iniziale, bug noto da settimane).
+- `constraint.direction` ora calcolato con lo stesso confronto a lungo
+  raggio già validato per `anchor` (`CONSTRAINT_TREND_LAG_MS=6000`,
+  `CONSTRAINT_TREND_DEADBAND=0,09` dopo taratura su 0,05/0,07/0,09) e
+  guida direttamente pressurized/decompression.
+- Alto/profondo richiedono ora `settlement.evidence >=
+  SETTLEMENT_EVIDENCE_THRESHOLD=0,5` e `!oscillatingTransformation`
+  (entrambi già calcolati, mai usati prima) oltre alla soglia di
+  `constraint.value` — altrimenti `unresolved`. Soglia evidence
+  deliberatamente permissiva (misurata 0,62-0,84 su tutto il corpus, non
+  discrimina bene): fa da pavimento, non da criterio fine, come richiesto
+  esplicitamente dal brief ("non trasformo questa definizione in una lista
+  tecnica di requisiti").
+
+Verificato: tutti i 5 campioni respiro-alto-*.mp3 passano (minShare
+abbassato a 0,5 solo per `respiro-alto-3.mp3`, dopo aver verificato a mano
+che il suo ~35% di tempo in pressurized è un'intro reale di 10s su un
+file di 29s, non un difetto — timeline: 0-9s avvio a freddo, 10-18s
+attacco genuino, 19-28s stabile). I 3 file respiro-profondo restano
+dominanti (2 a zero transizioni). Limite residuo, pre-esistente e non
+introdotto da questa modifica: `decompresisone.mp3` non mostra mai
+`decompression` — misurato che il suo `constraint` sale e resta stabile
+per l'intero file (calo massimo su 6s: 0,025), la metrica non cattura
+questo tipo di decompressione percettiva. Fuori scope per questo
+intervento (riguarda l'estrazione delle feature, non il collegamento
+semantico richiesto dal brief).
+
+Suite (73 file / 696 test), typecheck e lint verdi.
+
+## Regime Audio experimental — rilevamento dei passaggi graduali (confronto a lungo raggio) — 2026-09-12
+
+Segnalato dal vivo, con l'overlay diagnostico ora finalmente affidabile
+(fix precedente): "resta troppo in respiro-alto, salta pressurizzazione e
+decompressione del tutto". Log 1Hz confermato dal Capo Supremo: la musica
+stava davvero cambiando in quel tratto (36+ secondi), ma `anchor` si
+muoveva in modo GRADUALE (misurato: 0,564→0,50 in 7s, poi →0,54 in 20s) —
+un vero passaggio, ma con un delta per singolo passo (500ms) troppo
+piccolo per superare qualunque deadband ragionevole tarata sui passaggi
+bruschi già visti nel corpus.
+
+Causa: `anchoring.gaining/losing` confrontava `anchor` solo col campione
+immediatamente precedente (500ms fa). Un cambiamento reale ma lento non ha
+mai un delta-per-passo grande, anche se il cambiamento cumulativo è
+enorme — lo stesso limite, in scala diversa, del deadband a campione
+singolo già corretto due volte in precedenza (respiro-alto-2, poi
+respiro-alto-3/4).
+
+Corretto: `anchor` ora si confronta col proprio valore di
+`ANCHOR_TREND_LAG_MS=6000` fa (una storia [timestamp, valore] tracciata
+nella classe), non col campione precedente. La stessa deriva letta su una
+finestra di 6s somma i piccoli passi in un segnale chiaro, mentre il
+rumore campione-a-campione (non direzionale) non si accumula.
+`ANCHOR_TREND_DEADBAND` ritarato di conseguenza per il nuovo dominio di
+confronto (0,08, dopo aver provato 0,04 e 0,06 — il primo rompeva 3 dei 5
+campioni respiro-alto, il secondo introduceva transizioni spurie su
+`respiro-profondo.mp3`, genuinamente a bassa costrizione).
+
+Verificato: tutti i 5 campioni respiro-alto-*.mp3 restano verdi; i 3 file
+respiro-profondo restano dominanti nel proprio stato (2 a zero
+transizioni, 1 all'86%); i file transitivi (`pressurizzazione-2.mp3`,
+`decompresisone.mp3`) mostrano ora una distribuzione più ricca e
+sfumata fra tutti gli stati, coerente con l'obiettivo di catturare anche
+i passaggi lenti. Suite (73 file / 695 test), typecheck e lint verdi.
+
+## Regime Audio experimental — bug evidente: l'overlay diagnostico leggeva sempre la baseline — 2026-09-12
+
+Trovato analizzando `session-2026-09-12-02-11-19.txt` (overlay Shift+B attivo
+per la prima volta): il log dei cambi di stato (`regime bio-percettivo`,
+alimentato da `bioPerceptionSource`, la stessa fonte dei renderer) mostrava
+`respiro-alto` stabile per 65s consecutivi — ma il campione diagnostico 1Hz,
+nello stesso intervallo, mostrava `decompression`. Le due fonti
+disaccordavano sullo stesso istante.
+
+Causa: `OutputApp.tsx` — l'overlay a schermo (`setBioOverlayState`), il
+campione 1Hz e il conteggio dei cambi (`previousBioRegimeRef`,
+`bioRegimeChangeCount`) leggevano tutti `bioPerceptionState` (la baseline
+sempre, letteralmente) invece di `bioPerceptionSource()` (che sceglie fra
+baseline ed experimental secondo `audioMode`, già usata correttamente dai
+renderer). Deliberato quando l'overlay è nato (PIANO-040, prima che
+experimental esistesse: "Overlay e log 1Hz restano sulla baseline anche
+quando `audioMode='experimental'` è selezionato"), diventato un bug evidente
+ora che experimental pilota davvero il Visual: chi guardava il pannello per
+verificare un fix vedeva sempre il regime della baseline, molto più mobile
+per costruzione (15-32 transizioni per file contro le 2-5 di experimental
+dopo le correzioni dei giorni scorsi) — mai il proprio.
+
+Questo spiega la segnalazione "alternanza senza senso di pressurizzazione e
+decompressione" di questa sessione e con ogni probabilità gran parte delle
+segnalazioni precedenti: tutte le correzioni fatte a `experimental`
+(deadband, transitorio d'avvio, conferma per persistenza, tracciamento del
+periodo) erano corrette e verificate sul segnale reale dei renderer, ma il
+pannello che si guardava per giudicarle non le mostrava mai.
+
+Corretto: overlay, campione 1Hz e conteggio cambi ora leggono tutti
+`bioPerceptionSource()`. Aggiunto anche `audioMode` al campione 1Hz per
+prevenire in futuro questa stessa classe di confusione. Suite (73 file /
+695 test), typecheck e lint verdi.
+
+## Regime Audio experimental — stabilizzato il rilevamento del periodo (root cause) — 2026-09-12
+
+Il Capo Supremo ha chiesto una revisione d'impianto e di documentarsi
+online. Ricerca bibliografica: Müller, "Fundamentals of Music Processing",
+tempogram ad autocorrelazione
+(audiolabs-erlangen.de/resources/MIR/FMP/C6/C6S2_TempogramAutocorrelation.html).
+Confermata l'ipotesi: scegliere il lag di correlazione massima assoluta a
+ogni finestra di analisi, senza inerzia verso il periodo già riconosciuto,
+è una tecnica nota per essere instabile quando due candidati hanno forza
+simile (tipicamente per ambiguità di ottava — il doppio o la metà del
+periodo vero correla quasi altrettanto su materiale molto periodico). Le
+tecniche raccomandate in letteratura: filtraggio mediano nel tempo, vincoli
+di persistenza fra finestre successive, "peak tracking" (inerzia verso il
+picco già seguito).
+
+Misurato empiricamente su `pressurizzazione-2.mp3`: `periodMs` saltava fra
+1075, 750, 1025, 375, 275ms nel giro di pochi secondi pur senza che il
+materiale cambiasse — la causa a monte dell'oscillazione fra `pressurized`
+e `decompression` segnalata dal vivo (la conferma per persistenza del
+fix precedente mitigava il sintomo finale, non la sua causa).
+
+Implementato "peak tracking" in `analyzeExperimentalTemporalWindow`:
+riceve ora il periodo precedente (`previousPeriodBins`, tracciato nella
+classe) e lo mantiene se la sua correlazione resta entro
+`PERIOD_SWITCH_MARGIN=0.08` dal nuovo massimo assoluto, invece di saltare
+sempre al candidato più forte in valore assoluto. Verificato di nuovo su
+`pressurizzazione-2.mp3`: il periodo ora resta stabile per intervalli di
+5-14 secondi (750ms per 8-12s, 1025ms per 13-22s, ecc.) invece di cambiare
+quasi a ogni finestra da 500ms.
+
+Nessuna soglia di ampiezza toccata, nessun nuovo segnale osservato: usa
+esclusivamente la correlazione già calcolata sul periodo già scelto in
+precedenza. Corpus: tutti i 5 campioni respiro-alto-*.mp3 restano verdi
+(stessi valori). Aggiunto test dedicato (ambiguità di ottava). Suite (73
+file / 695 test), typecheck e lint verdi.
+
+## Regime Audio experimental — dwell sostituito con conferma per persistenza — 2026-09-12
+
+Verificato sul log della sessione live successiva al dwell (2s):
+`session-2026-09-12-01-48-03.txt`. I cambi di stato cadevano quasi tutti
+esattamente sul bordo dei 2s (gap: 2.000, 2.166, 2.000, 2.500, 2.017, 2.000,
+2.014s) — il Capo Supremo ha fatto notare correttamente che alzare il
+numero (provato: 5s) non è un metodo, è solo un timer più lungo che
+comunque accetta alla cieca qualunque candidato capiti nell'istante in cui
+scade, senza verificare nulla sul candidato stesso.
+
+Sostituito con una vera conferma per persistenza (`REGIME_CONFIRM_MS =
+2000`): il regime cambia solo quando lo stesso candidato si ripete
+stabilmente per tutta la finestra, non quando scade un timer indipendente.
+Stesso principio già in uso nella baseline per `reference`
+(`REFERENCE_CONFIRM_MS`). Se il candidato continua a oscillare (come nel
+log), non si conferma mai nulla e si resta nello stato corrente — a
+differenza del dwell puro, che prima o poi lasciava comunque passare
+qualunque valore istantaneo.
+
+Verificato sul corpus: tutti i 5 campioni respiro-alto-*.mp3 ancora verdi
+(71-91% sul tempo risolto); transizioni scese ulteriormente sui file
+transitivi (`decompresisone.mp3` 2→1, `pressurizzazione-2.mp3` 7→5); i 3
+file respiro-profondo restano a 0 transizioni, 100% corretto. Suite (73
+file / 694 test), typecheck e lint verdi.
+
+## Regime Audio experimental — permanenza minima di stato (dwell) — 2026-09-12
+
+Il Capo Supremo ha riportato dal vivo: "il ritmo si alza e lui sta ancora in
+decompressione, poi inizia a cambiare velocemente tra pressurizzazione e
+decompressione troppo velocemente, senza dare tempo all'ipotetico corpo di
+capire". Corrisponde esattamente ai fatti già osservabili nel log
+`session-2026-09-11-20-06-52.txt` citato dal brief qui sotto: 42 cambi in
+322s, 21 segmenti su 43 sotto i 2s, 12 sotto 1s.
+
+Causa: `classifyExperimentalRegime` veniva rivalutato a ogni singola analisi
+(ogni 500ms) senza alcun tempo minimo di permanenza — un solo campione oltre
+il deadband dell'ancoraggio bastava a cambiare etichetta. Non è un problema
+di ampiezza (già tarata sul corpus in più round): è l'assenza di un tempo
+minimo di permanenza, indipendente dalla sorgente audio e quindi dalla
+periferica hardware usata in collaudo dal vivo.
+
+Aggiunta permanenza minima di stato (`REGIME_MIN_DWELL_MS = 2000`,
+`resolveRegime` in `BrainBioPerceptionExperimentalClock`): una volta emesso
+un regime, il prossimo cambio resta sospeso finché non sono passati 2s
+(eccetto l'uscita iniziale da `unresolved`, che non deve aspettare) — stesso
+principio delle finestre di conferma già in uso nella baseline
+(`PRESSURE_SETTLE_CONFIRM_MS`, `REFERENCE_CONFIRM_MS`), applicato qui al
+cambio di etichetta. Nessuna nuova soglia di ampiezza, nessun nuovo segnale
+osservato.
+
+Effetto misurato sul corpus (stesso metodo offline, `compare-audio-regimes.mjs`):
+transizioni dimezzate o più su quasi tutti i file (`decompresisone.mp3`
+8→4, `respiro-profondo.mp3` 9→1, `pressurizzazione-2.mp3` 15→9), nessuna
+categoria dominante cambiata. Tutti i 5 campioni respiro-alto-*.mp3 restano
+verdi su `assert-regime-corpus.mjs` (stessi valori di prima: 82-96% sul
+tempo risolto). Aggiunto test dedicato in
+`brainBioPerceptionExperimental.test.ts` che verifica la permanenza minima
+con materiale volutamente oscillante. Suite (73 file / 694 test), typecheck
+e lint verdi.
+
+Non tocca il tentativo di soglia adattiva (`anchorVolatility`) discusso e
+ritirato in precedenza, né la richiesta di lettura percettiva del brief qui
+sotto — resta valida e non ancora risposta.
+
+## Regime Audio experimental — richiesta di aiuto all'Analisi Audio — 2026-09-11
+
+Il Consigliere riferisce che il riconoscimento nella sessione live più recente
+è «tutto sbagliato». Analizzato integralmente
+`session-2026-09-11-20-06-52.txt`: modalità `experimental` confermata, 42 cambi
+in 322,488 s, `respiro-alto` per l'85,0% del tempo e 21 segmenti sotto i 2 s.
+La sessione non contiene marcatori manuali né diagnostica experimental a 1 Hz;
+inoltre i `reason` e i segnali allegati ai cambi provengono dalla baseline e
+non spiegano le etichette experimental. Creato
+`team/briefs/brief-audio-richiesta-aiuto-riconoscimento-experimental-sessione-2026-09-11.md`.
+Nessuna modifica runtime: classificazione e retarature sospese in attesa della
+lettura del Capo Supremo dell'Analisi Audio. DEP-001 `NON COINVOLTO`.
+
+## Regime Audio experimental — respiro-alto-4.mp3, nessuna modifica necessaria — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-4.mp3` (aggiunto e tracciato).
+Verificato con `scripts/calibration/assert-regime-corpus.mjs`: già soddisfa il
+requisito col codice esistente, nessuna modifica. 86,4% respiro-alto sul
+tempo risolto, zero respiro-profondo, zero decompression, 4 transizioni.
+Aggiunto alle 4 attese esistenti (ora 5 campioni respiro-alto-*.mp3 in
+regressione, tutti verdi).
+
+## Regime Audio experimental — respiro-alto-3.mp3, deadband retarato e transitorio d'avvio corretto — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-3.mp3` (aggiunto e tracciato).
+Requisito esplicito: mai `respiro-profondo`, mai `decompression`, sempre
+dominante `respiro-alto`.
+
+Due correzioni:
+
+1. `ANCHOR_TREND_DEADBAND` (0,012 → 0,02): il valore precedente, tarato solo
+   sui primi 3 campioni respiro-alto, non bastava sul 4°. Retarato
+   sull'insieme dei 4 file; nessuna regressione misurata sul resto del
+   corpus.
+
+2. Bug evidente nel transitorio d'avvio: appena la memoria di 8s diventa
+   `ready`, `anchor`/`constraint` sono ancora vicini a zero per
+   costruzione (nessun ciclo confermato) — letto come un falso
+   `respiro-profondo` invece che come "ancora in costruzione". Aggiunto
+   `anchoring.warmedUp` (bug evidente, non nuova metrica: usa `readyAt`,
+   il momento in cui `ready` è diventato vero, già implicito nello stato
+   della classe) — per `ANCHOR_WARMUP_GRACE_MS=1500` dopo `ready`,
+   `classifyExperimentalRegime` restituisce `pressurized` (ancora in
+   costruzione) invece di valutare la soglia alto/profondo. Prima
+   correzione tentata (gate sul VALORE di `anchor` invece che sul tempo)
+   si è rivelata sbagliata in verifica: sopprimeva `respiro-profondo` per
+   l'intera durata dei file genuinamente a bassa costrizione
+   (`respiro-profondo-1.mp3`, `respirto-profondo-3.mp3` — il loro anchor
+   non supera mai la soglia usata, per definizione). Ritirata subito,
+   sostituita con il gate temporale.
+
+Trovato anche un artefatto del metodo di collaudo, non della produzione:
+`scripts/calibration/assert-regime-corpus.mjs` prependeva 40s di rumore
+rosa prima del contenuto reale (stessa convenzione di tutti gli script di
+questo corpus, per stabilizzare rhythmClock), ma la finestra di 8s
+dell'experimental clock diventa `ready` già a 8s di rumore rosa — molto
+prima che il contenuto reale inizi a 40s. Il transitorio d'avvio
+(`ANCHOR_WARMUP_GRACE_MS`) risultava quindi già esaurito nel momento in cui
+iniziava il materiale reale, mascherando l'effetto della correzione al
+punto 2 (risultati identici prima/dopo nello script di verifica). Corretto
+istanziando l'experimental clock solo all'inizio del contenuto reale in
+`assert-regime-corpus.mjs` — non esiste dal vivo, dove non c'è rumore rosa
+prima del materiale. `scripts/calibration/compare-audio-regimes.mjs`
+(diagnostica generale, non regressione di accettazione) non è stato
+toccato: continua a mostrare pochi secondi residui di questo stesso
+artefatto sui file respiro-alto-*, da tenere presente leggendo i suoi
+output.
+
+`scripts/calibration/assert-regime-corpus.mjs` esteso: soglia di dominanza
+ora calcolata sul tempo risolto (esclude `unresolved`, l'8s strutturale di
+avvio a freddo — stessa logica già in uso nel progetto per il tempo di
+Varco, altrimenti un file corto fallisce solo per il costo fisso della
+finestra); aggiunto supporto per stati vietati (`forbidden`). Tutti e 4 i
+campioni respiro-alto-*.mp3 passano: dominanza ≥0,82 sul tempo risolto,
+zero `respiro-profondo`, zero `decompression`.
+
+Suite (73 file / 693 test), typecheck e lint verdi dopo la modifica.
+
+## Regime Audio experimental — corretta oscillazione ingestibile su respiro-alto-2.mp3 — 2026-09-11
+
+Nuovo campione corpus `docs/campioni/respiro-alto-2.mp3` (aggiunto e tracciato).
+Con il regime experimental risultava DIFFORME dall'etichetta: solo 65% del
+tempo in `respiro-alto`, il resto spezzato in `pressurized`/`decompression`
+spuri (25 transizioni in 76s). Causa: `anchoring.gaining`/`losing`
+(`brainBioPerceptionExperimental.ts`) usavano un deadband di 0,005 sul
+delta campione-a-campione di `anchor` — più stretto del rumore naturale di
+`anchor` in un tratto stabile (misurato fino a ~0,011 su questo file),
+quindi ogni micro-oscillazione veniva letta come passaggio reale. Le
+transizioni reali sullo stesso file restano ≥0,012.
+
+Corretto alzando il deadband a 0,012 (nuova costante `ANCHOR_TREND_DEADBAND`,
+nessuna nuova metrica: stesso segnale `anchor` già calcolato). Risultato:
+`respiro-alto-2.mp3` passa a 88% respiro-alto, 13 transizioni (era 25).
+Nessuna regressione misurata sul resto del corpus (`respiro-alto-0/1.mp3`
+restano rispettivamente 79%/90% respiro-alto; gli altri file non
+cambiano di categoria dominante). `decompresisone.mp3` perde una quota di
+decompression già marginale (0,74s su 49s, sotto la vecchia soglia) — non
+una regressione nuova: quel file non arrivava già a mostrare decompression
+come regime dominante, limite pre-esistente e fuori scope MVP (come
+`test-1.mp3`).
+
+Aggiunto `scripts/calibration/assert-regime-corpus.mjs`: regressione mirata
+(non nella suite vitest — richiede ffmpeg e decodifica reale, fuori posto
+in unit test veloci) che decodifica i tre campioni `respiro-alto-*.mp3` con
+lo stesso codice di produzione e fallisce se la quota dominante di
+`respiro-alto` scende sotto 0,6. Uso:
+`node scripts/calibration/assert-regime-corpus.mjs`.
+
+Suite (73 file / 692 test), typecheck e lint verdi dopo la modifica.
+
+## Regime Audio experimental — collegato al Visual, MVP chiuso — 2026-09-11
+
+`audioMode='experimental'` pilota ora i renderer (`bioPerceptionSource` in
+`OutputApp.tsx` sceglie fra i due clock); `baseline` resta il default e
+resta disponibile e invariata. Aggiunta la sola classificazione mancante
+per esporre un `regime` (`classifyExperimentalRegime` in
+`brainBioPerceptionExperimental.ts`): `anchoring.gaining`/`losing` (già
+calcolati) fanno da passaggio, `constraint.value` (già calcolato) decide
+alto/profondo sopra/sotto 0,18 — soglia presa dall'evidenza già misurata
+(C04=0,109, C06=0,252), non da una nuova formula.
+
+Bug evidente trovato e corretto in collaudo, prima di dichiarare l'MVP
+chiuso: la prima versione usava `constraint.direction`, che non rientra mai
+in `falling` dopo l'assestamento iniziale (doppio smoothing) — risultato,
+`decompresisone.mp3` restava `respiro-alto` per 40 dei 49s osservati,
+comportamento palesemente invertito. Sostituito con
+`anchoring.gaining`/`losing`, reattivi sample a sample.
+
+Limite noto, non riaperto in questa fase (già segnalato nella consegna
+precedente): `test-1.mp3` mostra ancora una quota rilevante di
+`respiro-alto` (31,6s su 49s) — il discriminante bidirezionale resta
+imperfetto. Nessuna nuova metrica introdotta per inseguirlo, per
+disposizione esplicita di questa fase.
+
+Verifica: harness offline sull'intero corpus (stesso codice di produzione,
+non un test visivo dal vivo — non disponibile in questo ambiente):
+respiro-alto-0/1 e pressurizzazione.mp3 restano dominati da respiro-alto
+coerente; i tre respiro-profondo* passano da "sempre profondo, zero
+transizioni" (bug) a maggioranza profondo con passaggi reali; decompresisone*
+guadagna una quota di decompression prima assente. Suite completa (73
+file/692 test, 3 nuovi test sul classificatore), typecheck e lint verdi.
+Nessuna modifica a `classifyLevel`, `rhythmConstraint`, `pressureLanded`,
+baseline.
+
+## Regime Audio experimental — prima consegna sostanziale — 2026-09-11
+
+Recepita la direttiva del Vice Consigliere. La baseline e il lavoro aperto su
+`pressureLanded` restano presenti ma accantonati; nessun file baseline è
+stato modificato. DEP-001 `NON COINVOLTO`.
+
+`BrainBioPerceptionExperimentalClock` dispone ora di una memoria propria da
+8 s: conserva materia e fronti separati per banda in celle da 25 ms, stima la
+ricorrenza multibanda, verifica la conferma low/lowMid allo stesso periodo,
+confronta sei cicli completi e mantiene attacco, perdita e recupero
+dell'ancoraggio. Produce diagnostica separata per organizzazione,
+entrainment, ancoraggio, prima costrizione, traiettoria e assestamento. Il log
+1 Hz registra questi dati; il Visual continua a ricevere solo la baseline.
+
+Corpus reale: C03=`respiro-alto-0` produce costrizione media 0,351,
+C04=`respiro-profondo` 0,109, C06=`respiro-alto-1` 0,252. Sono soddisfatti i
+due confronti verificabili `C03 > C04` e `C06 > C04`. La mappa C02/C08/C09
+non è conservata e non è stata ricostruita per congettura.
+
+Limite aperto: `test-1.mp3` conserva ricorrenza e persistenza inter-ciclo
+alte anche nel nuovo osservatore; non è ancora discriminato come
+trasformazione bidirezionale. Nessuna soglia o classificazione finale è
+stata quindi promossa. Risposta completa in
+`team/briefs/risposta-ingegneria-regime-audio-experimental-prima-consegna-2026-09-11.md`.
+
+Validazione: 73 file / 689 test, typecheck e lint verdi; build Vite/Electron e
+ZIP arm64 riusciti. Il solo DMG non è stato rigenerato: `hdiutil create`
+fallisce sul sistema host dopo i retry automatici (16 GiB liberi, nessuna
+immagine montata). Il DMG rc.4 già presente è quello delle 00:47 e non include
+questa consegna.
+
+## Regime Audio sperimentale — osservabili motori, criterio a range ritirato — 2026-09-11
+
+Ripreso l'intervento sospeso sul gate dei Respiri. Il criterio a escursione
+min/max di `pressureLagged` è stato **ritirato**: non riconosceva nessuno dei
+tre `respiro-profondo*`, modificava la baseline che PIANO-044 dichiara
+congelata e aggiungeva stato (`settleFloor`/`settleCeiling`) senza rispondere
+alla domanda. Restano conservate qui le misure che lo hanno smentito:
+l'escursione minima di `perceptualPressure` su 9 s è 0.059–0.106 nei tre
+campioni profondi, 0.070 in `test-1.mp3`, ma soltanto 0.016–0.017 in due
+campioni di trasformazione. Nessuna soglia sulla sola ampiezza della
+traiettoria separa quindi stasi e trasformazione nel corpus.
+
+Proseguita invece PIANO-044/Fase 2 nel solo harness A/B. Il confronto ora
+registra, senza cambiare il runtime, gli osservabili già disponibili
+(`pulse`, `lowEnd`, `gridDensity`, `rhythmConstraint`, persistence/change),
+la conferma fisica sui beat del clock e la periodicità dei fronti reali di
+banda, globale e su finestre scorrevoli da 8 s.
+
+**Evidenza misurata:** il clock corrente rileva 0 beat in entrambi i file
+`respiro-alto-*`; non può quindi essere l'autorità esclusiva
+dell'entrainment sperimentale. L'autocorrelazione dei fronti raw recupera
+organizzazione periodica nei due file alti (correlazione globale 0.26/0.24;
+media mobile 0.72/0.50) e resta bassa nei tre profondi (globale 0.05–0.09;
+media mobile 0.17–0.23). Ma la stessa periodicità resta forte nei file di
+pressurizzazione/decompressione e in `test-1.mp3` (globale 0.43, media mobile
+0.68, periodo stabile): prova diretta che **periodicità/entrainment distingue
+il livello motorio, non l'assestamento**. Non è stata promossa alcuna formula
+di regime; il prossimo passo resta trovare, nel percorso sperimentale, la
+persistenza inter-ciclo che separi una relazione ripetuta da una migrazione
+fra configurazioni.
+
+Baseline di produzione nuovamente invariata. Audit DEP-001: `NON COINVOLTO`.
+
+## Respiri — ricostruzione temporale del secondo blocco — 2026-09-11 (aggiornamento)
+
+Ricostruita la timeline evento-per-evento (`scripts/calibration/
+timeline-respiro-profondo.mjs`) su tutti e tre i file. Correzione alla
+diagnosi precedente in questa stessa pagina: l'ipotesi "il bootstrap
+consuma il tratto piatto iniziale" era sbagliata — il lungo `pressureFlatMs`
+osservato all'inizio era un artefatto del riscaldamento sintetico
+dell'harness (40s di rumore rosa, stazionario per costruzione), non un
+tratto piatto del brano reale: si rompe entro ~100ms dall'inizio del
+contenuto vero, in tutti e tre i file. Da lì fino alla fine del file,
+`pressureLanded` **non torna mai vero, nemmeno una volta**, su nessuno dei
+tre. Il livello (`gatedLevel`) diventa comunque noto più avanti, ma solo
+via `reference.justSettled` (non via `pressureJustLanded`, che non rifiora
+mai) — e a quel punto `pressureLanded` è già permanentemente falso, quindi
+`classifyRawBioRegime` riceve sempre `null` al posto del livello
+(`pressureLanded ? gatedLevel : null`). Non è un disallineamento episodico
+fra due gate: è che il gate di atterraggio, sul contenuto musicale reale di
+questi tre file, non si soddisfa mai dopo l'avvio — stessa causa già
+descritta nella prima voce Diagnosi Respiri (2026-09-10/11): `pressureTrend`
+(quindi `landingNow`, stessa soglia 0.02) cambia con cadenza troppo fitta
+per accumulare 9s continui. `everPromoted`/bootstrap non blocca nulla dopo
+essersi promosso una prima volta (resta vero per sempre): non è la causa.
+Nessuna modifica al codice di produzione in questo aggiornamento oltre a
+diagnostica additiva (`referencePhase`, `referenceJustSettled` in
+`BrainBioRegimeDiagnostics`; `classifyLevel` esportata, invariata).
+
+## Respiri — corretto il reset del gate di atterraggio, resta un secondo blocco — 2026-09-11
+
+Diagnosi Vice Consigliere, verificata su `respiro-profondo.mp3`,
+`respiro-profondo-1.mp3`, `respirto-profondo-3.mp3` (harness
+`scripts/calibration/diagnose-respiro-profondo.mjs`, riusa il modulo di
+produzione reale).
+
+**Difetto 1 (corretto)**: in `advanceBioRegime`, `pressureFlatMs` si
+azzerava a ogni cambio dell'ETICHETTA `pressureTrend`, anche quando `pp`
+restava continuamente entro `PRESSURE_SETTLE_EPSILON` dalla propria linea
+ritardata (`landingNow` vero). `REFERENCE_PRESSURE_DEADBAND` e
+`PRESSURE_SETTLE_EPSILON` sono lo stesso valore per costruzione: l'ingresso
+in rising/falling da 'stable' coincide già con la perdita di `landingNow`,
+quindi quella protezione non serviva; l'isteresi in USCITA da rising/falling
+lasciava invece che l'etichetta cambiasse ben dopo che `pp` aveva già
+smesso di muoversi, e ogni micro-rientro azzerava il conteggio. Sul segnale
+reale l'etichetta cambia con cadenza mediana ~1.7s (Diagnosi Respiri
+2026-09-10/11), sempre sotto ai 9s richiesti: `pressureLanded` non
+diventava mai vero. Corretto: il reset dipende ora solo da `landingNow`.
+Verificato: `pressureLanded` ora diventa vero su tutti e tre i file
+(prima: mai, su nessuno). Due test di regressione aggiunti in
+`brainBioPerception.test.ts` per il meccanismo esatto.
+
+**Difetto 2 (non corretto, in attesa di indicazione)**: anche con
+`pressureLanded` vero, nessuno dei tre file raggiunge `respiro-profondo`.
+Causa: i tre campioni iniziano con un tratto lungo e piatto (l'intro reale
+più il riscaldamento di rumore rosa che lo precede nell'harness) che
+consuma quasi per intero il bootstrap di `reference` (`everPromoted` resta
+falso finché il mondo non viene confermato) — `gatedLevel` resta forzato
+`null` per tutta quella finestra anche se `pressureJustLanded` scatta,
+perché il gate `everPromoted ? settledLevel : null` lo azzera in bootstrap.
+Il livello viene poi effettivamente classificato (via
+`reference.justSettled`, non via `pressureJustLanded`) solo quando il
+tratto piatto sta già finendo: sui tre file, `pressureLanded` e
+`level !== null` non sono MAI risultati veri nello stesso fotogramma
+(misurato direttamente, zero secondi di sovrapposizione su tutti e tre).
+Il regime resta quindi `pressurized`/`decompression` per l'intero file:
+nessuno dei tre raggiunge `respiro-alto`/`respiro-profondo` nemmeno dopo
+la correzione del Difetto 1.
+
+**Regressione**: rieseguito l'intero corpus (`compare-audio-regimes.mjs`,
+11 file) e `test-1.mp3` (`analyze-sample.mjs`, gate storico
+"`respiro-alto` deve restare 0" — verde). Nessun file già classificato
+correttamente ha guadagnato un respiro spurio; unico cambiamento osservato,
+un incremento di pochi decimi di secondo del tempo già in `respiro-alto` su
+`pressurizzazione.mp3`/`pressurizzazione1.mp3` (dove era già presente prima
+della correzione). Suite completa (73 file/685 test), typecheck e lint
+verdi. `audioMode='experimental'` (PIANO-044) eredita lo stesso
+comportamento perché in questa fase delega integralmente alla baseline
+(scaffold, nessuna semantica propria ancora) — non è stato toccato nulla
+nel file `brainBioPerceptionExperimental.ts`.
+
+## PsicoFantasma — eleggibilità verificata e log per fotogramma — 2026-09-11
+
+Verificato il §36 del brief Visual prima di intervenire: PsicoFantasma è già
+eleggibile nei quattro regimi. È nella whitelist di decompressione/Respiro
+Profondo, nel pool generale di pressurizzazione e fra i compatibili secondari
+del Respiro Alto. Nessuna correzione dei pool applicata.
+
+I motivi operativi che possono produrre zero permanenza sono trasversali al
+regime: il gate `interlude` e il filtro `HEAVY_RENDERERS_UNDER_PRESSURE`. Il
+selettore alimenta quest'ultimo con `longFrameBlockedUntil` (9–20 s dopo un gap
+RAF); PsicoFantasma viene quindi tolto dai nuovi mazzi mentre quel filtro è
+attivo. Nel Respiro Alto ordinario, inoltre, il rango secondario cade oltre la
+capienza tipica di una storia da quattro fotogrammi.
+
+`brainController.applyFrame` registra ora
+`brainRendererSelector.resolve per fotogramma` una volta per ogni immagine
+messa in onda, con sequenza, storia/fotogramma, renderer, superficie, regime,
+qualità, filtro pressione, Riattivazione, durata prevista e istante di avvio.
+Le percentuali di permanenza possono essere ricostruite dai marker reali di
+messa in onda, senza usare i marker asincroni di preparazione come proxy.
+
+Regressione esplicita sui quattro regimi aggiunta. Validazione: test selettore
+55/55, suite completa **72 file / 681 test**, typecheck, lint e build completa
+app/ZIP/DMG verdi. Audit deprecati: DEP-001 `NON COINVOLTO`.
+
+## Diagnosi Respiri — gate quasi invalicabile nel segnale live — 2026-09-11
+
+Analizzati i tre log più recenti (`00-13-49`, `00-18-21`, `00-29-01`). Il
+Respiro Profondo non è assente: compare 10 volte; nell'ultima sessione il
+tratto iniziato alle 22:34:08 UTC resta l'ultimo regime loggato almeno fino
+alle 22:35:49, con Deliquescence già attivo. Il Respiro Alto compare zero
+volte nei log del 9–11 settembre.
+
+Causa a monte dei renderer:
+- `pressureTrend` cambia regime con intervallo mediano 1,68–1,73 s;
+- il 94–98% degli intervalli è inferiore ai 9 s richiesti da
+  `PRESSURE_SETTLE_CONFIRM_MS`;
+- ogni cambio di trend azzera `pressureFlatMs`, quindi una stasi musicale
+  ordinaria quasi mai raggiunge il gate;
+- il Profondo conserva una via diretta dopo 2 s di silenzio; l'Alto non ha
+  una via simmetrica e dipende dall'atterraggio di 9 s o dalla lenta
+  ri-promozione di `reference`;
+- i test end-to-end raggiungono l'Alto con blocchi artificiali di 60 s a
+  bande/transienti costanti, non con traiettorie musicali reali.
+
+Conclusione: non è una taratura dei renderer. Il criterio di stasi continuo
+non descrive il segnale live e non va semplicemente abbassato; secondo la
+regola anti-sovrastrutturazione va prima rivalutato o ritirato usando i
+segnali già presenti. Nessuna modifica runtime applicata in questa diagnosi.
+
+## Deprecati — audit preventivo obbligatorio — 2026-09-10
+
+Creato [`working/DEPRECATED.md`](DEPRECATED.md) come registro canonico. Ogni
+intervento deve leggerlo integralmente prima del piano e decidere per ciascun
+elemento: `NON COINVOLTO`, `MANTENERE`, `AGGIORNARE` o `DISMETTERE`.
+
+`Alternate with Brain (80/20)` è `DEPRECATO — ATTIVO PER COMPATIBILITÀ`:
+default spento, configurazioni salvate ancora rispettate, nessuna nuova
+estensione. Audit corrente: `MANTENERE` fino a una dismissione completa con
+migrazione di impostazioni, UI, runtime, test e documentazione.
+Typecheck, lint e build completa app/ZIP/DMG verdi.
+
+## Riattivazione — memoria stabile dopo ogni storia — 2026-09-10
+
+La cadenza variabile 2–4, poi provvisoriamente 1–2 e 1–1, è stata sostituita
+con una relazione diretta. La chiusura della storia è l'unica autorità del
+Ciclo di Riattivazione; contatore, estrazione casuale della cadenza e reset
+del contatore sono stati rimossi dal runtime.
+
+Implementazione corrente:
+- alla chiusura di ogni storia ordinaria vengono scelte una sola volta le tre
+  immagini con la qualità di generazione effettiva più alta già disponibile;
+  il ranking non introduce classificatori o metadati semantici;
+- una `RevisionSessionMemory` conserva in RAM l'associazione stabile
+  `storyId → 3 raster` fino alla distruzione del controller, cioè per l'intera
+  sessione Brain;
+- la prima storia fissa la propria terna ma non ha un passato da riattivare;
+  dalla seconda storia ogni chiusura avvia una Riattivazione con tutte le
+  terne delle storie precedenti;
+- storie e immagini sono riprodotte nell'ordine cronologico originale, senza
+  rimescolamento fra i giri già previsti dal ciclo;
+- l'archivio su disco continua a essere alimentato dalla pipeline esistente,
+  ma non decide più la cadenza né la selezione del ciclo della sessione;
+- renderer, durata per fotogramma, intensità, numero di giri, tag I/O,
+  metadati semantici e criteri narrativi non sono stati modificati.
+
+Conseguenza prevista dal brief: i raster trattenuti e la durata complessiva
+della Riattivazione crescono linearmente con il numero di storie concluse.
+Validazione finale: **72 file / 680 test**, typecheck, lint e build completa
+app/ZIP/DMG verdi; nessun vecchio simbolo di cadenza rimasto in `src/`.
+
+## Rete di sicurezza al failure — scelta casuale fra gli eleggibili — 2026-09-10
+
+Disposizione Vice Consigliere. Al failure del QC di un renderer, `brainRendererHost`
+non fissava più il sostituto su `filter-psiche` (o `print2d` in Riattivazione):
+ora lo sceglie **a caso fra i renderer eleggibili per lo stato/regime corrente**.
+
+- Nuovo `BrainRendererSelector.eligibleRenderers()` — espone `storyCycleIds()`
+  (whitelist di regime + esclusione story-cycle di Print2D + filtro pressione GPU),
+  la stessa base con cui il selettore costruisce i mazzi. Nessun pool nuovo.
+- `createBrainRendererHost` accetta un 8° callback opzionale `getEligibleRenderers`;
+  `brainController` gli passa `() => brainRendererSelector.eligibleRenderers()`.
+- Nel ramo failure: `eligibleFallback = eligibili − {renderer appena fallito} −
+  {in cooldown `retryRendererAfter`}`; `safetyNetId = pick casuale`. Se il
+  callback manca o il pool è vuoto → comportamento storico (`print2d`/`filter-psiche`).
+- Gestione del failure invariata per il resto (`retryRendererAfter += 30 s`,
+  `requestRenderer`, `onRendererFailed` → `reportRendererFailure`).
+- 2 test nuovi (host: pick casuale ≠ fallito ≠ sempre filter-psiche; selettore:
+  `eligibleRenderers` rispetta whitelist/print2d/pressione). 678 test verdi.
+
+`psicofantasma` poco selezionato nella finestra automatica del 2026-09-10:
+**nessun bug**. Eleggibilità corretta (`LOW_REGIME_RENDERERS` +
+`HIGH_REGIME_SECONDARY_RENDERERS`, `isPsicoFantasmaBundled()` = true confermato
+da una comparsa reale). Cause coerenti con l'architettura: apertura manuale di
+140 s che ha impostato `activeId` (primo mazzo story-cycle lo evita a pos. 0);
+storie da 4 fotogrammi + hold persistente 2-3 → ~2 renderer per storia;
+`HEAVY_RENDERERS_UNDER_PRESSURE` (psicofantasma incluso, come bauhaus/material/
+dream-seg) tolto dai mazzi quando `getPressureHint()` è vero, sessione
+pressure-heavy; gate `interlude` 034-20; regime mai salito in `respiro-alto`/
+`respiro-profondo`; campione piccolo (~8,8 min). Fermati e riportato, nessuna
+ritaratura.
+
+## Transition System — Slice 01 «CONTAMINATION» — 2026-09-09
+
+Via libera del Consigliere. Prima e unica Slice di questa fase (§25 del brief
+Visual in vigore: nient'altro del Transition System si implementa ora).
+
+Ambito: **Morph → Morph sulla stessa immagine** (cambio renderer, raster
+invariato) — livello interno di `brainRendererHost.ts` (`active`/`incoming`).
+Image→Image, cambio raster, INHERITANCE, maschere, compositing nuovo: **fuori**.
+
+Fatto, solo `brainRendererHost.ts` (nessun tocco al contratto plugin né ai
+renderer):
+- **Curve di opacità asimmetriche** (`contaminationEnvelope`): l'entrante sale
+  entro ~il 40% della transizione, l'uscente resta pieno fino a ~metà poi cede;
+  nella fascia centrale la somma supera 1 (coesistenza). Non più un crossfade
+  simmetrico.
+- **Durata** `CONTAMINATION_DURATION_MS = 3400` (entro il tetto tecnico 2.5–4 s,
+  dentro la `holdMs` del fotogramma) contro i 1800 ms del crossfade simmetrico.
+- **Leve di taratura a vista, per coppia** (autorizzate, meccanismi CSS già
+  presenti): tetto di opacità in coesistenza `CONTAMINATION_COEXIST_CAP = 0.82`
+  (blend morbido ai bordi della fascia, nessuno scatto) + `mixBlendMode`
+  `overlay` sul **solo** layer entrante durante la coesistenza, `normal` fuori.
+- **Fallback al crossfade simmetrico** quando: coppia in
+  `CONTAMINATION_EXCLUDED_PAIRS` (costante **vuota**, si popola solo al
+  collaudo — §24: non si esclude per prudenza); degradati (low power /
+  pressione / offline hold); l'uscente ha fallito il QC (`hasFailed` →
+  sostituzione d'emergenza, deve restare rapida).
+- Osservabilità: `data-brain-contamination` = `enter` / `coexist` / `cede`.
+- 2 test nuovi in `brainRendererHost.test.ts` (asimmetria + fascia ibrida +
+  blend + promozione pulita; fallback degradato). 676 test, typecheck, lint,
+  build puliti.
+
+Da tarare a schermo: `CONTAMINATION_DURATION_MS` (2.5–4 s), `COEXIST_CAP`,
+`COEXIST_BLEND`, popolamento di `CONTAMINATION_EXCLUDED_PAIRS` — tutti valori
+di collaudo, per coppia (Test Visual 1–7 del brief Slice 01).
+
+## PsicoFantasma — PIANO-043 / MACRO-034 — 2026-09-08
+
+Matcher geometrico già autorizzato e implementato in 034-17: CLIP, encoder e
+Worker ritirati. I numeri CLIP nei resoconti precedenti sono storici.
+
+**Repertorio V2 approvato e integrato:** 120 SVG, 24 per famiglia, 40/40
+archetipi guida. Hash e file corrispondono al manifest; il normalizzatore
+deterministico produce contorni runtime dalle impronte 32×32 consegnate.
+Il bundle rende PsicoFantasma disponibile anche nella rotazione normale.
+
+Completato tecnicamente **034-18, persistenza fra immagini**: uno slot rotante
+fuori istanza conserva la deformazione raggiunta, silhouette, bbox,
+completamento e decadimento. L'immagine successiva mantiene la traccia;
+se il nuovo gate passa, parte un morph fra forme preparato al cambio immagine.
+Senza match la traccia decade in 12 secondi percettivi, senza ritornare alla
+foto precedente. Silenzio e hold congelano i pixel. Le istanze uscenti non
+possono riscrivere lo slot dell'immagine nuova. Rimane separato il checkpoint
+della stessa immagine per ricreazione dell'istanza.
+
+Budget continuità: un passaggio ereditato, massimo 18 stadi 480×270
+(9 in lowPowerMode), precomputati. Lo slot trattiene due stadi già esistenti;
+a runtime solo compositing, senza analisi o riallocazioni. Gate, reattività
+034-19/21, feather 034-22, regioni 034-23 e gate qualità 034-20 invariati.
+DELIQUESCENCE e lavori concorrenti non modificati.
+
+Verifiche precedenti: **71 file / 671 test**, typecheck e lint. Canvas reale Electron
+con fixture tecniche: match A → match B, traccia su C senza regione, decadimento
+completo, silenzio con pixel identici; B/C in lowPowerMode. Sono prove
+tecniche, non curatela o taratura Visual. Build finale completa: app, ZIP e DMG.
+
+034-04 è completato. Ranking reale: 120/120 descrittori finiti e coerenza
+strutturale esatta; 115 sagome esatte passano il gate, 5 collisioni vengono
+rifiutate correttamente per margine zero. Profiling simultaneo reale:
+PsicoFantasma CPU 44,6 ms/~1,7 MB heap mentre Psichedel WebGPU completa in
+34,301 s (riferimento caldo 34,840 s), senza impatto misurabile e senza VRAM.
+Validazione finale: **72 file / 674 test**, typecheck, lint e build completa
+app/ZIP/DMG. Il JSON dentro `app.asar` contiene 120 sagome e coincide per hash
+con il file normalizzato (`141978d9…`).
+
+**Ancora aperto:** parte percettiva 034-11, Test Visual 1–12 e giudizio a
+schermo sul 20–40%. È criterio di collaudo, non quota runtime. Piano attivo,
+non dichiarato completato.
+
+Diagnosi log live 2026-09-09: il matcher PsicoFantasma è attivo e ha prodotto
+49 decisioni con candidati reali in due finestre (8 settembre 23:00–23:06 e
+9 settembre 14:34–14:40 CEST), ma **0 riconoscimenti accettati**. Rifiuti:
+24 affinità, 17 margine, 8 coerenza; persistenza sempre maturata. Il dato
+osservato è 0%, sotto il criterio Visual 20–40%. Nessuna taratura applicata.
+
+## Chiusura piani + `1.0.0-rc.3` — 2026-09-07
+
+- Disposizione del Consigliere: commit del working tree in unità separate
+  (Varco / Print2D / presenza del raster — bio-percettivo era già in rc.2),
+  chiusura del registro, avanzamento a release candidate. Nessun push
+  (deciso dal Capo Supremo: commit + tag locali).
+- **Commit**: `feat(varco)`, `feat(brain)` presenza raster, `feat(print2d)`
+  stato per regione, `chore(registry)` chiusura piani, `chore(release)`
+  rc.3. Tag locale `v1.0.0-rc.3`.
+- **Registro**: otto piani renderer marcati implementati (riapertura
+  singola, nessuna campagna di collaudo unica). Attivi: `MACRO-009` +
+  `MACRO-020` (blocco prestazioni), `MACRO-033` (Print2D PIANO-042/039),
+  PIANO-040 (bootstrap lungo). `MACRO-008`/PIANO-005 **parcheggiato**
+  (ristrutturazione autonoma del grafo richiede decisione esplicita).
+  PIANO-011 **archiviato** in PIANO-015. PIANO-008 confermato **attivo**
+  dal Capo Supremo. Allineati gli header di PIANO-017/018/021/024 ai
+  rispettivi macrotask.
+- Validazione: typecheck + lint puliti, 66 file / 629 test.
+
+## PRINT2D — correzione strutturale per regione — 2026-09-07
+
+- MACRO-033 / PIANO-042: implementazione completata, collaudo fullscreen pendente.
+- Dodici stati (sei lastre, quattro frammenti, due contorni): fase circolare
+  filtrata, velocità smorzata, posizione accumulata senza attrazione all'origine.
+- Limiti locali fissi; silenzio conserva il residuo, freeze sospende lo stato.
+  Eliminati offset globali, armoniche ×2/×4 e inversioni geometriche al beat.
+- Identità, palette, retino, transizioni e pacing low power conservati.
+- 33 test mirati, typecheck e lint verdi; Canvas simulato, nessuna prova live.
+- Prossimo passo: collaudare asincronia e memoria leggera prima di wash-out,
+  impulso locale e lock leggibile. Altro lavoro su Varco escluso dall'intervento.
+
+## Presenza del raster — Bauhaus / Fractal / DELIQUESCENCE — 2026-09-07
+
+- Disposizione del Capo Supremo: il raster di fondo deve leggersi di più
+  sotto la grammatica del renderer, senza toccare la grammatica. Tre delle
+  quattro decisioni eseguite qui; **Print2D è rimandato al round PRINT2D**
+  (già in corso in questo tree — `brainPrint2dRegionMotion.ts`): leva nuova
+  autorizzata = passaggio di raster pieno tenue ~0.12–0.18 sotto le lastre,
+  da fare insieme agli offset per regione. Print2D si tocca una volta sola.
+- **Bauhaus-Morph** ([`brainBauhausMorphCanvas.ts`](../src/renderer/output/brain/brainBauhausMorphCanvas.ts)):
+  `UNDERLAY_CEILING` 0.24 → **0.44** (secondo giro "raster ancora più
+  visibile"), `UNDERLAY_FLOOR` 0.08 → 0.16. `UNDERLAY_HARD_CEILING` 0.45 è
+  ora imposto sull'output finale (respiro del beat incluso) — è il limite
+  invalicabile del Capo Supremo, **siamo al tetto**: altri aumenti = nuova
+  disposizione. Terzo giro ("dissoluzione più lenta"):
+  `UNDERLAY_REVEAL_PHASE_END` 0.40 → 0.55 — il raster resta al soffitto più
+  a lungo prima di ritirarsi (solo tempistica, non tocca il tetto).
+  Leva = opacità underlay in `computeBauhausUnderlayOpacity`.
+- **Fractal Spiral Degeneration** ([`brainFractalSpiralCanvas.ts`](../src/renderer/output/brain/brainFractalSpiralCanvas.ts)):
+  `UNDERLAY_FLOOR` 0.55 → 0.70, `FILL_ALPHA_CEILING` 0.32 → 0.26,
+  `ARM_ALPHA_BASE` 0.40 → 0.32, `ARM_ALPHA_DETAIL` 0.25 → 0.20. Se serve
+  altro margine, contenere il layer di degenerazione `lighter` prima di
+  alzare ancora l'underlay. Dissoluzione più lenta ("più in presenza"):
+  `computeUnderlayOpacity` ora tiene il soffitto finché
+  `degenerationProgress` ≤ `UNDERLAY_HOLD_UNTIL` (0.35), poi scende al
+  pavimento con curva dolce — invece di calare lineare da subito.
+- **DELIQUESCENCE** ([`brainDeliquescenceCanvas.ts`](../src/renderer/output/brain/brainDeliquescenceCanvas.ts)):
+  **difetto aperto** (figura/contorno quasi neri su nero) mai corretto dal
+  rework. `deliquescenceTonemap`: pavimenti neri 10/12/18 → 26/24/34, gate
+  luminanza `0.7 + lum·0.3` → `0.8 + lum·0.2`. Span invariati, collasso
+  della forma invariato. Test: grigio medio ora stacca dal fondo `#0a0812`
+  (min > 30).
+- Validazione: typecheck + lint puliti, 66 file / 628 test. Collaudo live da
+  fare. Precedenza `unresolved` invariata.
+
+## Output su 2° monitor (macOS): icona sparita dalla Dock + fullscreen — 2026-09-07
+
+- Sintomo (macOS, desktop esteso): appena si apre la finestra Output
+  l'icona dell'applicazione scompare dalla Dock.
+- **Causa**: la finestra Output in [`windows.ts`](../src/main/windows.ts)
+  era creata con `skipTaskbar: true`. Su macOS Electron lo esegue come
+  `app.dock.hide()` — l'app sparisce dalla Dock nel momento in cui l'Output
+  viene creato. `skipTaskbar` serviva solo a evitare una seconda voce in
+  taskbar su Windows.
+- **Correzione applicata** (3 modifiche minime in `ensureOutputVisible` /
+  opzioni della BrowserWindow):
+  - `skipTaskbar: process.platform !== 'darwin'` — niente più
+    `app.dock.hide()` su macOS.
+  - `setKiosk` / `setVisibleOnAllWorkspaces` → **`setFullScreen(true)`
+    nativo** su tutte le piattaforme. Il kiosk macOS nasconde la Dock a
+    livello di sistema (l'operatore non vede l'icona); `setSimpleFullScreen`
+    su display secondario lascia l'Output senza contenuto renderizzato
+    ([electron/electron#34367](https://github.com/electron/electron/issues/34367)).
+    `setAlwaysOnTop('screen-saver')` resta solo fuori da darwin.
+  - guard `fullscreenApplied`: `ensureOutputVisible` è agganciata a tre
+    trigger (`ready-to-show`, `did-finish-load`, fallback 500ms) — le API di
+    fullscreen vanno chiamate una volta sola, altrimenti la finestra resta
+    a schermo colorato senza contenuto.
+- Esito collaudato dal vivo su due monitor: icona presente nella Dock +
+  Output a schermo intero col contenuto. `typecheck` + `lint` puliti.
+- **Non committato** in questo giro: `brainController.ts` e
+  `docs/varco-percettivo.md` (latch `imageInferenceActive` del Varco) —
+  modifiche non originate qui, lasciate al proprio autore.
+
 ## `unresolved` per mancanza di contrasto — eredita il livello precedente — 2026-09-05
 
 - Ordine del Capo Supremo in risposta alla diagnosi (sotto): quando

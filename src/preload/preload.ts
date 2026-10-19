@@ -4,12 +4,26 @@ import {
   type AppSettings,
   type ControlApi,
   type DisplayInfo,
+  type DmxInterface,
+  type DmxProducerCommand,
   type OutputApi,
   type PublicSessionStatus,
   type VisualStatePayload,
 } from '@shared/types'
 
 const controlApi: ControlApi = {
+  dmxOpen: (kind: DmxInterface) =>
+    ipcRenderer.invoke(IPC_CHANNELS.dmxOpen, kind) as Promise<{ ok: boolean; error?: string }>,
+  dmxSend: (universe: Uint8Array) =>
+    ipcRenderer.invoke(IPC_CHANNELS.dmxSend, universe) as Promise<{ ok: boolean; error?: string }>,
+  dmxClose: () => ipcRenderer.invoke(IPC_CHANNELS.dmxClose) as Promise<void>,
+  dmxCaptureScreen: () => ipcRenderer.invoke(IPC_CHANNELS.dmxCaptureScreen) as Promise<Uint8Array | null>,
+  onDmxProducer: (cb: (command: DmxProducerCommand) => void) => {
+    const channel = IPC_CHANNELS.dmxProducerPush
+    const handler = (_event: unknown, command: DmxProducerCommand) => cb(command)
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  },
   getDisplays: () => ipcRenderer.invoke(IPC_CHANNELS.getDisplays) as Promise<DisplayInfo[]>,
   openOutput: (displayId: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.openOutput, displayId) as Promise<{
@@ -46,6 +60,9 @@ const controlApi: ControlApi = {
 }
 
 const outputApi: OutputApi = {
+  sendDmxColors: (command: DmxProducerCommand) => {
+    ipcRenderer.send(IPC_CHANNELS.dmxProducer, command)
+  },
   onVisualState: (cb: (state: VisualStatePayload) => void) => {
     const handler = (_event: unknown, state: VisualStatePayload) => {
       cb(state)
@@ -65,6 +82,8 @@ const outputApi: OutputApi = {
     >,
   readBrainConfigFile: (fileName) =>
     ipcRenderer.invoke(IPC_CHANNELS.readBrainConfigFile, fileName) as Promise<string>,
+  writeBrainPhrasesFile: (content) =>
+    ipcRenderer.invoke(IPC_CHANNELS.writeBrainPhrasesFile, content) as Promise<void>,
   saveConsciousnessMemory: (draft) =>
     ipcRenderer.invoke(IPC_CHANNELS.saveConsciousnessMemory, draft) as ReturnType<
       OutputApi['saveConsciousnessMemory']

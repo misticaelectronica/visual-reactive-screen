@@ -46,7 +46,14 @@ tre trigger distinti che lo armano:
    breve attesa di `PROACTIVE_PRESSURE_LEAD_MS` (260ms) perché il
    crossfade sia già in scena → verde (si procede con l'inferenza). Se il
    passthrough è già attivo (fotogrammi ravvicinati della stessa storia)
-   non si attende di nuovo.
+   non si attende di nuovo. **Il Varco poi resta acceso per tutta la
+   durata dell'inferenza di quel fotogramma** (latch `imageInferenceActive`
+   in `brainController.ts`, alzato dopo l'arm e abbassato al `finally` di
+   `onImageGenerationState(false)` in `psichedel.ts`), non per un tempo
+   fisso: la finestra a impulso `VISUAL_PRESSURE_PULSE_MS` (2,5s) era più
+   corta del fotogramma da coprire (4,6–11,7s nei log) e lasciava scoperto
+   il centro del fotogramma, dove i gap RAF venivano mascherati solo a
+   posteriori dall'evento reattivo `long-frame`.
 3. **Moto di coscienza** — armato già quando il candidato viene messo "in
    coda" (`consciousnessMotionLayer.offer()` accettato, dentro
    `requestConsciousnessInfluence`), non quando diventa attivo: da lì
@@ -99,11 +106,37 @@ passthrough non è davvero pronto, non un tempo fisso legato al ritmo.
 - **Nome condiviso e battezzato** in questa stessa sessione (2026-08-25):
   prima era "il mix FilterPsiche/Psycho2D" senza un nome unico condiviso
   fra Direzione VJ e Ingegneria.
+- **Copertura estesa all'intera inferenza immagine** (2026-09-07, direttiva
+  del Consigliere del Capo Supremo): il Capo Supremo vedeva uno scatto
+  durante la generazione. Analisi dei log: la finestra a impulso da 2,5s,
+  armata una volta per fotogramma, era più corta del fotogramma da coprire
+  (4,6–11,7s); l'unico meccanismo che la estendeva nel corpo era l'evento
+  reattivo `long-frame`, in ritardo per costruzione. Correzione: latch che
+  tiene il Varco acceso per tutta la durata del carico GPU reale (arm
+  invariato a monte, spegnimento all'`onImageGenerationState(false)`).
+  Interventi "alza soglia rilevatore long-frame" e "cooldown adattivo"
+  (analisi lag) sospesi: la soglia più alta esporrebbe di più il centro
+  del fotogramma, si rivedono a copertura sistemata.
 - **Esteso al moto di coscienza** (PIANO-039bis, 2026-08-25): la timeline
   che si congela a inizio moto di coscienza usa lo stesso segnale, non un
   effetto dedicato nuovo. Prima correzione insufficiente (segnalato dal
   Capo Supremo dopo verifica dal vivo) — caso d'origine della regola
   generale "armare in coda, non al fronte di salita" sopra.
+- **Escluso dalla Riattivazione** (2026-09-17, segnalato dal Capo Supremo):
+  `imageInferenceActive` resta vero durante la Riattivazione quando la
+  generazione della storia successiva vera continua in sottofondo
+  (`requestRevisionCycleAtBoundary` può entrare "anche mentre la storia
+  successiva non è ancora pronta"), ma quel carico GPU riguarda un
+  fotogramma diverso da quello in scena — il replay a memoria della
+  Riattivazione non ha alcuno stallo proprio da mascherare. `render()` in
+  `brainController.ts` azzerava `resourcePressureActive` quando
+  `revisionCycleActive` era vero, indipendentemente dal latch
+  `imageInferenceActive`/`visualPressurePulseUntil`.
+- **Esclusione rimossa** (2026-09-22, disp. Capo Supremo): l'ipotesi sopra
+  era sbagliata — in Riattivazione ci sono comunque fasi di impegno GPU
+  reale che fanno laggare, e il Varco serviva a coprirle. `render()` non
+  azzera più `resourcePressureActive` in base a `revisionCycleActive`; le
+  ragioni di quel carico GPU restano da indagare separatamente.
 
 ## Meccanismo adiacente ma distinto: passthrough per fallimento qualità
 

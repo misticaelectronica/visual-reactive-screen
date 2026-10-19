@@ -1,5 +1,12 @@
 import type { AppSettings } from './types'
 
+/**
+ * Solo difetti anatomici (PIANO-050): nessun termine su nudità, contenuto o
+ * abbigliamento, per non censurare la generazione (linea Explicit V1).
+ */
+export const DEFAULT_BRAIN_NEGATIVE_PROMPT =
+  'deformed body, distorted anatomy, disfigured, mutated, extra limbs, extra arms, extra legs, missing limbs, fused fingers, malformed hands, extra fingers, elongated torso, twisted torso'
+
 export const DEFAULT_SETTINGS: AppSettings = {
   fftSize: 1024,
   smoothingTimeConstant: 0.75,
@@ -23,12 +30,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   useMorphing: false,
   useBrain: false,
   alternateBrainWithMorphing: false,
+  animatronixEnabled: false,
   brainRendererId: 'print2d',
   brainRendererMode: 'manual',
   brainRendererRotationMs: 30_000,
   morphingAlgorithm: 'liquid',
   morphingPresetId: 'ritual-drift',
   motionProfile: 'dub',
+  audioMode: 'baseline',
   debugMorphingVisibility: false,
   morphingOpacity: 0.62,
   morphingMinOpacity: 0.42,
@@ -49,6 +58,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   kickMovement: 0.26,
   flashOnKick: false,
   lowPowerMode: false,
+  preserveExplicitSource: false,
+  childSafetyNegativePromptEnabled: true,
+  brainImageQuality: 'low',
+  brainNegativePrompt: DEFAULT_BRAIN_NEGATIVE_PROMPT,
+  dmxBrainColorSource: 'frame',
+  dmxSaturation: 0.8,
+  dmxEnabled: false,
+  dmxInterface: 'open-dmx',
+  dmxFixtureProfiles: ['7ch', '7ch', '7ch', '7ch'],
   selectedColorPresetId: null,
   dynamicPresetEnabled: false,
   dynamicColorRotationEnabled: true,

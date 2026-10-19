@@ -1,5 +1,314 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## DMX — Brain e Morphing producer, luci a tempo — PIANO-049 — 2026-10-11
+
+- [x] **`TASK-049-01`** `DONE`: canale producer, Brain (palette per storia),
+  Morphing (colori preset), owner automatico/manuale, ritmo sull'intensità,
+  Emergenza → blackout. 790 test verdi.
+- [ ] **`TASK-049-02`** `TODO`: collaudo dal vivo su dub, techno, ambient.
+- [ ] **`TASK-049-03`** `TODO`: palette Brain nel 89% dei casi è il ripiego
+  `DEFAULT_DREAM_PALETTE` — diagnosi della risposta del modello e correzione.
+  Diagnosi 2026-10-11: risposta troncata dal tetto `storyMaxNewTokens: 140`.
+  Su 59 risposte con testo loggato, 50 finiscono a metà frase (~92 parole);
+  righe presenti TITLE 29, STORY 21, BRIDGE 16, COLORS 14, INVARIANT 10. Il
+  prompt richiede ~180-200 token. Proposta: alzare il tetto a ~240, poi
+  rimisurare prima di decidere una palette di riserva dalla `Colour family`.
+- [x] **`TASK-049-05`** `RITIRATO 2026-10-11`: dopo 3 storie a 240 token compare il formato a scaletta (Characters:/Initiating Event:/Conflict:, 38 righe in una sessione, 0 nelle 25 precedenti). Ripristinati 140 token e 45 s. Il motivo (palette per le luci) non c'è più: le luci usano il raster. Testo originale: `storyMaxNewTokens` 140 → 240 e
+  timeout story 45 → 75 s (disposizione del Capo Supremo «alza»). Misura di
+  partenza, ultime 60 sessioni: palette di riserva in 295 storie su 333
+  (89%); richiesta story mediana 21,7 s, p90 34,8 s, max 44,3 s, 3 timeout.
+  Da rimisurare dopo una sessione: quota di palette vere, durata e timeout
+  della richiesta story. Solo se le palette mancano ancora: riserva dalla
+  `Colour family` della storia.
+- [x] **`TASK-049-04`** `DONE`: le luci scartano i colori troppo scuri
+  (canale massimo < 48) dei comandi producer; il manuale resta esatto.
+
+## DMX Color Controller — PIANO-048 — 2026-10-10
+
+- [x] **`TASK-048-01`** `DONE`: brief archiviato, branch aperto, piano creato,
+  DEP-001 `NON COINVOLTO`.
+- [x] **`TASK-048-02`** `DONE`: profilo PAR xkl-A4 7ch dal manuale; dongle
+  selezionabile `usb-pro`/`open-dmx`.
+- [x] **`TASK-048-03`** `DONE`: trasporto Web Serial nella Control Window.
+- [x] **`TASK-048-04..12`** `DONE`: motore (`dmxEngine.ts` + 4 test),
+  controller (`dmxController.ts`), pannello (`DmxPanel.tsx`), impostazioni
+  `dmxEnabled`/`dmxInterface`/`dmxFixtureProfiles`, permessi serial nel main.
+- [x] **`TASK-048-13`** `DONE`: trasporto spostato nel main con `serialport`
+  13, break emulato a 57600 baud (il `TIOCSBRK` blocca il driver FTDI macOS).
+- [x] **`TASK-048-14`** `DONE`: collaudo dall'app con PAR xkl-A4 (`d001`) e
+  DSD TECH SH-RS09B: funziona.
+
+## DELIQUESCENCE fuori dalla pressurizzazione, finestra frasi — 2026-10-08
+
+- [x] **`TASK-045-01`** `DONE`: audit preventivo dei deprecati, DEP-001
+  `NON COINVOLTO`.
+- [x] **`TASK-045-02`** `DONE`: esclusione del motore immagini —
+  `config/brainRendering.json` identico a HEAD.
+- [x] **`TASK-045-03`** `DONE — RITIRATA`: finestra frasi 4-5 → 1-2 e
+  ripristino a 4-5 nella stessa sessione. Il pool attivo è cambiato in corso
+  di sessione a 39 righe brevi, forma per cui 4-5 erano tarati.
+- [x] **`TASK-045-04`** `DONE`: misurato l'effetto sul contenuto esplicito —
+  2 righe su 39 fanno scattare il rilevatore, quota di finestre dal 20% al
+  5-10% con la finestra ridotta.
+- [x] **`TASK-045-05`** `DONE`: registrato il vincolo del pool misto nelle
+  sessioni online (input del pubblico nello stesso file).
+- [x] **`TASK-045-06`** `DONE`: DELIQUESCENCE escluso in `pressurized`; tre
+  singleton identici unificati in `DELIQUESCENCE_OUT_OF_LOW_REGIME`.
+  Verificato che in `respiro-alto` era già escluso prima di intervenire.
+- [x] **`TASK-045-07`** `DONE`: analisi del percorso del prompt raster
+  (Visual Plan, invariante, COLOR DIRECTION) consegnata senza modifiche.
+- [x] **`TASK-045-11`** `DONE`: invariante — rimossi entrambi i ripieghi
+  inventati (`stands` dalla prima parola lunga, stringa italiana `una
+  presenza ricorrente`); stringa vuota e riga omessa a valle. 4 test.
+- [x] **`TASK-045-12`** `DONE`: ripristinato `VISUAL CONTEXT` nel prompt
+  raster con la frase completa del fotogramma precedente; `Associated
+  stimulus` lasciato fuori; primo fotogramma senza contesto. 4 test nuovi,
+  1 riscritto.
+- [x] **`TASK-045-13`** `DONE`: indicatore palette in basso a sinistra,
+  mattoncini 9×4 px nell'ordine della palette, aggiornato al cambio storia.
+- [x] **`TASK-045-14`** `DONE`: fase onirica dichiarata nel prompt raster
+  (`CURRENT MOMENT <n>/<tot> — <FASE>`), nomi tradotti in inglese, brief di
+  fase lasciato fuori dal raster. 3 test.
+- [x] **`TASK-045-15`** `DONE`: contesto dell'eco deciso dal Capo Supremo —
+  prosegue dal secondo in avanti, quindi riceve gli intermedi (secondo e
+  terzo su quattro fotogrammi), non la soglia. 3 test.
+- [ ] **`TASK-045-08`** `TODO`: collaudo dal vivo del gating DELIQUESCENCE in
+  pressurizzazione.
+- [ ] **`TASK-045-09`** `TODO`: analisi su **soggetti e scena** — perimetro
+  indicato dal Capo Supremo, non ancora consegnato.
+- [ ] **`TASK-045-10`** `TODO`: decidere se introdurre la finestra con budget
+  in parole, unica forma compatibile con un pool misto.
+
+## Decompressione, conflitto livelli e colore del Varco — 2026-10-07
+
+- [x] **`TASK-044-01`** `DONE`: audit preventivo dei deprecati, DEP-001
+  `NON COINVOLTO`; letti STATE, macrotask e registro prima di ogni modifica.
+- [x] **`TASK-044-02`** `DONE`: harness di replay dei 16 campioni su entrambi
+  i regimi con dump delle osservabili e modalità timeline; validato contro la
+  baseline misurata prima di trarne conclusioni.
+- [x] **`TASK-044-03`** `DONE — PROPOSTA RITIRATA`: ritaratura della
+  decompressione impossibile come richiesta — `constraint` sale
+  monotonicamente sul materiale di decompressione, `falling` irraggiungibile
+  per qualunque deadband. Nessun cambiamento runtime conservato.
+- [x] **`TASK-044-04`** `DONE`: verifica del conflitto fra livelli — esito
+  negativo, conflitto strutturale fra i due regimi, quantificato sul corpus.
+- [x] **`TASK-044-05`** `DONE — PROPOSTA RITIRATA`: provato l'ancoraggio
+  graduato di `constraint` a `physicalConfirmation` in 4 combinazioni per il
+  respiro alto sugli alti; nessuna separa il corpus, una rompe
+  `respiro-alto-1`. Nessun peso o soglia modificato.
+- [x] **`TASK-044-06`** `DONE`: Varco Percettivo — `decompression` e
+  `respiro-profondo` accoppiate per il colore, tinte scure abbassate,
+  scurimento pre-Varco separato dal moltiplicatore del flash (difetto reale
+  corretto). Test dedicato, typecheck, lint e suite Brain verdi.
+- [x] **`TASK-044-07`** `DONE`: referto di calibrazione e allineamento di
+  STATE, registry e storico sessione.
+- [ ] **`TASK-044-08`** `BLOCKED`: definizione dell'osservabile della
+  decompressione e della separabilità dell'asse alto/profondo — lettura
+  audio-percettiva, attende decisione del Capo Supremo dell'Analisi Audio.
+- [ ] **`TASK-044-09`** `TODO`: collaudo dal vivo del colore del Varco nelle
+  due fasi basse.
+- [ ] **`TASK-044-10`** `TODO`: avvio a freddo dell'experimental — ~9s di
+  `pressurized` dichiarato a ogni avvio di sessione su tutti i 16 file,
+  mentre `ANCHOR_WARMUP_GRACE_MS` copre 1,5s.
+
+
+## Revisione spectralOccupancy / rhythmConstraint — 2026-09-25
+
+- [x] **`TASK-040-77`** `DONE`: audit DEP-001 `NON COINVOLTO`; ispezionati
+  implementazione e corpus. Mappa certificata limitata a C03/C04/C06.
+- [x] **`TASK-040-78`** `DONE — PROPOSTA RITIRATA`: provata e poi rimossa la
+  misura continua dell'occupazione spettrale perché non supera entrambi i
+  gate bloccanti. Nessun cambiamento runtime conservato.
+- [x] **`TASK-040-79`** `DONE`: replay del corpus, gate C03>C04 e C06>C04,
+  verifica di dominanza semantica e decisione motivata sul fermarsi prima di
+  qualsiasi intervento a `anchor`/`groundedLowEnd`/persistenza.
+- [x] **`TASK-040-81`** `DONE`: test mirati, typecheck e allineamento finale
+  di piano, registry, STATE e storico sessione.
+- Esito negativo: C03 PP 0.4956 < C04 0.5188; C06 0.5510 > C04. Anchor e
+  grounded low-end sono invertiti; persistenza semplice non discrimina
+  `test-1`. **PROPOSTA RITIRATA** senza ritarare pesi o aggiungere meccanismi.
+
+
+## Governance team — passaggio Vecchio Consigliere → Vicario — 2026-09-18
+
+- [x] **`TASK-GOV-01`** `DONE`: acquisire senza alterazioni sostanziali la nota
+  firmata dal Vecchio Consigliere, registrare il passaggio della continuità
+  operativa al Vicario e collegare l'atto da `agents.md`, senza modificare i
+  brief storici né il quadro di governance. DEP-001 `NON COINVOLTO`.
+
+
+## Visual Plan e quattro fasi oniriche — PIANO-046 — 2026-09-18
+- [x] **TASK-046-01** `DONE`: invariante della storia (`DreamStory.invariant`),
+  estratto dal modello narrativo con fallback locale, mai un fallimento della
+  storia solo per la sua assenza.
+- [x] **TASK-046-02** `DONE`: `generateVisualPlan()` reintegrata nella pipeline
+  produttiva reale (non più bypassata), progetta i 4 momenti per fase onirica
+  (`deriveOneiricPhase`, già esistente per la Riattivazione) prima della
+  generazione raster; fallback su `splitIntoFourMoments` se rifiutata.
+- [x] **TASK-046-03** `DONE`: prompt raster semplificato a
+  momento-corrente + invariante; rimossi stimolo associato, residuo del
+  fotogramma precedente e argomento generale. Palette Color Direction
+  seedata sulla storia (non più per singolo fotogramma).
+- [x] **TASK-046-04** `DONE`: qualità/denoising deterministici per fase
+  (Soglia/Condensazione → alta qualità, Metamorfosi/Eco → profilo
+  intermedio), sostituendo lo scheduler probabilistico session-wide
+  (`HighQualityRenderScheduler`/`selectLowQualityFrameIndices`, rimossi).
+  Log del tipo di immagine e del profilo aggiunto in basso a destra
+  (`OutputApp.tsx`), derivato dallo stato reale della storia.
+- [ ] **TASK-046-05** `TODO`: collaudo visivo reale a 4 storie (Soglia →
+  Metamorfosi → Condensazione → Eco) e confronto controllato di risoluzione
+  512×512 — richiede l'app Electron/WebGPU dal vivo, affidato al Capo
+  Supremo.
+
+## Contesto quattro immagini — PIANO-045 — 2026-09-17
+- [x] **TASK-045-01** `DONE`: audit DEP-001 NON COINVOLTO; identificati
+  troncamento a 77 posizioni e ingresso UNet dinamico negli artefatti locali.
+- [x] **TASK-045-02** `DONE`: codifica completa a blocchi, budget 450 token,
+  overflow esplicito, disposizione CFG, gestione FP16 e disposal.
+- [x] **TASK-045-03** `DONE`: suite 717 test; poi 82 test mirati finali,
+  typecheck/lint verdi; generazioni con modello reale e conteggi token;
+  build finale normale app/ZIP/DMG arm64 riuscita.
+- [x] **TASK-045-04** `DONE`: collaudo negativo della sequenza e confronti di
+  contesto/guidance; ritirata la sinossi ripetuta, documentati raster e costo.
+- [ ] **TASK-045-05** `TODO`: ottenere e verificare quattro momenti visivamente
+  leggibili della stessa storia; trasporto corretto non chiude il requisito.
+
+## Richiesta Aiuto Audio Su Riconoscimento Experimental — 2026-09-11
+
+- [x] **`TASK-044-AUDIO-01`** `DONE`: analizzare integralmente l'ultima
+  sessione live `session-2026-09-11-20-06-52.txt` e consegnare al Capo Supremo
+  dell'Analisi Audio un brief che separa giudizio d'ascolto, fatti del log,
+  limiti probatori e domande percettive. Verificati 42 cambi in 322,488 s,
+  dominio `respiro-alto` all'85,0% e 21 segmenti sotto i 2 s. Rilevata inoltre
+  l'assenza del campionamento sperimentale 1 Hz e la provenienza baseline di
+  `reason`/segnali allegati agli stati experimental. Nessuna modifica runtime.
+
+## Regime Audio Experimental — MVP Collegato Al Visual — 2026-09-11
+
+- [x] **`TASK-044-MVP-01`** `DONE`: `audioMode='experimental'` collegato al
+  Visual (`bioPerceptionSource` in `OutputApp.tsx`); baseline resta
+  disponibile e invariata. Aggiunta `classifyExperimentalRegime` (unica
+  logica mancante per esporre un `regime`, non un nuovo osservabile: legge
+  `anchoring.gaining/losing` e `constraint.value`, già calcolati). Bug
+  evidente trovato e corretto in collaudo: la prima versione usava
+  `constraint.direction`, che non rientrava mai in `falling` dopo
+  l'assestamento iniziale — `decompresisone.mp3` restava `respiro-alto` per
+  40/49s. Corretto con `anchoring.gaining/losing`. Limite noto non
+  riaperto: `test-1.mp3` mostra ancora 31,6/49s di `respiro-alto`
+  (discriminante bidirezionale imperfetto, già segnalato in precedenza).
+  Verifica via harness offline sul corpus reale (stesso codice di
+  produzione); nessun test visivo dal vivo disponibile in questo ambiente.
+  Suite completa (73 file/692 test), typecheck e lint verdi. Nessuna
+  modifica a baseline/`classifyLevel`/`rhythmConstraint`/`pressureLanded`.
+
+## Regime Audio Experimental — Prima Consegna Sostanziale — 2026-09-11
+
+- [x] **`TASK-044-03`** `DONE`: implementare memoria temporale autonoma nel
+  solo clock experimental, con materia/fronti per banda, ricorrenza,
+  conferma fisica, persistenza inter-ciclo, ancoraggio e prima costrizione;
+  esporre diagnostica separata e inserirla nel log 1 Hz senza collegarla al
+  Visual. Verificati C03>C04 e C06>C04. `test-1.mp3` resta discriminante
+  aperto; nessuna classificazione finale promossa. Baseline invariata.
+
+## Regime Audio Sperimentale — Osservabilità Motoria — 2026-09-11
+
+- [x] **`TASK-044-02`** `DONE` (checkpoint diagnostico): ritirare dalla
+  baseline il criterio a range smentito dal corpus; estendere l'harness A/B
+  con conferma fisica del beat, componenti motorie esistenti e periodicità
+  globale/mobile dei fronti raw. Accertato che il clock corrente rileva zero
+  beat nei due `respiro-alto-*` e che la periodicità separa livello alto/basso
+  sui cinque campioni di respiro, ma non assestamento/trasformazione né
+  `test-1.mp3`. Nessuna formula o stato runtime nuovo; Task 2.4 resta aperto.
+
+## Correzione Gate Di Atterraggio Respiri — 2026-09-11
+
+- [x] **`TASK-ENG-2026-09-11-02`** `DONE` (parziale, vedi STATE.md): diagnosi
+  Vice Consigliere sui tre campioni `respiro-profondo*`. Individuato e
+  corretto il reset di `pressureFlatMs` su ogni cambio di etichetta
+  `pressureTrend` (azzerava il gate di atterraggio anche quando `pp` restava
+  atterrata) in `advanceBioRegime`. `pressureLanded` ora diventa vero su
+  tutti e tre i file (prima: mai). Individuato un secondo blocco distinto,
+  non corretto in questo task: `pressureLanded` e `level !== null` non
+  risultano mai veri nello stesso fotogramma sui tre file (bootstrap di
+  `reference` consuma l'intero tratto piatto iniziale), quindi nessuno dei
+  tre raggiunge ancora `respiro-alto`/`respiro-profondo`. Aggiunta
+  diagnostica additiva (`pressureFlatMs`/`pressureLanded` in
+  `BrainBioRegimeDiagnostics`) e due test di regressione mirati. Rieseguito
+  l'intero corpus + `test-1.mp3`: nessuna regressione, nessun falso respiro
+  introdotto. Non toccato `rhythmConstraint`, `classifyLevel`, né il regime
+  Audio sperimentale. Suite completa, typecheck e lint verdi.
+
+## Regime Audio Sperimentale — Checkpoint 1 — 2026-09-11
+
+- [x] **`TASK-044-01`** `DONE`: impianto a due percorsi per il regime Audio
+  (`PIANO-044`/`MACRO-035`). `AppSettings.audioMode`, nuovo
+  `BrainBioPerceptionExperimentalClock` (scaffold che delega alla baseline),
+  wiring in `OutputApp.tsx` con i due clock alimentati in parallelo sullo
+  stesso ingest, selettore in `VisualControls.tsx`, harness offline
+  `scripts/calibration/compare-audio-regimes.mjs`. Verificato su tutto
+  `docs/campioni/*.mp3` (11 file): baseline ed experimental producono lo
+  stesso `durationSeconds`/transizioni su ognuno, come atteso da uno
+  scaffold senza nuova semantica. Effetto collaterale osservativo: nel
+  corpus reale il log conferma di nuovo l'esito della Diagnosi Respiri
+  dell'11/9 — `respiro-profondo` non compare mai (nemmeno nei file
+  esplicitamente nominati così) e `respiro-alto` compare solo su due dei
+  tre campioni "pressurizzazione". Nessuna modifica alla baseline, a
+  renderer, colori, morphing, Riattivazione o Coscienza Onirica. Suite
+  completa (73 file/683 test), typecheck e lint verdi.
+
+## Verifica eleggibilità PsicoFantasma — 2026-09-11
+
+- [x] **`TASK-034-24`** `DONE`: verificare PsicoFantasma nei quattro regimi
+  prima di correggere; confermati i pool esistenti, individuati gate
+  `interlude`, filtro pressione 9–20 s e rango secondario nel Respiro Alto;
+  nessun pool modificato. Aggiunto il log autoritativo di `resolve()` per ogni
+  fotogramma messo in onda e la regressione sui quattro regimi. Suite completa,
+  typecheck, lint e build verdi. DEP-001 `NON COINVOLTO`.
+
+## Diagnosi Respiri — 2026-09-11
+
+- [x] **`TASK-ENG-2026-09-11-01`** `DONE`: analizzare l'assenza percepita di
+  Respiro Alto/Profondo sui tre log più recenti. Accertati Respiro Profondo
+  presente ma spesso poco leggibile, Respiro Alto assente dal 9 settembre e
+  gate di atterraggio da 9 s incompatibile con cambi live mediani ogni ~1,7 s.
+  Nessuna modifica a soglie, segnali o renderer.
+
+## Ripresa Ingegneria — 2026-09-10
+
+- [x] **`TASK-ENG-2026-09-10-09`** `DONE`: creare il registro canonico dei
+  deprecati e rendere obbligatorio in `AGENTS.md` il suo audit preventivo con
+  decisione esplicita a ogni intervento; registrare `Alternate with Brain
+  (80/20)` come deprecato ma attivo per compatibilità, senza modificarne il
+  comportamento runtime.
+- [x] **`TASK-ENG-2026-09-10-01`** `DONE`: completare la Slice 01
+  `CONTAMINATION` per i cambi Morph→Morph sulla stessa immagine, con inviluppo
+  asimmetrico, fallback degradato e verifiche automatiche. La taratura a
+  schermo per coppia resta di competenza Visual.
+- [x] **`TASK-ENG-2026-09-10-02`** `DONE`: sostituire il fallback fisso dopo
+  failure QC con una scelta casuale nel pool già eleggibile per regime,
+  Riattivazione e pressione, escludendo renderer fallito e cooldown.
+- [x] **`TASK-ENG-2026-09-10-03`** `DONE`: garantire una Riattivazione a
+  qualità media dai raster già in memoria quando l'archivio ad alta qualità
+  è vuoto o non caricabile; soluzione successivamente superata dalla memoria
+  stabile per storia richiesta nel task 07.
+- [x] **`TASK-ENG-2026-09-10-04`** `DONE`: applicare la disposizione sulla
+  cadenza della Riattivazione portando il range inizialmente da 2–4 a 1–2 storie, senza
+  modificare durata, immagini, giri, selezione renderer o altri aspetti del
+  Ciclo di Revisione.
+- [x] **`TASK-ENG-2026-09-10-05`** `DONE`: eliminare il rinvio casuale residuo
+  e programmare la Riattivazione dopo ogni singola storia (1–1); il contatore
+  1–1 è stato poi rimosso integralmente dal task 07.
+- [x] **`TASK-ENG-2026-09-10-06`** `DONE`: audit conclusivo, test mirati,
+  suite completa, typecheck, lint e build; nessuna taratura percettiva o
+  modifica ai file di frasi concorrenti.
+- [x] **`TASK-ENG-2026-09-10-07`** `DONE`: sostituire il contatore con il
+  confine diretto di storia; fissare una sola volta tre immagini per `storyId`
+  nella memoria della sessione e riattivare, dalla seconda chiusura, tutte le
+  storie precedenti in ordine cronologico.
+- [x] **`TASK-ENG-2026-09-10-08`** `DONE`: validare suite completa,
+  typecheck, lint, build e coerenza dei registri per la nuova cadenza; nessuna
+  modifica a renderer, durata, intensità, tag I/O o metadati semantici.
+
 ## Collaudo `test-1.mp3` — 2026-09-04
 
 - [x] **`TASK-040-76`** `DONE`: analizzare il campione reale, eliminare la
@@ -818,3 +1127,115 @@ manuale finale viene eseguito dal Capo Supremo.
   scroll e pubblicare il fix su GitHub Pages.
 - [x] **`TASK-PAGES-04`** `DONE`: Ridurre la scala responsive del titolo
   principale, verificare `ELETTRONICI` a 320/390 px e pubblicare il fix mobile.
+
+## Task PRINT2D — MACRO-033 / PIANO-042
+- [x] **TASK-033-01 [DONE]**: diagnosi e verifica filosofia/protocollo.
+- [x] **TASK-033-02 [DONE]**: stato per regione, fase filtrata, integratore
+  senza ritorno a zero e limiti permanenti; integrazione nei sette preset.
+- [x] **TASK-033-03 [DONE]**: 33 test mirati, typecheck e lint.
+- [ ] **TASK-033-04 [TODO]**: collaudo fullscreen reale su asincronia, residuo,
+  silenzio/ripresa, freeze e low power; poi valutare gli interventi subordinati.
+
+## PsicoFantasma — MACRO-034 / PIANO-043
+
+- [x] **TASK-034-01 [DONE]**: brief Visual, nome, piano e verifiche filosofiche.
+- [x] **TASK-034-02 [DONE — SUPERATO]**: byte/hash e smoke CLIP storici; encoder ritirato dopo 034-17. Profiling CPU geometrico/SD reale completato in 034-11.
+- [x] **TASK-034-03 [DONE]**: formato/loader e import deterministico delle impronte morfologiche in contorni runtime.
+- [x] **TASK-034-04 [DONE]**: pacchetto approvato importato: 120 SVG, 24 per famiglia, 40/40 archetipi, hash verificati.
+- [x] **TASK-034-05 [DONE]**: preparazione geometrica CPU al cambio immagine, cache e nessun modello/Worker/VRAM.
+- [x] **TASK-034-06 [DONE]**: ranking per concetto, gate a quattro condizioni, misura strutturale e diagnostica.
+- [x] **TASK-034-07 [DONE]**: grammatica Canvas, cache blur/mask, quattro varianti e memoria fuori istanza.
+- [x] **TASK-034-08 [DONE]**: UI, registry e pool dei quattro regimi; dominanza DELIQUESCENCE invariata.
+- [x] **TASK-034-09 [DONE]**: test negativi e test del ciclo `update()` reale con Canvas simulato.
+- [x] **TASK-034-10 [DONE]**: 72 file / 674 test, typecheck, lint e build completa app/ZIP/DMG; repertorio V2 verificato dentro `app.asar`.
+- [ ] **TASK-034-11 [IN_PROGRESS]**: profiling simultaneo Psichedel completato; resta collaudo Visual 1–12 sul repertorio reale, con 20–40% solo come giudizio a schermo.
+- [x] **TASK-034-12 [DONE]**: ciclo senza ripartenza, residuo e fase fuori istanza, trasporto raster precomputato e crossfade continuo; pixel verificati nel Canvas reale nel silenzio e dopo ricreazione.
+- [x] **TASK-034-13 [DONE]**: disponibilità condizionata al repertorio, validazione e bundle JSON; crescita oltre V1 senza modifica al codice.
+- [x] **TASK-034-14 [DONE — SUPERATO]**: vecchia cache/Worker CLIP ritirati dal matcher geometrico 034-17.
+- [x] **TASK-034-15 [DONE]**: selezione PsicoFantasma imposta Manuale; anteprima senza repertorio pronta senza fetch/Worker, esclusa da entrambe le modalità automatiche. Typecheck, lint e 662 test passati; app/DMG/ZIP aggiornati, blockmap ZIP completata alle 01:17:35.
+- [x] **TASK-034-16 [DONE]**: de-squadratura delle zone di riconoscimento. Maschera risolta a livello di pixel (split figura/fondo al punto medio, gate massa dilatato, box-blur+soglia ×2, componente più grande, buchi riempiti); griglia 64×36 solo per trovare la massa. Nuovo `PsicoFantasmaRegion.contour`. 663 test, typecheck, lint. Collaudo a schermo pendente.
+- [x] **TASK-034-17 [DONE]**: matcher geometrico autorizzato e implementato; CLIP/encoder/Worker rimossi, confronto nello stesso dominio di sagoma.
+- [x] **TASK-034-18 [DONE]**: slot rotante della forma raggiunta, morph fra immagini subordinato al gate, decadimento senza match, silenzio e low power. 671 test, typecheck/lint, smoke Canvas reale A→B→C e build app/ZIP/DMG; collaudo percettivo resta in 034-11.
+
+## ANIMATRONIX varietà e DATAMOSH — PIANO-047
+
+- [x] **TASK-047-01 [DONE]**: diagnosi della ripetitività sul codice, con
+  numeri (distribuzione di `TRANSITION_OF`, passo del cursore contro finestra
+  di 4, `CARRY`, guadagno delle durate) e individuazione dell'unica rotazione
+  del motore.
+- [x] **TASK-047-02 [DONE]**: ridistribuzione di `TRANSITION_OF`
+  (`parallax-collapse` → `fracture`, `vertigo-lock` → `focus`,
+  `time-crush` → `datamosh`); `residual` da 4 grammatiche a 1.
+- [x] **TASK-047-03 [DONE]**: passo del cursore 3 → 5; grammatiche di storie
+  consecutive disgiunte, confine non più ripetuto.
+- [x] **TASK-047-04 [DONE]**: `CARRY` di `zoom`/`camera`/`bend` abbassato a
+  0,30/0,35/0,35.
+- [x] **TASK-047-05 [DONE]**: contrasto di metro ottenuto con `min` invece di
+  `max` sui tre segnali, dopo aver misurato che il solo guadagno era inerte.
+- [x] **TASK-047-06 [DONE]**: DATAMOSH — transizione `kinetic` ritirata,
+  nuovo branch `uKind == 5` senza alcuna rotazione, helper `hash21`
+  deterministico.
+- [x] **TASK-047-07 [DONE]**: 6 test nuovi sugli invarianti; typecheck, lint
+  e 768 test su 79 file verdi.
+- [ ] **TASK-047-08 [TODO]**: collaudo a schermo del Capo Supremo —
+  compilazione reale dello shader DATAMOSH, lettura del confine fra raster su
+  3–4 storie di seguito, assenza di torsione nell'evento KINETIC MATCH.
+- [x] **TASK-047-09 [DONE]**: OCCLUSION PASSAGE riportato in posizione — la
+  sagoma non viene più scalata fino a 6× né traslata oltre il bordo del
+  quadro; il raster successivo arriva dentro la figura e il fronte si propaga
+  al campo seguendo la forma della figura stessa.
+- [x] **TASK-047-10 [DONE]**: DEPTH FRACTURE senza livelli che escono di
+  scena — i piani non traslano più in direzioni opposte (0,30 del quadro, in
+  transizione fino a 1,5 volte il quadro) e non lasciano vuoti sullo sfondo
+  scuro; resta uno scarto del ~2% e la transizione cede per profondità.
+- [x] **TASK-047-11 [DONE]**: PARALLAX COLLAPSE, ampiezza ridotta da ~13% a
+  ~4% del quadro (guadagno 1,6 → 1,15, passo 0,16 → 0,07): differenza fra
+  piani percepita come profondità della figura, non come ritagli in deriva.
+- [ ] **TASK-047-12 [TODO]**: collaudo a schermo del moto dentro la figura —
+  verificare che nessun livello si stacchi e che il passaggio di occlusione
+  si legga come trasformazione in posizione e non come dissolvenza.
+
+## Preset colore Morphing — intervento circoscritto 2026-10-11
+
+- [x] **TASK-COLOR-01 [DONE]**: aggiungere i preset `Intense Purple — Pantone
+  2623 C` e `Italian Blue — Pantone 293 C`, mantenendo esatti gli accenti
+  `#5C1D6B` e `#0B32B0`, completarli con fondo/base/flash coerenti e verificarli
+  con test dedicati, typecheck, lint mirato e suite completa.
+- [x] **TASK-COLOR-02 [DONE]**: accelerare moderatamente `Rotazione colori`
+  riusando il timer esistente: finestra casuale da 45–150 s a 30–100 s, con
+  test dedicato e nessun nuovo scheduler.
+
+## PIANO-050 — Anatomia dei corpi, guidance, qualità e pannello (2026-10-11)
+
+- [x] **TASK-050-01 [DONE]**: impostazioni `brainImageQuality` (default `low`)
+  e `brainNegativePrompt` (default solo anatomico) con normalizzazione.
+- [x] **TASK-050-02 [DONE]**: resolver unico step/guidance
+  (`brainImageGeneration.ts`) per worker e generatore in-thread; il
+  controller aggiorna lo store a ogni payload.
+- [x] **TASK-050-03 [DONE]**: negative prompt nel ramo non condizionato,
+  `cfg-batch` predefinito, scala 7 del manifest; interludio a ramo singolo.
+- [x] **TASK-050-04 [DONE]**: pannello diviso in riquadri per funzione.
+- [x] **TASK-050-05 [DONE]**: typecheck, lint, 801 test verdi.
+- [x] **TASK-050-06 [DONE]**: collaudo a schermo del Capo Supremo — corpi
+  femminili a figura intera con e senza guidance, tempi sui tre livelli,
+  storia pronta prima della fine della precedente.
+
+## PIANO-051 — Ogni riga degli scribacchini è una quartina (2026-10-19)
+
+- [x] **TASK-051-01..09, 11 [DONE]**: una riga per episodio; Soglia letterale
+  e tre fasi scritte da Qwen con le regole degli scribacchini; frase del
+  pubblico riscritta e inserita già riscritta; fallback senza perdite; memo e
+  «Questo sogno» tolti dal controller; DEP-002; test, typecheck, lint;
+  documentazione.
+- [ ] **TASK-051-10 [TODO]**: collaudo del Capo Supremo — un'ora con storia
+  curata e frasi pubbliche; misura di episodi e righe per ora.
+
+## PIANO-052 — Protezione bambini configurabile (2026-10-19)
+
+- [x] **TASK-052-01 [DONE]**: impostazione persistita, attiva di default
+  e compatibile con configurazioni precedenti.
+- [x] **TASK-052-02 [DONE]**: checkbox nella Sessione pubblica e inoltro alla
+  generazione dell'episodio.
+- [x] **TASK-052-03 [DONE]**: lista negativa ristretta e test di attivazione,
+  disattivazione e termini esclusi.
+- [x] **TASK-052-04 [DONE]**: aggiornamento della documentazione operativa.

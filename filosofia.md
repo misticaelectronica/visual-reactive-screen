@@ -264,6 +264,28 @@ Da qui due vincoli operativi per la permanenza (`selectBrainRendererHoldFrames`,
 Questo garantisce, per costruzione, che ogni storia mostri almeno un cambio
 di renderer — non serve verificarlo a valle o affidarsi alla sola casualità.
 
+### 2.2 Generazione Delle Immagini E Lavoro Cromatico A Runtime
+
+Disposizione del Capo Supremo, 2026-10-11 (testo originale):
+
+> la generazione delle immagini non deve riguardare il regime bio percettivo.
+> il regime bio percettivo invece è interessato per tutto il lavoro cromatico
+> che facciamo a runtime sull'immagine con i render. […] nessuna ingerenza
+> cromatica sulla generazione delle immagini
+
+In pratica:
+
+- la generazione delle immagini (prompt e parametri di Stable Diffusion) non
+  legge il regime bio-percettivo;
+- alla generazione non si aggiunge alcuna indicazione cromatica: né
+  direzioni di colore, né famiglie di palette, né divieti sul colore;
+- il regime bio-percettivo riguarda tutto il lavoro cromatico che i renderer
+  fanno a runtime sull'immagine.
+
+Applicazione del 2026-10-11: rimosso il blocco `COLOR DIRECTION` dal prompt
+raster (`brainColorState.ts`, dismesso) e il divieto di parlare di colore
+nell'istruzione del Visual Plan.
+
 ## 3. Filosofia Aggiuntiva Audio — Relatività Percettiva Della Pressione
 
 > **Superata dalla §4 sotto** (2026-08-28): la mediana non decide più il

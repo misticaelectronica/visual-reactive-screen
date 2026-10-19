@@ -8,9 +8,16 @@ import type { ModelId } from 'web-txt2img'
 import { AutoTokenizer } from '@huggingface/transformers'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import { PSYCHEDEL_EXPLICIT_QUALITY_PROTOTYPE } from '@shared/brain/imageModelManifest'
+import type { ImageRenderMode } from '@shared/brain/brainTypes'
 import { brainLog, brainWarn } from './brainLog'
 import { Sd15OnnxWebGpuRuntime } from './sd15OnnxWebGpu'
 import { getBrainRenderingConfig } from './brainRenderingConfig'
+import {
+  combinedNegativePrompt,
+  getBrainImageGenerationSettings,
+  resolveBrainImageGuidanceMode,
+  resolveBrainImageSteps,
+} from './brainImageGeneration'
 
 export interface PsychedelImageGenerator {
   generate(
@@ -18,16 +25,18 @@ export interface PsychedelImageGenerator {
     seed: number,
     mode?: ImageRenderMode,
     timeoutMs?: number,
+    // HYPNOTIC ZOOM ANNIDATO: sostituisce lo step count derivato da `mode`
+    // (`DreamStory.denoisingStepsOverride`, disp. Capo Supremo 2026-09-22).
+    stepsOverride?: number,
+    // Termini aggiunti al negative prompt per questa sola immagine
+    // (`childSafetyNegativePrompt` in psichedel.ts).
+    extraNegativePrompt?: string,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }>
   release(): Promise<void>
   destroy(): void
 }
 
-export type ImageRenderMode =
-  | 'standard'
-  | 'interlude'
-  | 'high-quality'
-  | 'enhanced'
+export type { ImageRenderMode } from '@shared/brain/brainTypes'
 
 const LEGACY_STANDARD_MODEL: ModelId = 'sd-turbo'
 const LEGACY_HIGH_QUALITY_MODEL: ModelId = 'janus-pro-1b'
@@ -59,7 +68,8 @@ async function createClipTokenizer() {
     const encoded = tokenizer(text, {
       padding: 'max_length',
       max_length: 77,
-      truncation: true,
+      // Legacy backend has no long-context contract: reject overflow below.
+      truncation: false,
       return_tensor: false,
     }) as { input_ids?: unknown }
     if (!Array.isArray(encoded.input_ids)) {
@@ -178,12 +188,19 @@ export class LocalPsychedelImageGenerator implements PsychedelImageGenerator {
     return this.readyPromise
   }
 
+  // Percorso legacy (web-txt2img): non ha un concetto di step, quindi non
+  // dichiara il 5° parametro `stepsOverride` dell'interfaccia — TS/JS
+  // accettano un'implementazione con meno parametri, gli extra vengono
+  // semplicemente ignorati dai chiamanti.
   async generate(
     prompt: string,
     seed: number,
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
   ): Promise<{ blob: Blob; durationMs: number; model?: ModelId }> {
+    if (!prompt.trim()) {
+      throw new Error('generazione immagine AI rifiutata: prompt vuoto')
+    }
     const model =
       mode === 'high-quality'
         ? LEGACY_HIGH_QUALITY_MODEL
@@ -268,20 +285,22 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
     seed: number,
     mode: ImageRenderMode = 'standard',
     timeoutMs: number = BRAIN_CONFIG.imageGenerationTimeoutMs,
+    stepsOverride?: number,
+    extraNegativePrompt?: string,
   ): Promise<{ blob: Blob; durationMs: number; model?: string }> {
     if (this.destroyed) throw new Error('Psichedel è stato arrestato')
+    if (!prompt.trim()) {
+      throw new Error('generazione immagine Explicit rifiutata: prompt vuoto')
+    }
     this.activeGeneration?.abort()
     const controller = new AbortController()
     this.activeGeneration = controller
     const renderingConfig = getBrainRenderingConfig()
+    const generationSettings = getBrainImageGenerationSettings()
     const steps =
-      mode === 'high-quality'
-        ? renderingConfig.image.qualitySteps
-        : mode === 'enhanced'
-          ? renderingConfig.image.enhancedSteps
-          : mode === 'interlude'
-            ? renderingConfig.image.interludeSteps
-          : renderingConfig.image.standardSteps
+      stepsOverride ??
+      resolveBrainImageSteps(mode, generationSettings.quality, renderingConfig.image)
+    const guidanceMode = resolveBrainImageGuidanceMode(mode)
     const inferenceGeometry =
       mode === 'high-quality'
         ? {
@@ -315,6 +334,11 @@ export class ExplicitPsychedelImageGenerator implements PsychedelImageGenerator 
         inferenceWidth: inferenceGeometry.width,
         inferenceHeight: inferenceGeometry.height,
         steps,
+        guidanceMode,
+        negativePrompt: combinedNegativePrompt(
+          extraNegativePrompt,
+          generationSettings.negativePrompt,
+        ),
         signal: controller.signal,
         onProgress: (progress) => {
           const rounded = progress.pct === undefined

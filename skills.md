@@ -211,6 +211,20 @@ Regola:
 
 - Il main conserva `latestVisualState` e lo reinvia quando l'output viene mostrato.
 
+macOS, 2° monitor — icona sparita dalla Dock / fullscreen dell'Output:
+
+- L'icona spariva perché la BrowserWindow dell'Output aveva `skipTaskbar:
+  true`, che su macOS Electron esegue come `app.dock.hide()`. Tenere
+  `skipTaskbar: process.platform !== 'darwin'` (serve solo a Windows).
+- Per il fullscreen dell'Output usare **`setFullScreen(true)` nativo**, non
+  `setKiosk` (nasconde la Dock di sistema, l'operatore non vede l'icona) né
+  `setSimpleFullScreen` (su display secondario lascia la finestra senza
+  contenuto renderizzato — electron/electron#34367).
+- `ensureOutputVisible` è agganciata a tre trigger (`ready-to-show`,
+  `did-finish-load`, fallback 500ms): le API di fullscreen vanno chiamate
+  una volta sola (guard `fullscreenApplied`), altrimenti l'Output resta a
+  schermo colorato senza contenuto.
+
 ## Skill: IPC E Preload
 
 Quando usare:
@@ -366,16 +380,36 @@ File chiave:
   (`LOW_REGIME_DOMINANT_SHARE`, quota probabilistica sul pick — non un rango
   stretto); escluso da Respiro Alto (`HIGH_REGIME_EXCLUDED_RENDERERS`) e da
   bootstrap (`BOOTSTRAP_EXCLUDED_RENDERERS`). La selezione manuale da tendina
-  ignora le esclusioni di regime. Ancora da fare: dominanza in
-  `decompression` protratta (contatore `regimeSince` +
+  ignora le esclusioni di regime. **Gate qualità immagine PsicoFantasma**
+  (PIANO-043 034-20, 2026-09-08): `excludedForRegime(regime, frameRenderMode?)`
+  unisce `psicofantasma` quando `frameRenderMode === 'interlude'` (raster a 4
+  step di denoising / 448×256 — PsicoFantasma analizza la materia al pixel e
+  non la regge; `standard`/`enhanced`/`high-quality` e i fotogrammi archiviati
+  con modalità `undefined` sono ammessi). La modalità viaggia:
+  `psichedel.ts` la scrive su `PsychedelScene.renderMode` →
+  `brainController.applyFrame` aggiorna `currentFrameRenderMode` prima di ogni
+  `resolve` e la passa come 7° callback `getFrameRenderMode` del selettore +
+  come `BrainRendererPluginContext.frameRenderMode`. R2 (nessun `interlude`
+  sotto PsicoFantasma a metà hold) è coperto da `reconcileCurrentRegime`.
+  Manuale esente (corto-circuito in `resolve` prima del filtro). Ancora da
+  fare: dominanza in `decompression` protratta (contatore `regimeSince` +
   `DECOMPRESSION_PROTRACTED_MS`); luci interne / coagulazione / 8 varianti nel
   renderer `brainDeliquescenceCanvas.ts`. Spec completa:
   `team/briefs/brief-deliquescence-specifica.md`.
 - `src/renderer/output/brain/brainRendererHost.ts` — gestisce COSA SI VEDE
   davvero: il layer `active`/`incoming` con crossfade interno
-  (`SWITCH_DURATION_MS`), e il layer separato `denoisingFilterPsiche`
+  (`SWITCH_DURATION_MS = 1800`), e il layer separato `denoisingFilterPsiche`
   (z-index sopra `active`) che copre tutto quando `shouldSuspendPlugin` è
-  vero.
+  vero. **CONTAMINATION** (Transition System Slice 01, 2026-09-09): il cambio
+  Morph→Morph a **immagine invariata** non è più un crossfade simmetrico —
+  `contaminationEnvelope` dà curve asimmetriche (l'entrante sale entro il ~40%,
+  l'uscente cede da ~metà; somma > 1 al centro = coesistenza), durata
+  `CONTAMINATION_DURATION_MS = 3400`, tetto `COEXIST_CAP` + `mixBlendMode`
+  `overlay` sul solo layer entrante nella fascia ibrida. Fallback al crossfade
+  simmetrico se: coppia in `CONTAMINATION_EXCLUDED_PAIRS` (vuota, si popola a
+  collaudo), degradati (low power/pressione/offlineHold), o `hasFailed()`
+  sull'uscente (sostituzione d'emergenza). `data-brain-contamination` =
+  `enter`/`coexist`/`cede`. Non tocca il contratto plugin né i renderer.
 - `src/renderer/output/brain/brainController.ts` — `applyFrame` crea un
   **nuovo** `brainRendererHost` a ogni singolo fotogramma/immagine (non lo
   riusa fra immagini anche quando il renderer "persiste" logicamente); la
@@ -383,9 +417,40 @@ File chiave:
   (`outgoingSvg`/`currentSvg`, crossfade `smootherstep` di 6-9s configurato
   in `brainRenderingConfig`/`timing`), non quella interna di
   `brainRendererHost`.
+- `src/renderer/output/brain/brainPsicoFantasmaCanvas.ts` +
+  `psicofantasma/` — PIANO-043, in revisione dal vivo (2026-09-08). Vincoli
+  dal Capo Supremo già applicati, **non regredire**: (a) `034-19` la regione
+  non decade mai a zero finché il renderer permane (`RESIDENT_PRESENCE`);
+  (b) `034-21` la reattività musicale vive SOLO nella separazione ottica —
+  `worldDefocus`/`beatPresence` guidati da `calculateRhythmicAccent` +
+  `bandDrive`, ampiezza percepibile, **mai** colore/halo/glow (gate
+  Beatmatch, brief §33); (c) `034-22` bordi della selezione sfumati
+  (`featherMask`, solo per il compositing — `mask`/`contour`/coerenza
+  restano netti); (d) `034-23` `analysis.ts` estrae comunque una regione da
+  primi piani dominanti (tetto 0.94) e figure piccole (min 12 celle), flat
+  raster resta `[]`; (e) `034-20` gate `interlude` nel selettore, manuale
+  esente. Il silenzio congela sempre (return anticipato in `update()`).
+  Aperti: `034-17` matcher (brief `brief-psicofantasma-matcher-034-17.md`,
+  CLIP confronta domini ortogonali), `034-18` persistenza fra immagini,
+  `034-04` repertorio Visual, `034-11` Test Visual.
 
 Regole/insidie note (già risolte, non ripartire da zero):
 
+- **Autonomia dei renderer** (regola permanente, `agents.md` §"Autonomia Dei
+  Renderer", disposizione Capo Supremo 2026-09-07): ogni renderer è un plugin
+  autonomo — la sua analisi del raster (zone di colore, segmentazione, campo
+  di occupazione, silhouette, palette, salienza) vive nel suo modulo e si
+  tara solo per lui. La duplicazione di codice di analisi fra renderer è
+  **voluta**, non un refactor mancato. Se serve un'analisi che esiste già
+  altrove, si riporta al Capo Supremo invece di importarla. Condivisa solo
+  l'infrastruttura non-grammaticale (contratto plugin, crossfade, motion
+  smoother, `brainRhythm`, store fuori istanza, `setPerception`).
+  `analyzeMaterialPixels` (`brainMaterialAnalysis`) è importata da
+  Material-Morph + Dream-Segmentation + Fractal-Spiral + Bauhaus (via
+  `brainBauhausAnalysis`): accoppiamento storico accettato, **non** un
+  modello da estendere; nessun nuovo renderer la importi, le sue tarature
+  servono Material-Morph. DELIQUESCENCE disaccoppiato 2026-09-07 →
+  `extractDeliquescenceColorZones` in `brainDeliquescenceCanvas.ts`.
 - **Latch bio-percettivi**: una classificazione che può essere ereditata non
   può dipendere per la propria rivalutazione da un evento che sul campo non
   avviene (`reference.justSettled`). Prima di aggiungere una macchina, cercare
@@ -413,13 +478,19 @@ Regole/insidie note (già risolte, non ripartire da zero):
   di testa a `brainRendererHost.ts`).
 - Un renderer che fallisce il proprio controllo qualità interno
   (`hasFailed()`, es. Vector Morph "meno di cinque forme riconoscibili")
-  non recupera da solo: la rete di sicurezza dell'host mostra un
-  passthrough (Print2D durante la Riattivazione, FilterPsiche altrimenti),
-  ma SENZA notificare il selettore quel passthrough resta in scena per
-  l'intera durata residua del fotogramma (fino a ~20s), non solo per il
-  tempo di preparare un renderer sostitutivo. Fix: `onRendererFailed`
-  (parametro dell'host) → `BrainRendererSelector.reportRendererFailure()`
-  fa avanzare subito il mazzo oltre l'entrata fallita.
+  non recupera da solo: la rete di sicurezza dell'host lo sostituisce.
+  **2026-09-10 (disp. Vice Consigliere):** il sostituto non è più fissato su
+  FilterPsiche/Print2D — è scelto **a caso** fra
+  `BrainRendererSelector.eligibleRenderers()` (= `storyCycleIds()`: whitelist
+  di regime + esclusione Print2D + filtro pressione), meno il renderer appena
+  fallito e quelli in cooldown `retryRendererAfter`. Il callback
+  `getEligibleRenderers` è l'8° arg di `createBrainRendererHost`; se assente o
+  pool vuoto → comportamento storico (`print2d` in Riattivazione fuori regime
+  basso, altrimenti `filter-psiche`). Il resto della gestione failure è
+  invariato: `onRendererFailed` (parametro dell'host) →
+  `BrainRendererSelector.reportRendererFailure()` fa avanzare subito il mazzo
+  oltre l'entrata fallita, così il passthrough non resta in scena per
+  l'intera durata residua del fotogramma.
 - Durante la Riattivazione (boost) il filtro pressione di
   `storyCycleIds()` va **saltato del tutto**, non solo attenuato: la
   Riattivazione stessa, cambiando renderer ogni 1-2 fotogrammi, genera
@@ -550,6 +621,39 @@ Regole:
 - `motionProfile` deve restare uno tra `dub`, `techno`, `ambient`
 - `lowPowerMode` deve fare merge coi default anche per settings salvati vecchi
 
+## Skill: Luci DMX
+
+Quando usare:
+
+- le luci non si accendono o non cambiano colore
+- «Nessun dongle USB-DMX trovato»
+- porta seriale occupata o driver bloccato
+- aggiungere PAR in cascata
+
+File chiave:
+
+- `docs/luci-dmx.md` (documentazione completa)
+- `src/renderer/control/dmx/`
+- `src/main/dmxSerial.ts`
+
+Verifiche, in quest'ordine:
+
+- il Mac vede l'interfaccia: `ls /dev/cu.usbserial*`;
+- il PAR è in modalità indirizzo (`d001`…), il cavo è nell'IN;
+- nel pannello è scelto `Open DMX` per interfacce FTDI generiche
+  (DSD TECH SH-RS09B);
+- nessun altro processo tiene la porta: `lsof /dev/cu.usbserial*`.
+
+Regole:
+
+- su macOS mai il break via `TIOCSBRK` (Web Serial `setSignals`): blocca il
+  driver FTDI. Il break si emula con un byte 0 a 57600 baud;
+- `serialport` ≥ 13 (la 12 non torna a 250000 baud);
+- non aprire la porta da script mentre l'app è connessa: due aperture
+  insieme hanno inchiodato il driver;
+- Brain e Morphing non importano nulla da `dmx/`: mandano solo
+  `{ producer, colors, transitionMs }`.
+
 ## Skill: Documentazione
 
 Quando usare:
@@ -601,3 +705,136 @@ pnpm exec electron-builder --win
 ```
 
 Da macOS, Electron Builder puo' richiedere dipendenze/target aggiuntivi in base al formato scelto.
+
+## Skill: Creare Un Renderer Brain (plugin nuovo)
+
+Quando usare:
+
+- si progetta un nuovo renderer Brain da zero
+- serve il contratto plugin completo, il gate filosofia, le regole di
+  autonomia, il ciclo di vita e i test minimi prima di scrivere codice
+- un renderer nuovo "non compare", "si congela", "non e' reattivo" o
+  "sembra un altro renderer"
+
+File chiave:
+
+- `src/renderer/output/brain/brainRendererPlugin.ts` — `BrainRendererPlugin`
+  e `BrainRendererPluginContext` (cosa ricevi).
+- `src/renderer/output/brain/brainSvgScene.ts` — `BrainSceneRendererController`
+  (cosa il tuo `create()` deve restituire).
+- `src/renderer/output/brain/brainRendererRegistry.ts` — registrazione e
+  `capabilities`.
+- `src/renderer/output/brain/brainRendererSelector.ts` — pool per regime,
+  permanenza, esclusioni (vedi skill "Renderer Brain").
+- `src/renderer/output/brain/brainRendererHost.ts` — come il controller
+  viene guidato dal vivo (crossfade `active`/`incoming`, passthrough Varco).
+- `src/renderer/output/brain/brainController.ts` — `applyFrame` crea una
+  **nuova istanza del renderer ad ogni fotogramma**.
+- `agents.md` §"Autonomia Dei Renderer" e il gate filosofia a 5 punti.
+- Esempio completo e recente: `brainPsicoFantasmaCanvas.ts` + `psicofantasma/`
+  (PIANO-043) — analisi locale, prep pesante / runtime economico, matcher
+  in-modulo, memoria fuori istanza, reattivita' solo ottica.
+
+Contratto del controller (`BrainSceneRendererController`, quello che
+`create(context)` ritorna):
+
+- `element` — il tuo `<canvas>`/SVG, gia' appeso a `context.container`,
+  `position:absolute; inset:0; pointer-events:none`.
+- `update(bands, settings, time, rhythm?, movingAverages?, flash?)` —
+  chiamato ogni frame RAF; qui vive il disegno.
+- `destroy()` — libera RAF, canvas, resize listener, observer; `element.remove()`.
+- `isReady?()` / `hasFailed?()` — l'host aspetta `isReady` prima di mostrare;
+  `hasFailed` fa scattare la rete di sicurezza (passthrough Print2D/FilterPsiche).
+- `setOpacity(o)` — pilotato dal crossfade dell'host.
+- `setResourcePressure(active)` — sotto pressione GPU reale: rinvia o
+  abortisci le preparazioni pesanti.
+- `setOfflineHold?(active)` — generazione storia in corso; **non** congelare
+  per sempre su questo flag (resta vero 40-100+s).
+- `setPerception?(state)` — regime bio-percettivo, bassa frequenza, solo ai cambi.
+- `setTransition(progress, role, counterpart?)` — la maggior parte dei
+  renderer lo lascia vuoto: la transizione fra immagini e' il crossfade
+  ESTERNO dell'host, non una tua responsabilita'.
+- `setMorphPattern` / `getMorphShapes` — solo se partecipi al morph di forme.
+- `context.frameRenderMode` (`interlude`/`standard`/`enhanced`/`high-quality`)
+  — se il tuo renderer analizza la materia del raster al pixel, escludi
+  `interlude` nel selettore (4 step di denoising, 448x256; vedi PsicoFantasma
+  034-20 in `brainRendererSelector.ts`).
+
+Regole non negoziabili:
+
+1. **Gate filosofia a 5 punti** (`agents.md`): Camera ferma; Materia (raster
+   originale nella figura, vietati sticker/outline/glow non richiesti dal
+   brief); Silenzio (nel silenzio reale nessuna nuova emersione, morph
+   sospeso, si tengono gli ultimi pixel); Beatmatch (impulso prima del
+   pacing, il beat modifica solo la separazione ottica locale, bande
+   distinte); Transizione (riusa il crossfade dell'host). Scrivi la
+   checklist nel Piano di Lavoro e verificala sul renderer reale e in
+   `lowPowerMode`.
+2. **Autonomia** (disposizione Capo Supremo 2026-09-07): la tua analisi del
+   raster (zone di colore, segmentazione, occupazione, silhouette, salienza,
+   forma) vive nel tuo modulo e si tara solo per te. La duplicazione con
+   altri renderer e' **voluta**, non un refactor mancato. Non importare
+   `analyzeMaterialPixels`, `BAUHAUS_SILHOUETTES` o analisi di un altro
+   renderer: se serve, si riporta al Capo Supremo. Condivisa solo
+   l'infrastruttura non-grammaticale (contratto plugin, crossfade, motion
+   smoother, `brainRhythm`, store fuori istanza, `setPerception`).
+3. **Costo**: tutto il lavoro pesante (analisi, blur, layer, inferenze,
+   descrittori) va fatto **alla preparazione**, una volta per immagine; a
+   runtime solo crossfade/composizione economica. `startPreparation`
+   guardato da `preparationStarted || resourcePressure || destroyed`; su
+   `setResourcePressure(true)` prima che sia pronto, `abort()`. Nessun
+   ricampionamento o riallocazione di Canvas per frame.
+4. **Silenzio**: `const audible = rhythm?.active !== false && (somma bande >
+   ~0.008)`. Pattern: `if ((!audible || offlineHold) && Number.isFinite(
+   lastRenderAt)) return` — tiene l'ultimo frame dipinto. Il tempo
+   percettivo avanza solo se `audible`.
+5. **Memoria fuori istanza**: l'host ricrea una nuova istanza del renderer
+   ad ogni fotogramma. Qualunque stato che deve sopravvivere (fase,
+   decadimento, traccia, contatore) va in un `Map`/`WeakMap` a livello di
+   modulo con snapshot **scalari**; le canvas restano weakly held. Un
+   accumulatore a soglia calibrato per richiedere piu' di ~20-84s reali di
+   fatto non scatta mai (durata tipica di un hold) — verificalo con un test
+   di integrazione a centinaia di frame simulati.
+6. **Reattivita' audio**: `bands` per l'inviluppo continuo, `rhythm` per
+   l'impulso — `calculateRhythmicAccent(rhythm)` (0..1, picco sul kick,
+   decade ~180ms), `rhythm.beatPulse`, `rhythm.bandTransients`. Ampiezza
+   **percepibile**, non un ritocco del 4%. Se il brief vieta colore/halo/
+   glow, la reattivita' vive nella separazione ottica: profondita' del blur
+   di fondo, contrasto figura/fondo, micro-scala, jitter breve sul battito
+   che si assesta fra un colpo e l'altro.
+
+Registrazione:
+
+- `brainRendererRegistry.ts`: `registry.register({ id, label, capabilities:
+  { multipleImages, semanticMetadata, lowPowerMode }, create })`.
+- `src/shared/types.ts`: aggiungi l'`id` a `BrainRendererId`.
+- `VisualControls.tsx`: voce per la selezione manuale (che ignora le
+  esclusioni di regime — utile per il collaudo).
+- Selettore: dichiara i regimi di eleggibilita' (`LOW_REGIME_RENDERERS`,
+  `HIGH_REGIME_PRIORITY_/SECONDARY_/EXCLUDED_RENDERERS`,
+  `BOOTSTRAP_EXCLUDED_RENDERERS`); se persiste su piu' fotogrammi,
+  `PERSISTENT_STORY_RENDERERS` (hold 2-3); se fa analisi multi-sorgente
+  pesante, `HEAVY_RENDERERS_UNDER_PRESSURE`.
+
+Test (obbligatori prima di dichiarare "fatto"):
+
+- esporta le funzioni pure (stato/fasi, timing per regime, ranking,
+  descrittori) e testale isolate;
+- un test d'integrazione del controller: `vi.spyOn(HTMLCanvasElement.
+  prototype, 'getContext')` mockato, `vi.stubGlobal('createImageBitmap', ...)`,
+  guida `update()` su centinaia di `time` simulati; verifica `isReady`, il
+  congelamento nel silenzio (`drawImage` non chiamato), `destroy()` + nuova
+  istanza con memoria ripristinata;
+- `pnpm typecheck`, `pnpm lint`, `pnpm exec vitest run <tuoi file>`, `pnpm build`;
+- gate 20-40% / Test Visual: collaudo a schermo, mai quota runtime.
+
+Insidie note (non ripartire da zero — vedi anche skill "Renderer Brain"):
+
+- hash a bassa diffusione su indici piccoli e sequenziali (0-11): eseguilo
+  numericamente su quel range esatto prima di fidarti; usa un avalanche a
+  interi (splitmix/Wang), non `hashUnit(x, cost, cost)`;
+- non forzare il tuo renderer in prima posizione del mazzo;
+- il renderer sotto un passthrough deve continuare ad aggiornare a ritmo
+  ridotto anche in stato `active`, non solo `entering`;
+- bilanciare per "fotogrammi mostrati" (`exposureWeight`), non per numero di
+  comparse.

@@ -4,7 +4,10 @@ import {
   type AppSettings,
   type BrainRendererId,
 } from '@shared/types'
+import type { ImageRenderMode } from '@shared/brain/brainTypes'
 import type { BrainBioRegime } from './brainBioPerception'
+import { isPsicoFantasmaBundled } from '@shared/psicoFantasmaAvailability'
+import { classifyMorphRelation, type MorphRelationKind } from './brainRendererMorphLibrary'
 
 const FILTER_PSICHE_ID: BrainRendererId = 'filter-psiche'
 const AUTOMATICALLY_EXCLUDED_RENDERERS = new Set<BrainRendererId>([])
@@ -25,6 +28,7 @@ const LOW_REGIME_RENDERERS = new Set<BrainRendererId>([
   'bauhaus-morph',
   'dream-segmentation',
   'filter-psiche',
+  'psicofantasma',
 ])
 // DELIQUESCENCE è la grammatica del Respiro Profondo: quando il regime entra
 // in `respiro-profondo` deve essere il **95% della rotazione** (Capo Supremo,
@@ -51,7 +55,7 @@ const REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(
 //    rari, non esclusi.
 //  - Print2D non è in nessuno dei due: conserva il ruolo attuale (fuori
 //    story-cycle, solo Riattivazione).
-//  - DELIQUESCENCE è in `HIGH_REGIME_EXCLUDED_RENDERERS` — escluso dal
+//  - DELIQUESCENCE è in `DELIQUESCENCE_OUT_OF_LOW_REGIME` — escluso dal
 //    Respiro Alto, dichiarato, non emergente.
 //
 // Filter-Psiche e Vector-Morph appartengono anche a `LOW_REGIME_RENDERERS`:
@@ -69,26 +73,48 @@ const HIGH_REGIME_SECONDARY_RENDERERS = new Set<BrainRendererId>([
   'material-morph',
   'bauhaus-morph',
   'dream-segmentation',
+  'psicofantasma',
 ])
-// DELIQUESCENCE è escluso dal Respiro Alto per costruzione (dichiarato, non
-// emergente): la sua grammatica è quella del Respiro Profondo.
-const HIGH_REGIME_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
-// Bootstrap (`unresolved`, prima che `reference` sia affidabile): DELIQUESCENCE
-// non è dichiarabile — la sua sola presenza affermerebbe una grammatica di
-// Respiro Profondo prima che il sistema possa riconoscerlo (brief Visual
-// "due assi" §3). Esclusione minima esplicita; la restrizione completa del
-// pool conservativo di bootstrap resta voce di collaudo.
-const BOOTSTRAP_EXCLUDED_RENDERERS = new Set<BrainRendererId>(['deliquescence'])
+// DELIQUESCENCE vive SOLO nel regime basso (`decompression` /
+// `respiro-profondo`), dove è la grammatica del Respiro Profondo. Fuori da
+// lì è escluso per costruzione — dichiarato, non emergente — in tutti e tre
+// gli altri regimi, per tre ragioni distinte che restano distinte:
+//  - `respiro-alto`: la sua grammatica non è quella di questo asse;
+//  - `unresolved`: prima che `reference` sia affidabile la sua sola presenza
+//    affermerebbe una grammatica di Respiro Profondo prima che il sistema
+//    possa riconoscerlo (brief Visual "due assi" §3). La restrizione
+//    completa del pool conservativo di bootstrap resta voce di collaudo;
+//  - `pressurized`: disp. Capo Supremo 2026-10-08. Prima la
+//    pressurizzazione era l'unico regime senza alcuna esclusione — trattata
+//    come un passaggio e non come uno stato con un pool proprio — e
+//    DELIQUESCENCE poteva quindi essere scelto, o restare in scena,
+//    attraversandola.
+// Un solo insieme invece di tre singleton identici: l'esclusione è la stessa
+// e divergerebbe solo per sbaglio.
+const DELIQUESCENCE_OUT_OF_LOW_REGIME = new Set<BrainRendererId>(['deliquescence'])
 
-// `pressurized`: nessuna esclusione né preferenza — è un passaggio, non uno
-// stato abitato con un pool proprio.
-function excludedForRegime(regime: BrainBioRegime): ReadonlySet<BrainRendererId> {
-  if (regime === 'decompression' || regime === 'respiro-profondo') {
-    return REGIME_EXCLUDED_RENDERERS
-  }
-  if (regime === 'respiro-alto') return HIGH_REGIME_EXCLUDED_RENDERERS
-  if (regime === 'unresolved') return BOOTSTRAP_EXCLUDED_RENDERERS
-  return AUTOMATICALLY_EXCLUDED_RENDERERS
+//
+// `frameRenderMode`: PsicoFantasma osserva la materia del raster al pixel e non
+// regge un input a 4 step di denoising (`interlude`, 448×256). Disposizione del
+// Capo Supremo (2026-09-08, PIANO-043 034-20): escluso solo su `interlude`;
+// `standard`/`enhanced`/`high-quality` e i fotogrammi archiviati (modalità
+// assente) sono ammessi. La selezione manuale è risolta prima di questo filtro.
+function excludedForRegime(
+  regime: BrainBioRegime,
+  frameRenderMode?: ImageRenderMode,
+): ReadonlySet<BrainRendererId> {
+  const excluded = regime === 'decompression' || regime === 'respiro-profondo'
+    ? REGIME_EXCLUDED_RENDERERS
+    // `respiro-alto`, `unresolved` e `pressurized`: fuori dal regime basso
+    // DELIQUESCENCE non è eleggibile. `AUTOMATICALLY_EXCLUDED_RENDERERS` è
+    // oggi vuoto ma resta nell'unione: se un giorno si popola deve valere
+    // anche qui.
+    : new Set<BrainRendererId>([
+      ...AUTOMATICALLY_EXCLUDED_RENDERERS,
+      ...DELIQUESCENCE_OUT_OF_LOW_REGIME,
+    ])
+  const psicoFantasmaBlocked = !isPsicoFantasmaBundled() || frameRenderMode === 'interlude'
+  return psicoFantasmaBlocked ? new Set([...excluded, 'psicofantasma' as const]) : excluded
 }
 
 // Rango di preferenza del renderer nel regime corrente: 0 = prioritario o
@@ -124,6 +150,7 @@ const HEAVY_RENDERERS_UNDER_PRESSURE = new Set<BrainRendererId>([
   'material-morph',
   'dream-segmentation',
   'fractal-spiral-degeneration',
+  'psicofantasma',
 ])
 const FILTER_PSICHE_ROTATION_DURATION_MULTIPLIER = 1.5
 const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
@@ -136,6 +163,7 @@ const PERSISTENT_STORY_RENDERERS = new Set<BrainRendererId>([
   'glitch-morph',
   'fractal-spiral-degeneration',
   'deliquescence',
+  'psicofantasma',
 ])
 // Un renderer persistente è un invariante onirico (filosofia.md §2): deve
 // durare abbastanza da farsi riconoscere come "ciò che ritorna" (minimo 2
@@ -159,6 +187,25 @@ const MAXIMUM_BOOSTED_HOLD_FRAMES = 2
 // sconosciuto o `unresolved` usa il comportamento oggi esistente (1-2),
 // nessuna regressione per chi non passa il nuovo parametro.
 const DECOMPRESSION_BOOSTED_HOLD_FRAMES = 2
+
+// Biblioteca delle sequenze (disposizione Vice Consigliere, brief
+// "Completamento della biblioteca delle sequenze" 2026-09-17): la
+// compatibilità morfologica è una preferenza contestuale che si aggiunge a
+// regime/eleggibilità/balanced-exposure/hold/randomizzazione, non li
+// sostituisce (brief §9, §10, §11). Per questo non è una chiave di
+// ordinamento primaria del mazzo (deterministica = "A quasi sempre seguito
+// da B", esplicitamente vietato dal brief §11) ma una promozione
+// probabilistica applicata SOLO fra candidati già competitivi per
+// esposizione (la finestra in testa al mazzo già bilanciato), e solo a
+// volte — mai una concatenazione obbligatoria.
+const MORPH_CONTINUATION_KIND_BONUS: Record<MorphRelationKind, number> = {
+  strutturale: 2,
+  percettiva: 1,
+  compatibilita: 0,
+  rottura: 0,
+}
+const MORPH_CONTINUATION_CONSIDER_SHARE = 0.55
+const MORPH_CONTINUATION_WINDOW = 3
 
 export function selectBrainRendererHoldFrames(
   rendererId: BrainRendererId,
@@ -206,6 +253,7 @@ export class BrainRendererSelector {
     private readonly getPressureHint?: () => boolean,
     private readonly getBoostHint?: () => boolean,
     private readonly getRegime?: () => BrainBioRegime,
+    private readonly getFrameRenderMode?: () => ImageRenderMode | undefined,
   ) {
     this.activeId = availableIds.includes(initialId)
       ? initialId
@@ -221,8 +269,12 @@ export class BrainRendererSelector {
     return result
   }
 
+  private currentlyExcluded(): ReadonlySet<BrainRendererId> {
+    return excludedForRegime(this.getRegime?.() ?? 'unresolved', this.getFrameRenderMode?.())
+  }
+
   private automaticIds(): BrainRendererId[] {
-    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const regimeExcluded = this.currentlyExcluded()
     const enabled = this.availableIds.filter(
       (id) => !AUTOMATICALLY_EXCLUDED_RENDERERS.has(id) && !regimeExcluded.has(id),
     )
@@ -230,7 +282,7 @@ export class BrainRendererSelector {
   }
 
   private regimeAllows(id: BrainRendererId): boolean {
-    return !excludedForRegime(this.getRegime?.() ?? 'unresolved').has(id)
+    return !this.currentlyExcluded().has(id)
   }
 
   /**
@@ -240,7 +292,7 @@ export class BrainRendererSelector {
    * Il boost non partecipa alla decisione: il regime resta l'autorità finale.
    */
   private reconcileCurrentRegime(now: number): boolean {
-    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const regimeExcluded = this.currentlyExcluded()
     if (regimeExcluded.size === 0) return false
 
     this.waitingDeck = this.waitingDeck.filter((id) => !regimeExcluded.has(id))
@@ -276,7 +328,7 @@ export class BrainRendererSelector {
     // L'esclusione per regime NON dipende da `boosted`: il regime vince
     // sempre sull'evento tecnico (brief §13/§14 della nota Visual), a
     // differenza del filtro pressione GPU qui sotto.
-    const regimeExcluded = excludedForRegime(this.getRegime?.() ?? 'unresolved')
+    const regimeExcluded = this.currentlyExcluded()
     const excluded = new Set<BrainRendererId>([...storyCycleExcluded, ...regimeExcluded])
     const enabled = this.availableIds.filter((id) => !excluded.has(id))
     const base = enabled.length > 0 ? enabled : this.automaticIds()
@@ -337,7 +389,40 @@ export class BrainRendererSelector {
         ;[deck[0], deck[replacementIndex]] = [deck[replacementIndex], deck[0]]
       }
     }
+    this.applyMorphContinuationBias(deck, avoidedId)
     return deck
+  }
+
+  /**
+   * Promuove in testa, con probabilità moderata e solo entro la finestra
+   * già competitiva per esposizione, una continuazione morfologicamente
+   * coerente con `fromId` (il renderer da cui ci si allontana). Non tocca
+   * il mazzo se non trova nulla di compatibile nella finestra, o se il dado
+   * non lo consente questa volta — cosi' la stessa coppia non diventa mai
+   * una concatenazione fissa (brief §7, §11).
+   */
+  private applyMorphContinuationBias(
+    deck: BrainRendererId[],
+    fromId: BrainRendererId,
+  ): void {
+    if (deck.length < 2) return
+    if (this.random() >= MORPH_CONTINUATION_CONSIDER_SHARE) return
+    const windowEnd = Math.min(deck.length, MORPH_CONTINUATION_WINDOW)
+    let bestIndex = -1
+    let bestBonus = 0
+    for (let index = 1; index < windowEnd; index += 1) {
+      const candidate = deck[index]
+      if (candidate === fromId) continue
+      const bonus = MORPH_CONTINUATION_KIND_BONUS[classifyMorphRelation(fromId, candidate)]
+      if (bonus > bestBonus) {
+        bestBonus = bonus
+        bestIndex = index
+      }
+    }
+    if (bestIndex > 0) {
+      const [chosen] = deck.splice(bestIndex, 1)
+      deck.unshift(chosen)
+    }
   }
 
   private balancedStoryDeck(avoidedId: BrainRendererId): BrainRendererId[] {
@@ -500,6 +585,16 @@ export class BrainRendererSelector {
     if (this.storyId === null) return
     this.storyHoldRemaining = 0
     this.advanceStoryRenderer(this.storyId, settings, now)
+  }
+
+  /** Renderer eleggibili per lo stato/regime corrente (whitelist di regime,
+   * regola Print2D ordinario/Riattivazione, filtro pressione GPU) — la stessa
+   * base con cui il selettore costruisce i mazzi. Esposta per la rete di
+   * sicurezza dell'host: quando un renderer fallisce il proprio QC, il
+   * sostituto va scelto a caso QUI dentro, non fissato su FilterPsiche.
+   * Nessun pool nuovo. */
+  eligibleRenderers(): BrainRendererId[] {
+    return this.storyCycleIds()
   }
 
   resolve(settings: AppSettings, now: number): BrainRendererId {

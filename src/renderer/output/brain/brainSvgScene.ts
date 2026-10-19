@@ -318,6 +318,13 @@ export type BrainSceneRendererController = {
   // Il Renderer Host espone quando il passthrough del Varco Percettivo è
   // completamente entrato. I renderer semplici non lo implementano.
   isResourcePressureReady?: () => boolean
+  // PoC Material→Dream (disposizione Vice Consigliere, brief PoC
+  // 2026-09-14): canale minimo, opaco (`unknown`), con cui l'host puo'
+  // recuperare uno stato di handoff dal renderer uscente per passarlo al
+  // renderer entrante. Non e' un sistema generale di inheritance: l'host
+  // lo usa solo per la coppia material-morph -> dream-segmentation, sullo
+  // stesso raster. Non implementato dagli altri renderer.
+  exportHandoff?: () => unknown
   setOfflineHold?: (active: boolean) => void
   // PIANO-040: opzionale per compatibilità con controller esterni, ma tutti
   // i renderer registrati in Brain lo implementano. Chiamato a bassa

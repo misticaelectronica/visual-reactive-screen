@@ -855,7 +855,11 @@ export function classifyPressureTrend(
 
 export type BrainBioLevel = 'alto' | 'profondo' | null
 
-function classifyLevel(
+// Esportata per diagnostica offline (Vice Consigliere 2026-09-11): permette
+// di ricostruire `settledLevel` fuori dalla classe con lo stesso identico
+// calcolo, invece di duplicarne la logica in uno script — nessun cambio di
+// comportamento, la funzione resta pura e invariata.
+export function classifyLevel(
   configuredPressure: number,
   median: number,
   previous: BrainBioLevel,
@@ -1032,12 +1036,26 @@ export function advanceBioRegime(
   // `falling` perché `pp` è sotto il riferimento pur crescendo).
   const pressureDelta = signals.perceptualPressure - pressureLagged
   const landingNow = Math.abs(pressureDelta) < PRESSURE_SETTLE_EPSILON
-  // Il conteggio riparte da zero ad ogni cambio di `pressureTrend`: l'inizio
-  // di un passaggio non deve ereditare i secondi "piatti" accumulati nello
-  // stato precedente (una discesa graduale parte lenta e sembrerebbe già
-  // atterrata).
-  const trendChanged = signals.pressureTrend !== previous.pressureTrend
-  const pressureFlatMs = landingNow && !trendChanged ? previous.pressureFlatMs + deltaMs : 0
+  // CORREZIONE (diagnosi Vice Consigliere 2026-09-11, verificata su
+  // respiro-profondo.mp3/-1/respirto-profondo-3.mp3): il reset precedente
+  // azzerava `pressureFlatMs` a ogni cambio dell'etichetta `pressureTrend`,
+  // non solo quando `pp` ricominciava davvero a muoversi. `REFERENCE_PRESSURE_
+  // DEADBAND` (soglia d'ingresso in rising/falling) e `PRESSURE_SETTLE_EPSILON`
+  // (soglia di "atterrata") sono lo stesso valore per costruzione: l'ingresso
+  // in rising/falling da 'stable' avviene esattamente quando `landingNow`
+  // diventa falso, quindi quella protezione (non ereditare secondi piatti
+  // dall'inizio di un passaggio reale) è già garantita da `landingNow` da
+  // solo. Ma l'ISTERESI in uscita da rising/falling (`stay` a metà della
+  // soglia) lascia `landingNow` diventare vero PRIMA che l'etichetta rientri
+  // in 'stable': il vecchio reset su `trendChanged` cancellava a quel punto
+  // secondi già genuinamente piatti, e li ri-cancellava a ogni micro-rientro
+  // in rising/falling — sul segnale reale l'etichetta cambia con cadenza
+  // mediana ~1.7s (Diagnosi Respiri 2026-09-11), sempre sotto ai 9s richiesti:
+  // `pressureLanded` non diventava mai vero, `respiro-alto`/`respiro-profondo`
+  // non venivano mai riconosciuti nemmeno sui campioni classificati come tali.
+  // Il conteggio ora dipende solo da `landingNow`, il segnale che descrive
+  // davvero se `pp` si è fermata.
+  const pressureFlatMs = landingNow ? previous.pressureFlatMs + deltaMs : 0
   const pressureLanded = pressureFlatMs >= PRESSURE_SETTLE_CONFIRM_MS
   const pressureJustLanded =
     pressureLanded && previous.pressureFlatMs < PRESSURE_SETTLE_CONFIRM_MS
@@ -1227,6 +1245,11 @@ export class BrainBioPerceptionClock {
   // rimette `reference.phase` a `awaiting-confirmation` ma il riferimento è già
   // stato affidabile una volta.
   private referenceEverPromoted = false
+  // Diagnostica additiva (Vice Consigliere 2026-09-11): cattura il
+  // `justSettled` locale dell'ultimo `ingestSample`, altrimenti perso a fine
+  // chiamata — nessuna decisione dipende da questo campo, solo l'overlay
+  // diagnostico e il collaudo offline.
+  private lastReferenceJustSettled = false
 
   ingestSample(
     bands: BandEnergies,
@@ -1276,6 +1299,7 @@ export class BrainBioPerceptionClock {
     const referenceJustSettled =
       referencePhaseBefore === 'awaiting-confirmation' && this.reference.phase === 'stable'
     if (referenceJustSettled) this.referenceEverPromoted = true
+    this.lastReferenceJustSettled = referenceJustSettled
     const change = calculateChange(this.envelopes.mid, this.reference.vector)
 
     // Mediana/dispersione restano aggiornate come contesto (§4 del brief) — e
@@ -1413,6 +1437,19 @@ export class BrainBioPerceptionClock {
       silenceNearZero: silence.nearSilent,
       silenceAuthorized: silence.authorized,
       silenceConfirmationProgress: clamp(silence.silentSustainedMs / SILENCE_ENTER_MS),
+      // Diagnostica additiva (Vice Consigliere 2026-09-11): quanto manca al
+      // gate di atterraggio che autorizza un respiro. Non decide nulla di
+      // nuovo — espone `this.regime.pressureFlatMs`, già calcolato da
+      // `advanceBioRegime`, per il collaudo offline invece di dover
+      // reistanziare la macchina a stati fuori da questa classe.
+      pressureFlatMs: this.regime.pressureFlatMs,
+      pressureLanded: this.regime.pressureFlatMs >= PRESSURE_SETTLE_CONFIRM_MS,
+      // Diagnostica additiva (Vice Consigliere 2026-09-11): fase della
+      // macchina `reference` e se si è appena assestata in QUESTO campione —
+      // per ricostruire, fuori dalla classe, perché `gatedLevel` è null
+      // durante il bootstrap anche quando `pressureLanded` è già vero.
+      referencePhase: this.reference.phase,
+      referenceJustSettled: this.lastReferenceJustSettled,
     }
   }
 }
@@ -1454,4 +1491,12 @@ export type BrainBioRegimeDiagnostics = {
   silenceNearZero: boolean
   silenceAuthorized: boolean
   silenceConfirmationProgress: number
+  /** Millisecondi consecutivi con `pp` entro `PRESSURE_SETTLE_EPSILON` dalla propria linea ritardata. */
+  pressureFlatMs: number
+  /** `pressureFlatMs >= PRESSURE_SETTLE_CONFIRM_MS` — soglia che autorizza un respiro. */
+  pressureLanded: boolean
+  /** Fase della macchina `reference` in questo campione. */
+  referencePhase: BrainBioReferencePhase
+  /** `reference` si è appena assestata (transizione a 'stable') in QUESTO campione. */
+  referenceJustSettled: boolean
 }

@@ -79,13 +79,19 @@ type BrainRenderingConfigInput = {
 }
 
 export const DEFAULT_BRAIN_RENDERING_CONFIG: BrainRenderingConfig = {
+  // Step alzati (Capo Supremo, 2026-09-17: "facce sfatte" nei raster
+  // generati) — 8 step standard erano troppo pochi perché SD 1.5 converga
+  // su un volto leggibile, il dettaglio che richiede più iterazioni per
+  // stabilizzarsi. `interludeSteps` resta invariato: è deliberatamente il
+  // livello "usa e getta" per i fotogrammi eco/di transizione a bassa
+  // risoluzione (448x256), mai pensato per la leggibilità del volto.
   image: {
     width: 640,
     height: 360,
-    standardSteps: 8,
+    standardSteps: 12,
     interludeSteps: 4,
-    enhancedSteps: 12,
-    qualitySteps: 20,
+    enhancedSteps: 16,
+    qualitySteps: 24,
   },
   timing: {
     frameDurationMs: 14_000,

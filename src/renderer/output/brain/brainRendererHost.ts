@@ -15,6 +15,13 @@ import { brainLog, brainWarn } from './brainLog'
 import type { BrainBioPerceptionState, BrainBioRegime } from './brainBioPerception'
 
 const SWITCH_DURATION_MS = 1_800
+// Sostituzione d'emergenza quando il renderer uscente non ha MAI raggiunto
+// `isReady()` (es. Vector Morph respinto dal controllo qualità, mai mostrato
+// nulla oltre il proprio raster di sfondo grezzo): niente da preservare col
+// crossfade lungo, che lasciava "solo il raster" visibile fino a
+// SWITCH_DURATION_MS/CONTAMINATION_DURATION_MS — notato ogni tanto dal Capo
+// Supremo (2026-09-22). Ancora un breve dissolvi, non un taglio secco.
+const FAILED_BEFORE_READY_SWITCH_DURATION_MS = 250
 const SWITCH_TIMEOUT_MS = 15_000
 // **Varco Percettivo** — nome condiviso con la Direzione VJ (Capo Supremo
 // del Visual) per questa composizione di flash + strisce glitch + mix
@@ -45,6 +52,32 @@ const SWITCH_TIMEOUT_MS = 15_000
 // un blocco, senza produrre un accento visivo che il respiro non deve
 // avere. Fuori dal respiro stabile nessun cambiamento: intensità piena
 // come sempre.
+//
+// AGGIORNAMENTO (disp. Capo Supremo 2026-10-07): le due FASI BASSE —
+// `decompression` e `respiro-profondo` — condividono il colore del Varco,
+// più scuro delle altre fasi. Sono già accoppiate in questo stesso file per
+// il passthrough (`regimeAllowsPsycho2d`, `regimeAllowsPrint2d`): stesso
+// accoppiamento, nessun criterio nuovo. Tre conseguenze:
+//   - tinte del glitch dal set scuro per entrambe, abbassate più vicino al
+//     nero mantenendo la tinta organica riconoscibile;
+//   - scurimento pre-Varco PIÙ profondo (non meno): è un velo che toglie
+//     luce, l'opposto del flash, e veniva erroneamente moltiplicato per il
+//     moltiplicatore del flash — nel respiro profondo (flash 0) risultava
+//     quindi spento del tutto, cioè il Varco era meno scuro proprio dove
+//     deve esserlo di più. Ora ha un proprio moltiplicatore;
+//   - nella decompressione il flash scende ma NON si azzera: è un passaggio,
+//     non una stasi, e il Varco deve ancora mascherare lo stallo.
+// Scurimento pre-Varco (Capo Supremo, in collaudo 2026-09-17: "prima lag,
+// poi entra il Varco" — il sipario flash+glitch può arrivare a schermo in
+// ritardo rispetto allo stallo che deve coprire). Stessa causa d'armo
+// (`setResourcePressure`), fase aggiuntiva PRIMA del flash: uno scurimento
+// morbido che parte nell'istante stesso in cui il segnale GPU si arma, così
+// la prima cosa visibile a schermo quando lo stallo comincia è già
+// un'intenzione visiva (scurirsi), non il fotogramma congelato a nudo.
+// Breve apposta: deve solo anticipare il flash, non sostituire la sua
+// funzione di mascheramento.
+const PRESSURE_DARKEN_MS = 140
+const PRESSURE_DARKEN_PEAK_OPACITY = 0.55
 const PRESSURE_FLASH_ATTACK_MS = 32
 const PRESSURE_FLASH_DECAY_MS = 220
 const PRESSURE_FLASH_PEAK_OPACITY = 0.85
@@ -54,13 +87,44 @@ const RESPIRO_PROFONDO_FLASH_MULTIPLIER = 0
 // predominante". Moltiplicatore abbassato E tinte sostituite con toni
 // organici scuri (`PRESSURE_GLITCH_TINTS_DARK`, sotto).
 const RESPIRO_PROFONDO_GLITCH_MULTIPLIER = 0.1
+// Scurimento più profondo nelle fasi basse (disp. Capo Supremo 2026-10-07:
+// "se siamo in decompressione e respiro profondo il Varco deve avere colori
+// più scuri"). Lo scurimento è l'OPPOSTO del flash — un velo che toglie
+// luce, non un accento che la aggiunge — e finora veniva moltiplicato per
+// `flash`: in `respiro-profondo`, dove `flash` è 0, il velo risultava
+// completamente spento, cioè il Varco era meno scuro proprio nella fase che
+// deve esserlo di più. Separato dal flash e portato oltre 1 nelle due fasi
+// basse. Il flash resta a 0 nel respiro profondo come prima.
+const LOW_PHASE_DARKEN_MULTIPLIER = 1.35
+// `decompression` è trattata come `respiro-profondo` per il colore del
+// Varco: le due fasi basse sono già accoppiate in questo stesso file per il
+// passthrough Psycho2D/Print2D (`regimeAllowsPsycho2d`,
+// `regimeAllowsPrint2d`) — stesso accoppiamento, nessun criterio nuovo.
+// Nella decompressione il flash NON va a zero: è un passaggio, non una
+// stasi, e il Varco deve ancora mascherare lo stallo. Scende soltanto.
+const DECOMPRESSION_FLASH_MULTIPLIER = 0.35
+const DECOMPRESSION_GLITCH_MULTIPLIER = 0.45
+function isLowPhaseRegime(regime: BrainBioRegime | undefined): boolean {
+  return regime === 'decompression' || regime === 'respiro-profondo'
+}
 function pressureFlashRegimeMultipliers(
   regime: BrainBioRegime | undefined,
-): { flash: number; glitch: number } {
+): { flash: number; glitch: number; darken: number } {
   if (regime === 'respiro-profondo') {
-    return { flash: RESPIRO_PROFONDO_FLASH_MULTIPLIER, glitch: RESPIRO_PROFONDO_GLITCH_MULTIPLIER }
+    return {
+      flash: RESPIRO_PROFONDO_FLASH_MULTIPLIER,
+      glitch: RESPIRO_PROFONDO_GLITCH_MULTIPLIER,
+      darken: LOW_PHASE_DARKEN_MULTIPLIER,
+    }
   }
-  return { flash: 1, glitch: 1 }
+  if (regime === 'decompression') {
+    return {
+      flash: DECOMPRESSION_FLASH_MULTIPLIER,
+      glitch: DECOMPRESSION_GLITCH_MULTIPLIER,
+      darken: LOW_PHASE_DARKEN_MULTIPLIER,
+    }
+  }
+  return { flash: 1, glitch: 1, darken: 1 }
 }
 const PRESSURE_GLITCH_SLICE_COUNT = 7
 const PRESSURE_GLITCH_MAX_OFFSET_PX = 26
@@ -73,14 +137,18 @@ const PRESSURE_GLITCH_TINTS = [
 // Respiro Profondo: toni organici scuri (petrolio, viola ematico, ruggine
 // annerita) al posto delle tinte sature — "scuro predominante" anche nel
 // Varco (collaudo Visual 2026-08-31).
+// Abbassate ulteriormente (disp. Capo Supremo 2026-10-07, "colori più
+// scuri"): stesse tre famiglie organiche — petrolio, viola ematico, ruggine
+// annerita — portate più vicine al nero mantenendo la tinta riconoscibile,
+// non desaturate a grigio.
 const PRESSURE_GLITCH_TINTS_DARK = [
-  'rgba(22,40,44,0.55)',
-  'rgba(46,26,40,0.5)',
-  'rgba(48,32,20,0.45)',
+  'rgba(12,24,27,0.62)',
+  'rgba(28,14,24,0.58)',
+  'rgba(30,19,11,0.52)',
 ] as const
 
 function glitchTintFor(regime: BrainBioRegime | undefined, index: number): string {
-  const set = regime === 'respiro-profondo' ? PRESSURE_GLITCH_TINTS_DARK : PRESSURE_GLITCH_TINTS
+  const set = isLowPhaseRegime(regime) ? PRESSURE_GLITCH_TINTS_DARK : PRESSURE_GLITCH_TINTS
   return set[index % set.length]
 }
 
@@ -100,6 +168,53 @@ function smootherstep(value: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10)
 }
 
+// --- CONTAMINATION — Transition System, Slice 01 (brief Visual definitivo
+// "Slice 01", via libera Consigliere 2026-09-09) -------------------------
+//
+// Morph -> Morph SULLA STESSA IMMAGINE non e' un crossfade simmetrico.
+// L'ingresso di B precede l'uscita di A; nella fascia centrale entrambi
+// restano alti (la somma delle opacita' supera 1) e la stessa figura mostra
+// insieme le due grammatiche. Solo host: nessuno stato ereditato, nessun
+// framebuffer, nessun compositing nuovo (brief §12/§13). Ambito ristretto a
+// questo solo caso (brief §25): image->image, cambio raster, INHERITANCE ecc.
+// restano fuori.
+const CONTAMINATION_DURATION_MS = 3_400
+// Tetto di opacita' in coesistenza: mentre convivono, nessuno dei due copre
+// del tutto l'altro, cosi' la fascia ibrida resta leggibile (brief §17).
+const CONTAMINATION_COEXIST_CAP = 0.82
+// Blend del SOLO layer entrante durante la coesistenza; 'normal' fuori. Stesso
+// meccanismo CSS gia' usato per denoisingPsycho2d ('lighten') e per la
+// Riattivazione ('lighter') — non e' compositing nuovo ai sensi del §13.
+const CONTAMINATION_COEXIST_BLEND = 'overlay'
+// Coppie (from->to) per cui la contaminazione risulta percettivamente sporca:
+// tornano al crossfade simmetrico. VUOTO: si popola SOLO al collaudo — il §24
+// dice che la contaminazione non si forza dove sporca, non che si escluda per
+// prudenza.
+const CONTAMINATION_EXCLUDED_PAIRS = new Set<string>([])
+
+/** Inviluppo asimmetrico della Slice 01. `t` in [0,1].
+ *  - `inOpacity`: ingresso anticipato di B (sale entro ~il 40% della
+ *    transizione, poi resta alto);
+ *  - `outOpacity`: uscita ritardata di A (piena fino a ~meta', poi cede);
+ *  - nel centro entrambe alte (somma > 1) = coesistenza; li' un tetto morbido
+ *    tiene i due sotto 1 senza produrre scatti ai bordi della fascia.
+ */
+function contaminationEnvelope(t: number, cap: number): {
+  inOpacity: number; outOpacity: number; coexisting: boolean
+} {
+  const x = clamp(t)
+  const rawIn = smootherstep(x / 0.4)
+  const rawOut = 1 - smootherstep((x - 0.5) / 0.5)
+  // 0 ai bordi, ~1 nel centro: quanto la coesistenza e' piena.
+  const central = smootherstep(rawIn) * smootherstep(rawOut)
+  const blendCap = (raw: number) => raw * (1 - central) + Math.min(raw, cap) * central
+  return {
+    inOpacity: blendCap(rawIn),
+    outOpacity: blendCap(rawOut),
+    coexisting: central > 0.25,
+  }
+}
+
 export function createBrainRendererHost(
   container: HTMLElement,
   registry: BrainRendererRegistry,
@@ -113,6 +228,11 @@ export function createBrainRendererHost(
   // senza di esso il comportamento resta quello di sempre (`print2d` durante
   // la Riattivazione).
   getBioRegime?: () => BrainBioRegime,
+  // Rete di sicurezza al failure di un renderer: elenco dei renderer eleggibili
+  // per lo stato/regime corrente (di norma `BrainRendererSelector.eligibleRenderers`).
+  // Se presente, il sostituto e' scelto a caso qui dentro invece di essere
+  // fissato su FilterPsiche. Opzionale, retrocompatibile.
+  getEligibleRenderers?: () => BrainRendererId[],
 ): BrainSceneRendererController {
   const root = document.createElement('div')
   Object.assign(root.style, {
@@ -131,6 +251,9 @@ export function createBrainRendererHost(
   let transitionProgress = 1
   let transitionRole: 'enter' | 'exit' = 'enter'
   let switchStartedAt: number | null = null
+  // CONTAMINATION: il blend del layer entrante si accende/spegne una sola
+  // volta per fascia, non ad ogni frame.
+  let contaminationBlendOn = false
   let latestPerception: BrainBioPerceptionState | null = null
   const retryRendererAfter = new Map<BrainRendererId, number>()
 
@@ -156,6 +279,25 @@ export function createBrainRendererHost(
       root.appendChild(pressureFlashOverlay)
     }
     return pressureFlashOverlay
+  }
+
+  let pressureDarkenOverlay: HTMLDivElement | null = null
+  const ensurePressureDarkenOverlay = (): HTMLDivElement => {
+    if (!pressureDarkenOverlay) {
+      pressureDarkenOverlay = document.createElement('div')
+      pressureDarkenOverlay.dataset.brainPressureDarken = 'true'
+      Object.assign(pressureDarkenOverlay.style, {
+        position: 'absolute',
+        inset: '0',
+        opacity: '0',
+        pointerEvents: 'none',
+        backgroundColor: '#000000',
+        mixBlendMode: 'multiply',
+        zIndex: '3',
+      })
+      root.appendChild(pressureDarkenOverlay)
+    }
+    return pressureDarkenOverlay
   }
 
   // Poche strisce sottili, sfalsate orizzontalmente e tinte in ciano/
@@ -206,7 +348,11 @@ export function createBrainRendererHost(
     })
   }
 
-  const createLayer = (id: BrainRendererId, now: number): RendererLayer => {
+  const createLayer = (
+    id: BrainRendererId,
+    now: number,
+    previousLayer?: RendererLayer | null,
+  ): RendererLayer => {
     const plugin = registry.get(id) ?? registry.get('print2d')
     if (!plugin) throw new Error(`Renderer Brain non registrato: ${id}`)
     const layerRoot = document.createElement('div')
@@ -219,7 +365,26 @@ export function createBrainRendererHost(
       zIndex: '1',
     })
     root.appendChild(layerRoot)
-    const controller = plugin.create({ ...pluginContext, container: layerRoot })
+    // Material↔Dream (disposizione Vice Consigliere, brief bidirezionale
+    // 2026-09-17): canale minimo, mediato dall'host, autorizzato solo per
+    // questa coppia in entrambe le direzioni e solo sullo stesso raster (un
+    // cambio di host, quindi di raster, distrugge sempre `active` prima —
+    // vedi createBrainController). Nessun altro renderer legge o scrive
+    // questo stato.
+    const materialFieldHandoffPairs: ReadonlySet<string> = new Set([
+      'material-morph->dream-segmentation',
+      'dream-segmentation->material-morph',
+    ])
+    const materialFieldHandoff = previousLayer
+      && materialFieldHandoffPairs.has(`${previousLayer.id}->${id}`)
+      ? previousLayer.controller.exportHandoff?.() as
+          BrainRendererPluginContext['materialFieldHandoff']
+      : undefined
+    const controller = plugin.create({
+      ...pluginContext,
+      container: layerRoot,
+      materialFieldHandoff,
+    })
     controller.setMorphPattern(morphPattern)
     controller.setResourcePressure(resourcePressure)
     if (latestPerception) controller.setPerception?.(latestPerception)
@@ -280,6 +445,7 @@ export function createBrainRendererHost(
         destroyLayer(incoming)
         incoming = null
         switchStartedAt = null
+        contaminationBlendOn = false
         active.root.style.opacity = '1'
       }
       return
@@ -289,8 +455,9 @@ export function createBrainRendererHost(
     destroyLayer(incoming)
     incoming = null
     switchStartedAt = null
+    contaminationBlendOn = false
     try {
-      incoming = createLayer(id, now)
+      incoming = createLayer(id, now, active)
       incoming.root.style.opacity = '0'
       brainLog('render', 'cambio renderer Brain preparato', {
         from: active.id,
@@ -325,6 +492,7 @@ export function createBrainRendererHost(
       if (resourcePressure === activePressure) return
       resourcePressure = activePressure
       if (activePressure) {
+        ensurePressureDarkenOverlay()
         ensurePressureFlashOverlay()
         armPressureGlitchSlices()
         pressureFlashArmed = true
@@ -383,34 +551,54 @@ export function createBrainRendererHost(
       const passthroughReady = passthrough !== null && passthrough.controller.isReady?.() !== false
       if (pressureFlashStartedAt !== null) {
         const elapsed = time - pressureFlashStartedAt
-        const totalMs = PRESSURE_FLASH_ATTACK_MS + PRESSURE_FLASH_DECAY_MS
-        const holding = resourcePressure && !passthroughReady
-        if (!holding && elapsed >= totalMs) {
-          pressureFlashStartedAt = null
-          if (pressureFlashOverlay) pressureFlashOverlay.style.opacity = '0'
-          pressureGlitchSlices.forEach((slice) => { slice.style.opacity = '0' })
-        } else {
-          const intensity = elapsed < PRESSURE_FLASH_ATTACK_MS
-            ? elapsed / PRESSURE_FLASH_ATTACK_MS
-            : holding
-              ? 1
-              : 1 - (elapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
-          const clamped = clamp(intensity)
+        if (elapsed < PRESSURE_DARKEN_MS) {
+          // Fase di scurimento: parte nell'istante stesso dell'armo, prima
+          // ancora che il flash/glitch abbiano un motivo per accendersi
+          // (passthrough non ancora richiesto). Triangolare e breve: sale e
+          // ridiscende dentro la sua stessa finestra, cede il posto al flash
+          // che segue subito dopo.
+          const half = PRESSURE_DARKEN_MS / 2
+          const darkenIntensity = elapsed < half
+            ? elapsed / half
+            : 1 - (elapsed - half) / half
           const regimeMultipliers = pressureFlashRegimeMultipliers(getBioRegime?.())
-          if (pressureFlashOverlay) {
-            pressureFlashOverlay.style.opacity =
-              String(clamped * PRESSURE_FLASH_PEAK_OPACITY * regimeMultipliers.flash)
+          if (pressureDarkenOverlay) {
+            pressureDarkenOverlay.style.opacity = String(clamp(
+              clamp(darkenIntensity) * PRESSURE_DARKEN_PEAK_OPACITY * regimeMultipliers.darken,
+            ))
           }
-          const glitchRegime = getBioRegime?.()
-          pressureGlitchSlices.forEach((slice, index) => {
-            slice.style.opacity =
-              String(clamped * PRESSURE_GLITCH_PEAK_OPACITY * regimeMultipliers.glitch)
-            slice.style.backgroundColor = glitchTintFor(glitchRegime, index)
-            const base = pressureGlitchBaseOffsets[index] ?? 0
-            const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
-            const jitter = Math.sin(elapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6
-            slice.style.transform = `translateX(${(base + jitter).toFixed(1)}px)`
-          })
+        } else {
+          const flashElapsed = elapsed - PRESSURE_DARKEN_MS
+          const totalMs = PRESSURE_FLASH_ATTACK_MS + PRESSURE_FLASH_DECAY_MS
+          const holding = resourcePressure && !passthroughReady
+          if (pressureDarkenOverlay) pressureDarkenOverlay.style.opacity = '0'
+          if (!holding && flashElapsed >= totalMs) {
+            pressureFlashStartedAt = null
+            if (pressureFlashOverlay) pressureFlashOverlay.style.opacity = '0'
+            pressureGlitchSlices.forEach((slice) => { slice.style.opacity = '0' })
+          } else {
+            const intensity = flashElapsed < PRESSURE_FLASH_ATTACK_MS
+              ? flashElapsed / PRESSURE_FLASH_ATTACK_MS
+              : holding
+                ? 1
+                : 1 - (flashElapsed - PRESSURE_FLASH_ATTACK_MS) / PRESSURE_FLASH_DECAY_MS
+            const clamped = clamp(intensity)
+            const regimeMultipliers = pressureFlashRegimeMultipliers(getBioRegime?.())
+            if (pressureFlashOverlay) {
+              pressureFlashOverlay.style.opacity =
+                String(clamped * PRESSURE_FLASH_PEAK_OPACITY * regimeMultipliers.flash)
+            }
+            const glitchRegime = getBioRegime?.()
+            pressureGlitchSlices.forEach((slice, index) => {
+              slice.style.opacity =
+                String(clamped * PRESSURE_GLITCH_PEAK_OPACITY * regimeMultipliers.glitch)
+              slice.style.backgroundColor = glitchTintFor(glitchRegime, index)
+              const base = pressureGlitchBaseOffsets[index] ?? 0
+              const speed = pressureGlitchDriftSpeeds[index] ?? 0.016
+              const jitter = Math.sin(flashElapsed * speed + index * 2.4) * PRESSURE_GLITCH_MAX_OFFSET_PX * 0.6
+              slice.style.transform = `translateX(${(base + jitter).toFixed(1)}px)`
+            })
+          }
         }
       }
       if (passthrough) {
@@ -531,24 +719,35 @@ export function createBrainRendererHost(
       // già gestito sotto) non deve restare a schermo per l'intera durata
       // del fotogramma — es. Vector Morph quando la vettorializzazione
       // viene respinta dal controllo qualità mostra solo il raster di
-      // sfondo finché nessuno lo nota. Print2D è pensato come rete di
-      // sicurezza semplice che non fallisce mai per lo stesso motivo, ma
-      // Print2D deve girare SOLO durante la Riattivazione (PIANO-034,
-      // regressione segnalata dal Capo Supremo: usarlo qui sempre lo
-      // faceva comparire anche fuori dal ciclo) — fuori dalla Riattivazione
-      // la rete di sicurezza usa FilterPsiche, già impiegato altrove in
-      // questo stesso file come passthrough leggero e affidabile.
+      // sfondo finché nessuno lo nota. Il sostituto deve appartenere allo
+      // stesso pool eleggibile del selettore; il vecchio Print2D/FilterPsiche
+      // resta soltanto come fallback retrocompatibile quando quel pool non è
+      // disponibile.
       //
-      // PIANO-040 (brief §4/§6.1/§17.1): Print2D non è eleggibile nel
-      // regime basso — il regime vince sempre sull'evento tecnico, quindi
-      // anche durante la Riattivazione la rete di sicurezza usa FilterPsiche
-      // se il regime è `decompression`/`respiro-profondo`. Nessun cambio per
-      // `pressurized`/`unresolved`/regime non disponibile: comportamento
-      // identico a oggi.
+      // PIANO-040 (brief §4/§6.1/§17.1): il regime vince sempre sull'evento
+      // tecnico. In particolare Print2D resta ineleggibile in
+      // `decompression`/`respiro-profondo`, anche durante la Riattivazione.
       const bioRegime = getBioRegime?.()
       const regimeAllowsPrint2d = bioRegime !== 'decompression' && bioRegime !== 'respiro-profondo'
-      const safetyNetId: BrainRendererId =
+      // Rete di sicurezza al failure: se l'host conosce i renderer eleggibili
+      // per lo stato corrente (`getEligibleRenderers`, dal selettore), il
+      // sostituto e' scelto A CASO fra quelli — escluso il renderer appena
+      // fallito e quelli in cooldown (`retryRendererAfter`, stato gia'
+      // esistente). Cosi' il fallback non converge sempre su FilterPsiche e
+      // resta dentro whitelist/esclusioni di regime. Se il callback manca o
+      // non restituisce nulla, si ricade sul comportamento storico
+      // (`print2d` in Riattivazione fuori regime basso, altrimenti
+      // `filter-psiche`).
+      const eligibleFallback = (getEligibleRenderers?.() ?? []).filter(
+        (id) => id !== active.id
+          && time >= (retryRendererAfter.get(id) ?? 0)
+          && registry.get(id) !== undefined,
+      )
+      const legacySafetyNetId: BrainRendererId =
         getBoostHint?.() === true && regimeAllowsPrint2d ? 'print2d' : 'filter-psiche'
+      const safetyNetId: BrainRendererId = eligibleFallback.length > 0
+        ? eligibleFallback[Math.floor(Math.random() * eligibleFallback.length)]
+        : legacySafetyNetId
       if (active.controller.hasFailed?.() === true && active.id !== safetyNetId) {
         brainWarn('render', 'renderer Brain attivo fallito; passo alla rete di sicurezza', {
           active: active.id,
@@ -577,6 +776,7 @@ export function createBrainRendererHost(
         destroyLayer(incoming)
         incoming = null
         switchStartedAt = null
+        contaminationBlendOn = false
         active.root.style.opacity = '1'
         return
       }
@@ -594,20 +794,53 @@ export function createBrainRendererHost(
         return
       }
       if (switchStartedAt === null) switchStartedAt = time
-      const duration = settings.lowPowerMode || resourcePressure || offlineHold
-        ? SWITCH_DURATION_MS * 0.6
-        : SWITCH_DURATION_MS
-      const progress = smootherstep((time - switchStartedAt) / duration)
-      active.root.style.opacity = String(1 - progress)
-      incoming.root.style.opacity = String(progress)
-      if (progress < 1) return
+      const degraded = settings.lowPowerMode || resourcePressure || offlineHold
+      // CONTAMINATION (Slice 01) sul cambio renderer a immagine invariata:
+      // curve asimmetriche, ingresso prima dell'uscita, fascia ibrida al
+      // centro. Fallback al crossfade simmetrico quando: la coppia e' esclusa
+      // (brief §24); si e' degradati (low power / pressione / offline hold);
+      // oppure il renderer uscente ha fallito il proprio QC (`hasFailed`) —
+      // li' e' una sostituzione d'emergenza, deve essere rapida, non una
+      // convivenza artistica.
+      const pairKey = `${active.id}->${incoming.id}`
+      const activeFailedBeforeReady = active.controller.hasFailed?.() === true
+        && active.controller.isReady?.() === false
+      const contaminate = !degraded
+        && active.controller.hasFailed?.() !== true
+        && !CONTAMINATION_EXCLUDED_PAIRS.has(pairKey)
+      const duration = contaminate
+        ? CONTAMINATION_DURATION_MS
+        : activeFailedBeforeReady
+          ? FAILED_BEFORE_READY_SWITCH_DURATION_MS
+          : degraded ? SWITCH_DURATION_MS * 0.6 : SWITCH_DURATION_MS
+      const t = (time - switchStartedAt) / duration
+      if (contaminate) {
+        const envelope = contaminationEnvelope(t, CONTAMINATION_COEXIST_CAP)
+        active.root.style.opacity = String(envelope.outOpacity)
+        incoming.root.style.opacity = String(envelope.inOpacity)
+        if (envelope.coexisting !== contaminationBlendOn) {
+          contaminationBlendOn = envelope.coexisting
+          incoming.root.style.mixBlendMode = envelope.coexisting ? CONTAMINATION_COEXIST_BLEND : 'normal'
+        }
+        root.dataset.brainContamination = envelope.coexisting
+          ? 'coexist'
+          : clamp(t) < 0.5 ? 'enter' : 'cede'
+      } else {
+        const progress = smootherstep(t)
+        active.root.style.opacity = String(1 - progress)
+        incoming.root.style.opacity = String(progress)
+      }
+      if (t < 1) return
 
       const previous = active
       active = incoming
       root.dataset.activeRenderer = active.id
       incoming = null
       switchStartedAt = null
+      contaminationBlendOn = false
       active.root.style.opacity = '1'
+      active.root.style.mixBlendMode = 'normal'
+      delete root.dataset.brainContamination
       destroyLayer(previous)
       brainLog('render', 'cambio renderer Brain completato', {
         active: active.id,
@@ -620,6 +853,7 @@ export function createBrainRendererHost(
       destroyLayer(denoisingFilterPsiche)
       destroyLayer(denoisingPsycho2d)
       pressureFlashOverlay = null
+      pressureDarkenOverlay = null
       pressureGlitchSlices = []
       pressureGlitchBaseOffsets = []
       pressureGlitchDriftSpeeds = []

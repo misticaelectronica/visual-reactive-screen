@@ -66,6 +66,36 @@ describe('traduttori AI Brain', () => {
     expect(recovered).not.toContain('HEXADECIMALS')
   })
 
+  it('non lascia etichette Markdown o isolate dentro la storia (log reali 2026-10-19)', () => {
+    const markdownHeadings = [
+      '### **STORY**  ',
+      'Marta, lying on a narrow bed, bites into the warm bread wrapped in her own napkin, her hands still drenched by the sugary liquid. She takes another bite, her eyes fixed on the dough. Suddenly, Marta looks upwards, towards a slender figure against the wall.',
+      '',
+      '---',
+      '',
+      '**BRIDGE**  ',
+      'At the crowded street market, Marta scans the stalls and notices a small figure standing behind them.',
+    ].join('\n')
+    const recovered = normalizeEnglishStoryEnvelope(markdownHeadings)
+    expect(recovered).toContain('STORY: Marta, lying on a narrow bed')
+    expect(recovered).toContain('BRIDGE: At the crowded street market')
+    const story = recovered?.match(/^STORY: (.*)$/mu)?.[1] ?? ''
+    expect(story).not.toMatch(/###|---|STORY|BRIDGE|street market/u)
+
+    const bareBridge = [
+      'Title: Cosmic Pursuit',
+      '',
+      'In a cramped Prague apartment under pale afternoon light, Marta sits before a black typewriter, surrounded by children\'s clothes and folded household bills.',
+      '',
+      'At the kitchen table, Marta feeds a white sheet into the typewriter, with a chipped cup and a basket of laundry beside her.',
+      '',
+      'Bridge',
+    ].join('\n')
+    const recoveredBare = normalizeEnglishStoryEnvelope(bareBridge)
+    expect(recoveredBare).toContain('TITLE: Cosmic Pursuit')
+    expect(recoveredBare?.match(/^STORY: (.*)$/mu)?.[1]).not.toMatch(/\bBridge\b/u)
+  })
+
   it('traduce separatamente ogni input italiano in inglese', async () => {
     const calls: Array<{ task: BrainAiTask; prompt: string }> = []
     const translator = new BrainTranslator({

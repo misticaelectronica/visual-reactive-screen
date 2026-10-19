@@ -3,7 +3,9 @@
 > **ID Piano**: `PIANO-021`
 > **Macrotask di Riferimento**: `MACRO-019`
 > **Data Creazione**: 2026-08-16
-> **Stato**: `COMPLETATO`
+> **Stato**: `IMPLEMENTATO — CORREZIONE E VALIDAZIONE AUTOMATICA COMPLETE,
+> CONFERMA PERCETTIVA FULLSCREEN PENDENTE` (allineato a `MACRO-019`, chiusura
+> registro 2026-09-07)
 > **Autore/Agente**: Codex
 
 ## 1. Obiettivo

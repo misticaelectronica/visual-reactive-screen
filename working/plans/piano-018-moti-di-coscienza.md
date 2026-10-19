@@ -3,7 +3,8 @@
 > **ID Piano**: `PIANO-018`  
 > **Macrotask di Riferimento**: `MACRO-016`  
 > **Data Creazione**: 2026-08-16  
-> **Stato**: `COMPLETATO` (verifica artistica live pendente)  
+> **Stato**: `IMPLEMENTATO — VALIDAZIONE AUTOMATICA COMPLETA, PROVA ARTISTICA
+> FULLSCREEN PENDENTE` (allineato a `MACRO-016`, chiusura registro 2026-09-07)  
 > **Autore/Agente**: Codex
 
 ---

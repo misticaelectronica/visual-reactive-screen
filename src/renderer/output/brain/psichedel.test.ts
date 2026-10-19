@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { DreamStory } from '@shared/brain/brainTypes'
 import type { ImageRenderMode, PsychedelImageGenerator } from './psychedelImageGenerator'
 import {
-  HighQualityRenderScheduler,
   Psichedel,
   downgradeModeUnderPressure,
 } from './psichedel'
@@ -16,6 +15,7 @@ function buildStory(): DreamStory {
     continuityPhrase: null,
     palette: ['#000000', '#111111', '#222222', '#333333', '#444444'],
     sourcePhrases: ['una frase di prova'],
+    invariant: 'una radice d’argento',
     frames: [
       {
         id: 'frame-1',
@@ -66,7 +66,6 @@ describe('Psichedel — semaforo prima del carico GPU', () => {
       generator,
       undefined,
       undefined,
-      new HighQualityRenderScheduler(() => 0.99),
       async (active) => {
         if (!active) return
         order.push('arm-start')
@@ -84,29 +83,21 @@ describe('Psichedel — semaforo prima del carico GPU', () => {
 describe('Psichedel — riduzione sotto pressione reale', () => {
   it('usa il modo pianificato quando non c’è pressione', async () => {
     const generator = createRecordingGenerator()
-    const psichedel = new Psichedel(
-      generator,
-      undefined,
-      undefined,
-      new HighQualityRenderScheduler(() => 0.99),
-    )
+    const psichedel = new Psichedel(generator)
 
     await psichedel.generate(buildStory(), Number.POSITIVE_INFINITY, undefined, () => false)
 
-    expect(generator.modes).toEqual(['standard'])
+    // Storia di un solo fotogramma: `deriveOneiricPhase` lo tratta come eco
+    // (fase finale), profilo 'enhanced'.
+    expect(generator.modes).toEqual(['enhanced'])
   })
 
   it('declassa il modo quando il segnale di pressione reale è attivo', async () => {
     const generator = createRecordingGenerator()
-    const psichedel = new Psichedel(
-      generator,
-      undefined,
-      undefined,
-      new HighQualityRenderScheduler(() => 0.99),
-    )
+    const psichedel = new Psichedel(generator)
 
     await psichedel.generate(buildStory(), Number.POSITIVE_INFINITY, undefined, () => true)
 
-    expect(generator.modes).toEqual(['interlude'])
+    expect(generator.modes).toEqual(['standard'])
   })
 })

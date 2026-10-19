@@ -83,6 +83,47 @@ export function sampleBrainPhraseWindow(cursor: number, count: number): BrainPhr
   return { phrases, nextCursor: start + step }
 }
 
+/**
+ * Righe già lette prima del cursore, dalla più vicina (PIANO-051): il legame
+ * con la storia in corso. All'inizio della sequenza non ce ne sono e non se
+ * ne inventano.
+ */
+export function brainPhrasesBeforeCursor(cursor: number, count: number): string[] {
+  const length = BRAIN_PHRASES.length
+  const lines: string[] = []
+  for (let i = 1; i <= count && cursor - i >= 0 && length > 0; i += 1) {
+    lines.push(BRAIN_PHRASES[(cursor - i) % length])
+  }
+  return lines.reverse()
+}
+
+export interface PhraseSequenceInsertion {
+  lines: string[]
+  nextCursor: number
+}
+
+/**
+ * BrainPhrasesBaseStory di Sessione (disp. Capo Supremo 2026-09-18): un
+ * input utente arrivato durante la Sessione pubblica non si accoda in
+ * fondo al file — si inserisce esattamente nel punto della sequenza in cui
+ * Brain si trova in quel momento (`cursor`, stesso valore che guida
+ * `sampleBrainPhraseWindow`), così la storia base può riprendere dal
+ * paragrafo successivo senza saltarlo né rileggerlo. Il cursore normalizza
+ * come `sampleBrainPhraseWindow` (stesso avvolgimento a fine file); dopo
+ * l'inserimento avanza di uno, oltre la riga appena inserita.
+ */
+export function insertPhraseAtCursor(
+  lines: readonly string[],
+  cursor: number,
+  phrase: string,
+): PhraseSequenceInsertion {
+  const length = lines.length
+  const insertAt = length === 0 ? 0 : ((cursor % length) + length) % length
+  const nextLines = [...lines]
+  nextLines.splice(insertAt, 0, phrase)
+  return { lines: nextLines, nextCursor: insertAt + 1 }
+}
+
 export function sampleContinuityPhrase(
   synopsis: string,
   random: () => number = Math.random,

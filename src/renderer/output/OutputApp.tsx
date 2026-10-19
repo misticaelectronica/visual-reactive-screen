@@ -31,6 +31,7 @@ import {
   type BrainBioRegimeDiagnostics,
   type BrainBioRegimeReason,
 } from './brain/brainBioPerception'
+import { BrainBioPerceptionExperimentalClock } from './brain/brainBioPerceptionExperimental'
 import {
   calculateStoryMorphingInterludeMs,
   createAlternateBrainStorySettings,
@@ -415,6 +416,11 @@ export function OutputApp() {
   const [lastColor, setLastColor] = useState<string>('—')
   const [activeRendererLabel, setActiveRendererLabel] = useState<string>('—')
   const [revisionCycleActive, setRevisionCycleActive] = useState(false)
+  // Log del tipo di immagine (lettera Vice Consigliere §14-§15): fase
+  // onirica e profilo qualità/denoising del fotogramma corrente, letti dal
+  // DOM con lo stesso polling già usato per `revisionCycleActive`.
+  const [framePhase, setFramePhase] = useState<string>('')
+  const [frameQualityProfile, setFrameQualityProfile] = useState<string>('')
   const [publicSessionActive, setPublicSessionActive] = useState(false)
   const [publicSessionQrDataUrl, setPublicSessionQrDataUrl] = useState<string | null>(null)
   // PIANO-040: overlay diagnostico del livello bio-percettivo — richiesto dal
@@ -465,12 +471,20 @@ export function OutputApp() {
             ?.querySelector<HTMLElement>('[data-revision-cycle-active]')
             ?.dataset.revisionCycleActive === 'true',
         )
+        const framePhaseHost = rootRef.current
+          ?.querySelector<HTMLElement>('[data-frame-phase]')
+        setFramePhase(framePhaseHost?.dataset.framePhase ?? '')
+        setFrameQualityProfile(framePhaseHost?.dataset.frameQualityProfile ?? '')
       } else if (algo) {
         setActiveRendererLabel(MORPHING_ALGO_LABELS[algo] ?? algo)
         setRevisionCycleActive(false)
+        setFramePhase('')
+        setFrameQualityProfile('')
       } else {
         setActiveRendererLabel('—')
         setRevisionCycleActive(false)
+        setFramePhase('')
+        setFrameQualityProfile('')
       }
       // PIANO-040: moltiplicatore di regime letto dal DOM, stesso pattern di
       // `data-active-renderer` sopra — sola lettura diagnostica, nessun canale
@@ -584,7 +598,16 @@ export function OutputApp() {
     // valore cambia davvero, non ad ogni frame RAF).
     const bioPerceptionClock = new BrainBioPerceptionClock()
     let bioPerceptionState = bioPerceptionClock.getState()
-    const bioPerceptionSource = () => bioPerceptionState
+    // Regime Audio sperimentale (PIANO-044): girato sempre in parallelo alla
+    // baseline, sullo stesso ingest — così il cambio di `audioMode` non deve
+    // aspettare che il clock "recuperi" stato da zero. MVP (Vice Consigliere
+    // 2026-09-11): collegato al Visual, selezionabile — `bioPerceptionSource`
+    // sceglie quale stato esporre in base ad `audioMode`. La baseline resta
+    // sempre disponibile e invariata.
+    const bioExperimentalClock = new BrainBioPerceptionExperimentalClock()
+    let audioMode: AppSettings['audioMode'] = 'baseline'
+    const bioPerceptionSource = () =>
+      audioMode === 'experimental' ? bioExperimentalClock.getState() : bioPerceptionState
     // Motivo dell'ultimo regime (chiusura Item 2 §3): aggiornato allo stesso
     // ingest, letto dal controller solo quando logga un cambio di regime.
     let bioRegimeReason = bioPerceptionClock.getRegimeDiagnostics().regimeReason
@@ -654,6 +677,11 @@ export function OutputApp() {
         // ricalcolata a ogni frame (§10/§17.3 del brief). `rhythmState.bandTransients`
         // è l'ultima proiezione disponibile (leggermente in ritardo rispetto a questo
         // campione): tollerabile; il regime applica comunque 3 s di conferma.
+        const bioRhythmInput = {
+          kickEnvelope: rhythmState.kickEnvelope,
+          beatPulse: rhythmState.beatPulse,
+          active: rhythmState.active ?? false,
+        }
         bioPerceptionState = bioPerceptionClock.ingestSample(
           inputState.bandEnergies,
           inputState.audioTimestampMs ?? receivedAt,
@@ -661,21 +689,47 @@ export function OutputApp() {
           // Brief Audio 2026-08-31: la leggibilità della griglia ritmica entra
           // in `perceptualPressure`. Nessun segnale nuovo — kick/pulsazione
           // dal clock ritmico già proiettato.
-          {
-            kickEnvelope: rhythmState.kickEnvelope,
-            beatPulse: rhythmState.beatPulse,
-            active: rhythmState.active ?? false,
-          },
+          bioRhythmInput,
         )
+        // Regime sperimentale (PIANO-044): stesso ingest della baseline,
+        // sempre calcolato — così il cambio di `audioMode` non deve
+        // aspettare che il clock "recuperi" stato da zero.
+        bioExperimentalClock.ingestSample(
+          inputState.bandEnergies,
+          inputState.audioTimestampMs ?? receivedAt,
+          rhythmState.bandTransients,
+          bioRhythmInput,
+        )
+        const nextAudioMode = inputState.settings?.audioMode === 'experimental'
+          ? 'experimental'
+          : 'baseline'
+        if (nextAudioMode !== audioMode) {
+          audioMode = nextAudioMode
+          brainLog('perception', `regime Audio selezionato: ${audioMode}`, { audioMode })
+        }
         // PIANO-040: overlay diagnostico — solo lettura, nessun effetto sul
         // comportamento. `previousBioRegimeRef` distingue "primo valore mai
         // visto" (non è un cambio, è l'arrivo del primo dato) da un cambio
         // di regime vero, che è invece l'evento che il Capo Supremo ha
         // chiesto di rendere visibile ("se resta bloccato sullo stesso
         // valore per tutto il set, quello è il dato che serve").
+        // BUG EVIDENTE corretto (2026-09-12): overlay, log 1Hz e conteggio
+        // cambi leggevano sempre `bioPerceptionState` (baseline), anche con
+        // `audioMode='experimental'` selezionato — deliberato quando questo
+        // overlay è nato (PIANO-040, prima che experimental esistesse), ma
+        // diventato un bug ora che experimental pilota davvero il Visual:
+        // chi guardava il pannello per verificare un fix vedeva sempre il
+        // regime della baseline (assai più mobile, mai il proprio). Root
+        // cause della segnalazione "alternanza senza senso" di questa
+        // sessione: il log 1Hz mostrava `decompression` (baseline) in un
+        // istante in cui il log dei cambi — che invece usa
+        // `bioPerceptionSource`, il segnale reale dei renderer — era ancora
+        // fermo su `respiro-alto` da 65s. Ora tutti e tre seguono
+        // `bioPerceptionSource()`, la stessa fonte dei renderer.
+        const currentBioState = bioPerceptionSource()
         const bioDiagnostics = bioPerceptionClock.getRegimeDiagnostics()
         bioRegimeReason = bioDiagnostics.regimeReason
-        setBioOverlayState(bioPerceptionState)
+        setBioOverlayState(currentBioState)
         setBioRegimePending(bioDiagnostics)
         const bioSampleAt = inputState.audioTimestampMs ?? receivedAt
         if (
@@ -697,16 +751,18 @@ export function OutputApp() {
               beatPulse: rhythmState.beatPulse,
               beatPhase: rhythmState.beatPhase,
             },
-            signals: bioPerceptionState.signals,
+            signals: currentBioState.signals,
             diagnostics: bioDiagnostics,
-            regime: bioPerceptionState.regime,
+            experimentalDiagnostics: bioExperimentalClock.getExperimentalDiagnostics(),
+            regime: currentBioState.regime,
+            audioMode,
             audioMarker: bioAudioMarkerRef.current,
             activeRenderer,
           })
         }
         if (
           previousBioRegimeRef.current !== null &&
-          previousBioRegimeRef.current !== bioPerceptionState.regime
+          previousBioRegimeRef.current !== currentBioState.regime
         ) {
           setBioRegimeChangedAtLabel(new Date().toLocaleTimeString())
           setBioRegimeChangeCount((count) => count + 1)
@@ -719,7 +775,7 @@ export function OutputApp() {
             bioRegimeFlashTimeoutRef.current = null
           }, 2_500)
         }
-        previousBioRegimeRef.current = bioPerceptionState.regime
+        previousBioRegimeRef.current = currentBioState.regime
       }
       latestInputState = inputState
       const alternationEnabled = inputState.settings?.alternateBrainWithMorphing === true
@@ -1058,6 +1114,19 @@ export function OutputApp() {
           <>
             <br />
             <span style={{ color: '#ffa53d' }}>Riattivazione attiva</span>
+          </>
+        )}
+        {framePhase && (
+          // Lettera Vice Consigliere §14-§15: tipo di immagine (Soglia →
+          // Metamorfosi → Condensazione → Eco) e profilo qualità/denoising
+          // realmente in uso, derivati dallo stato reale della storia
+          // (`deriveOneiricPhase`/`scene.renderMode`), non testo decorativo.
+          <>
+            <br />
+            <span style={{ color: '#c792ea' }}>
+              {framePhase.toLocaleUpperCase()}
+              {frameQualityProfile ? ` · ${frameQualityProfile.toLocaleUpperCase()}` : ''}
+            </span>
           </>
         )}
       </div>

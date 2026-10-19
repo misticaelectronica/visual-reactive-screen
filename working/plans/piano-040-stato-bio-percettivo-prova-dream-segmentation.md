@@ -1326,3 +1326,29 @@ typecheck/lint/diff-check verdi. Nessuna modifica runtime; decisione all'Audio.
 - [x] Conservare il passaggio nei brevi punti neutri dell’oscillazione.
 - Esito: `respiro-alto` 7,55 s → 0 s; sola alternanza direzionale dopo l’avvio.
 - 64 file / 608 test e controlli statici verdi. Nessun nuovo segnale o stato.
+
+### Revisione `spectralOccupancy` e dominanza semantica — 2026-09-25
+
+- [x] TASK-040-77: audit preventivo; DEP-001 `NON COINVOLTO`. Verificati
+  implementazione, corpus e limiti della mappa C01–C09. Sono certificati solo
+  C03=`respiro-alto-0`, C04=`respiro-profondo`, C06=`respiro-alto-1`;
+  C05/C08/C09 non verranno attribuiti per congettura.
+- [x] TASK-040-78: rendere `spectralOccupancy` continua usando esclusivamente
+  bande, pesi e floor già presenti; nessuna banda, detector, soglia di regime
+  o modifica a `classifyLevel`.
+- [x] TASK-040-79: rieseguire il corpus reale e verificare nell'ordine:
+  C03>C04 e C06>C04; andamento dei file nominali; dominanza semantica di
+  `rhythmConstraint` rispetto alla nuova occupazione spettrale.
+- [x] TASK-040-80: valutare `anchor`, `groundedLowEnd` e persistenza soltanto
+  se il replay dimostra che la sola continuità spettrale non basta. Nessun
+  peso viene fissato o ritarato a priori.
+- [x] TASK-040-81: test mirati, typecheck, registri e resoconto numerico con
+  limiti probatori espliciti.
+- Protocollo visivo: `NON COINVOLTO` — nessun renderer, camera, materia,
+  transizione, beatmatch visivo o budget grafico viene modificato. Il costo
+  resta O(4) per campione e non altera `lowPowerMode`.
+- Esito: **PROPOSTA RITIRATA**. Gate PP C06>C04 positivo, C03>C04 negativo;
+  poiché entrambi sono bloccanti, la continuità spettrale è stata rimossa dal
+  runtime. Anchor e grounded low-end conservano l'inversione; la persistenza
+  semplice è smentita da `test-1`. Nessuna modifica runtime accettata.
+  Report: `working/calibration-v1/spectral-occupancy-replay-2026-09-25.md`.

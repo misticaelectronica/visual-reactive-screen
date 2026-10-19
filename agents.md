@@ -9,8 +9,12 @@ Ruoli con lettera di presentazione conservati in `team/`:
 - [`team/capo-supremo-analisi-audio.md`](team/capo-supremo-analisi-audio.md): Capo Supremo dell'Analisi Audio / Sound Designer di Brain — responsabile della lettura audio-percettiva (feature, transient, stato nel tempo). Confina con la Direzione VJ (manifestazione visiva) e con il Capo Supremo degli Ingegneri (implementazione tecnica), senza sconfinare nelle loro autonomie.
 - [`team/capo-supremo-designer-visual-vj.md`](team/capo-supremo-designer-visual-vj.md): Capo Supremo dei Designer/Visual VJ di Brain — responsabile dell'identità visiva, della grammatica dei renderer e delle trasformazioni/morph. Riceve la lettura audio-percettiva dal Capo Supremo dell'Analisi Audio e la traduce in linguaggio visivo, sempre nel rispetto del Protocollo Obbligatorio Di Verifica Filosofia Visiva più sotto in questo file.
 - [`team/capo-supremo-ingegneri.md`](team/capo-supremo-ingegneri.md): Capo Supremo degli Ingegneri del Sistema VJ — responsabile della traduzione tecnica dei brief artistici e percettivi in renderer Canvas2D reali, dell'architettura condivisa (selezione/passthrough/gating/budget) e della verifica che ogni implementazione superi davvero il Protocollo Obbligatorio Di Verifica Filosofia Visiva, non solo sulla carta. Riceve i requisiti dal Capo Supremo dell'Analisi Audio e dalla Direzione VJ e ne rispetta l'autonomia, senza deciderne significato percettivo o identità visiva.
+- [`team/capo-supremo-scribacchini.md`](team/capo-supremo-scribacchini.md): Capo Supremo degli Scribacchini di Brain — responsabile della scrittura, dell'elaborazione e dell'adattamento delle storie destinate alla Coscienza Onirica di Brain. Interpreta i materiali narrativi, sviluppa soggetti originali e trasforma opere esistenti in storie utilizzabili dal sistema. Opera con autonomia creativa nella propria competenza, in coordinamento con la Direzione VJ e gli altri responsabili di Brain, rispettandone le rispettive autonomie decisionali.
 
-Documenti di indirizzo scambiati fra questi tre ruoli, quando eccedono la lettera di presentazione, in `team/briefs/` — ognuno indica il ruolo destinatario in apertura. Non sostituiscono le lettere sopra, le estendono nel tempo su un tema specifico (es. stato bio-percettivo, campionamento frasi).
+La continuità operativa fra Vecchio Consigliere e Vicario è disciplinata dalla
+[`Nota ai ruoli del progetto Brain`](team/nota-passaggio-vecchio-consigliere-vicario-2026-09-18.md).
+
+Documenti di indirizzo scambiati fra questi ruoli, quando eccedono la lettera di presentazione, in `team/briefs/` — ognuno indica il ruolo destinatario in apertura. Non sostituiscono le lettere sopra, le estendono nel tempo su un tema specifico (es. stato bio-percettivo, campionamento frasi).
 
 ## Missione Del Progetto
 
@@ -74,11 +78,104 @@ La build Mac Intel/x64 e le build Windows sono passaggi extra; non devono sostit
 - Non applicare oscillazioni, derive laterali, rotazioni, zoom o pulsazioni ritmiche all’intero quadro: possono causare mal di mare. Distribuire sempre il movimento fra segmenti con fasi differenti e mantenere la camera stabile.
 - Non simulare reattività musicale con oscillazioni temporali autonome: le curve devono usare fase riallineata al beat e transienti distinti per `low`, `lowMid`, `mid` e `high`. In silenzio il movimento geometrico deve essere quasi nullo.
 - Non rimuovere `lowPowerMode`: serve per ridurre carico CPU/FPS/layer durante live lunghi o su macchine calde.
+- **Audit preventivo dei deprecati**: prima di pianificare o modificare codice,
+  leggere integralmente [`working/DEPRECATED.md`](working/DEPRECATED.md), anche
+  quando la richiesta non nomina funzioni deprecate. Per ogni elemento
+  registrato indicare nell'avvio del piano o nello storico della sessione una
+  decisione esplicita fra `NON COINVOLTO`, `MANTENERE`, `AGGIORNARE` e
+  `DISMETTERE`. La decisione va rivalutata a ogni intervento: un deprecato non
+  si conserva o aggiorna per inerzia. `MANTENERE` richiede una ragione di
+  compatibilità e un criterio di uscita; `AGGIORNARE` è ammesso solo per
+  compatibilità, sicurezza o decisione esplicita e non deve estenderne il
+  perimetro; `DISMETTERE` deve includere migrazione di impostazioni, UI, test e
+  documentazione coinvolti. Aggiornare il registro quando cambiano stato,
+  dipendenze, sostituto o criterio di rimozione.
 - **Divieto di sovrastrutturazione** (regola permanente, brief del braccio destro 2026-08-28, PIANO-040): tre round di collaudo negativi sul respiro bio-percettivo sono nati dalla stessa causa — a ogni problema è stato aggiunto un meccanismo nuovo invece di verificare se uno già esistente rispondeva già alla domanda (firma organizzativa, significatività rispetto alla dispersione, qualificazione del kick a quattro condizioni: nessuno ha mai funzionato dal vivo, ognuno ha richiesto un round per essere ritirato). Da applicare sempre:
   - Prima di aggiungere un meccanismo, verificare se un segnale già presente risponde alla domanda.
   - Una condizione a più requisiti è quasi sempre un errore di progetto, non una specifica precisa: se il corpo/l'occhio riconosce una cosa in mezzo battito, il codice non dovrebbe avere bisogno di quattro verifiche incrociate.
   - Se un criterio non scatta mai dal vivo, non va tarato: va rimosso.
   - Segnalare la sovrastrutturazione quando arriva dall'alto — **anche quando il brief è firmato da un Capo Supremo**: se chiede un meccanismo che duplica qualcosa di già esistente, va riportato prima di essere implementato, non eseguito silenziosamente.
+
+### Decisioni Etiche E Misure Di Protezione (regola permanente, disposizione del Capo Supremo 2026-10-19)
+
+
+- **Le misure etiche e di protezione le decide il Capo Supremo.** Un agente le
+  realizza esattamente come sono state disposte: né più severe né più blande.
+- **Nessun filtro, blocco o limite aggiunto di propria iniziativa**, e nessun
+  cambio della forma o della portata di una misura chiesta (termini, soglie,
+  punti in cui si applica, comportamento di default).
+- **Nessuna decisione presa per lui**: una proposta non approvata non si
+  applica, nemmeno se è scritta in un piano.
+- **Se un agente non può fare qualcosa, lo dice subito, all'inizio, una sola
+  volta**, e non realizza al suo posto una propria versione
+  alternativa e non aggiunge protezioni al codice al posto di ciò che è stato
+  chiesto.
+
+### Precisione Delle Formulazioni Nei Documenti Di Progetto (regola permanente, richiamo dello Stalliere del Vice Consigliere 2026-09-11)
+
+In un progetto dove un documento diventa un brief e un brief diventa codice,
+una formulazione imprecisa non resta un problema di stile: diventa
+un'implementazione diversa da quella voluta. Caso all'origine del richiamo:
+*«il corpo è il luogo nel quale l'organizzazione ritmica acquista
+significato»* riportato come *«il ritmo da solo non significa niente»* — la
+prima frase indica dove il significato si manifesta, la seconda afferma che
+senza corpo non esiste. Non sono la stessa cosa: la seconda è più netta e
+non era nel testo originale.
+
+Vale per tutti i ruoli, compreso chi lo redige — il caso all'origine è suo:
+
+- **Si scrive per la precisione, non per l'effetto.** Una formulazione che
+  suona più forte, più netta o più definitiva dell'originale è una modifica
+  del contenuto, non una riscrittura o un riassunto legittimo.
+- **Chi riporta il pensiero di un altro ruolo non lo rafforza.** Se una
+  formulazione altrui sembra debole, ambigua o poco convincente, si segnala
+  a chi l'ha scritta invece di correggerla riscrivendola al suo posto.
+- **Si distingue sempre fatto verificato, interpretazione, ipotesi e
+  decisione già assunta.** Mescolarli in un documento rende impossibile
+  capire, rileggendolo, cosa sia stato deciso e cosa dedotto — vale per
+  diagnosi tecniche quanto per brief percettivi/filosofici.
+- **Un principio entra nei documenti normativi (`agents.md`, `filosofia.md`,
+  brief, piani) solo se qualcuno lo ha esplicitamente stabilito.** Non per
+  saturazione, non perché deriva plausibilmente da altri principi già
+  scritti.
+
+### Autonomia Dei Renderer (regola permanente, disposizione del Capo Supremo 2026-09-07)
+
+**Ogni renderer di Brain è un plugin autonomo. La sua grammatica, la sua
+analisi del raster e le sue tarature vivono dentro il suo modulo. Una
+modifica fatta per un renderer non deve poter cambiare il comportamento di
+un altro.**
+
+Cosa vuol dire in pratica:
+
+- **Resta condivisa solo l'infrastruttura che non è grammatica**: il
+  contratto del plugin ([`brainRendererPlugin`](src/renderer/output/brain/brainRendererPlugin.ts)),
+  il crossfade delle transizioni, lo smoothing del moto
+  ([`BrainCanvasMotionSmoother`](src/renderer/output/brain/brainCanvasMotionSmoother.ts)),
+  l'accento ritmico ([`brainRhythm`](src/renderer/output/brain/brainRhythm.ts)),
+  lo store fuori istanza, `setPerception` e il vocabolario di pattern/moto
+  del frame. Questo è telaio, non linguaggio visivo: può stare in comune.
+- **L'analisi del raster è grammatica, non infrastruttura.** Estrazione di
+  zone di colore, segmentazione, campi di occupazione, silhouette, palette,
+  salienza, classificazione dei materiali: ognuna di queste vive nel modulo
+  del renderer che la usa, tarata per quel renderer soltanto.
+- **La duplicazione di codice di analisi fra renderer è accettata e
+  voluta.** Non va rifattorizzata in un modulo comune. Due renderer che
+  classificano i pixel per tinta e luminanza nello stesso modo vanno bene
+  così: sono liberi di divergere quando serve, senza rompere l'altro.
+- **Se durante un'implementazione serve un'analisi che esiste già altrove,
+  va riportato invece di importarla.** La scelta se duplicarla, adattarla o
+  (in casi rari) promuoverla a infrastruttura è del Capo Supremo, non
+  dell'implementazione.
+- **Riferimento**: `analyzeMaterialPixels`
+  ([`brainMaterialAnalysis`](src/renderer/output/brain/brainMaterialAnalysis.ts))
+  nasce come analisi di Material-Morph ed è oggi importata anche da
+  Dream-Segmentation, Fractal-Spiral e Bauhaus (via `brainBauhausAnalysis`).
+  È un accoppiamento accettato per ragioni storiche, non un modello da
+  estendere: nessun nuovo renderer deve importarla, e le sue tarature non
+  vanno toccate per servire un renderer diverso da Material-Morph senza una
+  disposizione esplicita. DELIQUESCENCE è stato disaccoppiato (estrae le sue
+  zone di colore in casa, `extractDeliquescenceColorZones`).
 
 ### Protocollo Obbligatorio Di Verifica Filosofia Visiva
 
@@ -114,15 +211,43 @@ Prima di proporre qualsiasi modifica, diagnosi o soluzione visiva, l'agente DEVE
    crossfade allineati al beat, mai un taglio o un salto di posizione. La
    continuità visiva ha priorità sulla velocità del cambio.
 
-6. 🧭 **Check Alternanza**: L'opzione `Alternate with Brain (80/20)` è una
-   regola di programmazione, non un nuovo linguaggio visivo. L'80% indica la
-   prevalenza temporale di Brain; il 20% deve usare la rotazione morphing già
-   definita, con i suoi preset, profili, limiti di costo e transizioni.
+6. 🧭 **Check Alternanza**: L'opzione `Alternate with Brain (80/20)` è
+   deprecata e resta attiva soltanto per compatibilità, come registrato in
+   [`working/DEPRECATED.md`](working/DEPRECATED.md). Finché non viene dismessa
+   resta una regola di programmazione, non un nuovo linguaggio visivo: il 20%
+   usa la rotazione morphing già definita con preset, profili, limiti di costo
+   e transizioni. Non estenderla senza una decisione esplicita dell'audit.
 
 7. 🌡️ **Check Costo**: Ogni intensificazione deve avere un budget esplicito.
    Prima si riusano buffer e immagini già preparati; poi si riducono layer,
    frequenza o densità. Non si aggiungono effetti autonomi che competano con
    il denoising o trasformino il risparmio energetico in un nuovo blocco.
+
+#### Eccezione Camera — ANIMATRONIX
+
+Il **Check Camera** (punto 1) **non si applica durante la fase ANIMATRONIX**
+(decisione del Capo Supremo, brief del 21 settembre 2026 in
+[`team/briefs/`](team/briefs/brief-animatronix-2026-09-21.md)).
+
+All'interno di ANIMATRONIX sono consentite trasformazioni applicate all'intero
+quadro, comprese:
+
+- parallasse;
+- Ken Burns;
+- zoom;
+- deriva;
+- traslazione;
+- scala;
+- combinazioni coerenti di questi movimenti.
+
+La deroga riguarda **esclusivamente ANIMATRONIX**. Tutti gli altri renderer,
+Material-Morph, base layer, Psichedel e le altre fasi Brain continuano a
+rispettare il Check Camera esistente. **Non estendere la deroga ad altri
+moduli per analogia.**
+
+Per ANIMATRONIX restano applicati, fino a diversa decisione della Direzione
+Visual: **Silenzio** (punto 3), **Beatmatch** (punto 4) e **Transizione**
+(punto 5). L'eccezione non modifica gli altri principi del protocollo.
 
 ### Filosofia Di Brain — Rimando A [`filosofia.md`](filosofia.md)
 
@@ -420,6 +545,7 @@ Per garantire la continuità operativa, la tracciabilità delle decisioni e la p
 ### 1. Struttura Obbligatoria della Cartella `working/`
 
 - **[`working/STATE.md`](working/STATE.md)**: Quadro sintetico aggiornato ad ogni sessione con lo stato globale, il Macrotask attivo ed i Prossimi Passi (Next Steps).
+- **[`working/DEPRECATED.md`](working/DEPRECATED.md)**: Registro canonico delle funzionalità deprecate, delle dipendenze ancora attive e dei criteri di dismissione.
 - **[`working/tasks/macrotasks.md`](working/tasks/macrotasks.md)**: Elenco e stato dei Macrotask (passati, in corso, pianificati).
 - **[`working/tasks/tasks-registry.md`](working/tasks/tasks-registry.md)**: Registro di tutti i micro-task atomici (stati `[TODO]`, `[IN_PROGRESS]`, `[DONE]`, `[BLOCKED]`).
 - **`working/plans/`**:
@@ -430,7 +556,7 @@ Per garantire la continuità operativa, la tracciabilità delle decisioni e la p
 ### 2. Workflow Obbligatorio dell'Agente con i Piani di Lavoro
 
 1. **Fase Iniziale (Avvio Turno / Sessione)**:
-   - Prima di intraprendere qualsiasi modifica, leggere [`working/STATE.md`](working/STATE.md) e [`working/tasks/macrotasks.md`](working/tasks/macrotasks.md) per acquisire il contesto corrente del progetto.
+   - Prima di intraprendere qualsiasi modifica, leggere [`working/STATE.md`](working/STATE.md), [`working/tasks/macrotasks.md`](working/tasks/macrotasks.md) e integralmente [`working/DEPRECATED.md`](working/DEPRECATED.md) per acquisire il contesto corrente del progetto ed eseguire l'audit preventivo dei deprecati.
    - Verificare l'eventuale presenza di un Piano di Lavoro attivo in `working/plans/`.
 
 2. **Creazione di un Piano di Lavoro ("Piano di Lavoro")**:
@@ -507,6 +633,7 @@ Se l'audio non parte su macOS:
 ## File Da Conoscere
 
 - [`src/main/main.ts`](src/main/main.ts): lifecycle app, permessi media, switch Chromium
+- [`src/main/dmxSerial.ts`](src/main/dmxSerial.ts) e [`src/renderer/control/dmx/`](src/renderer/control/dmx/): luci DMX, vedi [`docs/luci-dmx.md`](docs/luci-dmx.md)
 - [`src/main/windows.ts`](src/main/windows.ts): Control/Output BrowserWindow, ultimo stato visuale, output fullscreen
 - [`src/main/ipc.ts`](src/main/ipc.ts): bridge IPC main
 - [`src/preload/preload.ts`](src/preload/preload.ts): contextBridge

@@ -111,4 +111,20 @@ describe('Brain consciousness motion', () => {
     expect(forced.completedPauseMs).toBe(45_000)
     controller.destroy()
   })
+
+  it('non si attiva su un candidato in coda quando allowActivation è falso (ANIMATRONIX/Riattivazione)', () => {
+    const host = document.createElement('div')
+    const controller = createBrainConsciousnessMotionLayer(host)
+    controller.offer(candidate, 'story-1', 0)
+    const duringAnimatronix = controller.update(rhythm({ beat: true }), 100, false, false)
+    expect(duringAnimatronix.active).toBe(false)
+    // Il candidato resta in coda: appena riconsentito, si attiva al beat successivo.
+    const afterPhase = controller.update(rhythm({ beat: true }), 200, false, true)
+    expect(afterPhase.active).toBe(true)
+    // Un moto già attivo viene chiuso subito quando parte ANIMATRONIX/Riattivazione.
+    const closed = controller.update(rhythm({ beat: false }), 300, false, false)
+    expect(closed.active).toBe(false)
+    expect(closed.completedPauseMs).toBe(100)
+    controller.destroy()
+  })
 })

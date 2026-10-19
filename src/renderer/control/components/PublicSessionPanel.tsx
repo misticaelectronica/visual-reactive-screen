@@ -107,6 +107,21 @@ export function PublicSessionPanel({ settings, onChange }: Props) {
         <p className="status">Sessione non attiva</p>
       )}
       {status.lastError ? <p className="error">Errore: {status.lastError}</p> : null}
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={settings.childSafetyNegativePromptEnabled !== false}
+          onChange={(event) => onChange({
+            childSafetyNegativePromptEnabled: event.target.checked,
+          })}
+        />
+        Evita bambini nelle immagini vicine a scene esplicite
+      </label>
+      <p className="hint">
+        Vale soltanto per gli episodi nati dalle frasi del pubblico. Aggiunge
+        termini al negative prompt della scena esplicita, della precedente e
+        della successiva.
+      </p>
 
       {status.active && qrDataUrl ? (
         <img src={qrDataUrl} alt="QR sessione pubblica" width={QR_PREVIEW_SIZE_PX} height={QR_PREVIEW_SIZE_PX} />

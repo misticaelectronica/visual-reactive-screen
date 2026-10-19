@@ -108,6 +108,45 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-036`: Contesto delle quattro immagini
+- **Stato**: IN PROGRESS — pipeline Visual Plan/invariante/qualità per fase
+  reintegrata (PIANO-046); collaudo visivo reale sui raster e confronto
+  risoluzione 512×512 ancora da eseguire dal vivo.
+- **Piani**: `working/plans/piano-045-contesto-quattro-immagini.md`,
+  `working/plans/piano-046-visual-plan-quattro-fasi.md`.
+- **Evidenza**: `working/validation/piano-045/README.md`, quattro raster finali
+  e confronti reali Electron/WebGPU (PIANO-045). Nessun cambio di guidance
+  mode live.
+
+
+### `MACRO-035`: Regime Audio Sperimentale
+- **Descrizione**: costruire e confrontare un percorso Audio separato basato
+  su entrainment e costrizione motoria, mantenendo congelata la baseline.
+- **Stato**: 🟡 IN PROGRESS — impianto A/B e prima memoria runtime experimental
+  completi; C03>C04 e C06>C04 verificati sulla prima rappresentazione della
+  costrizione. Visual ancora scollegato. L'assestamento discriminante resta
+  aperto: `test-1.mp3` conserva ricorrenza inter-ciclo alta e non è stata
+  promossa alcuna classificazione finale.
+- **Piano di Lavoro**: `working/plans/piano-044-regime-audio-sperimentale.md`
+
+### `MACRO-034`: PsicoFantasma
+- **Stato**: IN PROGRESS — matcher, persistenza e repertorio V2 da 120 sagome integrati; profiling simultaneo Psichedel completato. Resta il collaudo Visual 1–12 a schermo. CLIP ritirato.
+- **Piano**: `working/plans/piano-043-psicofantasma.md`.
+- **Priorità**: rotazione normale; nessuno slittamento DELIQUESCENCE.
+- **Prova manuale**: PsicoFantasma selezionabile dall'elenco; con il
+  repertorio approvato partecipa anche ai cicli automatici ammessi.
+
+
+> **Chiusura registro (Consigliere, 2026-09-07):** gli otto piani renderer
+> (Psycho2D, Materia Morph, Vector Morph, FilterPsiche, Bauhaus Morph, Dream
+> Segmentation, Glitch Morph, Fractal Spiral Degeneration) sono marcati
+> **implementati**. Nessuna campagna di collaudo unica: otto grammatiche
+> giudicate nella stessa sessione non producono diagnosi. Si riaprono
+> singolarmente quando qualcosa non va. Restano davvero attivi: `MACRO-009`
+> e `MACRO-020` (blocco prestazioni), `MACRO-033` (Print2D, PIANO-042/039),
+> PIANO-040 (bootstrap lungo ancora aperto). `MACRO-008`/PIANO-005
+> parcheggiato.
+
 ### `MACRO-020`: Isolamento Inferenza Immagini
 - **Descrizione**: Spostare caricamento e inferenza ONNX/WebGPU di Psichedel
   fuori dal thread JavaScript dell'Output, consegnando al renderer raster pronti.
@@ -126,8 +165,8 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Descrizione**: Tradurre progressivamente il raster di Coscienza Onirica in
   una composizione Bauhaus derivata da masse, piani, bordi, assi, spazio
   negativo e palette della sorgente.
-- **Stato**: 🟡 IN PROGRESS — V1 implementata e validata automaticamente;
-  prova artistica fullscreen pendente
+- **Stato**: 🟢 IMPLEMENTATO (Consigliere, 2026-09-07) — V1 implementata e
+  validata automaticamente. Si riapre singolarmente se qualcosa non va.
 - **Piano di Lavoro**: `working/plans/piano-019-bauhaus-morph-brain.md`
 
 ### `MACRO-016`: Moti Di Coscienza Brain
@@ -151,7 +190,8 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
   della geometria 384×256, rimossa dopo il confronto live.
 - **Prossima fase**: implementazione e prova live del passthrough grafico
   ultra-leggero durante il denoising; rollback se i gap restano oltre 150 ms.
-- **Stato**: 🟡 IN PROGRESS
+- **Stato**: 🟡 IN PROGRESS — confermato attivo dal Capo Supremo (2026-09-07),
+  parte del blocco prestazioni ancora aperto insieme a `MACRO-020`.
 - **Piano di Lavoro**: `working/plans/piano-008-diagnosi-blocchi-live.md`
   e `working/plans/piano-010-modalita-grafica-ultra-leggera-denoising.md`
 
@@ -166,7 +206,9 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
   osservata, e decidere come far emergere continuità e nuove domande senza
   anticipare identità o autonomia. Solo dopo valutare la Fase 3 con
   provenienza, limiti e rollback.
-- **Stato**: 🟡 IN PROGRESS
+- **Stato**: ⏸️ PARCHEGGIATO (Consigliere, 2026-09-07) — la ristrutturazione
+  autonoma del grafo richiede una decisione esplicita non ancora presa. Si
+  riapre solo con quella decisione.
 - **Piano di Lavoro Riferimento**: `working/plans/piano-005-coscienza-onirica-origine-memoria.md`
 
 ## 🟡 Macrotask In Corso — Psycho2D
@@ -175,24 +217,24 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Descrizione**: Estendere la vita delle immagini di Coscienza Onirica con
   composizioni Canvas 2D/2.5D a finestre, crop e takeover guidati da metadati
   semantici minimi, separando Director e runtime grafico.
-- **Stato**: 🟡 IN PROGRESS — V1 e alternanza texture per banda implementate;
-  validazione live del cambio renderer ancora da eseguire
+- **Stato**: 🟢 IMPLEMENTATO (Consigliere, 2026-09-07) — V1 e alternanza
+  texture per banda in scena. Si riapre singolarmente se qualcosa non va.
 - **Piano di Lavoro**: `working/plans/piano-009-psycho2d-regia-semantica.md`
 
 ### `MACRO-011`: Materia Morph — Renderer Brain Materico
 - **Descrizione**: Nuovo plugin Brain Canvas 2D che trasforma i raster di
   Coscienza Onirica mediante regioni, pigmento, densità, bordi, membrane,
   erosione e sedimentazione, preservando soggetto e camera stabile.
-- **Stato**: 🟡 IN PROGRESS — V1 implementata e compilata; validazione live e
-  prova prolungata ancora da eseguire
+- **Stato**: 🟢 IMPLEMENTATO (Consigliere, 2026-09-07) — V1 in scena. Si
+  riapre singolarmente se qualcosa non va.
 - **Piano di Lavoro**: `working/plans/piano-013-materia-morph-brain.md`
 
 ### `MACRO-012`: Vector Morph — Contorni Morbidi
 - **Descrizione**: Correggere l'eccesso di spigoli del renderer vettoriale con
   una finitura geometrica comune a SNIC e VTracer, metriche di densità degli
   angoli e budget una tantum prima della cache.
-- **Stato**: 🟡 IN PROGRESS — implementazione e validazione automatica
-  completate; confronto artistico fullscreen pendente
+- **Stato**: 🟢 IMPLEMENTATO (Consigliere, 2026-09-07) — implementazione e
+  validazione automatica complete. Si riapre singolarmente se qualcosa non va.
 - **Piano di Lavoro**: `working/plans/piano-014-vector-morph-contorni-morbidi.md`
 
 ### `MACRO-013`: Regia Casuale Brain e Morphing
@@ -206,12 +248,44 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 ### `MACRO-014`: FilterPsiche — Renderer Brain Cromatico
 - **Descrizione**: Nuovo plugin raster con inversioni, solarizzazioni, duotoni,
   flash e filtri psichedelici beat-matched, integrato nelle rotazioni Brain.
-- **Stato**: 🟡 IN PROGRESS — implementazione e test completati;
-  validazione live pendente
+- **Stato**: 🟢 IMPLEMENTATO (Consigliere, 2026-09-07) — implementazione e
+  test completi. Si riapre singolarmente se qualcosa non va.
 - **Piano di Lavoro**: `working/plans/piano-016-filter-psiche-brain.md`
 
+### `MACRO-038`: Anatomia dei corpi nei raster Brain
+- **Descrizione**: guidance riattivata con negative prompt anatomico,
+  livelli di qualità low/mid/high da pannello, pannello di controllo
+  riordinato.
+- **Stato**: ✅ DONE (2026-10-11) — collaudo superato, rilasciato in 1.0.0-rc.10.
+- **Piano di Lavoro**: `working/plans/piano-050-anatomia-guidance-qualita-pannello.md`
+
 ## ⚪ Macrotask Pianificati (Futuri)
+
+### `MACRO-039`: Ogni riga degli scribacchini è una quartina
+- **Descrizione**: righe curate usate direttamente come prompt raster (una
+  riga, un fotogramma); Qwen riscrive solo le frasi della Sessione pubblica
+  con le regole degli scribacchini, prima di scriverle in `brainPhrases.txt`.
+- **Stato**: 🟢 IMPLEMENTATO (2026-10-19) — collaudo aperto.
+- **Piano di Lavoro**: `working/plans/piano-051-righe-scribacchini-come-immagini.md`
+- **Estensione**: PIANO-052 — protezione bambini presso scene esplicite
+  configurabile da pannello, attiva di default.
+
+### `MACRO-037`: DMX Color Controller
+- **Descrizione**: attuatore cromatico autonomo per luci DMX (USB-DMX → 4 PAR
+  nella prima configurazione), indipendente da Brain e Morphing, con API di
+  alto livello, ownership dei producer, failure isolation e pannello manuale.
+- **Stato**: 🟡 IN PROGRESS — controller collaudato dal vivo (2026-10-11);
+  integrazione Brain/Morphing pianificata in PIANO-049.
+- **Brief**: `team/briefs/brief-dmx-color-controller-2026-10-10.md`
+- **Piano di Lavoro**: `working/plans/piano-048-dmx-color-controller.md`
+- **Piano integrazione producer**: `working/plans/piano-049-dmx-producer-brain-morphing.md` (BOZZA)
 
 ### `MACRO-007`: Preset Manager Avanzato & Snapshot Export
 - **Descrizione**: Espansione del salvataggio dei preset colore/morphing e possibilità di importare/esportare profili live personalizzati.
 - **Stato**: ⚪ PLANNED
+
+## `MACRO-033`: PRINT2D — stato e memoria per regione
+- **Stato**: IN PROGRESS — implementazione e validazione automatica completate;
+  collaudo percettivo fullscreen pendente.
+- **Piano**: `working/plans/piano-042-print2d-stato-regioni.md`.
+- Correzione strutturale mirata, estensione di PIANO-039; nessun intervento sul Varco.

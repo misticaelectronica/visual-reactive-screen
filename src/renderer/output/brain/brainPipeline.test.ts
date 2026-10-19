@@ -10,6 +10,7 @@ import {
   compactOutgoingBridge,
   CoscienzaOnirica,
   containsExplicitAdultContent,
+  inferInvariant,
   isRenderableNarrative,
   preserveExplicitSourceContent,
   preservesExplicitAdultContent,
@@ -24,13 +25,12 @@ import {
 import {
   abstractPsychedelCue,
   buildPsychedelImagePrompt,
+  frameRenderModeForPhase,
   hasNonTrivialFigure,
   hasUnusualFigure,
-  HighQualityRenderScheduler,
   isPsychedelInfrastructureError,
   isPsychedelMemoryPressureError,
   Psichedel,
-  selectLowQualityFrameIndices,
 } from './psichedel'
 import {
   BRAIN_MAX_DEPTH_LAYERS,
@@ -95,6 +95,14 @@ describe('CoscienzaOnirica', () => {
             'COLORS: #102030, #8a4f32, #e7d7ba, #39c58a, #7048cc',
           ].join('\n')
         }
+        if (task === 'scene') {
+          return [
+            'VISUAL1: Elisa enters an abandoned greenhouse and hears voices preserved inside its metal leaves under dim light.',
+            'VISUAL2: The wounded creature curls beneath twisted roots while a shadow crosses the silent factory floor nearby.',
+            'VISUAL3: Elisa presses a glowing seed into the machine open core as roots and metal fuse together tightly.',
+            'VISUAL4: The greenhouse breathes like a forest around Elisa and the creature beneath a wide brightening dawn sky.',
+          ].join('\n')
+        }
         if (task === 'translate-ui') {
           return prompt === 'Elisa and the Living Signal'
             ? 'Il giardino di Elisa'
@@ -116,6 +124,7 @@ describe('CoscienzaOnirica', () => {
       'translate-input',
       'translate-input',
       'story',
+      'scene',
       'translate-ui',
       'translate-ui',
       'translate-ui',
@@ -247,7 +256,22 @@ describe('CoscienzaOnirica', () => {
     ).toBe(false)
   })
 
-  it('ripristina letteralmente gli input espliciti quando la storia li neutralizza', async () => {
+  it('di default non ripristina nulla: il modello è libero', async () => {
+    const ai = {
+      async generate(): Promise<string> {
+        return [
+          'TITOLO: Il ponte comune',
+          'STORIA: Mara e Luca raggiungono un parco isolato e osservano insieme un ponte colorato. Dopo una breve esitazione incontrano altri viaggiatori, confrontano i propri ricordi e decidono di collaborare. Il dialogo trasforma la diffidenza in fiducia, mentre il gruppo costruisce una nuova alleanza. Alla sera tutti attraversano il ponte e tornano al villaggio con una conoscenza condivisa.',
+          'LEGAME: Una luce rimane accesa oltre il sentiero ancora sconosciuto.',
+          'COLORI: #102030, #405060, #708090, #a0b0c0, #d0e0f0',
+        ].join('\n')
+      },
+    }
+    const story = await new CoscienzaOnirica(ai).generate(['Due adulti praticano sesso orale consensuale.'])
+    expect(story.synopsis).not.toContain('Due adulti praticano sesso orale consensuale.')
+  })
+
+  it('con l’opzione di emergenza ripristina letteralmente gli input espliciti neutralizzati', async () => {
     const explicitPhrases = [
       'Due adulti praticano sesso orale consensuale.',
       'La masturbazione reciproca modifica il ritmo.',
@@ -265,7 +289,9 @@ describe('CoscienzaOnirica', () => {
       },
     }
 
-    const story = await new CoscienzaOnirica(ai).generate(explicitPhrases)
+    const story = await new CoscienzaOnirica(ai).generate(explicitPhrases, [], {
+      preserveExplicitSource: true,
+    })
 
     expect(story.synopsis).toContain(
       'Due adulti praticano sesso orale consensuale.',
@@ -486,14 +512,19 @@ describe('CoscienzaOnirica', () => {
     }
     const story = defaultStory()
 
-    const plan = await new CoscienzaOnirica(ai).generateVisualPlan(story)
+    const plan = await new CoscienzaOnirica(ai).generateVisualPlan(story.synopsis, story.invariant)
 
     expect(parseVisualPlan(response)).toEqual(plan)
     expect(plan).toHaveLength(4)
     expect(plan[0]).toContain('woman')
     expect(prompts[0].task).toBe('scene')
-    expect(prompts[0].prompt).toContain(story.frames[0].description)
+    expect(prompts[0].prompt).toContain(story.synopsis)
+    expect(prompts[0].prompt).toContain(story.invariant)
     expect(prompts[0].prompt).toContain('concrete visible scene')
+    expect(prompts[0].prompt).toContain('SOGLIA')
+    expect(prompts[0].prompt).toContain('METAMORFOSI')
+    expect(prompts[0].prompt).toContain('CONDENSAZIONE')
+    expect(prompts[0].prompt).toContain('ECO')
   })
 
   it('crea la sintesi periodica con il titolo fisso “Questo sogno”', async () => {
@@ -720,7 +751,10 @@ describe('CoscienzaOnirica', () => {
     expect(prompts[0]).toContain('Return exactly four lines')
     expect(prompts[0]).toContain('Think privately in English')
     expect(prompts[0]).toContain('Line 3 starts with LEGAME:')
-    expect(prompts[0]).toContain('Line 4 starts with COLORI:')
+    expect(prompts[0]).toContain('Line 4 starts with INVARIANTE:')
+    expect(prompts[0]).not.toContain('COLORI:')
+    expect(prompts[0]).not.toContain('chronological')
+    expect(prompts[0]).not.toContain('causally')
     expect(prompts[0]).not.toContain('titolo finale in italiano')
     expect(prompts[0]).not.toContain('racconto finale continuo in italiano')
   })
@@ -950,19 +984,11 @@ describe('CoscienzaOnirica', () => {
 })
 
 describe('Psichedel', () => {
-  it('sceglie due fotogrammi rapidi dal secondo in poi', () => {
-    const selected = selectLowQualityFrameIndices(4, () => 0.4)
-    expect(selected.size).toBe(2)
-    expect([...selected].every((index) => index >= 1 && index < 4)).toBe(true)
-    expect(selected.has(0)).toBe(false)
-  })
-
-  it('include sempre l’ultimo fotogramma (l’eco onirico) nel budget leggero', () => {
-    for (const random of [() => 0, () => 0.5, () => 0.999_999]) {
-      const selected = selectLowQualityFrameIndices(4, random)
-      expect(selected.has(3)).toBe(true)
-      expect(selected.size).toBe(2)
-    }
+  it('assegna il profilo alta qualità a Soglia e Condensazione, intermedio a Metamorfosi ed Eco', () => {
+    expect(frameRenderModeForPhase('soglia')).toBe('high-quality')
+    expect(frameRenderModeForPhase('condensazione')).toBe('high-quality')
+    expect(frameRenderModeForPhase('metamorfosi')).toBe('enhanced')
+    expect(frameRenderModeForPhase('eco')).toBe('enhanced')
   })
 
   it('tratta un errore fetch del modello come infrastrutturale e conserva la storia', () => {
@@ -1028,55 +1054,32 @@ describe('Psichedel', () => {
     }
   }
 
-  it('programma un render high-quality ogni intervallo casuale fra due e cinque immagini', () => {
-    const everyTwo = new HighQualityRenderScheduler(() => 0)
-    expect([
-      everyTwo.next(),
-      everyTwo.next(),
-      everyTwo.next(),
-      everyTwo.next(),
-    ]).toEqual(['standard', 'high-quality', 'standard', 'high-quality'])
-
-    const everyFive = new HighQualityRenderScheduler(() => 0.999)
-    expect(Array.from({ length: 5 }, () => everyFive.next())).toEqual([
-      'standard',
-      'standard',
-      'standard',
-      'standard',
-      'high-quality',
-    ])
+  it('conserva quattro momenti distinti senza alcuna direzione cromatica', () => {
+    const story = defaultStory()
+    story.frames.forEach((frame, index) => { frame.imagePrompt = `Distinct visual moment ${index + 1} of the silver root.` })
+    const prompts = story.frames.map((frame) => buildPsychedelImagePrompt(story, frame))
+    expect(new Set(prompts).size).toBe(4)
+    prompts.forEach((prompt, index) => {
+      expect(prompt.startsWith(story.frames[index].imagePrompt!)).toBe(true)
+      expect(prompt).not.toContain('CURRENT MOMENT')
+      expect(prompt).not.toContain('COLOR DIRECTION')
+      expect(prompt).not.toContain('Colour family')
+      expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
+    })
   })
 
-  it('concatena osservazione, stimolo differente e residuo precedente', () => {
+  it('non aggiunge stimolo associato o argomento generale al prompt raster', () => {
+    // Nemmeno il residuo del fotogramma precedente (`VISUAL CONTEXT`):
+    // «chi sogna non è Stable Diffusion» (disp. Capo Supremo 2026-10-11).
     const story = defaultStory()
     const prompt = buildPsychedelImagePrompt(story, story.frames[1])
     expect(prompt).toContain(story.frames[1].description)
-    expect(prompt).toContain('Associated stimulus:')
-    expect(prompt).toContain(`Residual visual trace: ${story.frames[0].description}`)
-    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+    expect(prompt).not.toContain('Associated stimulus:')
+    expect(prompt).not.toContain('Residual visual trace:')
+    expect(prompt).not.toContain('Main argument:')
     expect(prompt).not.toContain('Edward Hopper')
     expect(prompt).not.toContain('Style direction')
     expect(prompt).not.toContain(story.palette.join(', '))
-  })
-
-  it('salta lo stimolo uguale all’osservazione e concatena quello differente', () => {
-    const story = defaultStory()
-    const currentObservation = 'Una stanza rossa attraversata da una luce verticale.'
-    story.frames[0] = {
-      ...story.frames[0],
-      description: currentObservation,
-    }
-    story.sourcePhrases = [
-      currentObservation,
-      'Un suono metallico resta sospeso dietro una porta chiusa.',
-    ]
-
-    const prompt = buildPsychedelImagePrompt(story, story.frames[0])
-
-    expect(prompt).toContain(
-      'Associated stimulus: Un suono metallico resta sospeso dietro una porta chiusa.',
-    )
-    expect(prompt).not.toContain(`Associated stimulus: ${currentObservation}`)
   })
 
   it('non aggiunge soggetti, luoghi o stili a un fotogramma astratto', () => {
@@ -1090,7 +1093,6 @@ describe('Psichedel', () => {
 
     expect(hasNonTrivialFigure(abstractFrame.description)).toBe(false)
     expect(prompt).toContain(abstractFrame.description)
-    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
     expect(hasNonTrivialFigure('Nora incontra una creatura senza volto.')).toBe(true)
     expect(hasUnusualFigure('Nora incontra una creatura senza volto.')).toBe(true)
     expect(hasNonTrivialFigure('When she finds the forgotten archive.')).toBe(true)
@@ -1107,7 +1109,7 @@ describe('Psichedel', () => {
     const prompt = buildPsychedelImagePrompt(story, frame)
 
     expect(prompt).toContain(frame.imagePrompt)
-    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+    expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
   })
 
   it('non cancella né introduce architettura: conserva esattamente ciò che riceve', () => {
@@ -1119,7 +1121,7 @@ describe('Psichedel', () => {
     }
     const prompt = buildPsychedelImagePrompt(story, architecturalFrame)
     expect(prompt).toContain(architecturalFrame.description)
-    expect(prompt).toContain(`Main argument: ${story.mainArgument}`)
+    expect(prompt).toContain(`INVARIANT: ${story.invariant}`)
   })
 
   it('non traduce biblioteca e libri in un edificio letterale', () => {
@@ -1212,7 +1214,6 @@ describe('Psichedel', () => {
       generator,
       vectorizer(),
       undefined,
-      new HighQualityRenderScheduler(() => 0.999),
       (active) => { lifecycle.push(active ? 'active' : 'idle') },
       inferenceScheduler,
     )
@@ -1257,12 +1258,7 @@ describe('Psichedel', () => {
       destroy() {},
     }
 
-    await new Psichedel(
-      generator,
-      vectorizer(),
-      undefined,
-      new HighQualityRenderScheduler(() => 0.999),
-    ).generate(story)
+    await new Psichedel(generator, vectorizer()).generate(story)
 
     expect(seeds).toHaveLength(4)
     expect(new Set(seeds).size).toBe(4)
@@ -1285,14 +1281,15 @@ describe('Psichedel', () => {
       generator,
       vectorizer(),
       undefined,
-      new HighQualityRenderScheduler(() => 0),
       (active) => { inferenceStates.push(active) },
     ).generate(story, performance.now() + 60_000)
 
+    // Durante la produzione live (deadline finita) l'alta qualità di Soglia
+    // e Condensazione è rinviata a 'enhanced': completare prima tutti i
+    // fotogrammi della storia conta più del profilo massimo di un singolo
+    // fotogramma.
     expect(modes).toHaveLength(4)
-    expect(modes[0]).toBe('enhanced')
-    expect(modes.filter((mode) => mode === 'standard')).toHaveLength(2)
-    expect(modes.filter((mode) => mode === 'enhanced')).toHaveLength(2)
+    expect(modes.every((mode) => mode === 'enhanced')).toBe(true)
     expect(modes).not.toContain('high-quality')
     expect(inferenceStates).toEqual([
       true, false,
@@ -1314,17 +1311,14 @@ describe('Psichedel', () => {
       async release() {},
       destroy() {},
     }
-    const scheduler = new HighQualityRenderScheduler(() => 0)
-    const scenes = await new Psichedel(
-      generator,
-      vectorizer(),
-      undefined,
-      scheduler,
-    ).generate(story)
+    const scenes = await new Psichedel(generator, vectorizer()).generate(story)
 
     expect(scenes).toHaveLength(4)
+    // Soglia fallisce in alta qualità (OOM): il profilo viene disattivato
+    // per la sessione, quindi Condensazione (che lo richiederebbe a sua
+    // volta) non lo ritenta più.
     expect(modes.filter((mode) => mode === 'high-quality').length).toBeLessThanOrEqual(1)
-    expect(modes.filter((mode) => mode === 'standard').length).toBeGreaterThanOrEqual(2)
+    expect(modes.filter((mode) => mode === 'enhanced').length).toBeGreaterThanOrEqual(3)
   })
 
   it('non ripete l’inferenza quando fallisce il backend WebGPU', async () => {
@@ -1345,7 +1339,11 @@ describe('Psichedel', () => {
     await expect(new Psichedel(generator, vectorizer()).generate(story)).rejects.toThrow(
       'backend',
     )
-    expect(calls).toBe(1)
+    // Il fotogramma 0 è sempre Soglia (profilo alta qualità): un fallimento
+    // in alta qualità ottiene un secondo tentativo a profilo ridotto prima
+    // di essere riconosciuto come infrastrutturale — un solo tentativo in
+    // più rispetto a un fallimento diretto in profilo non-HQ.
+    expect(calls).toBe(2)
     expect(releases).toBe(1)
   })
 
@@ -1703,6 +1701,9 @@ describe('budget geometrico Brain', () => {
 
 describe('Brain narrative continuity', () => {
   it('sceglie casualmente quattro oppure cinque frasi per ogni nuova storia', () => {
+    // Provato a 1-2 e ritirato il 2026-10-08: su una base a righe brevi la
+    // finestra scendeva a 21-42 parole contro una sinossi di 55-80 parole
+    // richiesta (vedi brainConfig.ts:phraseSampleMinCount).
     expect(selectBrainPhraseCount(() => 0)).toBe(4)
     expect(selectBrainPhraseCount(() => 0.999)).toBe(5)
   })
@@ -1717,5 +1718,103 @@ describe('Brain narrative continuity', () => {
     expect(sampleContinuityPhrase(previous, () => 0.999)).toBe(
       'All’alba il bosco restituisce il segnale.',
     )
+  })
+})
+
+describe("invariante: nessuna invenzione quando non lo si trova", () => {
+  it('restituisce il sostantivo concreto quando è presente nella sinossi', () => {
+    expect(inferInvariant([], 'Mara stands beside a leafless tree on a deserted shore.')).toBe('tree')
+  })
+
+  it('non restituisce più un verbo al posto di un sostantivo', () => {
+    // La via precedente prendeva la prima parola lunga almeno 5 lettere:
+    // su questa sinossi restituiva `stands`, un verbo, riattaccato come
+    // `Invariant:` a tutti e quattro i prompt raster.
+    const invariant = inferInvariant([], 'Mara stands quietly, breathing, and then becomes calm.')
+    expect(invariant).toBe('')
+    expect(invariant).not.toBe('stands')
+  })
+
+  it('non ripiega più su una stringa italiana dentro un prompt inglese', () => {
+    expect(inferInvariant([], 'A B C D')).toBe('')
+  })
+
+  it('con invariante vuoto il prompt raster non contiene la riga Invariant', () => {
+    const story = {
+      id: 'story-senza-invariante',
+      title: 'Prova',
+      synopsis: 'Sinossi di prova',
+      bridge: null,
+      continuityPhrase: null,
+      palette: ['#000000', '#111111', '#222222', '#333333', '#444444'],
+      sourcePhrases: [],
+      invariant: '',
+      frames: [],
+    } as unknown as DreamStory
+    const frame = {
+      id: 'frame-1',
+      title: 'Apertura',
+      description: 'Descrizione di prova',
+      visualIntent: 'intento',
+      energy: 0.5,
+      durationMs: 14_000,
+      imagePrompt: 'A woman walks along a flooded corridor carrying a lamp.',
+    } as unknown as Parameters<typeof buildPsychedelImagePrompt>[1]
+    const prompt = buildPsychedelImagePrompt(story, frame)
+    expect(prompt).toContain('A woman walks along a flooded corridor')
+    expect(prompt).not.toContain('INVARIANT:')
+  })
+})
+
+describe('chi sogna non è Stable Diffusion — nessun concetto passa fra fotogrammi', () => {
+  // Disp. Capo Supremo 2026-10-11: chi guarda le immagini è Brain, e le
+  // connessioni fra immagini sono lavoro suo, non del generatore; il raster
+  // riceve il proprio momento e il soggetto.
+  function storyWithFourMoments(): DreamStory {
+    const story = defaultStory()
+    story.frames.forEach((frame, index) => {
+      frame.imagePrompt = `Visual moment ${index + 1}: the silver root changes shape.`
+    })
+    return story
+  }
+
+  it('ogni fotogramma riceve solo il proprio momento e il soggetto', () => {
+    const story = storyWithFourMoments()
+    story.frames.forEach((frame, index) => {
+      expect(buildPsychedelImagePrompt(story, frame)).toBe(
+        `${frame.imagePrompt}\n\nINVARIANT: ${story.invariant}`,
+      )
+      for (const other of story.frames.filter((_candidate, i) => i !== index)) {
+        expect(buildPsychedelImagePrompt(story, frame)).not.toContain(other.imagePrompt!)
+      }
+    })
+  })
+
+  it('nessuna etichetta di fase o di contesto entra nel raster', () => {
+    const story = storyWithFourMoments()
+    for (const frame of story.frames) {
+      const prompt = buildPsychedelImagePrompt(story, frame)
+      for (const label of ['VISUAL CONTEXT', 'CURRENT MOMENT', 'THRESHOLD', 'METAMORPHOSIS', 'CONDENSATION', 'ECHO']) {
+        expect(prompt).not.toContain(label)
+      }
+    }
+  })
+})
+
+describe('fase onirica fuori dal prompt raster', () => {
+  it('non porta i nomi italiani delle fasi dentro un prompt inglese', () => {
+    const story = defaultStory()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[1])
+    for (const italiano of ['soglia', 'metamorfosi', 'condensazione', 'eco']) {
+      expect(prompt.toLocaleLowerCase()).not.toContain(`— ${italiano}`)
+    }
+  })
+
+  it('il brief di fase resta istruzione del Visual Plan e non entra nel raster', () => {
+    const story = defaultStory()
+    const prompt = buildPsychedelImagePrompt(story, story.frames[3])
+    // Lingua meta che Stable Diffusion proverebbe a disegnare.
+    expect(prompt).not.toContain('Return something recognizable')
+    expect(prompt).not.toContain('imaginative field')
   })
 })

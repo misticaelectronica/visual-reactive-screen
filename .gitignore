@@ -166,3 +166,4 @@ config/brainPhrases.session-*.txt
 # artifacts are published separately only after the WebGPU prototype passes.
 .model-conversion/
 .model-artifacts/
+scripts/animatronix-check/harness.js

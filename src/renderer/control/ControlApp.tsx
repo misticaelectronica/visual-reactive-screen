@@ -1,6 +1,6 @@
 import './control.css'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { AppSettings, BandEnergies, MorphingAlgorithm } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import {
@@ -10,6 +10,10 @@ import {
 } from '@shared/morphingRotation'
 import { stepVisualEngine, createInitialVisualEngineState } from '@shared/visualEngine'
 import { DisplaySelector } from './components/DisplaySelector'
+import type { DmxAudioFrame } from './dmx/dmxRhythm'
+
+// Modulo luci DMX: il codice viene caricato solo se `dmxEnabled` è attivo.
+const DmxPanel = lazy(() => import('./dmx/DmxPanel'))
 import { AudioInputSelector } from './components/AudioInputSelector'
 import { BandMeters } from './components/BandMeters'
 import { ThresholdControls } from './components/ThresholdControls'
@@ -28,8 +32,8 @@ const silentBands = (): BandEnergies => ({
   high: 0,
 })
 
-const COLOR_ROTATION_MIN_MS = 45_000
-const COLOR_ROTATION_MAX_MS = 150_000
+export const COLOR_ROTATION_MIN_MS = 30_000
+export const COLOR_ROTATION_MAX_MS = 100_000
 const MORPHING_PRESET_MIN_MS = 18_000
 const MORPHING_PRESET_MAX_MS = 36_000
 const PSY_HYP_MORPHING_MIN_MS = 45_000
@@ -84,6 +88,8 @@ export function ControlApp() {
   const api = window.fxControl
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
   const [panic, setPanic] = useState(false)
+  // Bande dell'ultimo frame audio per il ritmo delle luci DMX.
+  const dmxAudioFrameRef = useRef<DmxAudioFrame | null>(null)
   const [outputOpen, setOutputOpen] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
@@ -168,6 +174,12 @@ export function ControlApp() {
         sampleRate: audioRef.current.sampleRate,
       })
       visStateRef.current = next
+      dmxAudioFrameRef.current = {
+        bands: bandEnergies,
+        movingAverages,
+        timestampMs: performance.timeOrigin + t,
+        sequence: telemetrySequenceRef.current,
+      }
 
       api?.sendVisualState({
         backgroundColor: output.backgroundColor,
@@ -447,12 +459,25 @@ export function ControlApp() {
         <BandMeters meters={audio.meters} thresholds={thresholdPreview} />
       </section>
 
-      <PresetsSelector settings={settings} onApplyPreset={applyPresetSettings} onChangeSettings={patchSettings} />
-
-      <ThresholdControls settings={settings} onChange={patchSettings} />
       <VisualControls settings={settings} onChange={patchSettings} />
+      <PresetsSelector settings={settings} onApplyPreset={applyPresetSettings} onChangeSettings={patchSettings} />
       <SafetyControls settings={settings} onChange={patchSettings} />
+      <ThresholdControls settings={settings} onChange={patchSettings} />
       <PublicSessionPanel settings={settings} onChange={patchSettings} />
+
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={settings.dmxEnabled}
+          onChange={(e) => patchSettings({ dmxEnabled: e.target.checked })}
+        />
+        Modulo luci DMX
+      </label>
+      {settings.dmxEnabled ? (
+        <Suspense fallback={null}>
+          <DmxPanel settings={settings} onChange={patchSettings} panic={panic} audioFrameRef={dmxAudioFrameRef} />
+        </Suspense>
+      ) : null}
 
       <section className="toolbar">
         <button
