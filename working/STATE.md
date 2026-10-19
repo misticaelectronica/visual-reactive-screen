@@ -1,5 +1,34 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Libertà esplicita e blocco immagini d'emergenza — PIANO-053 — 2026-10-19
+
+**COMPLETATO.** Precisazione vincolante del Capo
+Supremo: il vecchio checkbox `Emergenza: ripristina il testo esplicito delle
+frasi` va rifatto. Non deve più ripristinare, conservare, verificare o
+riscrivere testo: quando acceso deve soltanto impedire l'inferenza dei frame
+il cui prompt immagine è riconosciuto esplicito; quando spento il modello è
+libero. Il nuovo nome pianificato è `blockExplicitImages`, default spento; la
+vecchia chiave non viene migrata automaticamente perché aveva significato
+opposto. Il vecchio ripristino, i suoi rilevatori in Coscienza Onirica e i
+fallback di reinserimento sono stati rimossi.
+
+Il controllo indipendente della Sessione pubblica resta
+`Evita bambini nelle immagini vicine a scene esplicite`, con semantica,
+vicinanza, termini e default attuali. PIANO-053 riusa il punto di confine
+prima di `imageGenerator.generate` e `RASTER_FALLBACK_SVG`: nessuna
+riscrittura alternativa e nessuna nuova AI. DEP-001 `NON COINVOLTO`;
+DEP-002 `AGGIORNARE` per rimuovere il vecchio ripristino anche dal percorso
+compatibile «Questo sogno».
+
+Il rilevatore del blocco usa soltanto azioni sessuali esplicite. I criteri
+larghi storici (`finger(s)`, `pleasure`, `intimacy`) restano confinati alla
+protezione bambini e non possono bloccare immagini innocue.
+
+Verifica: test mirati 104/104, suite completa 816/816, typecheck e lint verdi;
+build completa app/ZIP/DMG verde. Avvio reale della Control Window riuscito.
+L'ispezione automatizzata della finestra non era disponibile per i permessi
+macOS di Computer Use; la nuova etichetta è presente nel bundle compilato.
+
 ## Bambini evitati vicino alle scene esplicite — 2026-10-19
 
 **CONSEGNATO**, disposizione del Capo Supremo: negli episodi nati da una frase

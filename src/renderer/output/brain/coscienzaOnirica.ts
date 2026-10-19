@@ -46,41 +46,6 @@ function words(text: string): string[] {
   return text.toLocaleLowerCase().match(/\p{L}+/gu) ?? []
 }
 
-const STRONG_EXPLICIT_ADULT_TERMS =
-  /(?:\bsesso(?:\s+orale|\s+anale|\s+vaginale|\s+di\s+gruppo)?\b|\bsex(?:ual|\s+toy|\s+toys|\s+act|\s+acts|\s+scene|\s+scenes|\s+oral|\s+group)?\b|\bpenetrazion\w*\b|\bpenetrat\w*\b|\bmasturb\w*\b|\borgasm\w*\b|\bstimolazion\w*\b|\bstimulat\w*\b|\brapport[oi]\s+sessual\w*\b|\bintercourse\b|\boral\s+(?:pleasure|contact|activity|stimulation)\b|\b(?:anal|vaginal|genital)\s+(?:sex|contact|stimulation|play)\b|\bfellati\w*\b|\bcunniling\w*\b|\bblow\s*job\w*\b|\bhand\s*job\w*\b|\bfinger(?:ing|ed|s)?\b|\bsex\s*toy\w*\b|\bdildo\w*\b|\bvibrator\w*\b|\bclimax(?:es|ed|ing)?\b)/iu
-
-const ADULT_CONTEXT_TERMS =
-  /(?:\beccitazion\w*\b|\barousal\b|\bpiacere\b|\bpleasure\b|\bintimit\w*\b|\bintimacy\b)/iu
-
-export function containsExplicitAdultContent(text: string): boolean {
-  return (
-    STRONG_EXPLICIT_ADULT_TERMS.test(text) ||
-    ADULT_CONTEXT_TERMS.test(text)
-  )
-}
-
-export function preservesExplicitAdultContent(
-  source: string,
-  generated: string,
-): boolean {
-  return STRONG_EXPLICIT_ADULT_TERMS.test(source)
-    ? STRONG_EXPLICIT_ADULT_TERMS.test(generated)
-    : !containsExplicitAdultContent(source) ||
-        containsExplicitAdultContent(generated)
-}
-
-function explicitContentDiagnostics(text: string): {
-  strong: boolean
-  contextual: boolean
-  matchedTerm: string | null
-} {
-  return {
-    strong: STRONG_EXPLICIT_ADULT_TERMS.test(text),
-    contextual: ADULT_CONTEXT_TERMS.test(text),
-    matchedTerm: text.match(STRONG_EXPLICIT_ADULT_TERMS)?.[0] ?? null,
-  }
-}
-
 const ITALIAN_LANGUAGE_MARKERS = new Set([
   'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'del', 'della',
   'nel', 'nella', 'che', 'con', 'per', 'mentre', 'quando', 'allora', 'dopo',
@@ -478,40 +443,6 @@ export function compactOutgoingBridge(bridge: string | null): string | null {
   return completeSentence(bridgeWords.slice(0, 18).join(' '))
 }
 
-export function preserveExplicitSourceContent(
-  generatedSynopsis: string,
-  sourcePhrases: readonly string[],
-): string {
-  const generatedMoments = splitSentences(generatedSynopsis)
-  const explicitMoments = sourcePhrases
-    .filter((phrase) => containsExplicitAdultContent(phrase))
-    .map(completeSentence)
-  const ordered = [
-    generatedMoments[0],
-    ...explicitMoments,
-    ...generatedMoments.slice(1),
-  ].filter((moment): moment is string => Boolean(moment?.trim()))
-  const unique: string[] = []
-  for (const moment of ordered) {
-    if (
-      !unique.some(
-        (candidate) =>
-          normalizedSentence(candidate) === normalizedSentence(moment),
-      )
-    ) {
-      unique.push(completeSentence(moment))
-    }
-  }
-  return unique.slice(0, 6).join(' ')
-}
-
-function replaceEnglishSynopsis(envelope: string, synopsis: string): string {
-  return envelope.replace(
-    /^STORY:\s*[\s\S]*?(?=^BRIDGE:)/imu,
-    `STORY: ${synopsis}\n`,
-  )
-}
-
 function fallbackUiCore(phrases: readonly string[]): StoryCore {
   const synopsis = phrases.map(completeSentence).join(' ')
   const titleWords = words(phrases[0] ?? 'sogno in movimento')
@@ -534,9 +465,6 @@ function fallbackUiCore(phrases: readonly string[]): StoryCore {
 
 export function inferMainArgument(source: readonly string[], synopsis: string): string {
   const text = `${source.join(' ')} ${synopsis}`.toLocaleLowerCase()
-  if (containsExplicitAdultContent(text)) {
-    return 'consensual adult sexual interaction and physical intimacy'
-  }
   if (/psicolog|psycholog|trauma|paura|fear|memoria|memory|identit|identity/iu.test(text)) {
     return 'psychological transformation and memory'
   }
@@ -651,8 +579,6 @@ type StoryGenerationOptions = {
   continuitySeed?: string | null
   recentBridges?: readonly string[]
   consciousnessInfluence?: ConsciousnessMotionCandidate | null
-  /** Opzione di emergenza dal pannello; di default il modello è libero. */
-  preserveExplicitSource?: boolean
 }
 
 export function bridgeIsNew(
@@ -784,15 +710,12 @@ const EPISODE_LINE_MAX_WORDS = 45
 // Regole degli scribacchini (docs/linee-guida-storie-brain.md), date a Qwen
 // sia per le fasi sia per le frasi del pubblico. Nessun filtro: il contenuto
 // non si ammorbidisce (disposizione del Capo Supremo 2026-10-19).
-function scribeRules(preserveExplicit: boolean): string[] {
+function scribeRules(): string[] {
   return [
     'Rules for every line: 15-30 English words; one concrete visible scene; the same named person; one place; one gesture or action; light and materials.',
     'Show the body through posture and gesture, never through feelings. Wide framing: no close-ups of hands or fingers.',
     'Use only words that can be seen: no abstract concepts, quotations, negations, memories or time jumps.',
     'Do not censor, soften or euphemize anything. If sexual content appears, every person involved is an adult.',
-    ...(preserveExplicit
-      ? ['Preserve the explicit physical actions literally, without euphemisms or symbolism.']
-      : []),
   ]
 }
 
@@ -806,7 +729,6 @@ export function buildEpisodePhasePrompt(
   phaseIndex: 0 | 1 | 2,
   written: readonly string[] = [],
   context: readonly string[] = [],
-  preserveExplicit = false,
 ): string {
   const phase = EPISODE_PHASES[phaseIndex]
   const imageNumber = phaseIndex + 2
@@ -817,7 +739,7 @@ export function buildEpisodePhasePrompt(
     ...contextBlock('STORY SO FAR', context),
     `Write IMAGE ${imageNumber} (${phase.name}): ${phase.brief}.`,
     'It must also complete the sentence of image 1: keep its person and its place, and add new concrete elements of the same scene that image 1 does not show (objects, materials, light, other people, other parts of the place).',
-    ...scribeRules(preserveExplicit),
+    ...scribeRules(),
     `Write only the sentence for image ${imageNumber}, on one line.`,
   ].join('\n')
 }
@@ -825,14 +747,13 @@ export function buildEpisodePhasePrompt(
 export function buildPublicPhraseRewritePrompt(
   phrase: string,
   context: readonly string[] = [],
-  preserveExplicit = false,
 ): string {
   return [
     'Rewrite an audience phrase as one line of the story in progress.',
     `AUDIENCE PHRASE: ${phrase}`,
     ...contextBlock('STORY IN PROGRESS', context),
     'Keep everything the phrase says and shows. Link it to the main elements of the story in progress: its protagonist, its recurring object or material, its place.',
-    ...scribeRules(preserveExplicit),
+    ...scribeRules(),
     'Return exactly one line beginning LINE:.',
   ].join('\n')
 }
@@ -922,8 +843,6 @@ type EpisodeGenerationOptions = {
   context?: readonly string[]
   continuitySeed?: string | null
   consciousnessInfluence?: ConsciousnessMotionCandidate | null
-  /** Opzione di emergenza dal pannello, per tutte le righe. */
-  preserveExplicitSource?: boolean
 }
 
 export class CoscienzaOnirica {
@@ -945,11 +864,6 @@ export class CoscienzaOnirica {
     const continuitySeed = options.continuitySeed?.trim() || null
     const recentBridges = options.recentBridges ?? []
     const consciousnessInfluence = options.consciousnessInfluence ?? null
-    const explicitSourceDetected = containsExplicitAdultContent(phrases.join(' '))
-    // Ripristino e istruzione «alla lettera» solo con l'opzione di
-    // emergenza attiva (disp. Capo Supremo 2026-10-11); altrimenti il
-    // modello è libero anche con sorgenti esplicite.
-    const explicitSource = explicitSourceDetected && options.preserveExplicitSource === true
     let englishVisualMoments: string[] | null = null
     let englishInvariant: string | null = null
     let englishDisplay: Pick<
@@ -957,8 +871,6 @@ export class CoscienzaOnirica {
       'englishTitle' | 'englishSynopsis' | 'englishBridge'
     > | null = null
     let englishCore: StoryCore | null = null
-    let explicitContentVerifiedFromEnglish = false
-    let uiExplicitLossLogged = false
     const recentStoriesForValidation = sessionSynthesis
       ? recentStories.filter(
           (story) => normalizedSentence(story.title) !== 'questo sogno',
@@ -969,38 +881,6 @@ export class CoscienzaOnirica {
         throw new Error(
           'CoscienzaOnirica ha prodotto metadati o momenti insufficienti al posto della storia',
         )
-      }
-      if (
-        explicitSource &&
-        !preservesExplicitAdultContent(
-          phrases.join(' '),
-          `${story.title} ${story.synopsis}`,
-        )
-      ) {
-        const generatedSynopsis = story.synopsis
-        story.synopsis = preserveExplicitSourceContent(
-          story.synopsis,
-          phrases,
-        )
-        const restoredMoments = splitIntoFourMoments(story.synopsis)
-        story.frames.forEach((frame, index) => {
-          frame.description = restoredMoments[index]
-          frame.visualIntent =
-            `Scena narrativa concreta con un soggetto riconoscibile e una sola azione visibile: ${restoredMoments[index]}`
-        })
-        if (!uiExplicitLossLogged) {
-          uiExplicitLossLogged = true
-          brainWarn(
-            'coscienza',
-            'contenuto esplicito ripristinato letteralmente dagli input originali',
-            {
-              sourcePhrases: phrases,
-              generatedSynopsis,
-              preservedSynopsis: story.synopsis,
-              englishSourceVerified: explicitContentVerifiedFromEnglish,
-            },
-          )
-        }
       }
       const originalBridge = story.bridge
       story.bridge = compactOutgoingBridge(story.bridge)
@@ -1048,8 +928,6 @@ export class CoscienzaOnirica {
       sessionSynthesis,
       continuitySeed,
       recentBridges,
-      explicitSource: explicitSourceDetected,
-      preserveExplicitSource: explicitSource,
       consciousnessInfluence: consciousnessInfluence
         ? {
             memoryId: consciousnessInfluence.memoryId,
@@ -1133,16 +1011,11 @@ export class CoscienzaOnirica {
       // etichette vale dentro la storia, non per le righe del formato.
       `Inside ${this.translator ? 'STORY' : 'STORIA'}, write one continuous narrative with no headings or labels. Build the story around a person in a concrete place and use a few strong visual situations. Let the story freely generate its characters, names and relationships. Each situation should visibly change a relationship between a person, object, body or place. Let motives and causes remain partly inferable. Do not explain themes or name narrative functions. End with a concrete image or action that changes the meaning of something seen earlier.`,
       'Let connections between the source prompts emerge through events, association or partial causality. Some links may remain implicit. Never discuss or copy the instructions.',
-      ...(explicitSource
-        ? [
-            'All participants are consenting adults. Preserve the explicit physical actions literally, without euphemisms or symbolism.',
-          ]
-        : [
-            // Libertà del 2026-10-10 nella forma della nota del Vicario
-            // (2026-10-11): l'adultità è un vincolo solo se compare
-            // materiale sessuale, non per tutta la generazione.
-            'Associate freely. Sex, tenderness, violence, humor, absurdity or other material may appear if the story leads there. If sexual content appears, every person involved must be an adult.',
-          ]),
+      // Libertà del 2026-10-10 nella forma della nota del Vicario
+      // (2026-10-11): l'adultità è un vincolo solo se compare materiale
+      // sessuale, non per tutta la generazione. PIANO-053: nessun ramo
+      // testuale dipende dal blocco immagini d'emergenza.
+      'Associate freely. Sex, tenderness, violence, humor, absurdity or other material may appear if the story leads there. If sexual content appears, every person involved must be an adult.',
       recentStoryConstraint,
       continuityConstraint,
       synthesisConstraint,
@@ -1181,8 +1054,8 @@ export class CoscienzaOnirica {
         minNewTokens: 48,
       })
       if (this.translator) {
-        let normalizedEnglishStory = normalizeEnglishStoryEnvelope(coreText)
-        let englishSynopsis = normalizedEnglishStory
+        const normalizedEnglishStory = normalizeEnglishStoryEnvelope(coreText)
+        const englishSynopsis = normalizedEnglishStory
           ? labeledBlock(normalizedEnglishStory, 'STORY', ['BRIDGE'])
           : null
         if (!englishSynopsis || !isRenderableNarrative(englishSynopsis)) {
@@ -1204,40 +1077,6 @@ export class CoscienzaOnirica {
             'CoscienzaOnirica non ha prodotto una storia inglese completa',
           )
         }
-        if (
-          explicitSource &&
-          !preservesExplicitAdultContent(
-              phrases.join(' '),
-              englishSynopsis,
-            )
-        ) {
-          const generatedSynopsis = englishSynopsis
-          englishSynopsis = preserveExplicitSourceContent(
-            englishSynopsis,
-            // Psichedel riceve soltanto prompt inglesi: se il modello storia
-            // attenua un’azione, il ripristino non deve reintrodurla in
-            // italiano e renderla meno leggibile al CLIP di SD-Turbo.
-            narrativePhrases,
-          )
-          normalizedEnglishStory = replaceEnglishSynopsis(
-            normalizedEnglishStory,
-            englishSynopsis,
-          )
-          brainWarn(
-            'coscienza',
-            'storia inglese neutralizzata dal modello; contenuto originale ripristinato senza scartare la generazione',
-            {
-              sourcePhrases: phrases,
-              generatedStory: generatedSynopsis,
-              preservedStory: englishSynopsis,
-              sourceDetection: explicitContentDiagnostics(phrases.join(' ')),
-              generatedDetection: explicitContentDiagnostics(
-                generatedSynopsis,
-              ),
-            },
-          )
-        }
-        if (explicitSource) explicitContentVerifiedFromEnglish = true
         if (!isRenderableNarrative(englishSynopsis)) {
           brainWarn(
             'coscienza',
@@ -1418,8 +1257,6 @@ export class CoscienzaOnirica {
     options: EpisodeGenerationOptions = {},
   ): Promise<DreamStory> {
     const source = line.trim()
-    const preserveExplicit =
-      options.preserveExplicitSource === true && containsExplicitAdultContent(source)
     // Una fase per richiesta: ogni richiesta riceve la Soglia e le fasi già
     // scritte valide.
     const phases: EpisodePhaseLines = [null, null, null]
@@ -1433,7 +1270,6 @@ export class CoscienzaOnirica {
             phaseIndex,
             written,
             options.context ?? [],
-            preserveExplicit,
           ),
           { maxNewTokens: 80, minNewTokens: 15 },
         )
@@ -1482,7 +1318,6 @@ export class CoscienzaOnirica {
   async rewritePublicPhrase(
     phrase: string,
     context: readonly string[] = [],
-    preserveExplicitSource = false,
   ): Promise<string> {
     const original = phrase.trim()
     let english = original
@@ -1495,12 +1330,10 @@ export class CoscienzaOnirica {
         error,
       })
     }
-    const preserveExplicit =
-      preserveExplicitSource && containsExplicitAdultContent(`${original} ${english}`)
     try {
       const response = await this.ai.generate(
         'scene',
-        buildPublicPhraseRewritePrompt(english, context, preserveExplicit),
+        buildPublicPhraseRewritePrompt(english, context),
         { maxNewTokens: 90, minNewTokens: 15 },
       )
       const rewritten = parsePublicPhraseRewrite(response)

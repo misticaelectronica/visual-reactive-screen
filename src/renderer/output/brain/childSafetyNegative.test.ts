@@ -34,6 +34,16 @@ describe('bambini evitati vicino alle scene esplicite', () => {
       .toEqual(['', '', '', ''])
   })
 
+  it('mantiene i criteri larghi esistenti soltanto per questa protezione', () => {
+    const fingers = publicStory([
+      QUIET,
+      'At the piano, Marta rests her fingers on the black keys beneath a white lamp.',
+      QUIET,
+      QUIET,
+    ])
+    expect(childSafetyNegativePrompt(fingers, 1)).toBe(CHILD_SAFETY_NEGATIVE_TERMS)
+  })
+
   it('usa soltanto i termini mantenuti dalla disposizione aggiornata', () => {
     expect(CHILD_SAFETY_NEGATIVE_TERMS).toBe(
       'child, children, kid, young girl, young boy',

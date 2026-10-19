@@ -9,11 +9,9 @@ import {
   bridgeIsNew,
   compactOutgoingBridge,
   CoscienzaOnirica,
-  containsExplicitAdultContent,
+  inferMainArgument,
   inferInvariant,
   isRenderableNarrative,
-  preserveExplicitSourceContent,
-  preservesExplicitAdultContent,
   normalizeStory,
   parseNarrativeFormat,
   parseSessionMemo,
@@ -207,37 +205,6 @@ describe('CoscienzaOnirica', () => {
     expect(events.filter((event) => event === 'release-translators')).toHaveLength(1)
   })
 
-  it('riconosce gli input adulti espliciti senza confonderli con una storia generica', () => {
-    expect(
-      containsExplicitAdultContent(
-        'Due adulti alternano sesso orale, masturbazione e penetrazione consensuale.',
-      ),
-    ).toBe(true)
-    expect(
-      containsExplicitAdultContent(
-        'Due persone attraversano un ponte e condividono un ricordo.',
-      ),
-    ).toBe(false)
-    expect(
-      preservesExplicitAdultContent(
-        'Due adulti praticano sesso orale consensuale.',
-        'Fra loro cresce soltanto una vaga eccitazione.',
-      ),
-    ).toBe(false)
-    expect(
-      preservesExplicitAdultContent(
-        'Due adulti praticano sesso orale consensuale.',
-        'The adults begin with mutual oral stimulation before changing position.',
-      ),
-    ).toBe(true)
-    expect(
-      preservesExplicitAdultContent(
-        'La penetrazione conclude la sequenza fisica.',
-        'Their consensual intercourse concludes the encounter.',
-      ),
-    ).toBe(true)
-  })
-
   it('rifiuta metadati e liste di colori usati come momento narrativo', () => {
     expect(
       isRenderableNarrative(
@@ -271,52 +238,11 @@ describe('CoscienzaOnirica', () => {
     expect(story.synopsis).not.toContain('Due adulti praticano sesso orale consensuale.')
   })
 
-  it('con l’opzione di emergenza ripristina letteralmente gli input espliciti neutralizzati', async () => {
-    const explicitPhrases = [
-      'Due adulti praticano sesso orale consensuale.',
-      'La masturbazione reciproca modifica il ritmo.',
-      'La penetrazione conclude la sequenza fisica.',
-    ]
-    const sanitized = [
-      'TITOLO: Il ponte comune',
-      'STORIA: Mara e Luca raggiungono un parco isolato e osservano insieme un ponte colorato. Dopo una breve esitazione incontrano altri viaggiatori, confrontano i propri ricordi e decidono di collaborare. Il dialogo trasforma la diffidenza in fiducia, mentre il gruppo costruisce una nuova alleanza. Alla sera tutti attraversano il ponte e tornano al villaggio con una conoscenza condivisa.',
-      'LEGAME: Una luce rimane accesa oltre il sentiero ancora sconosciuto.',
-      'COLORI: #102030, #405060, #708090, #a0b0c0, #d0e0f0',
-    ].join('\n')
-    const ai = {
-      async generate(): Promise<string> {
-        return sanitized
-      },
-    }
-
-    const story = await new CoscienzaOnirica(ai).generate(explicitPhrases, [], {
-      preserveExplicitSource: true,
-    })
-
-    expect(story.synopsis).toContain(
-      'Due adulti praticano sesso orale consensuale.',
-    )
-    expect(story.synopsis).toContain(
-      'La masturbazione reciproca modifica il ritmo.',
-    )
-    expect(
-      preservesExplicitAdultContent(explicitPhrases.join(' '), story.synopsis),
-    ).toBe(true)
-  })
-
-  it('mantiene una struttura narrativa limitata quando ripristina le frasi originali', () => {
-    const preserved = preserveExplicitSourceContent(
-      'Mara entra nella stanza. Cerca Luca fra le tende. I due esitano. Infine lasciano insieme la stanza.',
-      [
-        'Due adulti praticano sesso orale consensuale.',
-        'La masturbazione reciproca modifica il ritmo.',
-        'La penetrazione conclude la sequenza fisica.',
-      ],
-    )
-
-    expect(preserved).toContain('Mara entra nella stanza.')
-    expect(preserved).toContain('sesso orale consensuale.')
-    expect(preserved.match(/[^.!?]+[.!?]/gu)).toHaveLength(6)
+  it('non trasforma il contenuto sessuale in una categoria narrativa automatica', () => {
+    expect(inferMainArgument(
+      ['Due adulti praticano sesso orale consensuale.'],
+      'La stanza cambia forma intorno ai loro corpi.',
+    )).toBe('dream narrative and sensory transformation')
   })
 
   it('compatta gli anelli di giunzione per non rallentare la storia successiva', () => {

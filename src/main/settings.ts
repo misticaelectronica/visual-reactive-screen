@@ -26,10 +26,14 @@ export function loadSettingsFromDisk(): AppSettings {
     const raw = fs.readFileSync(p, 'utf-8')
     const parsed = JSON.parse(raw) as Partial<AppSettings> & {
       reducedFpsMode?: unknown
+      preserveExplicitSource?: unknown
     }
     // L'opzione sperimentale è stata ritirata: non deve riapparire da un file
     // impostazioni scritto da una build precedente.
     delete parsed.reducedFpsMode
+    // PIANO-053: la vecchia opzione preservava l'esplicito, mentre la nuova
+    // lo blocca. Non migrare automaticamente una semantica opposta.
+    delete parsed.preserveExplicitSource
     return normalizeSettings({ ...DEFAULT_SETTINGS, ...parsed })
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -42,7 +46,7 @@ export function saveSettingsToDisk(settings: AppSettings): void {
   fs.writeFileSync(p, JSON.stringify(normalizeSettings(settings), null, 2), 'utf-8')
 }
 
-function normalizeSettings(settings: AppSettings): AppSettings {
+export function normalizeSettings(settings: AppSettings): AppSettings {
   const alternateBrainWithMorphing = settings.alternateBrainWithMorphing === true
   const useBrain = alternateBrainWithMorphing || settings.useBrain === true
   const colorPresetAliases: Record<string, string> = {
@@ -80,7 +84,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     flashMode: isFlashMode(settings.flashMode) ? settings.flashMode : 'mid',
     softMode: settings.softMode === true,
     lowPowerMode: settings.lowPowerMode === true,
-    preserveExplicitSource: settings.preserveExplicitSource === true,
+    blockExplicitImages: settings.blockExplicitImages === true,
     childSafetyNegativePromptEnabled:
       settings.childSafetyNegativePromptEnabled !== false,
     brainImageQuality: isBrainImageQuality(settings.brainImageQuality)

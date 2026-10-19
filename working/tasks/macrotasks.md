@@ -269,6 +269,10 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 - **Piano di Lavoro**: `working/plans/piano-051-righe-scribacchini-come-immagini.md`
 - **Estensione**: PIANO-052 — protezione bambini presso scene esplicite
   configurabile da pannello, attiva di default.
+- **Estensione completata**: PIANO-053 — vecchio ripristino testuale
+  dismesso; nuovo interruttore d'emergenza che salta l'inferenza dei frame
+  espliciti; libertà totale quando è spento; protezione bambini indipendente
+  e limitata agli episodi della Sessione pubblica.
 
 ### `MACRO-037`: DMX Color Controller
 - **Descrizione**: attuatore cromatico autonomo per luci DMX (USB-DMX → 4 PAR

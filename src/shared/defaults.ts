@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   kickMovement: 0.26,
   flashOnKick: false,
   lowPowerMode: false,
-  preserveExplicitSource: false,
+  blockExplicitImages: false,
   childSafetyNegativePromptEnabled: true,
   brainImageQuality: 'low',
   brainNegativePrompt: DEFAULT_BRAIN_NEGATIVE_PROMPT,

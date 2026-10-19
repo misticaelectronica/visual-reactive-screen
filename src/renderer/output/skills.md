@@ -188,6 +188,18 @@ checkbox della Sessione pubblica ed è attivo di default. I termini sono
 superare il prompt in blocchi CLIP:
 `encodeSd15PromptChunks` completa il ramo più corto con blocchi vuoti.
 
+**Blocco immagini esplicite d'emergenza — PIANO-053 (2026-10-19)**: il
+vecchio ripristino testuale è dismesso. `blockExplicitImages`, spento di
+default, agisce soltanto in Psichedel sul prompt finale: se
+`containsExplicitImageContent` lo riconosce come esplicito,
+`imageGenerator.generate` non viene chiamato, non ci sono retry e il frame
+usa `RASTER_FALLBACK_SVG`. Non modificare storia, quartina, frase pubblica o
+prompt positivo. La vecchia chiave `preserveExplicitSource` non viene
+migrata perché aveva significato opposto. Il controllo bambini resta
+indipendente e conserva soltanto al proprio interno i criteri larghi storici
+(`finger(s)`, `pleasure`, `intimacy`); questi non bloccano immagini tramite
+l'emergenza.
+
 **Prompt raster libero (2026-10-11)**: «chi sogna non è Stable Diffusion».
 Il raster riceve solo il proprio momento + `INVARIANT`; niente testo di altri
 fotogrammi (`VISUAL CONTEXT` ritirato: produceva coppie di immagini simili) e
