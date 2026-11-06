@@ -1,5 +1,140 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Vector Morph: contorni a livello di oggetto — PIANO-060 — 2026-11-06
+
+**FATTO, collaudo a schermo da eseguire (MACRO-043).** Disposizione del Capo
+Supremo: contorni meno dettagliati e frammentati. Misurato su 96 raster: il
+motore SNIC veniva scartato sempre e a schermo arrivava VTracer (mediana 59
+forme, max 227). Ora la fusione delle regioni è gerarchica (Ward sul grafo di
+adiacenza: i frammenti cadono prima dei contorni degli oggetti), ogni confine
+fra due forme è semplificato e arrotondato una sola volta (niente fessure) e
+SNIC passa se strutturalmente usabile. Dopo: SNIC 96/96, mediana 23 forme,
+max 24, mediana 272 ms invece di 941. `snicMaximumRegions` 72 → 24;
+`minimumStrongEdgeRecall` rimosso. Il moto (PIANO-057) non è toccato. DEP-001
+e DEP-002 `NON COINVOLTO`.
+
+## Immagini nuove prima delle vecchie — 2026-11-06
+
+**FATTO, collaudo dal vivo da eseguire.** Disposizione del Capo Supremo: con
+immagini nuove pronte si va a quelle, senza attendere le vecchie. Verificato
+nel codice: con la storia successiva già pronta la Riattivazione partiva
+comunque e la tratteneva per tutta la durata (≥ ~70 s). Ora: storia pronta al
+confine → nessuna Riattivazione; storia pronta durante la Riattivazione →
+interruzione al primo beat. In entrambi i casi, e all'uscita dal ricircolo,
+morph rapido dall'immagine a schermo alla nuova (`firstFrameTransitionMs`,
+2,5 s). ANIMATRONIX non cambia. PIANO-054 (bozza) va rivalutato: la
+Riattivazione ora gira solo mentre la storia nuova non è pronta. DEP-001 e
+DEP-002 `NON COINVOLTO`.
+
+## Decompressione: replay di `decompressione-8` e `-9` — 2026-11-06
+
+**DIAGNOSI, nessun codice modificato.** Richiesta del Capo Supremo: usare i
+nuovi campioni per tarare la decompressione. Il regime experimental emette
+`decompression` su 0 file su 7 (compresi `-7`, `-8` e `-9`). Sui nuovi
+campioni bande, griglia e volume sono piatti: sale soltanto l'ancoraggio
+all'avvio, quindi si legge `pressurized`. Il calo massimo di `constraint`
+è 0,005–0,009, contro un deadband di 0,07, e nessuna taratura lo rende
+raggiungibile. Misurato fuori dal motore: in `-8`/`-9` lo spettro si chiude
+dall'alto (centroide 3.790→2.395 Hz e 1.900→1.056 Hz) a volume costante, una
+forma assente dai tre `decompresisone*`. In `-8` la chiusura cade dentro i
+9,5 s di avvio `unresolved`. Da decidere (Analisi Audio): quale osservabile
+definisce la decompressione; servono campioni ≥ 40 s. Dettagli in
+`working/calibration-v1/decompressione-8-9-replay-2026-11-06.md`. Brief al
+Capo Supremo dell'Analisi Audio con le decisioni D1–D6:
+`team/briefs/brief-ingegneria-decompressione-non-tarabile-2026-11-06.md`.
+**Risposta dell'Analisi Audio** archiviata in
+`team/briefs/brief-audio-decisioni-decompressione-2026-11-06.md`: taratura di
+pesi, soglie, bande e classificazione della decompressione sospesa;
+regolarità ≠ costrizione; chiusura spettrale da sola non è decompressione;
+`-8`/`-9` positivi da riverificare all'ascolto; marcatura temporale
+obbligatoria; robustezza al guadagno obbligatoria. Autorizzata solo
+diagnostica. Verifica D5 eseguita: l'ipotesi saturazione su `-8`/`-9` è
+smentita (basse con pochi attacchi, escursione 7–8 dB). La misura +12 dB su
+`decompresisone-1` (0,64→0,35) è superata da PIANO-059: era in clipping
+reale.
+In attesa: marcatura `mm:ss` dei campioni; chi la esegue lo stabilisce il
+Capo Supremo.
+DEP-001 e DEP-002 `NON COINVOLTO`.
+
+## Direttive a Qwen per le fasi oniriche — PIANO-058 — 2026-11-06
+
+**IN_PROGRESS (MACRO-044).** Fase 0 completata su direttiva vincolante del
+Vicario: workflow cumulativo Soglia → Qwen(Soglia) → Qwen(Soglia +
+Metamorfosi) → Qwen(Soglia + Metamorfosi + Condensazione), una sola
+definizione delle fasi, «STORY SO FAR» ritirato, log per fase; 820 test
+verdi. DEP-002 `AGGIORNARE` solo per isolamento. Disposizione del Capo Supremo:
+Soglia = riga degli scribacchini; Metamorfosi, Condensazione ed Eco con
+direttive a Qwen, che crea i prompt di Stable Diffusion. Misurato nei log
+dal 19 al 31 ottobre: 151 fasi accettate su 186, di cui 22 ricopiano il
+brief di fase; osservati cambi di genere, luogo e vestito. Da decidere D1–D5,
+fra cui quale immagine richiama l'Eco. Posizione del Vicario acquisita
+(`team/briefs/brief-vicario-fasi-qwen-materia-distintiva-2026-11-06.md`):
+descrizione della persona sempre nel prompt raster, nessun metalinguaggio,
+fasi distinte, materia distintiva trasformata e non sostituita, poi +10%
+parole; mappata come D6–D10. Il metalinguaggio nasce dal nostro prompt a
+Qwen («IMAGE 1 (THRESHOLD)», direttive con «image n»). Eseguite D7 (50
+parole) e D8 (rifiuto del metalinguaggio, `echo` escluso), 824 test verdi.
+Banco locale (§4.3 del piano): l'estrazione di persona/luogo/azione/oggetti
+non regge con Qwen 0.5B; i principi di filosofia.md §2 nella richiesta di
+fase portano le fasi senza materia da 38/48 a 3/24. Provati NSFW-3.2-1B e
+LFM2.5-2.6B: entrambi negativi. **Compromesso pronto per i test visivi**
+(§4.5): Qwen 0.5B, richiesta di fase con i principi, workflow cumulativo,
+D6 e D2 di compromesso da confermare. Aperti: persona alla lettera rara,
+cambi di genere. DEP-001 `NON COINVOLTO`.
+
+## Vector Morph: conformità e budget — PIANO-057 — 2026-11-04
+
+**BOZZA, attende approvazione (MACRO-043).** Richiesta del Capo Supremo: un
+piano serio per migliorare Vector Morph. Verificato nei log (8–31 ottobre):
+346 scene, mediana 51 forme, il 67% nel regime ultra pesante, dove si
+deformano al massimo 10 geometrie. Verificato nel codice: camera con
+parallasse coordinata, eco a quadro intero, fasi a orologio e pavimenti di
+moto nel silenzio, in contrasto con il Protocollo. Proposte: togliere camera,
+eco, orologio e pavimenti; abbassare `snicMaximumRegions` al valore misurato
+sui raster archiviati. Nessun codice modificato. DEP-001 e DEP-002 `NON COINVOLTO`.
+
+## Brief del Vicario: Riattivazione compatta e sequenze raster — 2026-11-02
+
+**ACQUISITO, nessun piano aperto e nessun codice modificato.** Testo integrale
+in `team/briefs/brief-riattivazione-compatta-sequenze-raster-2026-11-02.md`.
+Punti in attesa di decisione del Capo Supremo: la durata di 6–12 s (limite 15 s)
+non è compatibile con PIANO-054, che prevede ~34 s con una storia conclusa e
+nessun tetto, né con un raster per ogni storia in ogni Riattivazione; la
+successione semplice di raster del brief §8 confligge con il Check Transizione
+e va chiarita per il Check Silenzio. DEP-001 e DEP-002 `NON COINVOLTO` per ora;
+da rivalutare nel piano delle sequenze.
+
+## ANIMATRONIX senza morphing a spirale — PIANO-056 — 2026-10-31
+
+**BOZZA, attende approvazione (MACRO-042).** Segnalazione del Capo Supremo: il
+morphing a spirale è ancora visibile. Verificato: la rotazione ritirata con
+PIANO-047 non esiste più in sorgente e bundle. Ipotesi non misurata: il vortice
+viene dal morph a flusso del 2026-09-24, attivo su 26 passaggi su 32 nella
+sessione del 2026-10-31. Proposta: rimuoverlo e riusare la riserva radiale, con
+il rischio di passaggi più piatti. Nessun codice modificato. DEP-001 e DEP-002
+`NON COINVOLTO`.
+
+## Nessun italiano nella generazione delle storie — PIANO-055 — 2026-10-31
+
+**BOZZA, attende approvazione (MACRO-041).** Segnalazione del Capo Supremo:
+base curata in inglese, ma storia a video in italiano. Verificato sul log del
+2026-10-31: le righe base restano inglesi; l'italiano nasce solo nelle storie
+«Questo sogno» (percorso DEP-002, 2 su 9), entra nei prompt di Stable Diffusion
+(8 raster su 36) e si propaga a continuità e memoria lunga. Il prompt contiene
+tre innesti italiani; che ne siano la causa è dedotto, non provato. Nessun
+codice modificato. DEP-001 `NON COINVOLTO`; DEP-002 `AGGIORNARE`.
+
+## Riattivazione semplice e oblio progressivo — PIANO-054 — 2026-10-31
+
+**BOZZA, attende approvazione (MACRO-040).** Disposizione del Capo Supremo:
+semplificare le Riattivazioni e ridurre progressivamente i raster più vecchi,
+conservando i più significativi del sogno. Il divieto di ripetere un raster è
+stato ritirato lo stesso giorno. Decisa dal Capo Supremo la significatività per
+fase onirica (eco → metamorfosi → soglia → condensazione) e un raster sempre
+conservato per ogni storia, anche la più vecchia. Proposte da approvare:
+valori 3 e 2 per le due storie più vicine (D2); un solo passaggio con fine a
+fotogrammi sul beat (D3). Nessun codice modificato. DEP-001 e DEP-002 `NON COINVOLTO`.
+
 ## Libertà esplicita e blocco immagini d'emergenza — PIANO-053 — 2026-10-19
 
 **COMPLETATO.** Precisazione vincolante del Capo

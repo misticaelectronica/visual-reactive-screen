@@ -447,7 +447,6 @@ export type BrainVectorizationOptions = {
   contourCurveSmoothing: number
   contourMaximumPoints: number
   minimumContourAreaRatio: number
-  minimumStrongEdgeRecall: number
 }
 
 export type BrainRasterPixels = {

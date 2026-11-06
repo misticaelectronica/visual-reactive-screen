@@ -155,12 +155,11 @@ export const DEFAULT_BRAIN_RENDERING_CONFIG: BrainRenderingConfig = {
     snicStrongEdgeThreshold: 8,
     snicEdgeWeight: 0.7,
     snicMinimumRegionAreaRatio: 0.0006,
-    snicMaximumRegions: 72,
+    snicMaximumRegions: 24,
     contourSimplificationTolerance: 1.7,
     contourCurveSmoothing: 0.34,
     contourMaximumPoints: 2_400,
     minimumContourAreaRatio: 0.00008,
-    minimumStrongEdgeRecall: 0.7,
   },
   transformation: {
     enabled: true,
@@ -608,12 +607,6 @@ export function normalizeBrainRenderingConfig(
         DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumContourAreaRatio,
         0,
         0.02,
-      ),
-      minimumStrongEdgeRecall: finiteNumber(
-        vectorization.minimumStrongEdgeRecall,
-        DEFAULT_BRAIN_RENDERING_CONFIG.vectorization.minimumStrongEdgeRecall,
-        0,
-        1,
       ),
     },
     transformation: {

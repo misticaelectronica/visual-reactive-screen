@@ -54,7 +54,6 @@ const OPTIONS: BrainVectorizationOptions = {
   contourCurveSmoothing: 0.34,
   contourMaximumPoints: 800,
   minimumContourAreaRatio: 0.00008,
-  minimumStrongEdgeRecall: 0.7,
 }
 
 describe('segmentazione SNIC di Brain', () => {
@@ -137,24 +136,67 @@ describe('segmentazione SNIC di Brain', () => {
     expect(duration).toBeLessThan(3_000)
   })
 
-  it('mantiene VTracer come fallback quando il candidato SNIC non supera la qualità', () => {
+  it('usa VTracer solo quando il candidato SNIC non è strutturalmente usabile', () => {
     const width = 80
     const height = 64
-    const rgba = raster(width, height, (x, y) => {
-      const tile = (Math.floor(x / 4) + Math.floor(y / 4)) % 2
-      return tile === 0 ? [230, 226, 205] : [18, 27, 39]
-    })
+    const rgba = raster(width, height, (x) => (x < 40 ? [230, 226, 205] : [18, 27, 39]))
     const result = vectorizeBrainImage({ rgba, width, height }, {
       ...OPTIONS,
       fallbackToVTracer: true,
-      snicMaximumRegions: 8,
-      maximumAcceptedSpikes: 0,
-      maximumContourRoughness: 0.02,
-      minimumStrongEdgeRecall: 1,
     })
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.profile).not.toBe('snic-edge')
+  })
+
+  it('accetta SNIC anche quando rugosità e schegge superano le soglie di VTracer', () => {
+    const width = 192
+    const height = 128
+    const rgba = raster(width, height, (x, y) => {
+      if (Math.hypot(x - 44, y - 48) < 24) return [220, 170, 120]
+      if (x > 112 && x < 168 && y > 24 && y < 80) return [60, 120, 200]
+      if (Math.hypot(x - 88, y - 88) < 14) return [200, 60, 80]
+      if (x > 12 && x < 60 && y > 84 && y < 116) return [90, 190, 110]
+      if (y > 100) return [45, 58, 68]
+      return [20, 25, 34]
+    })
+    const result = vectorizeBrainImage({ rgba, width, height }, {
+      ...OPTIONS,
+      fallbackToVTracer: true,
+      maximumAcceptedSpikes: 0,
+      maximumContourRoughness: 0.02,
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.profile).toBe('snic-edge')
+  })
+
+  it('la fusione gerarchica assorbe i frammenti prima dei contorni degli oggetti', () => {
+    const width = 120
+    const height = 80
+    const rgba = raster(width, height, (x, y) => {
+      // Granelli piccoli e contrastati sullo sfondo: dettaglio, non oggetti.
+      if (x % 17 === 3 && y % 13 === 5) return [235, 235, 235]
+      if (x > 40 && x < 80 && y > 15 && y < 65) return [210, 90, 60]
+      return [24 + Math.floor(x / 20), 30, 40]
+    })
+    const result = segmentBrainRasterWithSnic(rgba, width, height, {
+      superpixelSize: 8,
+      compactness: OPTIONS.snicCompactness,
+      mergeColorThreshold: OPTIONS.snicMergeColorThreshold,
+      strongEdgeThreshold: OPTIONS.snicStrongEdgeThreshold,
+      edgeWeight: OPTIONS.snicEdgeWeight,
+      minimumRegionAreaRatio: 0,
+      maximumRegions: 2,
+    })
+
+    expect(result.regions.length).toBe(2)
+    const objectLabel = result.labels[40 * width + 60]
+    const backgroundLabel = result.labels[5 * width + 5]
+    expect(objectLabel).not.toBe(backgroundLabel)
+    // Il granello in (3, 5) è stato assorbito dallo sfondo.
+    expect(result.labels[5 * width + 3]).toBe(backgroundLabel)
   })
 })

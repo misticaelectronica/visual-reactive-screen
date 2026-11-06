@@ -427,3 +427,29 @@ export function calculateBrainFrameTiming(
     ),
   }
 }
+
+/**
+ * Ingresso rapido di materiale nuovo (disp. Capo Supremo, 2026-11-06): quando
+ * una storia nuova è pronta mentre girano immagini vecchie, il morph verso il
+ * suo primo fotogramma dura quanto l'ingresso del primissimo fotogramma
+ * (`firstFrameTransitionMs`), riallineato al beat. Cambia solo la
+ * transizione: la durata complessiva resta almeno quella richiesta, quindi
+ * l'immagine nuova resta in tenuta più a lungo, non meno.
+ */
+export function shortenBrainFrameEntryTransition(
+  timing: { transitionMs: number; holdMs: number; totalMs: number },
+  beatDurationMs: number,
+  requestedFrameDurationMs: number,
+): { transitionMs: number; holdMs: number; totalMs: number } {
+  const safeBeatDuration = Math.max(260, Math.min(1_200, beatDurationMs))
+  const targetMs = getBrainRenderingConfig().timing.firstFrameTransitionMs
+  const transitionMs = Math.min(
+    timing.transitionMs,
+    safeBeatDuration * Math.max(1, Math.round(targetMs / safeBeatDuration)),
+  )
+  return {
+    transitionMs,
+    holdMs: timing.holdMs,
+    totalMs: Math.max(requestedFrameDurationMs, transitionMs + timing.holdMs),
+  }
+}

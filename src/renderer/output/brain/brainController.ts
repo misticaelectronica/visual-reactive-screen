@@ -89,6 +89,7 @@ import {
   calculateBrainFrameTiming,
   selectBrainFrameMorphPattern,
   selectBrainRecycledFrameIndex,
+  shortenBrainFrameEntryTransition,
   type BrainFrameMorphPattern,
 } from './brainFrameMotion'
 import { reconcileBrainModelCache } from './brainModelCache'
@@ -621,6 +622,10 @@ export function createBrainController(
             destroyed,
           })
           if (destroyed) return
+          if (!text.trim()) {
+            brainWarn('pipeline', 'input online vuoto ignorato', {})
+            return
+          }
           // PIANO-051: la frase entra in brainPhrases.txt già riscritta,
           // quando Qwen la elabora per la sua storia dedicata.
           pendingOnlinePhrases.push(text)
@@ -1024,6 +1029,10 @@ export function createBrainController(
   // riattivata, intrappolando in un loop di raster vecchi invece di
   // avanzare (segnalato dal Capo Supremo, 2026-09-22).
   let revisionCycleCompletedForStoryId: string | null = null
+  // Il prossimo `applyFrame` è l'ingresso di una storia nuova che interrompe
+  // immagini vecchie (Riattivazione o ricircolo): morph rapido, vedi
+  // `shortenBrainFrameEntryTransition`.
+  let fastEntryPending = false
   const applySurfaceConfig = () => {
     const { edgeFeatherPx, edgeDarkness } =
       getBrainRenderingConfig().composition
@@ -1327,6 +1336,16 @@ export function createBrainController(
       currentFrameMorphPattern,
       revisionCycleActive,
     )
+    if (fastEntryPending) {
+      fastEntryPending = false
+      if (hadVisibleFrame) {
+        activeFrameTiming = shortenBrainFrameEntryTransition(
+          activeFrameTiming,
+          beatDurationMs,
+          frame.durationMs,
+        )
+      }
+    }
     const frameKey = `${currentProduction.story.id}:${frame.id}`
     const synchronizedRaster = scene.raster ?? rasterPreviewBlobs.get(frameKey)
     const rendererSettings = latestPayload?.settings
@@ -1761,6 +1780,13 @@ export function createBrainController(
     beatIndex: number,
   ): boolean => {
     if (revisionCycleActive || !currentProduction) return false
+    // Immagini nuove pronte: si va a quelle, nessuna Riattivazione di
+    // immagini vecchie (disp. Capo Supremo, 2026-11-06). La terna resta
+    // fissata per le Riattivazioni successive.
+    if (realNextProduction) {
+      rememberCompletedStory(currentProduction)
+      return false
+    }
     const completedStoryId = currentProduction.story.id
     if (completedStoryId.startsWith('revision:')) return false
     if (completedStoryId === revisionCycleCompletedForStoryId) return false
@@ -1867,7 +1893,6 @@ export function createBrainController(
         const onlineSourceText = pendingOnlinePhrases.shift() ?? null
         // PIANO-051 (disp. Capo Supremo 2026-10-19): ogni riga è un episodio
         // di quattro immagini; nessuna riga ripetuta fra episodi.
-        const context = brainPhrasesBeforeCursor(phraseCursor, 2)
         try {
           const coscienza = new CoscienzaOnirica(
             storyAi,
@@ -1914,14 +1939,63 @@ export function createBrainController(
               recentBridges,
               consciousnessInfluence,
             })
+            // Solo «Questo sogno» (DEP-002): una storia senza prompt per
+            // fotogramma passa la descrizione. Gli episodi hanno sempre il
+            // prompt di ogni fase (`storyFromLine`).
+            try {
+              const promptsFromOriginalStory = story.frames.map(
+                (frame) => frame.imagePrompt?.trim() || null,
+              )
+              if (promptsFromOriginalStory.every(
+                (prompt): prompt is string => prompt !== null,
+              )) {
+                brainLog(
+                  'psichedel',
+                  'uso diretto dei fotogrammi inglesi originali della storia AI',
+                  {
+                    storyId: story.id,
+                    effectivePrompts: promptsFromOriginalStory,
+                    roundTripTranslation: false,
+                    manipulation: false,
+                  },
+                )
+              } else {
+                story.frames.forEach((frame) => {
+                  frame.imagePrompt = frame.description
+                })
+                brainLog(
+                  'psichedel',
+                  'descrizioni inglesi riusate senza una seconda traduzione',
+                  {
+                    storyId: story.id,
+                    effectivePrompts: story.frames.map(
+                      (frame) => frame.imagePrompt,
+                    ),
+                    roundTripTranslation: false,
+                    manipulation: false,
+                  },
+                )
+              }
+            } catch (visualPlanError) {
+              if (destroyed) throw visualPlanError
+              brainWarn(
+                'psichedel',
+                'traduzione letterale non disponibile; passo la descrizione originale senza modificarla',
+                {
+                  storyId: story.id,
+                  error: visualPlanError,
+                },
+              )
+            }
           } else {
             let line: string
             if (onlineSourceText !== null) {
-              // Legata alla sola ULTIMA riga di contesto (disp. Capo Supremo
-              // 2026-10-19).
+              // Legata alla sola riga che precede (disp. Capo Supremo
+              // 2026-10-19). È il solo contesto esterno all'episodio e
+              // serve a scrivere la Soglia, non le fasi.
               line = await coscienza.rewritePublicPhrase(
                 onlineSourceText,
-                context.slice(-1),
+                brainPhrasesBeforeCursor(phraseCursor, 1),
               )
               insertOnlinePhraseIntoSessionSequence(line)
               brainLog('pipeline', 'storia dedicata a un input online', {
@@ -1937,15 +2011,10 @@ export function createBrainController(
               brainLog('pipeline', 'nuova riga della base curata inviata a CoscienzaOnirica', {
                 batchAttempt: attempts,
                 line,
-                context,
                 previousStoryId: previousStory?.title ?? null,
               })
             }
-            story = await coscienza.generateEpisode(line, {
-              context,
-              continuitySeed: continuityPhrase,
-              consciousnessInfluence,
-            })
+            story = await coscienza.generateEpisode(line, { consciousnessInfluence })
           }
           story.onlineSourceText = onlineSourceText
           // Ordinale = storie realmente PRODOTTE + in coda + questa. Prima
@@ -1972,51 +2041,6 @@ export function createBrainController(
                 -BRAIN_CONFIG.storyMemoryCount,
               )
             : recentBridges
-          try {
-            const promptsFromOriginalStory = story.frames.map(
-              (frame) => frame.imagePrompt?.trim() || null,
-            )
-            if (promptsFromOriginalStory.every(
-              (prompt): prompt is string => prompt !== null,
-            )) {
-              brainLog(
-                'psichedel',
-                'uso diretto dei fotogrammi inglesi originali della storia AI',
-                {
-                  storyId: story.id,
-                  effectivePrompts: promptsFromOriginalStory,
-                  roundTripTranslation: false,
-                  manipulation: false,
-                },
-              )
-            } else {
-              story.frames.forEach((frame) => {
-                frame.imagePrompt = frame.description
-              })
-              brainLog(
-                'psichedel',
-                'descrizioni inglesi riusate senza una seconda traduzione',
-                {
-                  storyId: story.id,
-                  effectivePrompts: story.frames.map(
-                    (frame) => frame.imagePrompt,
-                  ),
-                  roundTripTranslation: false,
-                  manipulation: false,
-                },
-              )
-            }
-          } catch (visualPlanError) {
-            if (destroyed) throw visualPlanError
-            brainWarn(
-              'psichedel',
-              'traduzione letterale non disponibile; passo la descrizione originale senza modificarla',
-              {
-                storyId: story.id,
-                error: visualPlanError,
-              },
-            )
-          }
           // Le storie ordinarie entrano nella memoria lunga subito; il
           // residuo di una storia dedicata a un input online entra invece
           // solo alla messa in onda, in startProduction — vedi lì.
@@ -2351,6 +2375,7 @@ export function createBrainController(
         storyId: currentProduction.story.id,
         nextStoryId: nextProduction.story.id,
       })
+      fastEntryPending = true
       advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
       return
     }
@@ -2502,8 +2527,9 @@ export function createBrainController(
     if (!currentProduction) return
     // Storia pronta mentre si ricicla in attesa: si parte SUBITO dal primo
     // fotogramma, senza aspettare la fine del fotogramma ricircolato né un
-    // beat (disp. Capo Supremo, 2026-09-24) — salvo ANIMATRONIX e
-    // Riattivazione, che non si interrompono.
+    // beat (disp. Capo Supremo, 2026-09-24) — salvo ANIMATRONIX, che non si
+    // interrompe. La Riattivazione invece cede alla storia nuova dopo
+    // l'immagine in corso (disp. Capo Supremo, 2026-11-06, più sotto).
     if (
       recyclingStoryFrames &&
       nextProduction &&
@@ -2517,6 +2543,7 @@ export function createBrainController(
         previousStoryId: currentProduction.story.id,
         nextStoryId: nextProduction.story.id,
       })
+      fastEntryPending = true
       advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
       return
     }
@@ -2524,7 +2551,14 @@ export function createBrainController(
     if (storyCycleCompletionReported) return
     if (animatronixRunning) return
     if (revisionCycleActive) {
-      if (now >= revisionCycleActiveUntil) {
+      // Materiale nuovo pronto (disp. Capo Supremo, 2026-11-06): la
+      // sequenza di immagini vecchie si interrompe subito, al primo beat, e
+      // si morpha rapidamente dall'immagine a schermo verso la storia nuova.
+      const readyNewProduction = pendingProductionAfterRevisionCycle ?? nextProduction
+      const revisionBeatAligned = onBeat || beatPhase <= 0.07 || beatPhase >= 0.93
+      const interruptForNewStory =
+        readyNewProduction !== null && revisionBeatAligned
+      if (now >= revisionCycleActiveUntil || interruptForNewStory) {
         revisionCycleActive = false
         root.dataset.revisionCycleActive = 'false'
         setBrainRevisionBoost(false)
@@ -2542,8 +2576,12 @@ export function createBrainController(
         pendingProductionAfterRevisionCycle = null
         brainLog('pipeline', 'riattivazione conclusa; generazione ripresa', {
           storyId: currentProduction.story.id,
+          interruptedForNewStory: interruptForNewStory,
+          revisionFrameIndex: frameIndex,
+          revisionFrameCount: currentProduction.story.frames.length,
         })
         if (resumedProduction) {
+          fastEntryPending = interruptForNewStory
           startProduction(resumedProduction, beatDurationMs, beatIndex)
         } else {
           void generateNext()
@@ -2577,6 +2615,7 @@ export function createBrainController(
           previousStoryId: currentProduction.story.id,
           nextStoryId: nextProduction.story.id,
         })
+        fastEntryPending = true
         advanceToNextProduction(nextProduction, beatDurationMs, beatIndex)
         return
       }

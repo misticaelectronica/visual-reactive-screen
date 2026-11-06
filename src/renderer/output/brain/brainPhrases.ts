@@ -11,6 +11,52 @@ export function parseBrainPhrases(raw: string): string[] {
 }
 
 /**
+ * Nomi dei personaggi della storia caricata: parole maiuscole (non a inizio
+ * frase) presenti in più di metà delle righe. Con le storie attuali: Sal,
+ * Paradise; Jim, Ray; Bardamu; Teo — nessun luogo. Servono a togliere i nomi
+ * dal prompt di Stable Diffusion, che non li conosce (disp. Capo Supremo
+ * 2026-11-06); Qwen invece li riceve.
+ */
+export function storyCharacterNames(phrases: readonly string[]): string[] {
+  const counts = new Map<string, number>()
+  for (const phrase of phrases) {
+    const words = new Set(
+      [...phrase.matchAll(/(?<![.!?]\s|^)\b([A-Z][a-z]+)\b/gu)].map((match) => match[1]),
+    )
+    words.forEach((word) => counts.set(word, (counts.get(word) ?? 0) + 1))
+  }
+  return [...counts].filter(([, count]) => count > phrases.length / 2).map(([word]) => word)
+}
+
+/**
+ * Toglie i nomi dei personaggi da un prompt raster. Una sequenza di nomi
+ * («Sal Paradise», «Ferdinand Bardamu») diventa «a man» /
+ * «a woman» secondo i pronomi del testo, altrimenti «a figure».
+ */
+export function withoutCharacterNames(text: string, names: readonly string[]): string {
+  if (names.length === 0) return text
+  const male = /\b(he|his|him|himself)\b/iu.test(text)
+  const female = /\b(she|her|hers|herself)\b/iu.test(text)
+  const noun = male && !female ? 'man' : female && !male ? 'woman' : 'figure'
+  const name = `(?:${names.join('|')})`
+  // Un nome proprio subito prima («Ferdinand» Bardamu) fa parte del nome,
+  // purché non apra la frase («Beside Sal…» resta «Beside a man…»).
+  const sequence = new RegExp(`\\b([A-Z][a-z]+\\s+)?${name}(?:\\s+${name})*\\b('s)?`, 'gu')
+  const atSentenceStart = (offset: number) => /(^|[.!?]\s+)$/u.test(text.slice(0, offset))
+  return text.replace(
+    sequence,
+    (_match, prefix: string | undefined, possessive: string | undefined, offset: number) => {
+      const kept = prefix && atSentenceStart(offset) ? prefix : ''
+      const start = offset + kept.length
+      const replacement = possessive ? `the ${noun}'s` : `a ${noun}`
+      return kept + (atSentenceStart(start)
+        ? replacement[0].toUpperCase() + replacement.slice(1)
+        : replacement)
+    },
+  )
+}
+
+/**
  * Rilegge `config/brainPhrases.txt`, sempre e solo quello: il campionamento
  * casuale di Brain non è mai alimentato dalla sessione pubblica online — le
  * frasi raccolte lì generano solo la loro storia dedicata una tantum (vedi

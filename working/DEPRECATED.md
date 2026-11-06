@@ -70,3 +70,10 @@ Per ogni intervento si registra una decisione:
   compatibile il ripristino testuale dell'esplicito, dismesso globalmente;
   nessuna nuova capacità aggiunta a `generate`. Stato, sostituto e criterio
   di dismissione del deprecato restano invariati.
+- **Audit 2026-11-06 — PIANO-058, Fase 0**: `AGGIORNARE`, solo isolamento.
+  Il riempimento di `imagePrompt` dalla descrizione nel controller ora vive
+  nel ramo «Questo sogno»; comportamento invariato, nessuna capacità
+  aggiunta. Su decisione del Capo Supremo gli episodi non usano più
+  `fallbackUiCore` e non hanno legame in uscita: «Questo sogno» non riceve
+  più un `continuitySeed` da loro. `fallbackUiCore` resta solo nel percorso
+  storico e va dismesso con esso.

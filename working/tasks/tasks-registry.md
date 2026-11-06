@@ -1,5 +1,86 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## PIANO-059 — Diagnostica della decompressione experimental (2026-11-06)
+
+- [x] **TASK-059-01 [DONE]**: schema marcature, libreria di replay,
+  `replay-annotated-corpus.mjs`, verifica con marcature sintetiche.
+- [x] **TASK-059-02 [DONE]**: gain sweep delle sei feature, sintesi.
+- [ ] **TASK-059-03 [TODO]**: misura delle failure mode.
+- [ ] **TASK-059-04 [TODO]**: proposta regolarità / conferma corporea.
+- [ ] **TASK-059-05 [TODO]**: revisione Audio.
+- [ ] **TASK-059-06 [BLOCKED]**: esperimento implementativo, solo dopo
+  approvazione.
+
+## PIANO-058 — Direttive a Qwen per le fasi oniriche (2026-11-06)
+
+- [x] **TASK-058-00a..g [DONE]**: pulizia del workflow (direttiva del
+  Vicario 2026-11-06): contesto cumulativo, una sola definizione delle fasi,
+  «STORY SO FAR» e `continuitySeed` fuori dall'episodio, log per fase, test
+  architetturali, documentazione; 820 test verdi.
+- [x] **TASK-058-00h [DONE]**: nessun prompt vuoto né titolo del fotogramma
+  come prompt a SD; 822 test verdi.
+- [x] **TASK-058-00i [DONE]**: `fallbackUiCore` fuori dagli episodi.
+- [ ] **TASK-058-01 [TODO]**: approvazione di D1–D10 (D6–D10 dalla
+  posizione del Vicario 2026-11-06).
+- [x] **TASK-058-04b [DONE]**: D7 (50 parole) e D8 (metalinguaggio senza
+  `echo`) con test.
+- [x] **TASK-058-02/03/06 [DONE]**: richiesta di fase con i principi,
+  documentazione (compromesso §4.5).
+- [ ] **TASK-058-08 [TODO]**: test visivi del Capo Supremo.
+- [ ] **TASK-058-02..05 [TODO]**: direttive di fase, istruzione comune,
+  rifiuto del brief ricopiato, test.
+- [ ] **TASK-058-06 [TODO]**: documentazione.
+- [ ] **TASK-058-07..08 [TODO]**: verifiche e collaudo del Capo Supremo.
+
+## PIANO-060 — Vector Morph: contorni a livello di oggetto (2026-11-06)
+
+- [x] **TASK-060-01 [DONE]**: misura di partenza su 96 raster (SNIC 0/96).
+- [x] **TASK-060-02 [DONE]**: fusione gerarchica Ward sul grafo di adiacenza.
+- [x] **TASK-060-03 [DONE]**: confini condivisi fra giunzioni, Douglas–Peucker
+  e Chaikin canonici, angoli del quadro ancorati.
+- [x] **TASK-060-04 [DONE]**: SNIC accettato se strutturalmente usabile;
+  `minimumStrongEdgeRecall` rimosso; `snicMaximumRegions` 72 → 24.
+- [x] **TASK-060-05 [DONE]**: test, typecheck, lint, README, skill.
+- [ ] **TASK-060-06 [TODO]**: collaudo del Capo Supremo a schermo.
+
+## PIANO-057 — Vector Morph: conformità al Protocollo e budget (2026-11-04)
+
+- [ ] **TASK-057-01..03 [TODO]**: misure di silenzio, forme per valore di
+  `snicMaximumRegions` e criteri della vettorializzazione.
+- [ ] **TASK-057-04..07 [TODO]**: camera, eco, fase dal beat, silenzio a zero.
+- [ ] **TASK-057-08..09 [TODO]**: budget della vettorializzazione e criteri
+  che non decidono.
+- [ ] **TASK-057-10 [TODO]**: documentazione; assorbe TASK-012-05.
+- [ ] **TASK-057-11..12 [TODO]**: verifiche e collaudo del Capo Supremo.
+
+## PIANO-056 — ANIMATRONIX senza morphing a spirale (2026-10-31)
+
+- [ ] **TASK-056-01..03 [TODO]**: rimuovere il morph a flusso da shader, analisi,
+  stage e controller.
+- [ ] **TASK-056-04..05 [TODO]**: test e documentazione.
+- [ ] **TASK-056-06..07 [TODO]**: verifiche e collaudo del Capo Supremo.
+- [ ] **TASK-056-08 [TODO]**: taglio di `perspective-melt`, solo se la spirale
+  resta visibile.
+
+## PIANO-055 — Nessun italiano nella generazione delle storie (2026-10-31)
+
+- [ ] **TASK-055-01..02 [TODO]**: togliere titolo e blocco italiano dal prompt
+  di «Questo sogno».
+- [ ] **TASK-055-03..04 [TODO]**: frase fissa del legame e system prompt `scene`
+  in inglese.
+- [ ] **TASK-055-05..06 [TODO]**: test e audit DEP-002.
+- [ ] **TASK-055-07..08 [TODO]**: verifiche e collaudo del Capo Supremo.
+
+## PIANO-054 — Riattivazione semplice e oblio progressivo (2026-10-31)
+
+- [ ] **TASK-054-01..03 [TODO]**: selezione per fase onirica, conteggio 3-2-1 per
+  distanza con un raster sempre conservato, rimozione dei giri in
+  `dreamRevisionCycle.ts`.
+- [ ] **TASK-054-04..06 [TODO]**: cablaggio in `brainController.ts`, fine a
+  fotogrammi sul beat, log di collaudo.
+- [ ] **TASK-054-07 [TODO]**: aggiornamento di skill e commenti.
+- [ ] **TASK-054-08..10 [TODO]**: test, build e collaudo del Capo Supremo.
+
 ## PIANO-053 — Libertà esplicita e blocco immagini d'emergenza (2026-10-19)
 
 - [x] **TASK-053-01..04 [DONE]**: dismettere ripristino, verifica,

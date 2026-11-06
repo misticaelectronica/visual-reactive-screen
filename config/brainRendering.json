@@ -74,12 +74,11 @@
     "snicStrongEdgeThreshold": 8,
     "snicEdgeWeight": 0.7,
     "snicMinimumRegionAreaRatio": 0.0006,
-    "snicMaximumRegions": 72,
+    "snicMaximumRegions": 24,
     "contourSimplificationTolerance": 1.7,
     "contourCurveSmoothing": 0.34,
     "contourMaximumPoints": 2400,
-    "minimumContourAreaRatio": 0.00008,
-    "minimumStrongEdgeRecall": 0.7
+    "minimumContourAreaRatio": 0.00008
   },
   "transformation": {
     "enabled": true,

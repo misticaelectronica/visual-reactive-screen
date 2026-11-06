@@ -40,7 +40,6 @@ const VECTOR_OPTIONS = {
   contourCurveSmoothing: 0.34,
   contourMaximumPoints: 2_400,
   minimumContourAreaRatio: 0.00008,
-  minimumStrongEdgeRecall: 0.7,
 }
 
 const ONE_PIXEL_PNG =
