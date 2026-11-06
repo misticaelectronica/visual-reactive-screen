@@ -3088,3 +3088,97 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
   Ora con storia pronta la Riattivazione non parte, e se la storia arriva
   durante la Riattivazione questa si interrompe al primo beat. Morph rapido
   anche al confine normale di storia.
+
+## 2026-11-06 — PIANO-061: STORY CONSTELLATION, fase 1
+
+- **Obiettivo**: brief STORY CONSTELLATION; richiesta del Capo Supremo:
+  colori e pulsazioni della costellazione a ritmo, presenza anche all'avvio,
+  giri di 5/15/25 s.
+- **Fatto**: branch `feature/story-constellation`; brief archiviato; deroga
+  Camera e accettazione di Three.js in `agents.md`; `three` aggiunto;
+  `brainStoryConstellation.ts` (logica pura, 14 test) e
+  `brainStoryConstellationStage.ts` (Three.js); aggancio in
+  `brainController.ts` dopo ANIMATRONIX e all'avvio; impostazione
+  `storyConstellationEnabled` (default spento) con interruttore nel pannello.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Verifica**: typecheck, lint, 846 test, vite build verdi. Collaudo a
+  schermo non eseguito.
+- **Stato finale**: fase 1 in attesa di collaudo; fasi 2–4 da fare.
+
+## 2026-11-06 — PIANO-061: navigazione, ingresso e uscita dai nodi
+
+- **Obiettivo**: «navigare dentro la struttura, avvicinarsi a un nodo fino
+  ad entrare in una storia e scorrerla tutta»; «come ci è entrato ci esce e
+  va a cercare altre storie in altri nodi».
+- **Fatto**: camera su `CatmullRomCurve3`, giri che sfiorano 1–3 nodi,
+  target dalla storia pronta, soglia NODO → MASSA → CAMPO → RASTER per
+  ingresso e la stessa all'indietro per l'uscita; avvio della storia
+  all'ingresso; nessuna Riattivazione mentre la costellazione è attiva.
+- **Verifica**: typecheck, lint, 851 test, vite build. Collaudo a schermo
+  non eseguito.
+
+## 2026-11-06 — PIANO-061: navigazione costante e colore al beat
+
+- **Obiettivo**: navigazione veloce, fluida, a velocità costante, partenza
+  da dentro la costellazione, colore di nodi e linee al beat, qualità di
+  rendering ridotta.
+- **Fatto**: camera a velocità costante con virata limitata al posto delle
+  curve per giro; soglia legata alla distanza dal nodo; rotazione di tinta
+  per beat; pixel ratio 0,75, niente antialias, meno allocazioni per frame.
+- **Verifica**: typecheck, lint, 855 test, vite build; simulazione numerica
+  della navigazione. Collaudo a schermo non eseguito.
+
+## 2026-11-06 — PIANO-061: scatti della navigazione
+
+- **Diagnosi** (log della sessione 16:06): fermi di 100–391 ms dell'output
+  durante Qwen e denoising SD; ~25% dei fotogrammi persi.
+- **Fatto**: passo massimo 34 ms per frame; GPU riservata alla costellazione
+  quando la storia in cui entrare è già pronta.
+- **Aperto**: durante la generazione della storia attesa la GPU resta
+  condivisa; decisione al Capo Supremo.
+- **Seguito**: secondo log conferma la causa; la camera ora si ferma
+  dolcemente mentre la GPU genera e riparte quando è libera. 855 test verdi.
+- **Seguito 2**: tolti gli scatti interni alla scena Three.js (legami a
+  comparsa, nodi vicini alla camera, ribaltamento, rete che cambiava
+  direzione, stop-and-go del freno); simulazione a 120 Hz pulita.
+- **Seguito 3**: misurato lo stage vero in Electron (120 Hz pieni); la causa
+  degli scatti era la camera che guardava il vuoto in una rete troppo rada.
+  192 nodi, contenimento, sguardo lungo la marcia, risoluzione piena.
+- **Seguito 4**: camera ferma per il freno GPU sempre acceso → freno
+  rimosso; glitch a fasce sui blocchi reali dei frame, verificato con un
+  blocco forzato.
+
+## 2026-11-06 — Linee guida delle storie: scribacchini e Qwen separati
+
+- **Richiesta del Capo Supremo**: rivedere le linee guida delle storie senza
+  confondere il lavoro degli scribacchini con quello di Qwen 0.5B, con
+  istruzioni perché a Qwen arrivi la storia migliore possibile.
+- **Fatto**: `docs/linee-guida-storie-brain.md` riscritto. Tabella chi fa
+  cosa (scribacchini → Soglia; Qwen → Metamorfosi/Condensazione/Eco;
+  Stable Diffusion → immagini); cosa vede Qwen (solo la riga); regole della
+  storia separate dalle regole della riga. Regole nuove della riga,
+  ricavate dal codice e dalle misure di PIANO-058: riga autosufficiente,
+  secondari descritti o senza nome, scena ferma nel primo assetto (le
+  trasformazioni sono di Qwen), materiale nominato. Le ultime due marcate
+  «da verificare al collaudo».
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO` (solo documento).
+- **Codice**: nessuna modifica.
+- **Seguito 5**: vecchia TV sui blocchi, ingresso enfatizzato con zoom al
+  massimo, flusso vecchio neurone / storia nuova con due immagini; corretti
+  orbita attorno al nodo e tolleranza d'arrivo. ANIMATRONIX da fare.
+
+## 2026-11-06 — Tempo del fotogramma in silenzio e pannello «buffer grezzo»
+
+- **Diagnosi** (log `session-2026-11-06-18-44-46.txt`): primo fotogramma
+  fermo 2 min e 20 s. In silenzio dall'avvio (17:44:52) al suono
+  (~17:46:35); il fotogramma era partito alle 17:45:58 e alla ripresa la
+  compensazione aggiungeva anche i 66 s di silenzio precedenti al suo
+  inizio. Difetto preesistente, reso visibile dalla costellazione che fa
+  partire la storia anche in silenzio.
+- **Fatto**: `applyFrame` fa partire il fotogramma dall'istante in cui la
+  timeline è ferma (`consciousnessMotionPausedAt ?? silenceStartedAt ??
+  performance.now()`). Nuova impostazione `showRawBufferMonitor` (default
+  spento) con interruttore «Buffer grezzo» nel pannello: mostra o nasconde
+  «PSICHEDEL // BUFFER GREZZO».
+- **Verifica**: typecheck, lint, 855 test. Collaudo dal vivo da eseguire.
+

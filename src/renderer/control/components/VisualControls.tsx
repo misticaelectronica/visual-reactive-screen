@@ -197,6 +197,22 @@ export function VisualControls({ settings, onChange }: Props) {
           <label className="inline">
             <input
               type="checkbox"
+              checked={settings.storyConstellationEnabled === true}
+              onChange={(e) => onChange({ storyConstellationEnabled: e.target.checked })}
+            />
+            <strong>STORY CONSTELLATION</strong> — rete di storie fra un ciclo e l'altro e all'avvio
+          </label>
+          <label className="inline">
+            <input
+              type="checkbox"
+              checked={settings.showRawBufferMonitor === true}
+              onChange={(e) => onChange({ showRawBufferMonitor: e.target.checked })}
+            />
+            <strong>Buffer grezzo</strong> — pannello delle immagini grezze a destra dell'Output
+          </label>
+          <label className="inline">
+            <input
+              type="checkbox"
               checked={settings.blockExplicitImages === true}
               onChange={(e) => onChange({ blockExplicitImages: e.target.checked })}
             />

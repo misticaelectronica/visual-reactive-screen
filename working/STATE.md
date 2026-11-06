@@ -1,5 +1,37 @@
 # Stato Globale del Progetto (`STATE.md`)
 
+## Linee guida delle storie: scribacchini e Qwen separati — 2026-11-06
+
+**FATTO, solo documento.** `docs/linee-guida-storie-brain.md` riscritto su
+richiesta del Capo Supremo: chi fa cosa (scribacchini / Qwen 0.5B / Stable
+Diffusion), cosa vede Qwen (solo la riga), regole della storia separate da
+quelle della riga. Nuove regole della riga: autosufficiente, secondari
+descritti o senza nome, scena ferma nel primo assetto, materiale nominato
+(le ultime due da verificare al collaudo). Nessun codice. DEP-001 e DEP-002
+`NON COINVOLTO`.
+
+## STORY CONSTELLATION — PIANO-061 — 2026-11-06
+
+**FASE 1 FATTA, collaudo a schermo da eseguire (MACRO-046).** Branch
+`feature/story-constellation`. Decisioni del Capo Supremo: Three.js accettato,
+deroga Camera per STORY CONSTELLATION accettata (in `agents.md`), costellazione
+anche all'avvio senza raster, giri di 5/15/25 s a caso. Fatto: 48 nodi-storia
+su `Points` + `LineSegments` come l'esempio Three.js; pulse a evento che
+parte dal nodo fuoco e attraversa gli archi (fuoco > vicini > periferia);
+colore come metabolismo del regime bio-percettivo; residuo di memoria sul
+nodo della storia conclusa. Ciclo: STORIA → ANIMATRONIX → COSTELLAZIONE →
+confine di storia. Interruttore `STORY CONSTELLATION` nel pannello, default
+spento. Aggiornamento stesso giorno: la camera naviga dentro la rete in giri
+da 5/15/25 s, cerca il nodo della storia pronta, ci entra (nodo → massa →
+campo → raster per soglia di luminanza), la storia scorre tutta, poi esce
+dallo stesso nodo lungo la stessa soglia e cerca altre storie. Con la
+costellazione attiva, se la storia successiva non è pronta si resta nella
+rete invece della Riattivazione. Revisione: velocità di navigazione
+costante (150 u/s) con virata limitata, nessuno scatto ai cambi di meta;
+partenza dal centro della rete; colore di nodi e linee che ruota a ogni
+beat; pixel ratio 0,75, niente antialias. 855 test verdi, typecheck, lint, vite build.
+DEP-001 e DEP-002 `NON COINVOLTO`.
+
 ## Vector Morph: contorni a livello di oggetto — PIANO-060 — 2026-11-06
 
 **FATTO, collaudo a schermo da eseguire (MACRO-043).** Disposizione del Capo

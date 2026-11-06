@@ -249,6 +249,27 @@ Per ANIMATRONIX restano applicati, fino a diversa decisione della Direzione
 Visual: **Silenzio** (punto 3), **Beatmatch** (punto 4) e **Transizione**
 (punto 5). L'eccezione non modifica gli altri principi del protocollo.
 
+#### Eccezione Camera — STORY CONSTELLATION
+
+Il **Check Camera** (punto 1) **non si applica durante la fase STORY
+CONSTELLATION** (deroga accettata dal Capo Supremo il 6 novembre 2026, brief
+in [`team/briefs/`](team/briefs/brief-story-constellation-2026-11-06.md),
+§13). È una deroga distinta da quella di ANIMATRONIX, non un'estensione.
+
+All'interno di STORY CONSTELLATION la camera può attraversare la rete,
+orientarsi, rallentare, deviare, agganciare un target, accelerare
+moderatamente ed entrare nel nodo (brief §13).
+
+La deroga riguarda **esclusivamente STORY CONSTELLATION**. Per questa fase
+restano applicati **Silenzio** (punto 3), **Beatmatch** (punto 4) e
+**Transizione** (punto 5).
+
+### Three.js (decisione del Capo Supremo 2026-11-06)
+
+Three.js è accettato nel progetto: «da oggi si parte con il 3d». Il primo
+componente che lo usa è STORY CONSTELLATION
+([`brainStoryConstellationStage.ts`](src/renderer/output/brain/brainStoryConstellationStage.ts)).
+
 ### Filosofia Di Brain — Rimando A [`filosofia.md`](filosofia.md)
 
 Le fondamenta teoriche della filosofia di Brain vivono in **[`filosofia.md`](filosofia.md)**

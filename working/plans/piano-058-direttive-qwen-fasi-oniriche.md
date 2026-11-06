@@ -519,3 +519,8 @@ percorso storico (DEP-002) e se ne va con la sua dismissione.
   e rimozione algoritmica in `buildPsychedelImagePrompt` per tutti i prompt
   raster, Soglia compresa. Limite noto: i nomi secondari presenti in meno di
   metà delle righe (Dean, Mira, John) non vengono tolti. 828 test verdi.
+- **2026-11-06**: su richiesta del Capo Supremo, linee guida degli
+  scribacchini riscritte per separare il loro lavoro (Soglia) da quello di
+  Qwen (tre fasi): tabella chi fa cosa, regole della storia e della riga,
+  nuove regole su riga autosufficiente, secondari, scena ferma e materiale
+  nominato. Nessun codice modificato.

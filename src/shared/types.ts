@@ -127,6 +127,10 @@ export interface AppSettings {
   alternateBrainWithMorphing: boolean
   /** ANIMATRONIX: fase post-storia che anima i 4 raster della storia conclusa. Default spento. */
   animatronixEnabled: boolean
+  /** STORY CONSTELLATION: rete 3D di nodi-storia fra una storia e l'altra e all'avvio (PIANO-061). Default spento. */
+  storyConstellationEnabled: boolean
+  /** Pannello «PSICHEDEL // BUFFER GREZZO» a destra dell'Output. Default spento. */
+  showRawBufferMonitor: boolean
   brainRendererId: BrainRendererId
   brainRendererMode: BrainRendererMode
   brainRendererRotationMs: number

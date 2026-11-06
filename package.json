@@ -1,6 +1,6 @@
 {
   "name": "mevrs-origine-fx",
-  "version": "1.0.0-rc.13",
+  "version": "1.0.0-rc.14",
   "description": "App desktop Electron: uscita HDMI a colori reattiva all'audio (MVP).",
   "author": "",
   "private": true,
@@ -24,6 +24,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "serialport": "^13.0.0",
+    "three": "^0.187.0",
     "web-txt2img": "0.3.1"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.187.0",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "@vitejs/plugin-react": "^4.3.4",

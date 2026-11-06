@@ -77,3 +77,11 @@ Per ogni intervento si registra una decisione:
   `fallbackUiCore` e non hanno legame in uscita: «Questo sogno» non riceve
   più un `continuitySeed` da loro. `fallbackUiCore` resta solo nel percorso
   storico e va dismesso con esso.
+- **Audit 2026-11-06 — PIANO-061, «Questo sogno» nelle storie**:
+  `AGGIORNARE`, solo correzione. Fatto verificato (log
+  `session-2026-11-06-18-30-48.txt`, 17:40): Qwen ricopiava l'istruzione
+  «The title must be exactly: Questo sogno» in storia, scene e prompt
+  dell'immagine. Tolta l'istruzione dal prompt; il titolo resta impostato
+  dal codice dopo la generazione. Nessuna capacità aggiunta; stato,
+  sostituto e criterio di dismissione invariati.
+
