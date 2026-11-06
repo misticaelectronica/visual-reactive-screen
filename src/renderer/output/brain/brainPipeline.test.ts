@@ -1690,6 +1690,17 @@ describe("invariante: nessuna invenzione quando non lo si trova", () => {
     expect(prompt).toContain('A woman walks along a flooded corridor')
     expect(prompt).not.toContain('INVARIANT:')
   })
+
+  it('un fotogramma senza testo è rifiutato, mai sostituito dal titolo', () => {
+    const story = { id: 'story-empty', invariant: '' } as unknown as DreamStory
+    const frame = {
+      id: 'frame-1',
+      title: 'Soglia',
+      description: '   ',
+      imagePrompt: '',
+    } as unknown as Parameters<typeof buildPsychedelImagePrompt>[1]
+    expect(() => buildPsychedelImagePrompt(story, frame)).toThrow('non ha testo utilizzabile')
+  })
 })
 
 describe('chi sogna non è Stable Diffusion — nessun concetto passa fra fotogrammi', () => {

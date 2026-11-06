@@ -1,5 +1,74 @@
 # Storico delle Sessioni di Lavoro (`session-history.md`)
 
+## SESSION-2026-11-06-PIANO-060-CONTORNI-VECTOR-MORPH
+
+- Richiesta del Capo Supremo: contorni degli oggetti di Vector Morph meno
+  dettagliati e frammentati, cercando tecniche online.
+- Audit preventivo dei deprecati: DEP-001 e DEP-002 `NON COINVOLTO`.
+- Ricerca: fusione gerarchica su grafo di adiacenza (H-SPAM, Lézoray,
+  Verdoja); confini condivisi semplificati una volta (brevetti
+  US8553985/US8687895, GRASS/QGIS generalize, Chaikin).
+- Misura su 96 raster di `dream-images/`: SNIC scartato 96/96, a schermo
+  sempre VTracer (mediana 59 forme, max 227).
+- Aperto PIANO-060 (MACRO-043); implementati fusione Ward, confini condivisi,
+  accettazione strutturale di SNIC, budget 24. Dopo: SNIC 96/96, mediana 23
+  forme, mediana 272 ms.
+- Stato finale: typecheck, lint, 832 test verdi; collaudo a schermo da fare.
+
+## SESSION-2026-11-06-PIANO-059-FASI-1-2
+
+- Ricevuta e archiviata l'autorizzazione dell'Analisi Audio
+  (`team/briefs/brief-audio-autorizzazione-piano-059-2026-11-06.md`).
+  Audit dei deprecati: DEP-001 e DEP-002 `NON COINVOLTO`.
+- Aperto PIANO-059 (MACRO-045).
+- Fase 1: libreria `scripts/calibration/lib/corpusReplay.mjs`, schema
+  `docs/campioni/marcature.json` con i 19 campioni e nessuna regione, guida
+  `MARCATURE.md`, `replay-annotated-corpus.mjs`. Verificata con marcature
+  sintetiche in scratchpad, mai salvate: quote identiche ad
+  `assert-regime-corpus.mjs` sullo stesso downmix, quattro errori di
+  validazione intercettati.
+- Fase 2: `gain-sweep-features.mjs` su 19 file × 6 livelli. Trovato e
+  corretto nella libreria nuova il downmix +3 dB del grafo `concat`; gli
+  script storici restano invariati, e su 19 file nessun regime dominante
+  cambia per questo. Superata la misura +12 dB della §7 di stamattina
+  (clipping reale).
+- Stato finale: Fasi 1 e 2 completate, runtime invariato,
+  `assert-regime-corpus` verde.
+
+## SESSION-2026-11-06-DECOMPRESSIONE-8-9
+
+- Richiesta del Capo Supremo: usare `decompressione-8.mp3` e
+  `decompressione-9.mp3` per migliorare la taratura della decompressione.
+- Audit preventivo dei deprecati: DEP-001 e DEP-002 `NON COINVOLTO`.
+- Replay dei 7 campioni di decompressione con
+  `compare-audio-regimes.mjs`: `decompression` experimental su 0 file su 7.
+  I due JSON tracciati sovrascritti dallo script sono stati ripristinati.
+- Timeline per finestra su `-8`/`-9`: bande, `eventActivity`, `recurrence` e
+  `cyclePersistence` piatti; `constraint` sale per l'avvio dell'ancoraggio
+  e cala al massimo di 0,009. Nessuna soglia esistente può produrre
+  `falling`.
+- Misura ffmpeg: chiusura spettrale a volume costante in `-8`/`-9`, assente
+  nei `decompresisone*` (stazionari) e diversa da `-7` (dissolvenza di
+  volume).
+- Stato finale: nessuna modifica al runtime. Nota in
+  `working/calibration-v1/decompressione-8-9-replay-2026-11-06.md`; in
+  attesa di decisione sull'osservabile e di campioni più lunghi.
+- Su richiesta del Capo Supremo, brief tecnico al Capo Supremo dell'Analisi
+  Audio: `team/briefs/brief-ingegneria-decompressione-non-tarabile-2026-11-06.md`.
+  Nuovo dato: `physicalConfirmation` ≈ 0 su `-8`/`-9` con `low` a 0,97–0,99
+  (ipotesi: banda `low` saturata dal livello alto del master).
+- Ricevuta e archiviata la risposta dell'Analisi Audio
+  (`team/briefs/brief-audio-decisioni-decompressione-2026-11-06.md`).
+  Eseguita la verifica D5 da essa richiesta, replay a −18…+12 dB: ipotesi
+  saturazione smentita su `-8`/`-9`; sensibilità al guadagno confermata su
+  `decompresisone-1` (`physicalConfirmation` 0,64→0,35 a +12 dB). Dettagli
+  in §7 della nota di calibrazione. Nessun codice modificato.
+- Correzione su richiamo del Capo Supremo: ascolto e marcatura dei file non
+  sono compiti del Capo Supremo dell'Analisi Audio. Riformulati D3 del brief
+  Ingegneria (da richiesta di marcatura a domanda di principio), la nota di
+  calibrazione e `STATE.md`: l'esecutore della marcatura lo stabilisce il
+  Capo Supremo.
+
 ## SESSION-2026-10-10-APERTURA-DMX
 
 - Release `1.0.0-rc.9` pushata su `feature/animatronix-v1-grammatiche`.
@@ -2873,3 +2942,149 @@ Registro cronologico delle sessioni di sviluppo e manutenzione per **Mistica Ele
 - **Stato finale**: PIANO-053 completato; nessuna modifica a camera, audio,
   renderer, low power o protezione bambini.
 
+## 2026-10-31 — PIANO-054: Riattivazione semplice e oblio progressivo
+
+- **Obiettivo**: pianificare la disposizione del Capo Supremo: semplificare le
+  Riattivazioni e ridurre progressivamente i raster più vecchi, conservando i
+  più significativi del sogno.
+- **Revisione**: il divieto di ripetere un raster, chiesto in apertura, è stato
+  ritirato dal Capo Supremo nella stessa sessione; il piano è stato riscritto
+  senza consumo dei raster e senza modifiche al ricircolo. Seconda revisione:
+  ogni storia conserva sempre un raster, nessuna sparisce del tutto.
+- **Analisi**: memoria mai svuotata, tre giri, fine a tempo che tronca il
+  terzo giro.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Stato finale**: creati PIANO-054 (BOZZA) e MACRO-040; aggiornati STATE e
+  registro task. Nessun codice modificato; attesa approvazione di D2 e D3.
+
+## 2026-10-31 — PIANO-055: nessun italiano nella generazione delle storie
+
+- **Obiettivo**: capire perché con base inglese a video compare una storia
+  italiana e pianificare la correzione.
+- **Analisi**: sul log `session-2026-10-31-13-22-27` l'italiano nasce solo in
+  «Questo sogno», finisce nei prompt raster e si propaga a continuità e memoria
+  lunga, fino a caricare il traduttore.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 `AGGIORNARE`.
+- **Stato finale**: creati PIANO-055 (BOZZA) e MACRO-041. Nessun codice
+  modificato; attesa approvazione di D2 e D3.
+
+## 2026-10-31 — PIANO-056: ANIMATRONIX senza morphing a spirale
+
+- **Obiettivo**: pianificare la rimozione della spirale ancora visibile.
+- **Analisi**: rotazione di PIANO-047 assente da sorgente e bundle; primo
+  candidato il morph a flusso, secondo `perspective-melt`. Causa non misurata.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Stato finale**: creati PIANO-056 (BOZZA) e MACRO-042. Nessun codice
+  modificato; attesa approvazione di D1 e D2.
+
+## 2026-11-02 — Acquisizione brief del Vicario: Riattivazione compatta e sequenze raster
+
+- **Obiettivo**: acquisire il brief e fare il punto sulle cose aperte.
+- **Fatto**: brief archiviato integralmente in `team/briefs/`; confronto con
+  PIANO-054 e con il Protocollo di Verifica Filosofia Visiva.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`, da rivalutare nel
+  piano delle sequenze.
+- **Stato finale**: nessun codice modificato; attese le decisioni del Capo
+  Supremo su durata e transizioni.
+
+## 2026-11-04 — PIANO-057: Vector Morph, conformità e budget
+
+- **Obiettivo**: piano per migliorare Vector Morph, su richiesta del Capo Supremo.
+- **Analisi**: codice di plugin, scena SVG, controllo qualità e
+  vettorializzazione; log dall'8 al 31 ottobre (346 scene, 67% ultra pesanti).
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Stato finale**: creati PIANO-057 (BOZZA) e MACRO-043. Nessun codice
+  modificato; attesa approvazione di D1–D5 e D7, D6 dopo la misura.
+
+## 2026-11-06 — Analisi della pipeline narrativa e PIANO-058
+
+- **Obiettivo**: su richiesta del Capo Supremo, analisi del codice dalla riga
+  al raster (continuità visiva fra fasi e fra cicli), confronto con il
+  brief del Vicario «Sogno reichiano», poi un piano per le fasi scritte da
+  Qwen.
+- **Analisi**: generazione SD 1.5 solo text-to-image, seed distinto per
+  fotogramma, nessun raster precedente come riferimento; continuità visiva
+  reale solo a livello di sogno (Riattivazione). Log dal 19 al 31 ottobre:
+  62 episodi, 151 fasi accettate su 186, 22 brief ricopiati.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Stato finale**: creati PIANO-058 (BOZZA) e MACRO-044. Nessun codice
+  modificato; attesa approvazione di D1–D5.
+
+## 2026-11-06 — PIANO-058, Fase 0: pulizia del workflow narrativo Qwen
+
+- **Obiettivo**: direttiva vincolante del Vicario — workflow dell'episodio
+  lineare, cumulativo, con una sola sorgente di verità, prima di D1–D5.
+- **Fatto**: `generateEpisode` cumulativo; `EPISODE_THRESHOLD` +
+  `EPISODE_PHASES` unica definizione; «STORY SO FAR» e `continuitySeed`
+  fuori dall'episodio; fotogrammi costruiti una volta; blocco legacy
+  confinato a «Questo sogno»; log per fase; test architetturali; workflow
+  ufficiale in `src/renderer/output/skills.md`.
+- **Audit deprecati**: DEP-001 `NON COINVOLTO`; DEP-002 `AGGIORNARE` solo
+  isolamento.
+- **Verifiche**: typecheck, lint, 820 test verdi. Collaudo dal vivo non
+  eseguito.
+- **Stato finale**: Fase 0 completata; D1–D5 in attesa.
+
+## 2026-11-06 — PIANO-058: posizione del Vicario sulle fasi Qwen
+
+- **Obiettivo**: acquisire la posizione del Vicario (continuità della
+  persona, metalinguaggio, fasi distinte, materia distintiva, +10% parole).
+- **Fatto**: testo integrale archiviato in
+  `team/briefs/brief-vicario-fasi-qwen-materia-distintiva-2026-11-06.md`;
+  mappato in PIANO-058 §4.1 come D6–D10. Rilevato che il metalinguaggio
+  nasce dal prompt a Qwen (etichette «IMAGE n (PHASE)» e direttive con
+  «image n»). Il punto 5 manca nel testo ricevuto.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Verifiche**: nessun codice modificato.
+- **Stato finale**: D1–D10 in attesa di approvazione.
+
+## 2026-11-06 — PIANO-058: D7, D8 e diagnosi D10
+
+- **Obiettivo**: decisioni del Capo Supremo su D6–D10.
+- **Fatto**: D7 (massimo 50 parole) e D8 (rifiuto di `image n`,
+  `metamorphosis`, `condensation`, `elements of images`, `previous image`;
+  `echo` escluso) con test. Diagnosi D10 sui log 19–31 ottobre e con banco
+  locale del modello: le copie della direttiva non nascono da una Soglia
+  vuota ma dalla direttiva procedurale della Condensazione; l'estrazione
+  di persona/luogo/azione/oggetti non regge con Qwen 0.5B; i principi di
+  filosofia.md §2 nella richiesta di fase migliorano la materia conservata.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Verifiche**: typecheck, lint, 824 test verdi. Collaudo dal vivo non
+  eseguito.
+- **Stato finale**: D6 da chiarire; disegno della richiesta di fase
+  (D9/D10) in attesa di decisione.
+
+## 2026-11-06 — PIANO-058: confronto modelli e compromesso per i test visivi
+
+- **Obiettivo**: provare modelli alternativi a Qwen 0.5B; altrimenti il
+  compromesso migliore per passare ai test visivi.
+- **Fatto**: NSFW-3.2-1B (ONNX della PR #1, q4 in locale) e LFM2.5-2.6B
+  provati sul banco: negativi, archiviati nel piano (§4.4). Adottato Qwen
+  0.5B con richiesta di fase basata sui principi, workflow cumulativo,
+  regole di non censura e inquadratura mantenute. Documentazione
+  aggiornata.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Verifiche**: typecheck, lint, 824 test verdi; `pnpm build` per
+  `pnpm start`. Test visivi del Capo Supremo in attesa.
+- **Stato finale**: D6 e D2 applicate come compromesso, da confermare.
+
+## 2026-11-06 — Precedenza delle immagini nuove sulle vecchie
+
+- **Obiettivo**: disposizione del Capo Supremo: se ci sono immagini nuove si
+  mostrano quelle senza attendere la sequenza vecchia; si morpha
+  dall'immagine precedente verso la nuova abbastanza velocemente.
+- **Fatto**: la Riattivazione cede alla storia pronta dopo l'ingresso
+  dell'immagine in corso, sul beat; ingresso rapido del primo fotogramma
+  nuovo (`shortenBrainFrameEntryTransition`, riusa `firstFrameTransitionMs`)
+  anche all'uscita dal ricircolo leggero. Skill aggiornata.
+- **Audit deprecati**: DEP-001 e DEP-002 `NON COINVOLTO`.
+- **Verifiche**: typecheck, lint, 826 test verdi. Collaudo dal vivo non
+  eseguito.
+- **Stato finale**: in attesa di collaudo. Interazione con PIANO-054
+  (bozza): con storia pronta la Riattivazione si riduce di fatto a
+  un'immagine.
+- **Correzione dello stesso giorno** (il Capo Supremo: deve andare alle
+  immagini nuove): la prima versione mostrava ancora un'immagine vecchia.
+  Ora con storia pronta la Riattivazione non parte, e se la storia arriva
+  durante la Riattivazione questa si interrompe al primo beat. Morph rapido
+  anche al confine normale di storia.

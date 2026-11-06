@@ -6,7 +6,11 @@ import {
   loadBrainPhrases,
   parseBrainPhrases,
   sampleBrainPhraseWindow,
+  storyCharacterNames,
+  withoutCharacterNames,
 } from './brainPhrases'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 describe('configurazione esterna delle frasi Brain', () => {
   afterEach(() => {
@@ -159,5 +163,36 @@ describe('insertPhraseAtCursor — BrainPhrasesBaseStory di Sessione', () => {
     const result = insertPhraseAtCursor([], 0, 'INPUT')
     expect(result.lines).toEqual(['INPUT'])
     expect(result.nextCursor).toBe(1)
+  })
+})
+
+// Stable Diffusion non conosce i nomi: arrivano solo le descrizioni
+// (disposizione del Capo Supremo 2026-11-06).
+describe('nomi dei personaggi fuori dal prompt raster', () => {
+  const story = (file: string) =>
+    parseBrainPhrases(readFileSync(resolve(__dirname, '../../../../config', file), 'utf8'))
+
+  it('riconosce i personaggi delle storie e nessun luogo', () => {
+    expect(storyCharacterNames(story('brainPhrasesOnTheRoad.txt')).sort()).toEqual(['Paradise', 'Sal'])
+    expect(storyCharacterNames(story('brainPhrasesBaseStoryDoors.txt')).sort()).toEqual(['Jim', 'Ray'])
+    expect(storyCharacterNames(story('brainPhrasesCeline.txt'))).toEqual(['Bardamu'])
+    expect(storyCharacterNames(story('brainPhreases-CyberPunk.txt'))).toEqual(['Teo'])
+  })
+
+  it('sostituisce il nome con la persona, tenendo la descrizione', () => {
+    const names = ['Sal', 'Paradise']
+    expect(withoutCharacterNames(
+      "Beneath Lisbon's floating transit terraces, Sal Paradise, lean and dark-haired in a white jacket, boards a transparent levitation tram, an opal route chip glowing against his chest.",
+      names,
+    )).toBe(
+      "Beneath Lisbon's floating transit terraces, a man, lean and dark-haired in a white jacket, boards a transparent levitation tram, an opal route chip glowing against his chest.",
+    )
+    expect(withoutCharacterNames("Sal's white jacket glows as Sal leans over her.", names))
+      .toBe("The woman's white jacket glows as a woman leans over her.")
+    expect(withoutCharacterNames(story('brainPhrasesCeline.txt')[0], ['Bardamu']))
+      .toBe('Beneath a flawless silver sky, a man marches through a ceremonial avenue toward a gleaming troop carrier, a yellow hospital wristband around his wrist.')
+    expect(withoutCharacterNames('Beside Sal Paradise the tram melts into his jacket.', names))
+      .toBe('Beside a man the tram melts into his jacket.')
+    expect(withoutCharacterNames('A glass train under the sea.', [])).toBe('A glass train under the sea.')
   })
 })

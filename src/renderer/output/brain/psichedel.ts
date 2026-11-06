@@ -10,6 +10,7 @@ import type {
   PsychedelImageGenerator,
 } from './psychedelImageGenerator'
 import { BrainImageWorkerClient } from './brainImageWorkerClient'
+import { BRAIN_PHRASES, storyCharacterNames, withoutCharacterNames } from './brainPhrases'
 import { BRAIN_CONFIG } from '@shared/brain/brainConfig'
 import type { BrainInferenceScheduler } from './brainThermalScheduler'
 import { deriveOneiricPhase, type OneiricPhase } from '@shared/brain/dreamRevisionCycle'
@@ -178,8 +179,10 @@ export class PsychedelInfrastructureError extends Error {
   }
 }
 
+// Mai il titolo del fotogramma come ripiego: «Soglia» o «Apertura» non sono
+// un prompt, e un fotogramma senza testo va rifiutato, non inventato.
 function frameVisualText(frame: DreamFrame): string {
-  return frame.imagePrompt?.trim() || frame.description.trim() || frame.title.trim()
+  return frame.imagePrompt?.trim() || frame.description.trim()
 }
 
 /**
@@ -268,7 +271,10 @@ export function buildPsychedelImagePrompt(
       `prompt raster rifiutato: fotogramma "${frame.id}" della storia "${story.id}" non ha testo utilizzabile`,
     )
   }
-  const promptParts = [framePrompt]
+  // Stable Diffusion non conosce i nomi dei personaggi: «Sal Paradise» diventa
+  // «sal» + «paradise». Arrivano solo le descrizioni (disp. Capo Supremo
+  // 2026-11-06), Soglia compresa.
+  const promptParts = [withoutCharacterNames(framePrompt, storyCharacterNames(BRAIN_PHRASES))]
   if (story.invariant?.trim()) {
     promptParts.push(`INVARIANT: ${story.invariant.trim()}`)
   }

@@ -40,12 +40,11 @@ const DEFAULT_VECTORIZATION_OPTIONS: BrainVectorizationOptions = {
   snicStrongEdgeThreshold: 8,
   snicEdgeWeight: 0.7,
   snicMinimumRegionAreaRatio: 0.0004,
-  snicMaximumRegions: 100,
+  snicMaximumRegions: 24,
   contourSimplificationTolerance: 1.7,
   contourCurveSmoothing: 0.34,
   contourMaximumPoints: 2_400,
   minimumContourAreaRatio: 0.00008,
-  minimumStrongEdgeRecall: 0.7,
 }
 
 const VECTOR_PROFILES = [
@@ -308,12 +307,6 @@ function normalizeVectorizationOptions(
       DEFAULT_VECTORIZATION_OPTIONS.minimumContourAreaRatio,
       0,
       0.02,
-    ),
-    minimumStrongEdgeRecall: finiteOption(
-      value?.minimumStrongEdgeRecall,
-      DEFAULT_VECTORIZATION_OPTIONS.minimumStrongEdgeRecall,
-      0,
-      1,
     ),
   }
 }
@@ -741,10 +734,12 @@ export function vectorizeBrainImage(
         options,
       )
       const snicCandidate = inspectCandidate(snic.svg, snic.profile, options)
-      const snicAccepted =
-        !shouldTryAlternativeVectorProfiles(candidateSummary(snicCandidate), options) &&
-        snic.strongEdgeRecall >= options.minimumStrongEdgeRecall
-      if (snicAccepted || !options.fallbackToVTracer) {
+      // PIANO-060: SNIC produce contorni a livello di oggetto, volutamente meno
+      // dettagliati. Rugosità, spigoli, schegge e recupero dei bordi erano
+      // tarati su VTracer e scartavano SNIC su 96 raster su 96: qui decide solo
+      // l'usabilità strutturale; quei criteri restano per scegliere fra i
+      // profili VTracer.
+      if (structurallyUsable(snicCandidate) || !options.fallbackToVTracer) {
         const finished = finishCandidate(snicCandidate, options)
         return {
           ok: true,

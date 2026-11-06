@@ -194,37 +194,11 @@ function lerp(left: Point, right: Point, amount: number): Point {
   }
 }
 
-function loopPath(points: Point[], smoothing: number): string {
+function loopPath(points: Point[]): string {
   if (points.length < 3) return ''
-  if (smoothing <= 0) {
-    return `M${number(points[0].x)} ${number(points[0].y)}` +
-      points.slice(1).map((point) => `L${number(point.x)} ${number(point.y)}`).join('') +
-      'Z'
-  }
-  const cornerAmount = Math.max(0, Math.min(0.48, smoothing * 0.48))
-  const outgoing = (index: number) => lerp(
-    points[index],
-    points[(index + 1) % points.length],
-    cornerAmount,
-  )
-  const incoming = (index: number) => lerp(
-    points[index],
-    points[(index - 1 + points.length) % points.length],
-    cornerAmount,
-  )
-  let path = `M${number(outgoing(0).x)} ${number(outgoing(0).y)}`
-  for (let index = 1; index < points.length; index++) {
-    const entry = incoming(index)
-    const exit = outgoing(index)
-    path += `L${number(entry.x)} ${number(entry.y)}`
-    path += `Q${number(points[index].x)} ${number(points[index].y)} ` +
-      `${number(exit.x)} ${number(exit.y)}`
-  }
-  const entry = incoming(0)
-  path += `L${number(entry.x)} ${number(entry.y)}`
-  path += `Q${number(points[0].x)} ${number(points[0].y)} ` +
-    `${number(outgoing(0).x)} ${number(outgoing(0).y)}Z`
-  return path
+  return `M${number(points[0].x)} ${number(points[0].y)}` +
+    points.slice(1).map((point) => `L${number(point.x)} ${number(point.y)}`).join('') +
+    'Z'
 }
 
 function color(region: BrainSnicRegion): string {
@@ -236,8 +210,145 @@ function color(region: BrainSnicRegion): string {
 
 type RegionLoops = { region: BrainSnicRegion; loops: Point[][] }
 
+/**
+ * Punti di giunzione della griglia dei vertici di pixel: dove si incontrano
+ * tre o più etichette (il bordo dell'immagine conta come etichetta), dove due
+ * etichette si toccano solo in diagonale e i quattro angoli del quadro. Fra
+ * due giunzioni il confine è
+ * condiviso esattamente da due regioni (PIANO-060).
+ */
+function junctionGrid(
+  segmentation: BrainSnicSegmentation,
+  width: number,
+  height: number,
+): Uint8Array {
+  const labels = segmentation.labels
+  const stride = width + 1
+  const grid = new Uint8Array(stride * (height + 1))
+  const label = (x: number, y: number): number =>
+    x < 0 || y < 0 || x >= width || y >= height ? -1 : labels[y * width + x]
+  for (let y = 0; y <= height; y++) {
+    for (let x = 0; x <= width; x++) {
+      const topLeft = label(x - 1, y - 1)
+      const topRight = label(x, y - 1)
+      const bottomLeft = label(x - 1, y)
+      const bottomRight = label(x, y)
+      const distinct = new Set([topLeft, topRight, bottomLeft, bottomRight]).size
+      const diagonal =
+        distinct === 2 &&
+        topLeft === bottomRight &&
+        topRight === bottomLeft &&
+        topLeft !== topRight
+      if (distinct >= 3 || diagonal) grid[y * stride + x] = 1
+    }
+  }
+  // Gli angoli del quadro restano spigoli: non vanno arrotondati.
+  grid[0] = 1
+  grid[width] = 1
+  grid[height * stride] = 1
+  grid[height * stride + width] = 1
+  return grid
+}
+
+function comparePoints(left: Point, right: Point): number {
+  return left.y - right.y || left.x - right.x
+}
+
+function chaikinOpen(points: Point[], iterations: number): Point[] {
+  let current = points
+  for (let iteration = 0; iteration < iterations && current.length > 2; iteration++) {
+    const next: Point[] = [current[0]]
+    for (let index = 0; index < current.length - 1; index++) {
+      const start = current[index]
+      const end = current[index + 1]
+      if (index > 0) next.push(lerp(start, end, 0.25))
+      if (index < current.length - 2) next.push(lerp(start, end, 0.75))
+    }
+    next.push(current[current.length - 1])
+    current = next
+  }
+  return current
+}
+
+function chaikinClosed(points: Point[], iterations: number): Point[] {
+  let current = points
+  for (let iteration = 0; iteration < iterations && current.length > 2; iteration++) {
+    const next: Point[] = []
+    for (let index = 0; index < current.length; index++) {
+      const start = current[index]
+      const end = current[(index + 1) % current.length]
+      next.push(lerp(start, end, 0.25), lerp(start, end, 0.75))
+    }
+    current = next
+  }
+  return current
+}
+
+/**
+ * Un tratto fra due giunzioni compare in due regioni, percorso in versi
+ * opposti. Lo si elabora sempre nello stesso verso canonico, così le due
+ * regioni ottengono lo stesso confine e non nascono fessure né sovrapposizioni.
+ */
+function processChain(
+  chain: Point[],
+  tolerance: number,
+  smoothingIterations: number,
+): Point[] {
+  const first = comparePoints(chain[0], chain[chain.length - 1])
+  const reverse =
+    first > 0 ||
+    (first === 0 && chain.length > 2 && comparePoints(chain[1], chain[chain.length - 2]) > 0)
+  const canonical = reverse ? [...chain].reverse() : chain
+  const processed = chaikinOpen(simplifyOpen(canonical, tolerance), smoothingIterations)
+  return reverse ? processed.reverse() : processed
+}
+
+function processRing(
+  ring: Point[],
+  tolerance: number,
+  smoothingIterations: number,
+): Point[] {
+  let start = 0
+  for (let index = 1; index < ring.length; index++) {
+    if (comparePoints(ring[index], ring[start]) < 0) start = index
+  }
+  const rotated = [...ring.slice(start), ...ring.slice(0, start)]
+  const reverse = comparePoints(rotated[1], rotated[rotated.length - 1]) > 0
+  const canonical = reverse ? [rotated[0], ...rotated.slice(1).reverse()] : rotated
+  const processed = chaikinClosed(simplifyClosed(canonical, tolerance), smoothingIterations)
+  return reverse ? processed.reverse() : processed
+}
+
+function processLoop(
+  loop: Point[],
+  junctions: Uint8Array,
+  width: number,
+  tolerance: number,
+  smoothingIterations: number,
+): Point[] {
+  const stride = width + 1
+  const anchors: number[] = []
+  loop.forEach((point, index) => {
+    if (junctions[point.y * stride + point.x]) anchors.push(index)
+  })
+  if (anchors.length === 0) return processRing(loop, tolerance, smoothingIterations)
+  const result: Point[] = []
+  for (let index = 0; index < anchors.length; index++) {
+    const from = anchors[index]
+    const to = anchors[(index + 1) % anchors.length]
+    const chain = to > from
+      ? loop.slice(from, to + 1)
+      : [...loop.slice(from), ...loop.slice(0, to + 1)]
+    const processed = processChain(chain, tolerance, smoothingIterations)
+    result.push(...processed.slice(0, -1))
+  }
+  return result.length >= 3 ? result : loop
+}
+
 function simplifyToBudget(
   regions: RegionLoops[],
+  junctions: Uint8Array,
+  width: number,
   options: BrainContourSvgOptions,
 ): { regions: RegionLoops[]; pointCount: number } {
   let tolerance = options.simplificationTolerance
@@ -246,7 +357,7 @@ function simplifyToBudget(
   for (let attempt = 0; attempt < 6; attempt++) {
     simplified = regions.map(({ region, loops }) => ({
       region,
-      loops: loops.map((loop) => simplifyClosed(loop, tolerance)),
+      loops: loops.map((loop) => processLoop(loop, junctions, width, tolerance, 0)),
     }))
     pointCount = simplified.reduce(
       (sum, item) => sum + item.loops.reduce((subtotal, loop) => subtotal + loop.length, 0),
@@ -254,6 +365,16 @@ function simplifyToBudget(
     )
     if (pointCount <= options.maximumPoints) break
     tolerance *= 1.45
+  }
+  // Chaikin si applica una sola volta, alla tolleranza scelta dal budget.
+  const smoothingIterations = Math.max(0, Math.min(4, Math.round(options.curveSmoothing * 6)))
+  if (smoothingIterations > 0) {
+    simplified = regions.map(({ region, loops }) => ({
+      region,
+      loops: loops.map((loop) =>
+        processLoop(loop, junctions, width, tolerance, smoothingIterations),
+      ),
+    }))
   }
   return { regions: simplified, pointCount }
 }
@@ -274,9 +395,11 @@ export function composeBrainContourSvg(
     })
     return { region, loops }
   }).filter((item) => item.loops.length > 0)
-  const budgeted = simplifyToBudget(regions, options)
+  const junctions = junctionGrid(segmentation, width, height)
+  const budgeted = simplifyToBudget(regions, junctions, width, options)
   const paths = budgeted.regions.map(({ region, loops }) => {
-    const data = loops.map((loop) => loopPath(loop, options.curveSmoothing)).join('')
+    // La curvatura è già data da Chaikin sui tratti condivisi: qui solo linee.
+    const data = loops.map((loop) => loopPath(loop)).join('')
     const fill = color(region)
     return `<path d="${data}" fill="${fill}" fill-rule="evenodd"/>`
   })

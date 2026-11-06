@@ -443,16 +443,23 @@ export function compactOutgoingBridge(bridge: string | null): string | null {
   return completeSentence(bridgeWords.slice(0, 18).join(' '))
 }
 
-function fallbackUiCore(phrases: readonly string[]): StoryCore {
-  const synopsis = phrases.map(completeSentence).join(' ')
-  const titleWords = words(phrases[0] ?? 'sogno in movimento')
+/** Titolo dalla prima riga: entra nel seed raster e nel pannello. */
+function titleFromLine(line: string | undefined): string {
+  const titleWords = words(line ?? 'sogno in movimento')
     .filter((word) => word.length >= 4)
     .slice(0, 3)
-  const title = titleWords.length >= 2
+  return titleWords.length >= 2
     ? titleWords
         .map((word) => `${word.charAt(0).toLocaleUpperCase()}${word.slice(1)}`)
         .join(' ')
     : 'Sogno in movimento'
+}
+
+/** Storia minima quando la storia di Qwen fallisce: solo percorso storico
+ * (DEP-002), mai negli episodi. */
+function fallbackUiCore(phrases: readonly string[]): StoryCore {
+  const synopsis = phrases.map(completeSentence).join(' ')
+  const title = titleFromLine(phrases[0])
   const lastPhrase = completeSentence(phrases.at(-1) ?? 'Un segnale resta in attesa')
   return {
     title,
@@ -682,40 +689,96 @@ export function normalizeStory(value: unknown, phrases: string[]): DreamStory | 
 }
 
 /**
- * PIANO-051 (disp. Capo Supremo 2026-10-19): ogni riga degli scribacchini è
- * un episodio di quattro immagini. La riga, alla lettera, è la Soglia; Qwen
- * scrive Metamorfosi, Condensazione ed Eco, una fase per richiesta. Ogni
- * immagine è una fase del sogno e insieme completa la frase iniziale con
- * altri elementi della stessa scena (disposizione del 2026-10-19).
+ * WORKFLOW DELL'EPISODIO (PIANO-051; struttura canonica fissata dal Capo
+ * Supremo, direttiva del Vicario 2026-11-06). Una riga degli scribacchini è un
+ * episodio di quattro immagini:
+ *
+ *   SOGLIA        = riga di brainPhrasesBaseStory, alla lettera   → immagine 1
+ *   METAMORFOSI   = Qwen(Soglia)                                 → immagine 2
+ *   CONDENSAZIONE = Qwen(Soglia + Metamorfosi)                   → immagine 3
+ *   ECO           = Qwen(Soglia + Metamorfosi + Condensazione)   → immagine 4
+ *
+ * Ogni richiesta a Qwen riceve soltanto l'episodio già manifestato, più le
+ * regole degli scribacchini e la direttiva della propria fase: nessun
+ * materiale esterno all'episodio. Il testo di ogni fase è il prompt di Stable
+ * Diffusion della sua immagine (`buildPsychedelImagePrompt`).
+ *
+ * FALLBACK (disp. Capo Supremo 2026-10-19): una fase che Qwen non produce o
+ * che `parseEpisodePhaseLine` rifiuta è sostituita dalla Soglia. Il testo
+ * sostituito è ciò che arriva a Stable Diffusion, quindi è anche ciò che le
+ * fasi successive ricevono come immagine già manifestata. Ogni sostituzione
+ * è registrata nel log «fase dell'episodio».
+ *
+ * Questa tabella è l'unica definizione delle fasi dell'episodio: prompt,
+ * etichette dei fotogrammi, log e test la leggono da qui.
  */
-export type EpisodePhaseLines = [string | null, string | null, string | null]
+export const EPISODE_THRESHOLD = { title: 'Soglia', label: 'THRESHOLD' } as const
 
-const EPISODE_PHASES = [
+export const EPISODE_PHASES = [
+  // Direttive: definizioni del Capo Supremo (PIANO-058 D1) e principi di
+  // filosofia.md §2, in inglese; nessun numero d'immagine, che Qwen copiava
+  // nella fase (log 19–31 ottobre).
   {
-    name: 'METAMORPHOSIS',
-    brief: 'something from image 1 changes form, place or function and is still recognizable',
+    title: 'Metamorfosi',
+    label: 'METAMORPHOSIS',
+    directive:
+      'the material of the scene begins to transform and to lose stability. It is the first slip, not a new chapter: something moves or fuses, the recurring element stays but changes form or function.',
   },
   {
-    name: 'CONDENSATION',
-    brief: 'the densest moment: the elements of images 1 and 2 overlap in a single image',
+    title: 'Condensazione',
+    label: 'CONDENSATION',
+    directive:
+      'the elements of the dream concentrate, overlap and gain greater density. Two things become one. The meaning does not become clearer, it becomes more intense.',
   },
   {
-    name: 'ECHO',
-    brief: 'image 1 returns, deformed by what happened in images 2 and 3',
+    title: 'Eco',
+    label: 'ECHO',
+    directive:
+      'what remains of the dream: a return, a residue, a deformation or a memory of the first scene. Not a closed ending: it leaves a trace, with ambiguity, without explanation.',
   },
 ] as const
-const EPISODE_LINE_MIN_WORDS = 10
-const EPISODE_LINE_MAX_WORDS = 45
 
-// Regole degli scribacchini (docs/linee-guida-storie-brain.md), date a Qwen
-// sia per le fasi sia per le frasi del pubblico. Nessun filtro: il contenuto
-// non si ammorbidisce (disposizione del Capo Supremo 2026-10-19).
+export type EpisodePhaseLines = [string | null, string | null, string | null]
+
+/** Esito di una fase, così come va nel log: cosa ha visto Qwen, cosa ha
+ * scritto, se è stato accettato e quale testo arriva a Stable Diffusion. */
+export type EpisodePhaseOutcome = {
+  phase: (typeof EPISODE_PHASES)[number]['label']
+  prompt: string
+  response: string | null
+  accepted: boolean
+  fallback: 'soglia' | null
+  text: string
+}
+
+const EPISODE_LINE_MIN_WORDS = 10
+// 45 → 50 (+10%, PIANO-058 D7, posizione del Vicario 2026-11-06).
+const EPISODE_LINE_MAX_WORDS = 50
+// Metalinguaggio che non deve arrivare a Stable Diffusion (PIANO-058 D8):
+// termini elencati dal Vicario, `echo` escluso per decisione del Capo Supremo.
+const EPISODE_METALANGUAGE =
+  /\bimages?\s*\d|\bmetamorphosis\b|\bcondensation\b|\belements of (?:the )?images?\b|\bprevious image\b/iu
+const EPISODE_FRAME_ENERGIES = [0.26, 0.42, 0.58, 0.78] as const
+
+// Nessun filtro: il contenuto non si ammorbidisce (disposizione del Capo
+// Supremo 2026-10-19). Vale per le fasi e per le frasi del pubblico.
+const SCRIBE_NO_CENSORSHIP_RULE =
+  'Do not censor, soften or euphemize anything. If sexual content appears, every person involved is an adult.'
+
+// Corpo e inquadratura (linee guida degli scribacchini): valgono anche per
+// le fasi.
+const SCRIBE_BODY_RULE =
+  'Show the body through posture and gesture, never through feelings. Wide framing: no close-ups of hands or fingers.'
+
+// Regole degli scribacchini (docs/linee-guida-storie-brain.md) per la
+// riscrittura delle frasi del pubblico. Le fasi dell'episodio hanno la
+// propria richiesta (`buildEpisodePhasePrompt`).
 function scribeRules(): string[] {
   return [
     'Rules for every line: 15-30 English words; one concrete visible scene; the same named person; one place; one gesture or action; light and materials.',
-    'Show the body through posture and gesture, never through feelings. Wide framing: no close-ups of hands or fingers.',
+    SCRIBE_BODY_RULE,
     'Use only words that can be seen: no abstract concepts, quotations, negations, memories or time jumps.',
-    'Do not censor, soften or euphemize anything. If sexual content appears, every person involved is an adult.',
+    SCRIBE_NO_CENSORSHIP_RULE,
   ]
 }
 
@@ -724,23 +787,32 @@ function contextBlock(label: string, context: readonly string[]): string[] {
   return lines.length > 0 ? [`${label}:\n${lines.map((line) => `- ${line}`).join('\n')}`] : []
 }
 
-export function buildEpisodePhasePrompt(
-  line: string,
-  phaseIndex: 0 | 1 | 2,
-  written: readonly string[] = [],
-  context: readonly string[] = [],
-): string {
-  const phase = EPISODE_PHASES[phaseIndex]
-  const imageNumber = phaseIndex + 2
+/**
+ * Richiesta a Qwen per la fase successiva all'episodio già manifestato.
+ * `manifested` = [Soglia] per la Metamorfosi, [Soglia, Metamorfosi] per la
+ * Condensazione, [Soglia, Metamorfosi, Condensazione] per l'Eco: la fase da
+ * scrivere è sempre quella che segue l'ultima immagine ricevuta.
+ */
+export function buildEpisodePhasePrompt(manifested: readonly string[]): string {
+  const phase = EPISODE_PHASES[manifested.length - 1]
+  if (!phase) {
+    throw new Error(`episodio: nessuna fase dopo ${manifested.length} immagini`)
+  }
+  // Richiesta fondata sui principi delle fasi (PIANO-058 §4.3, D9/D10): la
+  // materia distintiva della Soglia si trasforma invece di essere sostituita.
   return [
-    'A dream scene is told in four images, one sentence per image.',
-    `IMAGE 1 (THRESHOLD): ${line}`,
-    ...written.map((text, index) => `IMAGE ${index + 2} (${EPISODE_PHASES[index].name}): ${text}`),
-    ...contextBlock('STORY SO FAR', context),
-    `Write IMAGE ${imageNumber} (${phase.name}): ${phase.brief}.`,
-    'It must also complete the sentence of image 1: keep its person and its place, and add new concrete elements of the same scene that image 1 does not show (objects, materials, light, other people, other parts of the place).',
-    ...scribeRules(),
-    `Write only the sentence for image ${imageNumber}, on one line.`,
+    'A dream transforms the same scene step by step. Each step transforms the previous one; it does not only add content.',
+    ...manifested.map((text, index) => `${index === 0 ? 'FIRST SCENE' : 'THEN'}: ${text}`),
+    `Now the dream reaches ${phase.label}: ${phase.directive}`,
+    'Keep the person with the complete physical description of the first scene, in the third person. Transform the distinctive things of the scene; do not replace them with other places, objects or actions.',
+    // Il testo della fase è il prompt di Stable Diffusion, che non conosce i
+    // nomi: la persona passa solo dalla descrizione (disp. Capo Supremo
+    // 2026-11-06). `buildPsychedelImagePrompt` toglie comunque i nomi residui.
+    'Never write names of people: the image generator does not know them. Write the physical description instead of the name.',
+    'Describe only what is physically visible in the resulting scene. Never mention images, scenes, phases, prompts, dreams or instructions.',
+    SCRIBE_BODY_RULE,
+    SCRIBE_NO_CENSORSHIP_RULE,
+    'Write one sentence, 20-50 English words, on one line.',
   ].join('\n')
 }
 
@@ -792,16 +864,21 @@ function leadingSentences(line: string): string {
   return kept || line
 }
 
+const EPISODE_LABEL_PREFIX = new RegExp(
+  `^(?:IMAGE\\s*\\d+|FIRST SCENE|THEN|${[EPISODE_THRESHOLD, ...EPISODE_PHASES].map((phase) => phase.label).join('|')})\\s*(?:\\([^)]*\\))?\\s*:\\s*`,
+  'iu',
+)
+
 export function parseEpisodePhaseLine(
   text: string,
   alreadyUsed: readonly string[],
 ): string | null {
   const first = firstLineOf(cleanedModelText(text))
-    ?.replace(/^(?:IMAGE\s*\d+|METAMORPHOSIS|CONDENSATION|ECHO|THRESHOLD)\s*(?:\([^)]*\))?\s*:\s*/iu, '')
+    ?.replace(EPISODE_LABEL_PREFIX, '')
     .replace(/^["“']+|["”']+$/gu, '')
     .trim()
   const line = acceptableEpisodeLine(first ? leadingSentences(first) : null)
-  if (!line) return null
+  if (!line || EPISODE_METALANGUAGE.test(line)) return null
   const used = new Set(alreadyUsed.map(normalizedSentence))
   return used.has(normalizedSentence(line)) ? null : line
 }
@@ -814,34 +891,42 @@ export function parsePublicPhraseRewrite(text: string): string | null {
 }
 
 /**
- * Episodio da una riga: Soglia letterale, poi le tre fasi. Senza fasi valide
- * la riga vale per tutte e quattro le immagini (seed diversi): nessun
- * episodio perso. Nessun invariante nel prompt raster: ogni immagine riceve
- * solo il proprio testo («chi sogna non è Stable Diffusion»).
+ * Le quattro immagini dell'episodio come `DreamStory`. `phases` sono le fasi
+ * accettate (`null` = fase sostituita dalla Soglia); con `phases === null` la
+ * Soglia vale per tutte e quattro le immagini (seed diversi): nessun episodio
+ * perso. Nessun invariante nel prompt raster: ogni immagine riceve solo il
+ * proprio testo («chi sogna non è Stable Diffusion»).
  */
 export function storyFromLine(line: string, phases: EpisodePhaseLines | null): DreamStory {
   const source = line.trim()
-  // Fase non valida → al suo posto la Soglia (disp. Capo Supremo 2026-10-19).
   const texts = [source, ...(phases ?? [null, null, null]).map((phase) => phase ?? source)]
-  const core = fallbackUiCore([source])
-  const story = storyFromCore(
-    // Testi uguali (riga ripetuta quando le fasi mancano) una sola volta.
-    { ...core, synopsis: [...new Set(texts)].map(completeSentence).join(' '), invariant: '' },
-    [source],
-  )
-  story.frames = story.frames.map((frame, index) => ({
-    ...frame,
-    description: texts[index],
-    imagePrompt: texts[index],
-    visualIntent: texts[index],
-  }))
-  return story
+  const titles = [EPISODE_THRESHOLD.title, ...EPISODE_PHASES.map((phase) => phase.title)]
+  // Testi uguali (Soglia ripetuta quando le fasi mancano) una sola volta.
+  const synopsis = [...new Set(texts)].map(completeSentence).join(' ')
+  return {
+    id: `story-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    title: titleFromLine(source),
+    synopsis,
+    // Nessun legame in uscita: l'episodio non ne scrive (PIANO-058).
+    bridge: null,
+    continuityPhrase: null,
+    palette: [...DEFAULT_DREAM_PALETTE],
+    sourcePhrases: [source],
+    mainArgument: inferMainArgument([source], synopsis),
+    invariant: '',
+    frames: texts.map((text, index) => ({
+      id: `frame-${index + 1}`,
+      title: titles[index],
+      description: text,
+      imagePrompt: text,
+      visualIntent: text,
+      energy: EPISODE_FRAME_ENERGIES[index],
+      durationMs: getBrainRenderingConfig().timing.frameDurationMs,
+    })),
+  }
 }
 
 type EpisodeGenerationOptions = {
-  /** Righe che precedono, per il legame con la storia in corso. */
-  context?: readonly string[]
-  continuitySeed?: string | null
   consciousnessInfluence?: ConsciousnessMotionCandidate | null
 }
 
@@ -1246,52 +1331,59 @@ export class CoscienzaOnirica {
   }
 
   /**
-   * Progetta visivamente i 4 momenti PRIMA della generazione raster (lettera
-   * Vice Consigliere §4-§5): non 4 prompt quasi indipendenti, ma 4
-   * manifestazioni della stessa storia immaginativa, ciascuna con la
-   * funzione della propria fase onirica (`deriveOneiricPhase`, già usata
-   * dal ciclo di Riattivazione) e un rapporto esplicito con l'invariante.
+   * Episodio da una riga, secondo il workflow descritto sopra
+   * `EPISODE_PHASES`: Soglia letterale, poi una richiesta a Qwen per fase,
+   * ciascuna con l'episodio già manifestato.
    */
   async generateEpisode(
     line: string,
     options: EpisodeGenerationOptions = {},
   ): Promise<DreamStory> {
     const source = line.trim()
-    // Una fase per richiesta: ogni richiesta riceve la Soglia e le fasi già
-    // scritte valide.
-    const phases: EpisodePhaseLines = [null, null, null]
-    for (const phaseIndex of [0, 1, 2] as const) {
-      const written = phases.slice(0, phaseIndex).map((phase) => phase ?? source)
+    // Una Soglia vuota darebbe quattro prompt vuoti a Stable Diffusion.
+    if (!source) throw new Error('episodio rifiutato: riga vuota')
+    const manifested: string[] = [source]
+    const outcomes: EpisodePhaseOutcome[] = []
+    for (const phase of EPISODE_PHASES) {
+      const prompt = buildEpisodePhasePrompt(manifested)
+      let response: string | null = null
+      let accepted: string | null = null
       try {
-        const response = await this.ai.generate(
+        response = await this.ai.generate(
           'scene',
-          buildEpisodePhasePrompt(
-            source,
-            phaseIndex,
-            written,
-            options.context ?? [],
-          ),
+          prompt,
           { maxNewTokens: 80, minNewTokens: 15 },
         )
-        phases[phaseIndex] = parseEpisodePhaseLine(response, [source, ...written])
-        if (!phases[phaseIndex]) {
-          brainWarn('coscienza', 'fase dell’episodio rifiutata; al suo posto la soglia', {
-            line: source,
-            phase: EPISODE_PHASES[phaseIndex].name,
-            response: response.slice(0, 2_000),
-          })
-        }
+        accepted = parseEpisodePhaseLine(response, manifested)
       } catch (error) {
         if (error instanceof BrainAiCancelledError) throw error
-        brainWarn('coscienza', 'fase dell’episodio non disponibile; al suo posto la soglia', {
-          line: source,
-          phase: EPISODE_PHASES[phaseIndex].name,
+        brainWarn('coscienza', 'fase dell’episodio: Qwen non disponibile', {
+          phase: phase.label,
           error,
         })
       }
+      const outcome: EpisodePhaseOutcome = {
+        phase: phase.label,
+        prompt,
+        response: response?.slice(0, 2_000) ?? null,
+        accepted: accepted !== null,
+        fallback: accepted === null ? 'soglia' : null,
+        text: accepted ?? source,
+      }
+      outcomes.push(outcome)
+      manifested.push(outcome.text)
+      ;(outcome.accepted ? brainLog : brainWarn)(
+        'coscienza',
+        outcome.accepted
+          ? 'fase dell’episodio accettata'
+          : 'fase dell’episodio rifiutata; al suo posto la soglia',
+        outcome,
+      )
     }
-    const story = storyFromLine(source, phases)
-    story.continuityPhrase = options.continuitySeed?.trim() || null
+    const story = storyFromLine(
+      source,
+      outcomes.map((outcome) => (outcome.accepted ? outcome.text : null)) as EpisodePhaseLines,
+    )
     const influence = options.consciousnessInfluence ?? null
     if (influence) {
       story.palette = applyConsciousnessPalette(story.palette, influence)
@@ -1304,7 +1396,8 @@ export class CoscienzaOnirica {
     }
     brainLog('coscienza', 'episodio da una riga', {
       line: source,
-      phasesFromModel: phases.map((phase) => phase !== null),
+      phasesFromModel: outcomes.map((outcome) => outcome.accepted),
+      fallbacks: outcomes.map((outcome) => outcome.fallback),
       imagePrompts: story.frames.map((frame) => frame.imagePrompt),
     })
     return story

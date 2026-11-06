@@ -261,6 +261,52 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## ⚪ Macrotask Pianificati (Futuri)
 
+### `MACRO-045`: Diagnostica della decompressione experimental
+- **Descrizione**: capire quali osservabili distinguono una struttura che si
+  ripete da una che continua a trattenere il corpo; solo diagnostica, su
+  autorizzazione dell'Analisi Audio.
+- **Stato**: 🟡 IN_PROGRESS — Fasi 1 (marcature e replay) e 2 (gain sweep)
+  completate; Fase 3 da avviare.
+- **Piano di Lavoro**: `working/plans/piano-059-diagnostica-decompressione-experimental.md`
+
+### `MACRO-044`: Direttive a Qwen per Metamorfosi, Condensazione ed Eco
+- **Descrizione**: le tre fasi scritte da Qwen seguono le definizioni del
+  Capo Supremo; la Soglia resta la riga degli scribacchini; correzione dei
+  difetti misurati nei log (brief ricopiato, soggetto che cambia).
+- **Stato**: 🟡 IN_PROGRESS — Fase 0 (pulizia del workflow) completata;
+  D1–D5 attendono approvazione.
+- **Piano di Lavoro**: `working/plans/piano-058-direttive-qwen-fasi-oniriche.md`
+
+### `MACRO-043`: Vector Morph — conformità al Protocollo e budget
+- **Descrizione**: togliere da Vector Morph camera, eco a quadro intero, fasi
+  a orologio e moto nel silenzio; allineare la vettorializzazione al budget
+  del renderer, perché le forme si muovano davvero.
+- **Stato**: 🟡 IN_PROGRESS — PIANO-060 (contorni a livello di oggetto)
+  implementato, collaudo a schermo da eseguire; PIANO-057 (moto) in bozza,
+  attende approvazione.
+- **Piano di Lavoro**: `working/plans/piano-057-vector-morph-conformita-e-budget.md`,
+  `working/plans/piano-060-vector-morph-contorni-oggetto.md`
+
+### `MACRO-042`: ANIMATRONIX senza morphing a spirale
+- **Descrizione**: togliere il vortice ancora visibile nei passaggi di
+  ANIMATRONIX, rimuovendo il morph a flusso e riusando la riserva radiale.
+- **Stato**: ⚪ PLANNED — piano in bozza, attende approvazione.
+- **Piano di Lavoro**: `working/plans/piano-056-animatronix-senza-vortici.md`
+
+### `MACRO-041`: Nessun italiano nella generazione delle storie
+- **Descrizione**: con base curata in inglese, storie, prompt immagine e
+  continuità restano in inglese; tolti dal percorso «Questo sogno» gli innesti
+  italiani che sprecano Qwen, traduttore e raster.
+- **Stato**: ⚪ PLANNED — piano in bozza, attende approvazione.
+- **Piano di Lavoro**: `working/plans/piano-055-storia-solo-inglese.md`
+
+### `MACRO-040`: Riattivazione semplice e oblio progressivo
+- **Descrizione**: Riattivazione semplificata e limitata; più una storia è
+  lontana meno raster porta (3, 2, poi sempre 1), conservando i più
+  significativi per fase onirica; nessuna storia sparisce del tutto.
+- **Stato**: ⚪ PLANNED — piano in bozza, attende approvazione.
+- **Piano di Lavoro**: `working/plans/piano-054-riattivazione-breve-oblio-progressivo.md`
+
 ### `MACRO-039`: Ogni riga degli scribacchini è una quartina
 - **Descrizione**: righe curate usate direttamente come prompt raster (una
   riga, un fotogramma); Qwen riscrive solo le frasi della Sessione pubblica

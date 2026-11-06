@@ -240,19 +240,32 @@ una silhouette deliberatamente cancellata.
 - `snicSuperpixelSize`: passo medio dei semi SNIC; default `24` pixel.
 - `snicCompactness`: peso della compattezza spaziale rispetto al colore;
   default `9`.
-- `snicMergeColorThreshold`: distanza percettiva massima per la fusione.
-- `snicStrongEdgeThreshold`: intensità oltre cui un bordo protegge le regioni.
-- `snicEdgeWeight`: peso del bordo nel costo di fusione.
-- `snicMinimumRegionAreaRatio`: area relativa sotto cui un'isola può essere
-  assorbita dal vicino compatibile.
-- `snicMaximumRegions`: obiettivo di budget, predefinito `72`.
+- `snicMergeColorThreshold`: sotto questa dissimilarità (distanza cromatica
+  più contrasto del confine pesato da `snicEdgeWeight`) due regioni vicine si
+  fondono anche quando il budget è già rispettato.
+- `snicStrongEdgeThreshold`: intensità oltre cui un bordo conta come forte
+  nella misura diagnostica `strongEdgeRecall` (solo log, non decide).
+- `snicEdgeWeight`: peso del contrasto lungo il confine nel costo di fusione:
+  protegge i contorni degli oggetti.
+- `snicMinimumRegionAreaRatio`: area relativa sotto cui una regione viene
+  sempre assorbita dal vicino più economico.
+- `snicMaximumRegions`: numero massimo di forme, predefinito `24` (PIANO-060).
+  La fusione è gerarchica sul grafo di adiacenza: si unisce sempre la coppia
+  più economica con costo di tipo Ward, quindi i frammenti piccoli spariscono
+  prima dei contorni degli oggetti e il budget viene sempre raggiunto.
 - `contourSimplificationTolerance`: errore geometrico ammesso nella riduzione
-  dei punti; default `1.7` pixel.
-- `contourCurveSmoothing`: arrotondamento locale degli angoli, senza blur.
+  dei punti (Douglas–Peucker); default `1.7` pixel.
+- `contourCurveSmoothing`: arrotondamento Chaikin dei confini; il numero di
+  passaggi è `round(valore × 6)`, massimo 4 (`0.34` → 2). Ogni confine fra due
+  regioni è semplificato e arrotondato una sola volta, fra due punti di
+  giunzione, e riusato da entrambe: niente fessure né sovrapposizioni.
 - `contourMaximumPoints`: budget globale dei punti SVG; default `2400`.
 - `minimumContourAreaRatio`: elimina esclusivamente anelli molto piccoli.
-- `minimumStrongEdgeRecall`: copertura minima dei bordi forti per accettare
-  SNIC; default `0.70`.
+
+SNIC è accettato quando il risultato è strutturalmente usabile (5–180 forme,
+almeno 3 colori). Rugosità, spigoli e schegge servono solo a scegliere fra i
+profili VTracer, che restano il ripiego (PIANO-060: erano tarati su VTracer e
+scartavano SNIC su 96 raster su 96).
 
 Il controllo estetico è integrato nella selezione di SNIC/VTracer per evitare
 una seconda vettorializzazione. Dopo l’IPC resta intenzionalmente un controllo indipendente

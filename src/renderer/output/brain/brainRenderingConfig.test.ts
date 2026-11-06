@@ -120,7 +120,6 @@ describe('configurazione rendering Brain', () => {
         contourCurveSmoothing: 999,
         contourMaximumPoints: 99_999,
         minimumContourAreaRatio: 1,
-        minimumStrongEdgeRecall: 9,
       },
     })
 
@@ -156,7 +155,6 @@ describe('configurazione rendering Brain', () => {
       contourCurveSmoothing: 1,
       contourMaximumPoints: 12_000,
       minimumContourAreaRatio: 0.02,
-      minimumStrongEdgeRecall: 1,
     })
   })
 })

@@ -12,6 +12,7 @@ import {
   createBrainDepthProfile,
   selectBrainFrameMorphPattern,
   selectBrainRecycledFrameIndex,
+  shortenBrainFrameEntryTransition,
 } from './brainFrameMotion'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
 import { DEFAULT_BRAIN_RENDERING_CONFIG } from './brainRenderingConfig'
@@ -179,5 +180,23 @@ describe('movimento dei fotogrammi Brain', () => {
       expect(Math.abs(samples[index].y - samples[index - 1].y)).toBeLessThan(0.15)
     }
     expect(samples.every((sample) => !('scale' in sample))).toBe(true)
+  })
+})
+
+describe('ingresso rapido di una storia nuova', () => {
+  it('accorcia solo la transizione, riallineata al beat', () => {
+    const timing = calculateBrainFrameTiming(500, 9_800, BRAIN_FRAME_MORPH_PATTERNS[0])
+    const fast = shortenBrainFrameEntryTransition(timing, 500, 9_800)
+    const target = DEFAULT_BRAIN_RENDERING_CONFIG.timing.firstFrameTransitionMs
+    expect(fast.transitionMs).toBeLessThan(timing.transitionMs)
+    expect(Math.abs(fast.transitionMs - target)).toBeLessThanOrEqual(250)
+    expect(fast.transitionMs % 500).toBe(0)
+    expect(fast.holdMs).toBe(timing.holdMs)
+    expect(fast.totalMs).toBeGreaterThanOrEqual(9_800)
+  })
+
+  it('non allunga mai una transizione già più breve', () => {
+    const timing = { transitionMs: 1_000, holdMs: 4_000, totalMs: 5_000 }
+    expect(shortenBrainFrameEntryTransition(timing, 500, 5_000).transitionMs).toBe(1_000)
   })
 })

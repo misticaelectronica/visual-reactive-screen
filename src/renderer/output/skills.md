@@ -168,9 +168,73 @@ blocchi CLIP il prompt positivo: errore esplicito, mai troncamento.
 **Una riga = una quartina (PIANO-051, 2026-10-19)**: Brain legge una riga
 alla volta (`sampleBrainPhraseWindow(cursor, 1)`). `generateEpisode` usa la
 riga alla lettera come Soglia e chiede a Qwen le tre fasi **una per
-richiesta** (Qwen 0.5B non rispetta tre etichette in una risposta); ogni
-fase completa la frase iniziale con nuovi elementi della scena; fase non
-valida → la Soglia al suo posto. Il task `scene` campiona (temperature 0.7,
+richiesta** (Qwen 0.5B non rispetta tre etichette in una risposta).
+
+**Workflow ufficiale dell'episodio** (struttura canonica del Capo Supremo,
+direttiva del Vicario 2026-11-06, PIANO-058):
+
+```text
+brainPhrasesBaseStory
+        ↓
+      SOGLIA
+        ↓
+    immagine 1
+
+SOGLIA
+        ↓
+      QWEN
+        ↓
+  METAMORFOSI
+        ↓
+    immagine 2
+
+SOGLIA
++ METAMORFOSI
+        ↓
+      QWEN
+        ↓
+ CONDENSAZIONE
+        ↓
+    immagine 3
+
+SOGLIA
++ METAMORFOSI
++ CONDENSAZIONE
+        ↓
+      QWEN
+        ↓
+      ECHO
+        ↓
+    immagine 4
+```
+
+Le fasi sono definite una volta sola, in `EPISODE_PHASES`
+(`coscienzaOnirica.ts`): etichetta, direttiva e nome del fotogramma.
+`buildEpisodePhasePrompt(manifested)` riceve l'episodio già manifestato e
+scrive la fase successiva: nessun contesto esterno all'episodio (il vecchio
+«STORY SO FAR» è ritirato). Fase rifiutata o Qwen in errore → la Soglia al
+suo posto; quel testo arriva a Stable Diffusion ed entra nel contesto delle
+fasi successive. Log per fase: «fase dell’episodio accettata» / «…rifiutata;
+al suo posto la soglia» con `prompt`, `response`, `accepted`, `fallback`,
+`text`; riepilogo «episodio da una riga»; il prompt effettivo di ogni raster
+è in «generazione raster n/4» (`psichedel.ts`). La richiesta di fase
+(PIANO-058, §4.3–4.4) porta le scene già manifestate come `FIRST SCENE` /
+`THEN`, il principio della fase (definizioni del Capo Supremo + filosofia.md
+§2) e l'ordine di trasformare la materia distintiva invece di sostituirla.
+Mai numeri d'immagine nel prompt: Qwen li copiava («images 1 and 2 overlap»,
+21 Condensazioni su 55). `parseEpisodePhaseLine` rifiuta il metalinguaggio
+(`image n`, `metamorphosis`, `condensation`, `elements of images`,
+`previous image`; `echo` ammesso) e accetta 10–50 parole. Prima di cambiare
+la richiesta o il modello: misurare sul banco (fasi senza materia, persona
+alla lettera, she/her), con almeno tre ripetizioni — 24 fasi oscillano da
+3 a 9. Provati e scartati il 2026-11-06: NSFW-3.2-1B, LFM2.5-2.6B (§4.4).
+**Nomi**: Qwen li riceve, Stable Diffusion mai (disp. Capo Supremo
+2026-11-06). La richiesta di fase chiede a Qwen di scrivere la descrizione al
+posto del nome; `buildPsychedelImagePrompt` toglie comunque i nomi da ogni
+prompt raster, Soglia compresa (`withoutCharacterNames`): nome = parola
+maiuscola presente in più di metà delle righe del file caricato
+(`storyCharacterNames`), sostituita con «a man / a woman / a figure» secondo
+i pronomi. Nomi secondari rari (Dean 5/12, Mira 4/12) restano. Il task `scene` campiona (temperature 0.7,
 repetition_penalty 1.12): in greedy andava in loop. Le frasi pubbliche passano da
 `rewritePublicPhrase` (traduzione → riga legata alla storia in corso →
 fallback alla frase tradotta) e vengono inserite già riscritte nel file. Il
@@ -378,6 +442,23 @@ Regole (disposizione Capo Supremo, 2026-09-17):
   implementato sopra `selectionsBefore`, stesso comportamento, non
   duplicazione.
 
+Precedenza del materiale nuovo (disp. Capo Supremo, 2026-11-06):
+
+- se la storia successiva è già pronta al confine, la Riattivazione **non
+  parte**: `requestRevisionCycleAtBoundary` fissa la terna e restituisce
+  `false`, si va subito alla storia nuova.
+- se una storia nuova diventa pronta durante la Riattivazione (generazione
+  già in corso al confine), la Riattivazione si interrompe al primo beat in
+  `advanceTimeline`, senza attendere la fine della sequenza. In silenzio non
+  esce (resta dopo `!rhythmActive`).
+- l'ingresso del primo fotogramma nuovo — al confine di storia, all'uscita
+  dalla Riattivazione e dal ricircolo leggero — usa `shortenBrainFrameEntryTransition` (`brainFrameMotion.ts`):
+  transizione pari a `firstFrameTransitionMs` (2,5 s) riallineata al beat,
+  tenuta invariata, durata totale mai sotto quella richiesta. Il flag
+  `fastEntryPending` vale per un solo `applyFrame`.
+- log: `riattivazione conclusa; generazione ripresa` con
+  `interruptedForNewStory`, `revisionFrameIndex`, `revisionFrameCount`.
+
 ## Skill: Fallback Visivo
 
 Usare quando debugging output/proiezione.
@@ -387,3 +468,35 @@ Regole:
 - fallback deve essere visibile ma non confondersi con visual live
 - rimuovere o nascondere overlay se non richiesto in build finale
 - base surface iniziale non deve essere nero assoluto durante diagnostica
+
+## Skill: Contorni Di Vector Morph (vettorializzazione SNIC)
+
+Usare quando Vector Morph mostra forme troppo frammentate, schegge, fessure
+fra forme o soggetti irriconoscibili (PIANO-060).
+
+Dove: nel main, `src/main/brainSnicSegmentation.ts` (regioni),
+`src/main/brainContourSvg.ts` (contorni), `src/main/brainVectorizer.ts`
+(scelta SNIC/VTracer). È grammatica di Vector Morph: non importarla da altri
+renderer.
+
+- Regioni: superpixel SNIC, poi fusione gerarchica sul grafo di adiacenza
+  (coppia più economica, costo Ward = media armonica delle aree ×
+  dissimilarità², dissimilarità = distanza OKLab + contrasto del confine ×
+  `snicEdgeWeight`). I frammenti piccoli spariscono per primi, i contorni
+  netti degli oggetti per ultimi. Il budget `snicMaximumRegions` (24) è
+  sempre raggiunto.
+- Contorni: spezzati nei punti di giunzione (≥ 3 etichette, contatto
+  diagonale, angoli del quadro); ogni tratto è semplificato (Douglas–Peucker)
+  e arrotondato (Chaikin) in verso canonico, una volta sola, e riusato dalle
+  due regioni. Non reintrodurre elaborazioni per singola regione prima della
+  levigatura geometrica: riaprono fessure fra le forme.
+- Scelta: SNIC passa se è strutturalmente usabile (5–180 forme, ≥ 3 colori).
+  I criteri di rugosità/spigoli/schegge sono tarati su VTracer e non vanno
+  riapplicati a SNIC: lo scartavano sempre.
+- Misura prima di tarare: passare i raster di `dream-images/` (copiarli
+  prima, l'app li ruota) in `vectorizeBrainImage` con esbuild e `pngjs`, e
+  confrontare profilo, forme per scena e durata; rendere gli SVG con
+  `rsvg-convert` e guardarli accanto al raster.
+- Riferimento 2026-11-06, 96 raster: prima SNIC 0/96 accettato (a schermo
+  VTracer, mediana 59 forme, max 227, 941 ms); dopo SNIC 96/96, mediana 23
+  forme, max 24, mediana 272 ms.

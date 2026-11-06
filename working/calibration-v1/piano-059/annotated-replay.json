@@ -1,0 +1,196 @@
+{
+  "marcature": "docs/campioni/marcature.json",
+  "risultati": [
+    {
+      "file": "decompresisone-1.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 50.6,
+      "nonAnnotatoSecondi": 50.6,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "decompresisone-2.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 32.76,
+      "nonAnnotatoSecondi": 32.76,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "decompresisone.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 55.05,
+      "nonAnnotatoSecondi": 55.05,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "decompressione-5.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 20.87,
+      "nonAnnotatoSecondi": 20.87,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "decompressione-7.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 19.39,
+      "nonAnnotatoSecondi": 19.39,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "decompressione-8.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 14.93,
+      "nonAnnotatoSecondi": 14.93,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "decompressione-9.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 20.87,
+      "nonAnnotatoSecondi": 20.87,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "pressurizzazione-2.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "pressurizzazione.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 55.05,
+      "nonAnnotatoSecondi": 55.05,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "pressurizzazione1.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 28.31,
+      "nonAnnotatoSecondi": 28.31,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-alto-0.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-alto-1.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-alto-2.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 75.86,
+      "nonAnnotatoSecondi": 75.86,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-alto-3.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 28.31,
+      "nonAnnotatoSecondi": 28.31,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-alto-4.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 41.68,
+      "nonAnnotatoSecondi": 41.68,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-profondo-1.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respiro-profondo.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "respirto-profondo-3.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    },
+    {
+      "file": "test-1.mp3",
+      "marcatoDa": null,
+      "marcatoIl": null,
+      "durataSecondi": 49.11,
+      "nonAnnotatoSecondi": 49.11,
+      "ambiguoSecondi": 0,
+      "perConfidenza": {},
+      "regioni": []
+    }
+  ],
+  "totaliPerConfidenza": {}
+}

@@ -62,14 +62,14 @@ type Boundary = {
   contrastSum: number
 }
 
-class MinimumHeap {
-  private readonly entries: QueueEntry[] = []
+class MinimumHeap<Entry extends { distance: number }> {
+  private readonly entries: Entry[] = []
 
   get length(): number {
     return this.entries.length
   }
 
-  push(entry: QueueEntry): void {
+  push(entry: Entry): void {
     const entries = this.entries
     let index = entries.length
     entries.push(entry)
@@ -82,7 +82,7 @@ class MinimumHeap {
     entries[index] = entry
   }
 
-  pop(): QueueEntry | undefined {
+  pop(): Entry | undefined {
     const entries = this.entries
     if (entries.length === 0) return undefined
     const first = entries[0]
@@ -251,7 +251,7 @@ function initialSnic(
     sumX: 0,
     sumY: 0,
   }))
-  const queue = new MinimumHeap()
+  const queue = new MinimumHeap<QueueEntry>()
   for (let cluster = 0; cluster < seeds.length; cluster++) {
     const pixel = seeds[cluster]
     bestDistance[pixel] = 0
@@ -369,40 +369,33 @@ function collectBoundaries(
   return [...boundaries.values()]
 }
 
-function boundaryScore(
-  boundary: Boundary,
-  regions: DisjointRegions,
-  edgeWeight: number,
-): number {
-  return regions.colorDistance(boundary.left, boundary.right) +
-    boundary.contrastSum / boundary.samples * edgeWeight
+type SharedBoundary = {
+  samples: number
+  contrastSum: number
 }
 
-function aggregateCurrentBoundaries(
-  boundaries: Boundary[],
-  regions: DisjointRegions,
-): Boundary[] {
-  const aggregated = new Map<string, Boundary>()
-  for (const boundary of boundaries) {
-    const first = regions.find(boundary.left)
-    const second = regions.find(boundary.right)
-    if (first === second) continue
-    const left = Math.min(first, second)
-    const right = Math.max(first, second)
-    const key = `${left}:${right}`
-    const current = aggregated.get(key) ?? {
-      left,
-      right,
-      samples: 0,
-      contrastSum: 0,
-    }
-    current.samples += boundary.samples
-    current.contrastSum += boundary.contrastSum
-    aggregated.set(key, current)
-  }
-  return [...aggregated.values()]
+type MergeCandidate = {
+  distance: number
+  left: number
+  right: number
+  leftVersion: number
+  rightVersion: number
 }
 
+/**
+ * Fusione gerarchica sul grafo di adiacenza delle regioni (PIANO-060).
+ *
+ * Si unisce sempre la coppia adiacente più economica e il grafo viene
+ * aggiornato dopo ogni unione. Il costo è di tipo Ward: la dissimilarità
+ * (distanza cromatica fra le medie più il contrasto medio lungo il confine) è
+ * pesata dalla media armonica delle aree. Così i frammenti piccoli vengono
+ * assorbiti per primi, mentre due regioni grandi separate da un contorno
+ * netto restano distinte fino all'ultimo: il budget di regioni consuma i
+ * dettagli prima dei contorni degli oggetti.
+ *
+ * Un'unione avviene se le regioni sono oltre il budget, se la coppia è
+ * cromaticamente affine o se la più piccola è sotto l'area minima.
+ */
 function mergeRegions(
   regions: RegionAccumulator[],
   boundaries: Boundary[],
@@ -410,74 +403,73 @@ function mergeRegions(
   options: BrainSnicOptions,
 ): DisjointRegions {
   const joined = new DisjointRegions(regions)
-  const ordered = [...boundaries].sort(
-    (left, right) => boundaryScore(left, joined, options.edgeWeight) -
-      boundaryScore(right, joined, options.edgeWeight),
-  )
-
-  // Passaggio percettivo: unisce soltanto regioni cromaticamente affini il cui
-  // confine non contiene un bordo forte. Le medie vengono aggiornate dopo ogni
-  // unione, quindi la decisione resta legata alla regione corrente.
-  for (const boundary of ordered) {
-    const left = joined.find(boundary.left)
-    const right = joined.find(boundary.right)
-    if (left === right) continue
-    const meanBoundaryContrast = boundary.contrastSum / boundary.samples
-    const colorDistance = joined.colorDistance(left, right)
-    if (
-      colorDistance <= options.mergeColorThreshold &&
-      meanBoundaryContrast <= options.strongEdgeThreshold
-    ) {
-      joined.merge(left, right)
-    }
+  const version = new Int32Array(regions.length)
+  const adjacency: Map<number, SharedBoundary>[] = regions.map(() => new Map())
+  for (const boundary of boundaries) {
+    const shared = { samples: boundary.samples, contrastSum: boundary.contrastSum }
+    adjacency[boundary.left].set(boundary.right, shared)
+    adjacency[boundary.right].set(boundary.left, shared)
   }
-
   const minimumArea = Math.max(4, pixelCount * options.minimumRegionAreaRatio)
-  // Passaggio di pulizia: le isole piccole vengono assorbite dal vicino meno
-  // distante, ma non attraversano un bordo eccezionalmente forte.
-  for (let pass = 0; pass < 2; pass++) {
-    const currentBoundaries = aggregateCurrentBoundaries(boundaries, joined).sort(
-      (left, right) => boundaryScore(left, joined, options.edgeWeight) -
-        boundaryScore(right, joined, options.edgeWeight),
-    )
-    for (const boundary of currentBoundaries) {
-      const left = joined.find(boundary.left)
-      const right = joined.find(boundary.right)
-      if (left === right) continue
-      const smaller = Math.min(joined.area[left], joined.area[right])
-      const contrast = boundary.contrastSum / boundary.samples
-      if (
-        smaller < minimumArea &&
-        contrast <= options.strongEdgeThreshold * 1.6 &&
-        joined.colorDistance(left, right) <= options.mergeColorThreshold * 1.8
-      ) {
-        joined.merge(left, right)
-      }
-    }
+  const dissimilarity = (left: number, right: number, shared: SharedBoundary): number =>
+    joined.colorDistance(left, right) +
+    shared.contrastSum / Math.max(1, shared.samples) * options.edgeWeight
+  const queue = new MinimumHeap<MergeCandidate>()
+  const enqueue = (left: number, right: number): void => {
+    const shared = adjacency[left].get(right)
+    if (!shared) return
+    const leftArea = joined.area[left]
+    const rightArea = joined.area[right]
+    const difference = dissimilarity(left, right, shared)
+    queue.push({
+      distance: leftArea * rightArea / (leftArea + rightArea) * difference * difference,
+      left,
+      right,
+      leftVersion: version[left],
+      rightVersion: version[right],
+    })
   }
+  for (const boundary of boundaries) enqueue(boundary.left, boundary.right)
 
-  // Budget deterministico: riduce le regioni meno importanti scegliendo sempre
-  // il confine percettivamente più economico. Non aumenta mai segmenti o punti.
-  for (let pass = 0; pass < 4 && joined.count > options.maximumRegions; pass++) {
-    let changed = false
-    const dynamic = aggregateCurrentBoundaries(boundaries, joined).sort(
-      (left, right) => boundaryScore(left, joined, options.edgeWeight) -
-        boundaryScore(right, joined, options.edgeWeight),
-    )
-    for (const boundary of dynamic) {
-      if (joined.count <= options.maximumRegions) break
-      const left = joined.find(boundary.left)
-      const right = joined.find(boundary.right)
-      if (left === right) continue
-      const contrast = boundary.contrastSum / boundary.samples
-      // Il budget non ha il diritto di cancellare una silhouette nettissima.
-      // Se restano troppe regioni oltre questo limite, il controllo qualità può
-      // usare il fallback senza degradare deliberatamente il contorno.
-      if (contrast > options.strongEdgeThreshold * (1.2 + pass * 0.55)) continue
-      joined.merge(left, right)
-      changed = true
+  while (queue.length > 0) {
+    const candidate = queue.pop()
+    if (!candidate) break
+    const { left, right } = candidate
+    if (
+      joined.parent[left] !== left ||
+      joined.parent[right] !== right ||
+      version[left] !== candidate.leftVersion ||
+      version[right] !== candidate.rightVersion
+    ) {
+      continue
     }
-    if (!changed) continue
+    const shared = adjacency[left].get(right)
+    if (!shared) continue
+    const mustMerge =
+      joined.count > options.maximumRegions ||
+      dissimilarity(left, right, shared) <= options.mergeColorThreshold ||
+      Math.min(joined.area[left], joined.area[right]) < minimumArea
+    if (!mustMerge) continue
+
+    const root = joined.merge(left, right)
+    const absorbed = root === left ? right : left
+    adjacency[root].delete(absorbed)
+    for (const [neighbor, boundary] of adjacency[absorbed]) {
+      if (neighbor === root) continue
+      adjacency[neighbor].delete(absorbed)
+      const existing = adjacency[root].get(neighbor)
+      const combined = existing
+        ? {
+            samples: existing.samples + boundary.samples,
+            contrastSum: existing.contrastSum + boundary.contrastSum,
+          }
+        : { ...boundary }
+      adjacency[root].set(neighbor, combined)
+      adjacency[neighbor].set(root, combined)
+    }
+    adjacency[absorbed].clear()
+    version[root] += 1
+    for (const neighbor of adjacency[root].keys()) enqueue(root, neighbor)
   }
   return joined
 }
