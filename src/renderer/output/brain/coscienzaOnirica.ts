@@ -1066,7 +1066,10 @@ export class CoscienzaOnirica {
       ? [
           'This is the periodic synthesis of everything Brain has understood in this session.',
           'Transform the session memo into one new concrete story, not a summary or a list.',
-          'The title must be exactly: Questo sogno',
+          // Niente «The title must be exactly: Questo sogno» (tolto 2026-11-06):
+          // Qwen ricopiava le parole italiane nella storia, nelle scene e nel
+          // prompt dell'immagine. Il titolo lo imposta il codice dopo la
+          // generazione (`story.title = 'Questo sogno'`).
           `SESSION MEMO:\n${(options.sessionMemo ?? []).map((sentence) => `- ${sentence}`).join('\n')}`,
         ].join('\n')
       : 'This is an ordinary new dream in the session.'

@@ -474,7 +474,8 @@ describe('CoscienzaOnirica', () => {
 
     expect(story.title).toBe('Questo sogno')
     expect(story.sessionSynthesis).toBe(true)
-    expect(prompts[0]).toContain('The title must be exactly: Questo sogno')
+    // Le parole italiane non vanno più a Qwen: le ricopiava nella storia.
+    expect(prompts[0]).not.toContain('Questo sogno')
     expect(prompts[0]).toContain(memo[1])
   })
 

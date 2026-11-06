@@ -67,6 +67,11 @@ import {
   prepareAnimatronixRaster,
   type AnimatronixRasterPrep,
 } from './brainAnimatronixStage'
+import {
+  createStoryConstellationStage,
+  prepareConstellationRaster,
+  type ConstellationRaster,
+} from './brainStoryConstellationStage'
 import { createDefaultBrainRendererRegistry } from './brainRendererRegistry'
 import { createBrainRendererHost } from './brainRendererHost'
 import { BrainOfflineGenerationWindow } from './brainOfflineWindow'
@@ -569,6 +574,7 @@ export function createBrainController(
   )
   container.appendChild(root)
   const animatronixStage = createAnimatronixStage(root)
+  const constellationStage = createStoryConstellationStage(root)
   const consciousnessMotionLayer = createBrainConsciousnessMotionLayer(root)
   const unsubscribeProcessMonitor = subscribeBrainLog((entry) => {
     processHeader.textContent =
@@ -1009,6 +1015,28 @@ export function createBrainController(
   let animatronixLastNow: number | null = null
   let animatronixCursor: number | undefined
   let animatronixAvoidHighSalience: AnimatronixGrammar[] = []
+  // STORY CONSTELLATION (PIANO-061): giri fra una storia e l'altra e
+  // all'avvio, prima che esista un raster.
+  let constellationRunning = false
+  let constellationBoot = false
+  // Raster della soglia: ultima immagine della storia che si chiude (uscita)
+  // e prima immagine della storia pronta (ingresso).
+  let constellationClosing: { storyId: string; raster: ConstellationRaster | null } | null = null
+  let constellationClosingPreparingId: string | null = null
+  let constellationTargetStoryId: string | null = null
+  let constellationGpuHold = false
+  // Flusso dei neuroni (disp. Capo Supremo 2026-11-06): senza storie pronte
+  // si entra in un vecchio neurone (Riattivazione); appena una storia nuova
+  // ha due immagini pronte si esce e si entra nel suo nodo, dove si resta
+  // finché la storia non è completa.
+  let constellationEntryKind: 'new' | 'old' | null = null
+  // Storia nuova con almeno due immagini pronte, ancora in generazione.
+  let progressiveCandidate: BrainProduction | null = null
+  let constellationUnavailable = false
+  let constellationHandledStoryId: string | null = null
+  // Prima storia pronta durante un giro d'avvio: parte alla fine del giro.
+  let constellationPendingProduction: BrainProduction | null = null
+  let constellationLastNow: number | null = null
   let consciousnessMotionPausedAt: number | null = null
   const consciousnessMotionMemoryIds = new Set<string>()
   const consciousnessMotionStoryIds = new Set<string>()
@@ -1473,7 +1501,12 @@ export function createBrainController(
     currentSvg.setMorphPattern(currentFrameMorphPattern)
     currentSvg.setOpacity(hadVisibleFrame ? 0 : 1)
     frameIndex = index
-    frameStartedAt = performance.now()
+    // Un fotogramma che parte in silenzio (o durante un moto di coscienza)
+    // comincia dall'istante in cui la timeline è ferma: alla ripresa la
+    // compensazione aggiunge solo la pausa vissuta da lui. Prima contava
+    // anche il silenzio precedente al suo inizio (log 2026-11-06: primo
+    // fotogramma fermo 2 min e 20 s invece di 14 s).
+    frameStartedAt = consciousnessMotionPausedAt ?? silenceStartedAt ?? performance.now()
     if (synchronizedRaster) {
       sendRasterColorsToLights(
         synchronizedRaster,
@@ -1818,6 +1851,28 @@ export function createBrainController(
     return true
   }
 
+  // All'avvio la prima storia non interrompe il giro di costellazione in
+  // corso: parte quando il giro finisce (durata 5/15/25 s).
+  const startOrDeferFirstProduction = (production: BrainProduction) => {
+    if (constellationRunning && constellationBoot) {
+      if (
+        constellationPendingProduction &&
+        constellationPendingProduction.story.id !== production.story.id
+      ) {
+        nextProduction ??= production
+        return
+      }
+      if (!constellationPendingProduction) {
+        brainLog('constellation', 'prima storia pronta; parte alla fine del giro', {
+          storyId: production.story.id,
+        })
+      }
+      constellationPendingProduction = production
+      return
+    }
+    startProduction(production)
+  }
+
   const advanceToNextProduction = (
     readyNextProduction: BrainProduction,
     beatDurationMs: number,
@@ -2124,8 +2179,14 @@ export function createBrainController(
     // (log reali 2026-09-23/24: story-LLM e denoising SD partivano DENTRO la
     // fase e la facevano laggare). Riprende dal confine di storia successivo.
     if (
-      destroyed || generating || nextProduction || revisionCycleActive ||
-      animatronixRunning
+      destroyed || generating || nextProduction ||
+      // Nel vecchio neurone (Riattivazione dentro STORY CONSTELLATION) la
+      // generazione continua: si resta lì finché la storia nuova è pronta.
+      (revisionCycleActive && !constellationFlowEnabled()) ||
+      animatronixRunning ||
+      // STORY CONSTELLATION con una storia già pronta: la GPU resta alla
+      // navigazione (i fermi del denoising erano gli scatti, log 2026-11-06).
+      (constellationRunning && (constellationPendingProduction !== null || nextProduction !== null))
     ) return
     const cooldownRemainingMs =
       nextGenerationAllowedAt - performance.now()
@@ -2221,10 +2282,11 @@ export function createBrainController(
                 }
               }),
             }
+            progressiveCandidate = progressiveProduction
             const startRenderingImmediately =
               shouldActivateProgressiveImageBuffer(Boolean(currentProduction))
             if (startRenderingImmediately) {
-              startProduction(progressiveProduction)
+              startOrDeferFirstProduction(progressiveProduction)
             }
             brainLog('pipeline', 'refill progressivo preparato dopo due fotogrammi AI', {
               storyId: story.id,
@@ -2306,8 +2368,9 @@ export function createBrainController(
         rendererMode,
         hardDeadlineMs: BRAIN_CONFIG.nextStoryHardDeadlineMs,
       })
+      if (progressiveCandidate?.story.id === story.id) progressiveCandidate = null
       if (!currentProduction) {
-        startProduction(production)
+        startOrDeferFirstProduction(production)
       } else if (currentProduction.story.id === story.id) {
         currentProduction.scenes = scenes
       } else {
@@ -2516,6 +2579,135 @@ export function createBrainController(
     return true
   }
 
+  const constellationRasterBlob = (production: BrainProduction, which: 'first' | 'last') => {
+    const frames = production.story.frames
+    const frame = which === 'first' ? frames[0] : frames[frames.length - 1]
+    if (!frame) return production.scenes[0]?.raster
+    return (
+      production.scenes.find((scene) => scene.frameId === frame.id)?.raster ??
+      rasterPreviewBlobs.get(`${production.story.id}:${frame.id}`)
+    )
+  }
+
+  const prepareConstellationClosing = async (production: BrainProduction) => {
+    const storyId = production.story.id
+    if (
+      latestPayload?.settings?.storyConstellationEnabled !== true ||
+      storyId.startsWith('revision:') ||
+      constellationClosingPreparingId === storyId
+    ) {
+      return
+    }
+    constellationClosingPreparingId = storyId
+    const raster = await prepareConstellationRaster(constellationRasterBlob(production, 'last'))
+    if (destroyed) {
+      raster?.bitmap.close()
+      return
+    }
+    constellationClosing?.raster?.bitmap.close()
+    constellationClosing = { storyId, raster }
+  }
+
+  const beginConstellationIfEnabled = (production: BrainProduction): boolean => {
+    const storyId = production.story.id
+    if (
+      latestPayload?.settings?.storyConstellationEnabled !== true ||
+      constellationUnavailable ||
+      storyId.startsWith('revision:') ||
+      constellationHandledStoryId === storyId
+    ) {
+      return false
+    }
+    constellationHandledStoryId = storyId
+    constellationEntryKind = null
+    const closingRaster =
+      constellationClosing?.storyId === storyId ? constellationClosing.raster : null
+    if (constellationClosing?.storyId === storyId) constellationClosing = null
+    constellationTargetStoryId = null
+    if (!constellationStage.start({ closedStoryId: storyId, closingRaster })) {
+      constellationUnavailable = true
+      brainWarn('constellation', 'WebGL non disponibile; STORY CONSTELLATION saltata', { storyId })
+      return false
+    }
+    constellationRunning = true
+    constellationBoot = false
+    brainLog('constellation', 'uscita dalla storia nella costellazione', {
+      storyId,
+      closingRaster: closingRaster !== null,
+      nextStoryReady: nextProduction !== null,
+    })
+    // Si cercano altre storie: la generazione deve andare avanti.
+    if (!generating && !nextProduction) window.setTimeout(() => void generateNext(), 0)
+    return true
+  }
+
+  const startBootConstellation = () => {
+    constellationTargetStoryId = null
+    if (!constellationStage.start({ closedStoryId: null, closingRaster: null })) {
+      constellationUnavailable = true
+      constellationRunning = false
+      constellationBoot = false
+      brainWarn('constellation', 'WebGL non disponibile; STORY CONSTELLATION saltata all\'avvio')
+      return
+    }
+    constellationRunning = true
+    constellationBoot = true
+    brainLog('constellation', 'STORY CONSTELLATION all\'avvio, senza raster')
+  }
+
+  const constellationFlowEnabled = () =>
+    latestPayload?.settings?.storyConstellationEnabled === true && !constellationUnavailable
+
+  // Storia in cui entrare: completa, oppure in generazione con almeno due
+  // immagini pronte. Mai quella già in onda.
+  const readyEntryProduction = (): BrainProduction | null => {
+    if (constellationBoot) return constellationPendingProduction
+    if (nextProduction) return nextProduction
+    if (progressiveCandidate && progressiveCandidate.story.id !== currentProduction?.story.id) {
+      return progressiveCandidate
+    }
+    return null
+  }
+
+  // Uscita dal vecchio neurone (Riattivazione o ricircolo) verso la storia
+  // nuova: la Riattivazione si chiude, l'immagine a schermo diventa la
+  // soglia d'uscita, poi la camera cerca il nodo della storia nuova.
+  const leaveOldNeuron = () => {
+    if (!currentProduction) return
+    if (revisionCycleActive) {
+      revisionCycleActive = false
+      root.dataset.revisionCycleActive = 'false'
+      setBrainRevisionBoost(false)
+      rasterMonitor.style.transition = 'opacity 600ms ease'
+      rasterMonitor.style.opacity = '0.546'
+      pendingProductionAfterRevisionCycle = null
+    }
+    recyclingStoryFrames = false
+    const leaving = currentProduction
+    const blob =
+      leaving.scenes[frameIndex]?.raster ??
+      rasterPreviewBlobs.get(`${leaving.story.id}:${leaving.story.frames[frameIndex]?.id}`)
+    constellationRunning = true
+    constellationBoot = false
+    constellationTargetStoryId = null
+    constellationEntryKind = null
+    brainLog('constellation', 'storia nuova pronta; esco dal vecchio neurone', {
+      fromStoryId: leaving.story.id,
+    })
+    void prepareConstellationRaster(blob).then((raster) => {
+      if (destroyed) {
+        raster?.bitmap.close()
+        return
+      }
+      if (!constellationStage.start({ closedStoryId: leaving.story.id, closingRaster: raster })) {
+        constellationUnavailable = true
+        constellationRunning = false
+        const ready = readyEntryProduction()
+        if (ready) startProduction(ready)
+      }
+    })
+  }
+
   const advanceTimeline = (
     now: number,
     rhythmActive: boolean,
@@ -2525,6 +2717,17 @@ export function createBrainController(
     beatIndex: number,
   ) => {
     if (!currentProduction) return
+    if (constellationRunning) return
+    if (
+      constellationFlowEnabled() &&
+      (recyclingStoryFrames || revisionCycleActive) &&
+      !animatronixRunning &&
+      !animatronixStage.isBusy() &&
+      readyEntryProduction()
+    ) {
+      leaveOldNeuron()
+      return
+    }
     // Storia pronta mentre si ricicla in attesa: si parte SUBITO dal primo
     // fotogramma, senza aspettare la fine del fotogramma ricircolato né un
     // beat (disp. Capo Supremo, 2026-09-24) — salvo ANIMATRONIX, che non si
@@ -2654,10 +2857,25 @@ export function createBrainController(
       applyFrame(frameIndex + 1, beatDurationMs, beatIndex)
       if (frameIndex === currentProduction.story.frames.length - 1) {
         void prepareAnimatronix(currentProduction)
+        void prepareConstellationClosing(currentProduction)
       }
       if (!generating && !nextProduction) {
         window.setTimeout(() => void generateNext(), 0)
       }
+      return
+    }
+    // Dentro il neurone di una storia ancora in generazione si resta fino a
+    // storia completa: si ricomincia dal suo primo fotogramma, che intanto
+    // si riempie delle immagini nuove.
+    if (
+      constellationFlowEnabled() &&
+      generating &&
+      progressiveCandidate?.story.id === currentProduction.story.id
+    ) {
+      brainLog('constellation', 'storia ancora in generazione; resto nel suo neurone', {
+        storyId: currentProduction.story.id,
+      })
+      applyFrame(0, beatDurationMs, beatIndex)
       return
     }
     // La terna appartiene al confine della storia, quindi viene fissata prima
@@ -2697,6 +2915,7 @@ export function createBrainController(
     }
     animatronixWaitStartedAt = null
     if (beginAnimatronixIfEnabled(currentProduction)) return
+    if (beginConstellationIfEnabled(currentProduction)) return
     completeStoryBoundary(beatDurationMs, beatIndex)
   }
 
@@ -2734,6 +2953,7 @@ export function createBrainController(
       // (disp. Capo Supremo, 2026-09-22).
       !animatronixRunning &&
         !animatronixStage.isBusy() &&
+        !constellationStage.isBusy() &&
         !revisionCycleActive &&
         performance.now() >= animatronixQuietUntil,
     )
@@ -2781,8 +3001,140 @@ export function createBrainController(
         animatronixQuietUntil = performance.now() + 6_000
         thermalScheduler.setInferenceHold(false)
         brainLog('animatronix', 'fase ANIMATRONIX conclusa; riprende il confine di storia')
-        completeStoryBoundary(rhythm.beatDurationMs, rhythm.beatIndex)
+        // STORIA → ANIMATRONIX → STORY CONSTELLATION → STORIA (brief §40).
+        if (!currentProduction || !beginConstellationIfEnabled(currentProduction)) {
+          completeStoryBoundary(rhythm.beatDurationMs, rhythm.beatIndex)
+        }
       }
+    }
+    const constellationEnabled =
+      latestPayload?.settings?.storyConstellationEnabled === true && !constellationUnavailable
+    if (
+      constellationEnabled &&
+      !currentProduction &&
+      !constellationStage.isBusy() &&
+      !constellationPendingProduction
+    ) {
+      startBootConstellation()
+    }
+    // GPU libera per la costellazione quando la storia in cui entrare è già
+    // pronta: nessuna nuova inferenza parte finché non si entra nel nodo.
+    // Se invece la storia si sta ancora generando, la generazione continua
+    // (senza di essa non ci sarebbe un nodo in cui entrare).
+    const constellationNeedsGpu =
+      constellationRunning &&
+      (constellationBoot ? constellationPendingProduction !== null : nextProduction !== null)
+    if (constellationNeedsGpu !== constellationGpuHold) {
+      constellationGpuHold = constellationNeedsGpu
+      if (!animatronixRunning) thermalScheduler.setInferenceHold(constellationNeedsGpu)
+      if (!constellationNeedsGpu && !generating && !nextProduction && currentProduction) {
+        window.setTimeout(() => void generateNext(), 0)
+      }
+    }
+    if (constellationStage.isBusy()) {
+      // Storia pronta: il suo nodo diventa il target, con la prima immagine
+      // come materia della soglia d'ingresso.
+      const candidate = constellationRunning ? readyEntryProduction() : null
+      if (candidate && constellationTargetStoryId !== candidate.story.id) {
+        const targetId = candidate.story.id
+        constellationTargetStoryId = targetId
+        void prepareConstellationRaster(constellationRasterBlob(candidate, 'first')).then((raster) => {
+          if (destroyed || constellationTargetStoryId !== targetId) {
+            raster?.bitmap.close()
+            return
+          }
+          if (constellationStage.setTarget(targetId, raster)) {
+            constellationEntryKind = 'new'
+            brainLog('constellation', 'storia pronta; la camera cerca il suo nodo', {
+              storyId: targetId,
+              raster: raster !== null,
+            })
+          }
+        })
+      } else if (
+        !candidate &&
+        constellationRunning &&
+        !constellationBoot &&
+        currentProduction &&
+        constellationEntryKind === null &&
+        constellationTargetStoryId === null &&
+        constellationStage.awaitingTarget()
+      ) {
+        // Giro finito, nessuna storia pronta: si entra in un vecchio neurone,
+        // quello della storia appena vissuta, e lì gira la Riattivazione.
+        const old = currentProduction
+        const oldKey = old.story.id
+        constellationTargetStoryId = `old:${oldKey}`
+        void prepareConstellationRaster(constellationRasterBlob(old, 'first')).then((raster) => {
+          if (destroyed || constellationTargetStoryId !== `old:${oldKey}`) {
+            raster?.bitmap.close()
+            return
+          }
+          if (constellationStage.setTarget(oldKey, raster, { revisit: true })) {
+            constellationEntryKind = 'old'
+            brainLog('constellation', 'nessuna storia pronta; entro in un vecchio neurone', {
+              storyId: oldKey,
+            })
+          }
+        })
+      }
+      const dt = constellationLastNow === null
+        ? 0
+        : Math.min(100, Math.max(0, now - constellationLastNow))
+      constellationLastNow = now
+      const rawEnergy = (bands.low + bands.lowMid + bands.mid + bands.high) / 4
+      const sensitivityScale = latestPayload?.settings
+        ? brainPresetMotionTuning(latestPayload.settings).movementScale
+        : 1
+      const perception = options.bioPerceptionSource?.()
+      const event = constellationStage.update(dt, now, {
+        rhythm,
+        energy: rawEnergy * sensitivityScale,
+        regime: perception?.regime ?? 'unresolved',
+        perceptualPressure: perception?.signals.perceptualPressure ?? 0,
+        motionProfile: latestPayload?.settings?.motionProfile,
+        lowPowerMode: latestPayload?.settings?.lowPowerMode === true,
+      })
+      if (event === 'entered' && constellationRunning) {
+        constellationRunning = false
+        constellationTargetStoryId = null
+        if (constellationBoot) {
+          constellationBoot = false
+          const pending = constellationPendingProduction
+          constellationPendingProduction = null
+          brainLog('constellation', 'entrata nel nodo; parte la prima storia', {
+            storyId: pending?.story.id ?? null,
+          })
+          if (pending) startProduction(pending, rhythm.beatDurationMs, rhythm.beatIndex)
+        } else if (constellationEntryKind === 'old') {
+          constellationEntryKind = null
+          brainLog('constellation', 'dentro il vecchio neurone; Riattivazione')
+          completeStoryBoundary(rhythm.beatDurationMs, rhythm.beatIndex)
+          if (!generating && !nextProduction) window.setTimeout(() => void generateNext(), 0)
+        } else {
+          constellationEntryKind = null
+          const entry = readyEntryProduction()
+          brainLog('constellation', 'entrata nel nodo; parte la storia', {
+            storyId: entry?.story.id ?? null,
+            complete: entry !== null && entry === nextProduction,
+          })
+          if (entry) {
+            fastEntryPending = true
+            startProduction(entry, rhythm.beatDurationMs, rhythm.beatIndex)
+          } else {
+            completeStoryBoundary(rhythm.beatDurationMs, rhythm.beatIndex)
+          }
+          // Dentro il nodo c'è già la storia nuova: l'immagine della storia
+          // chiusa non deve riaffiorare sotto la dissolvenza.
+          if (outgoingSvg) {
+            outgoingSvg.destroy()
+            outgoingSvg = null
+            transitionCounterpartShapes = []
+          }
+        }
+      }
+    } else {
+      constellationLastNow = null
     }
     if (!motionState.active) {
       advanceTimeline(
@@ -2817,6 +3169,7 @@ export function createBrainController(
     // vedrebbe ma costerebbe GPU: spento finché la fase copre lo schermo.
     const resourcePressureActive =
       !animatronixStage.isBusy() &&
+      !constellationStage.isBusy() &&
       (imageInferenceActive || now < visualPressurePulseUntil)
     currentSvg?.setResourcePressure?.(resourcePressureActive)
     outgoingSvg?.setResourcePressure?.(resourcePressureActive)
@@ -2881,7 +3234,7 @@ export function createBrainController(
     // Mentre ANIMATRONIX copre lo schermo i renderer sotto restano fermi e
     // nascosti: la GPU serve solo allo shader della fase (disp. Capo
     // Supremo 2026-09-24: "animatronix deve avere risorse").
-    const covering = animatronixStage.isCovering()
+    const covering = animatronixStage.isCovering() || constellationStage.isCovering()
     if (covering !== animatronixCovering) {
       animatronixCovering = covering
       const visibility = covering ? 'hidden' : ''
@@ -2927,6 +3280,8 @@ export function createBrainController(
       const previousRendererMode = latestPayload?.settings?.brainRendererMode
       latestPayload = payload
       setBrainImageGenerationSettings(payload.settings)
+      // Pannello «buffer grezzo» a destra: solo se attivato dal pannello.
+      rasterMonitor.style.display = payload.settings?.showRawBufferMonitor === true ? '' : 'none'
       const rendererMode = payload.settings?.brainRendererMode ?? 'manual'
       if (
         currentProduction &&
@@ -2975,6 +3330,7 @@ export function createBrainController(
       psychedel.destroy()
       consciousnessMotionLayer.destroy()
       animatronixStage.destroy()
+      constellationStage.destroy()
       currentSvg?.destroy()
       outgoingSvg?.destroy()
       transitionCounterpartShapes = []

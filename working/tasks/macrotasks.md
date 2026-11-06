@@ -108,6 +108,15 @@ Questo file traccia le macro-funzionalità ed i moduli principali del progetto *
 
 ## 🟡 Macrotask In Corso (Attivi)
 
+### `MACRO-046`: STORY CONSTELLATION
+- **Descrizione**: rete 3D di nodi-storia (Three.js, baseline
+  `webgl_buffergeometry_drawrange`) fra una storia e l'altra e all'avvio;
+  colori e pulse a ritmo, poi target, navigazione camera, apertura e ritorno.
+- **Stato**: 🟡 IN PROGRESS — fase 1 (colori e pulse) implementata, collaudo
+  a schermo da eseguire.
+- **Brief**: `team/briefs/brief-story-constellation-2026-11-06.md`
+- **Piano di Lavoro**: `working/plans/piano-061-story-constellation.md`
+
 ### `MACRO-036`: Contesto delle quattro immagini
 - **Stato**: IN PROGRESS — pipeline Visual Plan/invariante/qualità per fase
   reintegrata (PIANO-046); collaudo visivo reale sui raster e confronto

@@ -31,6 +31,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   useBrain: false,
   alternateBrainWithMorphing: false,
   animatronixEnabled: false,
+  storyConstellationEnabled: false,
+  showRawBufferMonitor: false,
   brainRendererId: 'print2d',
   brainRendererMode: 'manual',
   brainRendererRotationMs: 30_000,

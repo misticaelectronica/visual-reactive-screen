@@ -1,5 +1,17 @@
 # Registro Dettagliato dei Task (`tasks-registry.md`)
 
+## PIANO-061 — STORY CONSTELLATION (2026-11-06)
+
+- [x] **TASK-061-01 [DONE]**: Three.js, deroga Camera in `agents.md`.
+- [x] **TASK-061-02 [DONE]**: nodi, deriva, connessioni, pulse gerarchico,
+  metabolismo cromatico, memoria fuori istanza; 14 test.
+- [x] **TASK-061-03 [DONE]**: stage Three.js, aggancio al confine di storia
+  e all'avvio, giri di 5/15/25 s, interruttore nel pannello.
+- [ ] **TASK-061-04 [TODO]**: collaudo a schermo (Test A, B, C).
+- [x] **TASK-061-05 [DONE]**: target e navigazione camera (fase 2).
+- [x] **TASK-061-06 [DONE]**: ingresso nodo → storia e uscita lungo la stessa
+  soglia (fasi 3–4).
+
 ## PIANO-059 — Diagnostica della decompressione experimental (2026-11-06)
 
 - [x] **TASK-059-01 [DONE]**: schema marcature, libreria di replay,
